@@ -131,16 +131,21 @@ class ReportController extends AbstractController
 
             $data = $request->request->all();
             
-            // Update columns
+            // Update columns. Aliases become DQL result identifiers — only
+            // plain identifier shapes are stored; the engine regenerates
+            // anything else server-side.
             if (isset($data['columns'])) {
+                $validColumnFields = array_keys($fields);
                 $columns = [];
                 foreach ($data['columns'] as $col) {
-                    if (!empty($col['field'])) {
-                        $column = ['field' => $col['field']];
+                    $field = (string) ($col['field'] ?? '');
+                    if ($field !== '' && in_array($field, $validColumnFields, true)) {
+                        $column = ['field' => $field];
                         if (!empty($col['aggregation'])) {
                             $column['aggregation'] = $col['aggregation'];
                         }
-                        if (!empty($col['alias'])) {
+                        if (!empty($col['alias']) && is_string($col['alias'])
+                            && preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $col['alias'])) {
                             $column['alias'] = $col['alias'];
                         }
                         $columns[] = $column;
@@ -149,14 +154,25 @@ class ReportController extends AbstractController
                 $report->setColumns($columns);
             }
             
-            // Update filters
+            // Update filters. Field + operator are validated against the
+            // SAME whitelist the engine enforces at execution time — invalid
+            // rows are dropped at save time instead of silently skipped later.
             if (isset($data['filters'])) {
+                $validFields = array_keys($fields);
+                $validOperators = [
+                    'equals', 'not_equals', 'contains', 'not_contains', 'starts_with',
+                    'ends_with', 'greater_than', 'less_than', 'greater_or_equal',
+                    'less_or_equal', 'is_null', 'is_not_null', 'in', 'not_in', 'between',
+                ];
                 $filters = [];
                 foreach ($data['filters'] as $filter) {
-                    if (!empty($filter['field']) && !empty($filter['operator'])) {
+                    $field = (string) ($filter['field'] ?? '');
+                    $operator = (string) ($filter['operator'] ?? '');
+                    if ($field !== '' && in_array($field, $validFields, true)
+                        && in_array($operator, $validOperators, true)) {
                         $filters[] = [
-                            'field' => $filter['field'],
-                            'operator' => $filter['operator'],
+                            'field' => $field,
+                            'operator' => $operator,
                             'value' => $filter['value'] ?? null,
                         ];
                     }
@@ -169,14 +185,17 @@ class ReportController extends AbstractController
                 $report->setGroupBy(array_filter($data['groupBy']));
             }
             
-            // Update order by
+            // Update order by — direction normalized to ASC|DESC only.
             if (isset($data['orderBy'])) {
+                $validFields = array_keys($fields);
                 $orderBy = [];
                 foreach ($data['orderBy'] as $order) {
-                    if (!empty($order['field'])) {
+                    $field = (string) ($order['field'] ?? '');
+                    if ($field !== '' && in_array($field, $validFields, true)) {
+                        $direction = strtoupper((string) ($order['direction'] ?? 'ASC'));
                         $orderBy[] = [
-                            'field' => $order['field'],
-                            'direction' => $order['direction'] ?? 'ASC',
+                            'field' => $field,
+                            'direction' => in_array($direction, ['ASC', 'DESC'], true) ? $direction : 'ASC',
                         ];
                     }
                 }
@@ -193,7 +212,13 @@ class ReportController extends AbstractController
                 $report->setDateRangePreset($data['dateRangePreset'] ?: null);
             }
             if (isset($data['dateField'])) {
-                $report->setDateField($data['dateField'] ?: null);
+                // Date-range anchors must be whitelisted date/datetime fields.
+                $dateField = (string) $data['dateField'];
+                $report->setDateField(
+                    $dateField !== '' && $this->reportBuilder->isValidDateField($dateField, $report->getDataSource())
+                        ? $dateField
+                        : null
+                );
             }
             if (isset($data['recordLimit'])) {
                 $report->setRecordLimit($data['recordLimit'] ? (int) $data['recordLimit'] : null);
@@ -208,18 +233,41 @@ class ReportController extends AbstractController
             $this->addFlash('success', 'Report configuration saved.');
         }
         
-        // Get preview data
+        // Get preview data (rows normalized for template rendering —
+        // DateTime objects and arrays are stringified server-side).
         $previewResults = $this->reportBuilder->executeReport($report);
+        if (!empty($previewResults['success']) && !empty($previewResults['data'])) {
+            $previewResults['data'] = array_map(
+                fn (array $row) => array_map(
+                    static fn ($value) => match (true) {
+                        $value instanceof \DateTimeInterface => $value->format('Y-m-d H:i'),
+                        is_array($value) => json_encode($value),
+                        is_bool($value) => $value ? 'Yes' : 'No',
+                        default => $value,
+                    },
+                    $row
+                ),
+                $previewResults['data']
+            );
+        }
         $chartData = null;
         if ($report->isChartReport() && $previewResults['success']) {
             $chartData = $this->reportBuilder->formatForChart($previewResults['data'], $report);
         }
         
+        // Semantic filter controls: operators per field type (date → date
+        // comparison ops, boolean → yes/no, numeric → no free text).
+        $operatorsByType = [];
+        foreach (['string', 'integer', 'decimal', 'datetime', 'boolean'] as $type) {
+            $operatorsByType[$type] = $this->reportBuilder->getOperatorsForFieldType($type);
+        }
+
         return $this->render('report/builder.html.twig', [
             'report' => $report,
             'fields' => $fields,
             'availableFields' => $availableFields,
             'aggregations' => ReportDefinition::getAggregationTypes(),
+            'operatorsByType' => $operatorsByType,
             'dateRangePresets' => ReportDefinition::getDateRangePresets(),
             'previewResults' => $previewResults,
             'chartData' => $chartData,
@@ -365,10 +413,15 @@ class ReportController extends AbstractController
             return new JsonResponse(['error' => 'Data source is required'], 400);
         }
 
-        $dataSource = $data['dataSource'];
-        $allowedSources = ['leads', 'companies', 'contacts', 'quotes', 'activities', 'rfqs'];
-        if (!in_array($dataSource, $allowedSources, true)) {
-            return new JsonResponse(['error' => 'Invalid data source'], 400);
+        $dataSource = (string) $data['dataSource'];
+        // THE canonical source list (ReportBuilderService::ENTITY_MAP) — the
+        // previous plural alias list accepted sources the engine then
+        // rejected, and 'activities' which was never a source at all.
+        if (!$this->reportBuilder->supportsDataSource($dataSource)) {
+            return new JsonResponse([
+                'error' => 'Invalid data source',
+                'supported' => array_keys(ReportDefinition::getDataSources()),
+            ], 400);
         }
         
         // Create temporary report definition

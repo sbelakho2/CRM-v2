@@ -7,7 +7,7 @@
     <div class="rams-page-header">
         <div class="rams-page__header-content">
             <h1 class="rams-page__title">
-                 <svg class="rams-icon rams-icon--lg rams-mr-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                 <svg class="rams-icon rams-icon--lg rams-mr-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path d="M3 13V7M7 13V4M11 13V9M15 13V2"/>
                  </svg>
                  {{ report.name }}
@@ -23,7 +23,7 @@
         <div class="rams-page-header__actions">
              <a href="{{ path('report_index') }}" class="rams-btn">{{ 'report.back'|trans }}</a>
              <a href="{{ path('report_builder', {'id': report.id}) }}" class="rams-btn">
-                <svg class="rams-icon rams-mr-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <svg class="rams-icon rams-mr-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path d="M8 2L10 6L14 8L10 10L8 14L6 10L2 8L6 6L8 2Z"/>
                 </svg>
                 {{ 'report.config_builder'|trans }}
@@ -59,7 +59,7 @@
                 <h2>{{ 'report.visualization'|trans }}</h2>
             </div>
             <div class="rams-module__content">
-                <div style="height: 400px; width: 100%;">
+                <div class="rams-chart-area">
                     <canvas id="reportChart"></canvas>
                 </div>
             </div>
@@ -71,7 +71,7 @@
             <div class="rams-module__header">
                 <h3>{{ 'report.data_records'|trans }} ({{ results|length }})</h3>
                 <div class="rams-module__header__actions">
-                     <a href="{{ path('report_export', {'id': report.id, 'format': 'csv'}) }}" class="rams-btn rams-btn--sm"> <svg class="rams-icon rams-mr-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"> <path d="M8 2v10M4 6l4-4 4 4M2 14h12"/> </svg> {{   'report.export_csv'|trans }} </a> 
+                     <a href="{{ path('report_export', {'id': report.id, 'format': 'csv'}) }}" class="rams-btn rams-btn--sm"> <svg class="rams-icon rams-mr-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"> <path d="M8 2v10M4 6l4-4 4 4M2 14h12"/> </svg> {{   'report.export_csv'|trans }} </a> 
                 </div>
             </div>
             <div class="rams-table-container">

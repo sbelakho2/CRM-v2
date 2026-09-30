@@ -7,6 +7,7 @@ use App\Form\TaskType;
 use App\Repository\TaskRepository;
 use App\Repository\CompanyRepository;
 use App\Repository\UserRepository;
+use App\Security\Voter\TaskVoter;
 use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -40,7 +41,10 @@ class TaskController extends AbstractController
         $assignee = $request->query->get('assignee');
         $company = $request->query->get('company');
         $search = $request->query->get('search');
-        $showAll = $request->query->getBoolean('all', false);
+        // "all" is an ADMIN scope toggle — gating it on the role here (not
+        // just in the view) closes the ?all=1 bypass any ROLE_USER had.
+        $showAll = $request->query->getBoolean('all', false)
+            && $this->isGranted(TaskVoter::VIEW_ALL);
 
         $qb = $this->taskRepository->createQueryBuilder('t')
             ->leftJoin('t.assignedTo', 'a')
@@ -48,10 +52,11 @@ class TaskController extends AbstractController
             ->leftJoin('t.company', 'c')
             ->leftJoin('t.contact', 'co')
             ->addSelect('a', 'cb', 'c', 'co')
+            ->andWhere('t.archivedAt IS NULL')
             ->orderBy('t.createdAt', 'DESC');
 
         // Filter by user unless showing all
-        if (!$showAll && !$this->isGranted('ROLE_ADMIN')) {
+        if (!$showAll) {
             $qb->andWhere('t.assignedTo = :user OR t.createdBy = :user')
                ->setParameter('user', $user);
         }
@@ -127,7 +132,10 @@ class TaskController extends AbstractController
     public function kanban(Request $request): Response
     {
         $user = $this->getUser();
-        $showAll = $request->query->getBoolean('all', false);
+        // ?all=1 previously leaked EVERY user's board to any account —
+        // the admin condition now lives in the voter.
+        $showAll = $request->query->getBoolean('all', false)
+            && $this->isGranted(TaskVoter::VIEW_ALL);
 
         $tasksByStatus = $this->taskRepository->findGroupedByStatus(
             $showAll ? null : $user
@@ -136,7 +144,9 @@ class TaskController extends AbstractController
         $stats = $this->taskRepository->getStatistics($showAll ? null : $user);
 
         return $this->render('task/kanban.html.twig', [
-            'tasksByStatus' => $tasksByStatus,
+            // The template reads tasks_by_status (snake_case) — the
+            // camelCase key rendered an always-empty board.
+            'tasks_by_status' => $tasksByStatus,
             'stats' => $stats,
             'statuses' => Task::STATUS_LABELS,
             'show_all' => $showAll,
@@ -191,6 +201,9 @@ class TaskController extends AbstractController
     #[Route('/{id}', name: 'app_task_show', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function show(Task $task): Response
     {
+        // IDOR fix: numeric-ID enumeration of other users' tasks.
+        $this->denyAccessUnlessGranted(TaskVoter::VIEW, $task);
+
         return $this->render('task/show.html.twig', [
             'task' => $task,
         ]);
@@ -199,9 +212,7 @@ class TaskController extends AbstractController
     #[Route('/{id}/edit', name: 'app_task_edit', methods: ['GET', 'POST'])]
     public function edit(Request $request, Task $task): Response
     {
-        if (!$this->canModify($task)) {
-            throw $this->createAccessDeniedException('You cannot edit this task.');
-        }
+        $this->denyAccessUnlessGranted(TaskVoter::MODIFY, $task);
 
         $form = $this->createForm(TaskType::class, $task);
         
@@ -239,15 +250,13 @@ class TaskController extends AbstractController
     #[Route('/{id}/delete', name: 'app_task_delete', methods: ['POST'])]
     public function delete(Request $request, Task $task): Response
     {
-        if (!$this->canModify($task)) {
-            throw $this->createAccessDeniedException('You cannot delete this task.');
-        }
+        $this->denyAccessUnlessGranted(TaskVoter::ARCHIVE, $task);
 
         if ($this->isCsrfTokenValid('delete' . $task->getId(), $request->request->get('_token'))) {
             // Completed tasks are CRM execution history (like activities):
             // archive instead of hard-delete; open tasks may be removed.
             if ($task->getCompletedAt() !== null) {
-                $task->setArchivedAt(new \DateTime());
+                $task->archive();
                 $this->entityManager->flush();
                 $this->addFlash('success', 'Task archived (completed-task history preserved).');
             } else {
@@ -263,15 +272,14 @@ class TaskController extends AbstractController
     #[Route('/{id}/toggle', name: 'app_task_toggle', methods: ['POST'])]
     public function toggle(Request $request, Task $task): Response
     {
-        if (!$this->canModify($task)) {
-            throw $this->createAccessDeniedException('You cannot modify this task.');
-        }
+        $this->denyAccessUnlessGranted(TaskVoter::MODIFY, $task);
 
         if ($this->isCsrfTokenValid('toggle' . $task->getId(), $request->request->get('_token'))) {
-            $isDone = $task->getStatus() === Task::STATUS_DONE;
-            $task->setStatus($isDone ? Task::STATUS_TODO : Task::STATUS_DONE);
-            $task->setCompletedAt($isDone ? null : new \DateTime());
-            $task->setUpdatedAt(new \DateTime());
+            // transitionTo() is the authoritative lifecycle: leaving DONE
+            // clears completedAt, entering DONE stamps it.
+            $task->transitionTo(
+                $task->getStatus() === Task::STATUS_DONE ? Task::STATUS_TODO : Task::STATUS_DONE
+            );
             $this->entityManager->flush();
         }
 
@@ -287,14 +295,10 @@ class TaskController extends AbstractController
     #[Route('/{id}/complete', name: 'app_task_complete', methods: ['POST'])]
     public function complete(Request $request, Task $task): Response
     {
-        if (!$this->canModify($task)) {
-            throw $this->createAccessDeniedException('You cannot modify this task.');
-        }
+        $this->denyAccessUnlessGranted(TaskVoter::MODIFY, $task);
 
         if ($this->isCsrfTokenValid('complete' . $task->getId(), $request->request->get('_token'))) {
-            $task->setStatus(Task::STATUS_DONE);
-            $task->setCompletedAt(new \DateTime());
-            $task->setUpdatedAt(new \DateTime());
+            $task->transitionTo(Task::STATUS_DONE);
             $this->entityManager->flush();
 
             $this->addFlash('success', $this->translator->trans('task.flash.completed'));
@@ -321,7 +325,7 @@ class TaskController extends AbstractController
             return new JsonResponse(['error' => 'Task not found'], 404);
         }
 
-        if (!$this->canModify($task)) {
+        if (!$this->isGranted(TaskVoter::MODIFY, $task)) {
             return new JsonResponse(['error' => 'Not authorized to modify this task'], 403);
         }
 
@@ -329,11 +333,12 @@ class TaskController extends AbstractController
             return new JsonResponse(['error' => 'Invalid status'], 400);
         }
 
-        $task->setStatus($data['status']);
-        $task->setUpdatedAt(new \DateTime());
-        
-        if ($data['status'] === Task::STATUS_DONE) {
-            $task->setCompletedAt(new \DateTime());
+        try {
+            // transitionTo() keeps status/completedAt consistent (leaving
+            // DONE clears completedAt) and rejects archived tasks.
+            $task->transitionTo($data['status']);
+        } catch (\InvalidArgumentException | \LogicException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 409);
         }
 
         if (isset($data['sortOrder'])) {
@@ -367,15 +372,17 @@ class TaskController extends AbstractController
 
         foreach ($data['tasks'] as $taskData) {
             $task = $this->taskRepository->find($taskData['id']);
-            if ($task && $this->canModify($task)) {
+            if ($task && $this->isGranted(TaskVoter::MODIFY, $task)) {
                 $task->setSortOrder($taskData['sortOrder']);
                 if (isset($taskData['status'])) {
-                    $task->setStatus($taskData['status']);
-                    if ($taskData['status'] === Task::STATUS_DONE) {
-                        $task->setCompletedAt(new \DateTime());
+                    try {
+                        $task->transitionTo($taskData['status']);
+                    } catch (\InvalidArgumentException | \LogicException) {
+                        continue; // invalid/archived — skip, don't fail the batch
                     }
+                } else {
+                    $task->setUpdatedAt(new \DateTime());
                 }
-                $task->setUpdatedAt(new \DateTime());
             }
         }
 
@@ -456,13 +463,6 @@ class TaskController extends AbstractController
 
     private function canModify(Task $task): bool
     {
-        $user = $this->getUser();
-
-        if ($this->isGranted('ROLE_ADMIN')) {
-            return true;
-        }
-
-        return $user !== null
-            && ($task->getCreatedBy() === $user || $task->getAssignedTo() === $user);
+        return $this->isGranted(TaskVoter::MODIFY, $task);
     }
 }

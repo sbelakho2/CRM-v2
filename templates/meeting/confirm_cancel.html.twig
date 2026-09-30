@@ -4,11 +4,11 @@
 
 {% block body %}
 <div class="rams-page">
-    <div class="rams-flex rams-items-center rams-justify-center"    style="min-height: 60vh;">
-        <div class="rams-module" style="max-width: 500px; width: 100%;">
+    <div class="rams-flex rams-items-center rams-justify-center rams-min-h-60vh">
+        <div class="rams-module rams-max-w-form">
             <div class="rams-module__header rams-bg-warning-subtle rams-text--warning rams-border-b rams-border-warning"> 
                 <div class="rams-flex rams-items-center rams-gap-2">
-                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <path d="M8 2L2 14H14L8 2Z"/><path d="M8 6V10M8 12V12.01"/>
                     </svg>
                     <h1 class="rams-m-0 rams-text--xl">{{   'meeting.cancel_meeting'|trans }}</h1> 

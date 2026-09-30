@@ -33,10 +33,10 @@
                     <div class="rams-module__header">
                         <h2 class="rams-module__title">{{ 'email_campaign.select_contacts'|trans }}</h2>
                         <div class="rams-btn-group mobile-stack">
-                            <button type="button" onclick="selectAll()" class="rams-btn rams-btn--ghost rams-btn--sm rams-uppercase"> 
+                            <button type="button" onclick="selectAll()" class="rams-btn rams-btn--ghost rams-btn--sm"> 
                                 {{ 'common.select'|trans }} {{ 'common.all'|trans }}
                             </button>
-                            <button type="button" onclick="deselectAll()" class="rams-btn rams-btn--ghost rams-btn--sm rams-uppercase"> 
+                            <button type="button" onclick="deselectAll()" class="rams-btn rams-btn--ghost rams-btn--sm"> 
                                 {{ 'email_campaign.deselect_all'|trans }}
                             </button>
                         </div>
@@ -107,13 +107,13 @@
                     </div>
                     <div class="rams-module__footer">
                         <div class="rams-stack rams-gap-2">
-                            <button type="submit" class="rams-btn rams-btn--primary rams-w-full rams-uppercase"> 
-                                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <button type="submit" class="rams-btn rams-btn--primary rams-w-full"> 
+                                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                                 </svg>
                                 {{ 'email_campaign.send_emails'|trans }}
                             </button>
-                            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-btn rams-btn--ghost rams-w-full rams-uppercase"> 
+                            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-btn rams-btn--ghost rams-w-full"> 
                                 {{ 'common.cancel'|trans }}
                             </a>
                         </div>

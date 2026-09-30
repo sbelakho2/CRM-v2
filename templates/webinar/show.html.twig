@@ -16,7 +16,7 @@
                 <h1 class="rams-module__title">{{ webinar.title }}</h1>
                 <div class="rams-text--xs rams-text--muted">
                     <span class="rams-dymo">
-                        <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                         </svg>
                         {{ webinar.scheduledDate|date('F d, Y - H:i') }}
@@ -108,7 +108,7 @@
                             class="rams-btn"
                             onclick="copyRegistrationLink(this)"
                             data-url="{{ absolute_url(path('app_webinar_register', {id: webinar.id})) }}">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
                         </svg>
                         {{ 'webinar.copy_registration_link'|trans }}
@@ -187,7 +187,7 @@ function copyRegistrationLink(button) {
     navigator.clipboard.writeText(url).then(() => {
         const originalText = button.innerHTML;
         button.innerHTML = `
-            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
             </svg>
             {{ 'common.copied'|trans }}

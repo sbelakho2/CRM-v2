@@ -300,7 +300,7 @@ sudo systemctl status php8.4-fpm nginx mysql  # Check all services
 cd /var/www/starzcrm
 sudo -u www-data php bin/console cache:clear --env=prod        # Clear cache
 sudo -u www-data php bin/console cache:warmup --env=prod       # Warm cache
-sudo -u www-data php bin/console doctrine:migrations:migrate --no-interaction --env=prod  # Run migrations
+sudo -u www-data php bin/console app:migrations:safe-migrate --env=prod  # preflight + legacy preservation + migrate + verify
 sudo -u www-data php bin/console app:create-admin              # Create admin (interactive)
 php bin/console list                                            # List all commands
 
@@ -404,7 +404,7 @@ sudo -u www-data composer install --no-dev --optimize-autoloader --no-interactio
 # (No frontend build step — Webpack Encore/Tailwind removed 2026)
 
 # Run database migrations
-sudo -u www-data php bin/console doctrine:migrations:migrate --no-interaction --env=prod
+sudo -u www-data php bin/console app:migrations:safe-migrate --env=prod  # NEVER raw doctrine:migrations:migrate on production data
 
 # Fix file ownership
 sudo chown -R www-data:www-data /var/www/starzcrm
@@ -608,7 +608,7 @@ Follow steps in section 0.11 to deploy the application code.
 
 ```bash
 cd /var/www/starzcrm
-sudo -u www-data php bin/console doctrine:migrations:migrate --no-interaction --env=prod
+sudo -u www-data php bin/console app:migrations:safe-migrate --env=prod  # NEVER raw doctrine:migrations:migrate on production data
 ```
 
 ### 1.9 Create Admin User

@@ -59,6 +59,13 @@ services:
     arguments:
       $dependencyFactory: '@doctrine.migrations.dependency_factory'
 
+  # Production entry point: preflight → preserve → migrate → verify.
+  # Same shape as MigrationsPreflightCommand: autoconfigured command with
+  # only the DependencyFactory argument pinned.
+  App\Command\SafeMigrateCommand:
+    arguments:
+      $dependencyFactory: '@doctrine.migrations.dependency_factory'
+
   App\Service\Integration\AlibabaApiClient:
     arguments:
       $proxyRotation: '@App\Service\ProxyRotationService'

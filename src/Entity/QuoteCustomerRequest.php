@@ -18,7 +18,11 @@ use Doctrine\ORM\Mapping as ORM;
 class QuoteCustomerRequest
 {
     public const STATUS_NEW = 'new';
+    public const STATUS_IN_REVIEW = 'in_review';
     public const STATUS_HANDLED = 'handled';
+
+    /** @var list<string> the sales workflow transitions for a request */
+    public const STATUSES = [self::STATUS_NEW, self::STATUS_IN_REVIEW, self::STATUS_HANDLED];
 
     public const TYPE_QUANTITY_REQUEST = 'quantity_request';
     public const TYPE_REVISION_REQUEST = 'revision_request';
@@ -65,6 +69,12 @@ class QuoteCustomerRequest
 
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $handledAt = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $handledBy = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $resolutionNotes = null;
 
     public function __construct()
     {
@@ -212,5 +222,46 @@ class QuoteCustomerRequest
     public function getHandledAt(): ?\DateTimeInterface
     {
         return $this->handledAt;
+    }
+
+    public function getHandledBy(): ?string
+    {
+        return $this->handledBy;
+    }
+
+    public function setHandledBy(?string $handledBy): self
+    {
+        $this->handledBy = $handledBy;
+        return $this;
+    }
+
+    public function getResolutionNotes(): ?string
+    {
+        return $this->resolutionNotes;
+    }
+
+    public function setResolutionNotes(?string $resolutionNotes): self
+    {
+        $this->resolutionNotes = $resolutionNotes;
+        return $this;
+    }
+
+    /** Sales-workflow transition: new → in_review → handled. */
+    public function transitionTo(string $status, ?string $handler = null, ?string $resolutionNotes = null): self
+    {
+        if (!in_array($status, self::STATUSES, true)) {
+            throw new \InvalidArgumentException(sprintf('Unknown request status "%s".', $status));
+        }
+
+        $this->status = $status;
+        if ($status === self::STATUS_HANDLED) {
+            $this->handledAt = new \DateTime();
+            $this->handledBy = $handler;
+            if ($resolutionNotes !== null) {
+                $this->resolutionNotes = $resolutionNotes;
+            }
+        }
+
+        return $this;
     }
 }

@@ -4,60 +4,73 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Entity\RoutePreference;
 use App\Entity\FreightTable;
-use App\Repository\RoutePreferenceRepository;
+use App\Entity\RoutePreference;
 use App\Repository\FreightTableRepository;
+use App\Repository\RoutePreferenceRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * RouteSelectionService
- * 
+ *
  * Selects optimal shipping routes and freight modes based on:
  * - Destination country
  * - Weight and volume
  * - Route preferences (ranked by priority)
  * - Freight mode thresholds (AIR/LCL/FCL)
- * 
+ *
  * Mode Selection Logic:
- * - AIR: < 50 kg
- * - LCL (Less than Container Load): 50-15,000 kg
- * - FCL (Full Container Load): > 15,000 kg
- * 
- * Used by: Landed-Cost Estimator, Quote Co-Pilot
+ * - AIR: < 50 kg chargeable
+ * - LCL (Less than Container Load): 50-15,000 kg chargeable
+ * - FCL (Full Container Load): > 15,000 kg chargeable
+ *
+ * Freight pricing reads the REAL freight_tables model:
+ *   origin_port / destination_port / transport_mode / container_type /
+ *   cost_per_unit / currency / transit_days / effective_date / expiry_date /
+ *   is_active. Pricing semantics of cost_per_unit by mode:
+ *   - AIR: per chargeable kg (max of actual weight and volume × 167 kg/m³)
+ *   - LCL: per chargeable m³ (max of volume and weight/1000)
+ *   - FCL: flat rate per container (20GP / 40GP / 40HQ by volume)
+ *
+ * Used by: Landed-Cost Estimator, Quote Co-Pilot, FreightPricingService
  */
 class RouteSelectionService
 {
+    /**
+     * Origin-country → eligible origin ports. RoutePreference stores a
+     * port-level origin (lane code); this deterministic map answers which
+     * ports serve which origin country — every route lookup honors the
+     * $origin argument instead of silently returning Morocco lanes.
+     */
+    private const ORIGIN_PORTS = [
+        'MA' => ['CMN', 'TNG', 'CAS', 'MRZ', 'AGA'], // Casablanca, Tanger, Casablanca, Mohammedia, Agadir
+        'US' => ['JFK', 'LAX', 'NYC', 'ORD', 'SAV'],
+        'EU' => ['RTM', 'HAM', 'FRA', 'ANR', 'LEH'],
+    ];
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private RoutePreferenceRepository $routePreferenceRepository,
         private FreightTableRepository $freightTableRepository,
         private CurrencyPreferenceService $currencyPreferenceService,
-        private \App\Service\DutyCalculationService $dutyCalculationService,
-        private \App\Service\CurrencyConverter $currencyConverter,
+        private DutyCalculationService $dutyCalculationService,
+        private CurrencyConverter $currencyConverter,
     ) {}
 
     /**
-     * Select optimal route for shipment
-     * 
+     * Select optimal route for shipment — the GLOBAL landed-cost optimum.
+     *
+     * Every active route for the requested origin→destination lane is
+     * evaluated (freight + duty, normalized into ONE base currency) and the
+     * minimum chosen. Rank order only breaks ties among equal landed costs.
+     *
      * @param string $destinationCountry Destination country code (e.g., 'US', 'FR', 'MA')
      * @param float $weightKg Total weight in kilograms
      * @param float $volumeM3 Total volume in cubic meters
      * @param string|null $origin Origin country code (default: 'MA' for Morocco)
-    * @return array Route details: ['route_code' => 'MA-US-AIR-001', 'mode' => 'AIR', 'origin_port' => 'CMN', 'destination_port' => 'JFK', 'transit_days' => 5, 'freight_cost' => 1250.00, 'currency' => 'EUR']
-     * 
-     * Implementation:
-     * 1. Get ranked routes from route_preferences table:
-     *    → WHERE destination_country = :destinationCountry AND is_active = true
-     *    → ORDER BY rank ASC
-     * 2. Determine freight mode based on weight/volume:
-     *    → Call evaluateModeByWeight(weightKg, volumeM3)
-     * 3. For each route (in rank order):
-     *    → Check if mode matches route.preferred_mode (or route allows any mode)
-     *    → Check weight/volume thresholds (route.min_weight_kg, route.max_weight_kg)
-     *    → Query freight_tables for cost data
-     *    → If found, return route details
-     * 4. If no matching route, fall back to default route or throw exception
+     * @return array Selected route: route_code, mode, origin_port,
+     *               destination_port, transit_days, freight_cost,
+     *               total_landed_cost, currency (+ duty_unresolved_candidates)
      */
     public function selectOptimalRoute(
         string $destinationCountry,
@@ -69,194 +82,88 @@ class RouteSelectionService
         ?string $uom = 'KG',
         ?float $quantity = null
     ): array {
-        // 1. Get ranked routes from route_preferences
-        $routes = $this->routePreferenceRepository->createQueryBuilder('r')
-            ->where('r.destinationCountry = :dest')
+        // Single route-lookup path (origin-honoring) shared with compareRoutes.
+        $routes = $this->rankRoutes($destinationCountry, $origin);
 
-            ->andWhere('r.isActive = true')
-            ->setParameter('dest', $destinationCountry)
-
-            ->orderBy('r.rank', 'ASC')
-            ->getQuery()
-            ->getResult();
-        
         if (empty($routes)) {
             throw new \RuntimeException("No active routes found to {$destinationCountry}");
         }
 
-        // GLOBAL landed-cost optimum: every active route for the lane is
-        // evaluated (freight + duty) and the minimum chosen — not merely
-        // the first feasible route in rank order. Rank order is retained
-        // only as a tiebreaker among equal landed costs.
-        
-        // 2. Determine freight mode
         $recommendedMode = $this->evaluateModeByWeight($weightKg, $volumeM3);
-        $unresolvedCandidates = [];
 
-        // 3. Evaluate EVERY feasible candidate on total landed cost
-        //    (freight + duty); choose the global minimum. Rank breaks ties.
-        $best = null;
+        $dutyInputs = ($htsCode !== null && $goodsValue !== null && $goodsValue > 0.0 && $quantity !== null && $quantity > 0.0)
+            ? [$htsCode, $goodsValue, $quantity, $uom ?? 'KG']
+            : null;
+
+        $ranked = [];
+        $unresolved = [];
         foreach ($routes as $route) {
-            $preferredMode = $route->getMode();
-            if ($preferredMode && $preferredMode !== $recommendedMode && $preferredMode !== 'ANY') {
+            if (!$this->modeFamilyMatches($route->getMode(), $recommendedMode)) {
                 continue;
             }
             if (!$this->validateRoute($route, $weightKg, $volumeM3)) {
                 continue;
             }
 
-            try {
-                $freightCost = $this->getFreightCost(
-                    $route->getLaneCode(),
-                    $recommendedMode,
-                    $weightKg,
-                    $volumeM3
-                );
-            } catch (\Exception $e) {
-                continue; // no pricing for this candidate
+            $candidate = $this->evaluateLaneCandidate(
+                $route,
+                $recommendedMode,
+                $weightKg,
+                $volumeM3,
+                $destinationCountry,
+                $origin ?? 'MA',
+                $dutyInputs
+            );
+
+            if ($candidate === null) {
+                continue; // no freight pricing for this lane
             }
-
-            // Landed cost requires the REAL product HTS, goods value (CIF
-            // basis) and quantity/UOM. Freight-cost-as-customs-value and a
-            // hard-coded HTS made "duty unavailable" mathematically equal to
-            // zero duty — silently understating landed costs. Without the
-            // inputs, the candidate carries duty_basis=unresolved and is
-            // EXCLUDED from landed-cost ranking (reported, never ranked as
-            // if duty were free).
-            $dutyAmount = 0.0;
-            $dutyBasis = 'unresolved';
-            $dutyInputsKnown = $htsCode !== null
-                && $goodsValue !== null
-                && $goodsValue > 0.0
-                && $quantity !== null
-                && $quantity > 0.0;
-
-            $dutyCurrency = null;
-            if ($dutyInputsKnown) {
-                try {
-                    $duty = $this->dutyCalculationService->calculateDuty(
-                        $htsCode,
-                        $goodsValue,
-                        $quantity,
-                        $uom ?? 'KG',
-                        $destinationCountry,
-                        $origin
-                    );
-                    if (isset($duty['dutyAmount'])) {
-                        $dutyAmount = (float) $duty['dutyAmount'];
-                        $dutyBasis = $duty['method'] ?? 'MFN';
-                    }
-                } catch (\Throwable) {
-                    // tariff data unavailable: stays unresolved
-                }
-            }
-
-            $laneDetails = $this->parseLaneCode($route->getLaneCode());
-
-            // Currency normalization BEFORE ranking: freight rates can carry
-            // mixed currencies (USD/EUR/MAD); comparing raw numbers ranked a
-            // €900 lane above a $950 one as "cheaper". All candidates (and
-            // duty) are converted into ONE base currency with the same FX
-            // snapshot; originals stay for display.
-            $rateCurrency = strtoupper((string) ($freightCost['currency'] ?? 'USD'));
-            $baseCurrency = strtoupper($this->currencyConverter->getDisplayCurrency());
-            $freightNormalized = $this->currencyConverter->convert((float) $freightCost['cost'], $rateCurrency, $baseCurrency);
-            $dutyNormalized = $this->currencyConverter->convert($dutyAmount, $dutyCurrency ?? $baseCurrency, $baseCurrency);
-            $landed = $freightNormalized + $dutyNormalized;
-
-            // Unresolved mandatory landed-cost components exclude the
-            // candidate from the comparison (it stays in the report).
-            if ($dutyBasis === 'unresolved') {
-                $unresolvedCandidates[] = [
-                    'route_code' => $route->getLaneCode(),
-                    'mode' => $recommendedMode,
-                    'origin_port' => $laneDetails['origin_port'],
-                    'destination_port' => $laneDetails['destination_port'],
-                    'transit_days' => $freightCost['transit_days'] ?? 7,
-                    'freight_cost' => $freightCost['cost'],
-                    'duty_basis' => 'unresolved',
-                    'total_landed_cost' => null,
-                    'currency' => $freightCost['currency'] ?? 'USD',
-                    'rank' => $route->getRank(),
-                ];
+            if ($candidate['total_landed_cost'] === null) {
+                $unresolved[] = $candidate;
                 continue;
             }
-
-            $candidate = [
-                'route_code' => $route->getLaneCode(),
-                'mode' => $recommendedMode,
-                'origin_port' => $laneDetails['origin_port'],
-                'destination_port' => $laneDetails['destination_port'],
-                'transit_days' => $freightCost['transit_days'] ?? 7,
-                'freight_cost' => $freightCost['cost'],
-                'freight_currency' => $rateCurrency,
-                'freight_cost_base' => round($freightNormalized, 2),
-                'duty_amount' => $dutyAmount,
-                'duty_basis' => $dutyBasis,
-                'total_landed_cost' => round($landed, 2),
-                'base_currency' => $baseCurrency,
-                'currency' => $baseCurrency,
-                'rank' => $route->getRank(),
-            ];
-
-            if (
-                $best === null
-                || $candidate['total_landed_cost'] < $best['total_landed_cost']
-                || (
-                    $candidate['total_landed_cost'] === $best['total_landed_cost']
-                    && ($candidate['rank'] ?? PHP_INT_MAX) < ($best['rank'] ?? PHP_INT_MAX)
-                )
-            ) {
-                $best = $candidate;
-            }
+            $ranked[] = $candidate;
         }
 
-        if ($best === null) {
-            if ($unresolvedCandidates !== []) {
+        if ($ranked === []) {
+            if ($unresolved !== []) {
+                $reasons = array_unique(array_column($unresolved, 'unresolved_reason'));
                 throw new \RuntimeException(sprintf(
-                    'Routes exist to %s but duty inputs (HTS, goods value, quantity) are missing — landed cost cannot be ranked. Provide htsCode/goodsValue/quantity; candidates: %s',
+                    'Routes exist to %s but landed cost cannot be ranked (%s). Candidates: %s',
                     $destinationCountry,
-                    implode(', ', array_column($unresolvedCandidates, 'route_code'))
+                    implode(', ', $reasons),
+                    implode(', ', array_column($unresolved, 'route_code'))
                 ));
             }
 
             throw new \RuntimeException("No feasible, priced route found to {$destinationCountry}");
         }
 
-        return $best + ['duty_unresolved_candidates' => $unresolvedCandidates];
+        // Minimum landed cost wins; lower preference rank breaks ties.
+        usort($ranked, fn (array $a, array $b) =>
+            [$a['total_landed_cost'], $a['rank'] ?? PHP_INT_MAX] <=> [$b['total_landed_cost'], $b['rank'] ?? PHP_INT_MAX]
+        );
+
+        $best = $ranked[0];
+
+        return $best + ['duty_unresolved_candidates' => $unresolved];
     }
 
     /**
      * Evaluate freight mode based on weight and volume
-     * 
-     * @param float $weightKg Total weight in kilograms
-     * @param float $volumeM3 Total volume in cubic meters
-     * @return string Freight mode (AIR|LCL|FCL)
-     * 
-     * TODO Implementation:
-     * 1. Calculate chargeable weight (max of actual weight and volumetric weight)
-     *    → Volumetric weight = volumeM3 * 167 (for air) or volumeM3 * 1000 (for sea)
-     * 2. Apply mode thresholds:
-     *    → If chargeable weight < 50 kg: return 'AIR'
-     *    → If chargeable weight 50-15,000 kg: return 'LCL'
-     *    → If chargeable weight > 15,000 kg: return 'FCL'
-     * 3. Consider volume constraints:
-     *    → If volumeM3 > 67 m³ (full 40' container): force 'FCL'
-     *    → If volumeM3 > 33 m³ (full 20' container): consider 'FCL'
+     *
+     * Chargeable weight = max(actual weight, volumetric weight); volumetric
+     * = volumeM3 × 167 kg/m³ (air standard). Thresholds: <50 kg → AIR,
+     * ≤15,000 kg → LCL (FCL when volume exceeds a 40' container), else FCL.
      */
     public function evaluateModeByWeight(float $weightKg, float $volumeM3): string
     {
-        // Calculate volumetric weight (air freight standard: 167 kg/m³)
         $volumetricWeightKg = $volumeM3 * 167;
-        
-        // Chargeable weight is the greater of actual or volumetric
         $chargeableWeight = max($weightKg, $volumetricWeightKg);
-        
-        // Apply thresholds
+
         if ($chargeableWeight < 50) {
             return 'AIR';
         } elseif ($chargeableWeight <= 15000) {
-            // Check if volume fits in container
             if ($volumeM3 > 67) {
                 return 'FCL'; // Exceeds 40' container, must use FCL
             }
@@ -267,31 +174,11 @@ class RouteSelectionService
     }
 
     /**
-     * Get all available routes for destination (ranked)
-     * 
-     * @param string $destinationCountry Destination country code
-     * @param string|null $origin Origin country code
-     * @return array Array of RoutePreference entities (ranked)
-     * 
-     * TODO Implementation:
-     * 1. Query route_preferences table
-     * 2. Filter by destination_country and origin (if provided)
-     * 3. Filter by is_active = true
-     * 4. Order by rank ASC
-     * 5. Return array of RoutePreference entities
+     * Get all available routes for destination (ranked), honoring origin.
+     *
+     * @return RoutePreference[] Active routes to $destinationCountry from
+     *                          $origin's eligible ports, ordered by rank ASC.
      */
-    /**
-     * Origin-country → eligible origin ports map. RoutePreference stores a
-     * port-level origin (lane code); this deterministic map answers which
-     * ports serve which origin country — rankRoutes uses it to honor the
-     * $origin argument instead of silently ignoring it.
-     */
-    private const ORIGIN_PORTS = [
-        'MA' => ['CMN', 'TNG', 'CAS', 'MRZ', 'AGA'], // Casablanca, Tanger, Casablanca, Mohammedia, Agadir
-        'US' => ['JFK', 'LAX', 'NYC', 'ORD', 'SAV'],
-        'EU' => ['RTM', 'HAM', 'FRA', 'ANR', 'LEH'],
-    ];
-
     public function rankRoutes(string $destinationCountry, ?string $origin = 'MA'): array
     {
         $qb = $this->routePreferenceRepository->createQueryBuilder('r')
@@ -299,11 +186,8 @@ class RouteSelectionService
             ->andWhere('r.isActive = true')
             ->setParameter('dest', $destinationCountry);
 
-        // Honor $origin: map the country to its eligible origin ports and
-        // filter the lane origin by prefix; unsupported origins fail loudly
-        // (never silently return Morocco routes to a non-MA caller).
-        $origin = $origin ?? 'MA';
-        $ports = self::ORIGIN_PORTS[strtoupper($origin)] ?? null;
+        $origin = strtoupper($origin ?? 'MA');
+        $ports = self::ORIGIN_PORTS[$origin] ?? null;
         if ($ports === null) {
             throw new \RuntimeException(sprintf(
                 'Origin "%s" is not supported (eligible: %s). Model the origin ports before routing from it.',
@@ -327,185 +211,138 @@ class RouteSelectionService
     }
 
     /**
-     * Get freight cost for specific route and mode
-     * 
-     * @param string $routeCode Route code (e.g., 'MA-US-AIR-001')
-     * @param string $mode Freight mode (AIR|LCL|FCL)
-     * @param float $weightKg Chargeable weight in kg
-     * @param float $volumeM3 Volume in cubic meters
-    * @return array Freight details: ['cost' => 1250.00, 'currency' => 'EUR', 'transit_days' => 5, 'surcharges' => [...]]
-     * 
-     * TODO Implementation:
-     * 1. Query freight_tables table:
-     *    → WHERE route_code = :routeCode AND mode = :mode AND is_active = true
-     *    → ORDER BY effective_date DESC LIMIT 1 (get latest rate)
-     * 2. Apply rate structure:
-     *    → If AIR: cost = base_rate + (weightKg * per_kg_rate)
-     *    → If LCL: cost = base_rate + (volumeM3 * per_cbm_rate)
-     *    → If FCL: cost = flat container rate (20GP/40GP/40HQ)
-     * 3. Add surcharges (fuel, security, handling, etc.)
-     * 4. Return cost breakdown
+     * Get freight cost for a lane and mode from the real freight_tables model.
+     *
+     * Rate row selection: active + effective (effectiveDate ≤ today and
+     * expiryDate null or ≥ today) rows for the lane's origin/destination
+     * ports and the mode's transport family; the NEWEST effectiveDate wins.
+     * FCL additionally selects the container tier matching the shipment
+     * volume (20GP ≤ 33 m³, 40GP ≤ 67 m³, 40HQ above), falling back to any
+     * container-tier row on the lane.
+     *
+     * @return array{cost: float, base_cost: float, rate_per_unit: float,
+     *               currency: string, transit_days: int, container_type: ?string,
+     *               carrier: ?string, effective_date: ?string, surcharges: array}
      */
     public function getFreightCost(string $routeCode, string $mode, float $weightKg, float $volumeM3): array
     {
-        // 1. Query freight_tables for latest rate
-        $freightRate = $this->freightTableRepository->createQueryBuilder('f')
-            ->where('f.routeCode = :routeCode')
-            ->andWhere('f.mode = :mode')
+        $lane = $this->parseLaneCode($routeCode);
+        $originPort = $lane['origin_port'];
+        $destinationPort = $lane['destination_port'];
+        if (!$originPort || !$destinationPort) {
+            throw new \InvalidArgumentException("Invalid lane code format: {$routeCode} (expected ORIGIN-DESTINATION)");
+        }
+
+        $normalizedMode = strtoupper($mode);
+        if (!in_array($normalizedMode, ['AIR', 'LCL', 'FCL'], true)) {
+            throw new \InvalidArgumentException("Unsupported freight mode: {$mode} (expected AIR, LCL or FCL)");
+        }
+
+        /** @var list<FreightTable> $rows */
+        $rows = $this->freightTableRepository->createQueryBuilder('f')
+            ->where('f.originPort LIKE :origin')
+            ->andWhere('f.destinationPort LIKE :destination')
+            ->andWhere('f.transportMode IN (:modes)')
             ->andWhere('f.isActive = true')
-            ->setParameter('routeCode', $routeCode)
-            ->setParameter('mode', $mode)
+            ->andWhere('f.effectiveDate <= :today')
+            ->andWhere('f.expiryDate IS NULL OR f.expiryDate >= :today')
+            ->setParameter('origin', $originPort . '%')
+            ->setParameter('destination', $destinationPort . '%')
+            ->setParameter('modes', $this->transportModeFamily($normalizedMode))
+            ->setParameter('today', new \DateTime())
             ->orderBy('f.effectiveDate', 'DESC')
-            ->setMaxResults(1)
+            ->addOrderBy('f.id', 'DESC')
             ->getQuery()
-            ->getOneOrNullResult();
-        
-        if (!$freightRate) {
+            ->getResult();
+
+        $rate = $this->pickFreightRow($rows, $normalizedMode, $volumeM3);
+
+        if (!$rate instanceof FreightTable) {
             throw new \RuntimeException("No freight rate found for route {$routeCode} mode {$mode}");
         }
-        
-        // 2. Calculate cost based on mode
-        $baseCost = $freightRate->getBaseRate() ?? 0;
-        $cost = $baseCost;
-        
-        switch ($mode) {
-            case 'AIR':
-                $perKgRate = $freightRate->getPerKgRate() ?? 0;
-                $cost += $weightKg * $perKgRate;
-                break;
-                
-            case 'LCL':
-                $perCbmRate = $freightRate->getPerCbmRate() ?? 0;
-                $cost += $volumeM3 * $perCbmRate;
-                break;
-                
-            case 'FCL':
-                // FCL uses container flat rate
-                $containerType = $volumeM3 > 67 ? '40HQ' : ($volumeM3 > 33 ? '40GP' : '20GP');
-                $cost = $freightRate->getContainerRate() ?? $baseCost;
-                break;
-        }
-        
-        // 3. Add surcharges
+
+        $costPerUnit = (float) $rate->getCostPerUnit();
         $surcharges = [];
-        
-        if ($fuelSurcharge = $freightRate->getFuelSurcharge()) {
-            $surcharges['fuel'] = $cost * ($fuelSurcharge / 100);
+
+        $cost = match ($normalizedMode) {
+            'AIR' => max($weightKg, $volumeM3 * 167.0) * $costPerUnit, // chargeable weight
+            'LCL' => max($volumeM3, $weightKg / 1000.0) * $costPerUnit, // chargeable volume
+            'FCL' => $costPerUnit, // flat per-container rate
+        };
+
+        if ($normalizedMode === 'AIR') {
+            $surcharges['chargeable_weight_kg'] = round(max($weightKg, $volumeM3 * 167.0), 2);
+        } elseif ($normalizedMode === 'LCL') {
+            $surcharges['chargeable_volume_m3'] = round(max($volumeM3, $weightKg / 1000.0), 2);
         }
-        
-        if ($securitySurcharge = $freightRate->getSecuritySurcharge()) {
-            $surcharges['security'] = $securitySurcharge;
-        }
-        
-        $totalSurcharges = array_sum($surcharges);
-        $totalCost = $cost + $totalSurcharges;
-        
-        // 4. Return cost breakdown
+
         return [
-            'cost' => round($totalCost, 2),
+            'cost' => round($cost, 2),
             'base_cost' => round($cost, 2),
-            'currency' => $freightRate->getCurrency() ?? $this->currencyPreferenceService->getDisplayCurrency(),
-            'transit_days' => $freightRate->getTransitDays() ?? 7,
-            'surcharges' => $surcharges
+            'rate_per_unit' => $costPerUnit,
+            'currency' => $rate->getCurrency() ?? $this->currencyPreferenceService->getDisplayCurrency(),
+            'transit_days' => $rate->getTransitDays() ?? 7,
+            'container_type' => $rate->getContainerType(),
+            'carrier' => $rate->getCarrier(),
+            'effective_date' => $rate->getEffectiveDate()?->format('Y-m-d'),
+            'surcharges' => $surcharges,
         ];
     }
-
-    /** @var array{0: string, 1: float, 2: float, 3: string}|null */
-    private ?array $compareDutyInputs = null;
 
     /**
      * Compare candidate routes on TOTAL LANDED COST (freight + duty).
      *
+     * Uses the SAME candidate evaluation as selectOptimalRoute() — one
+     * internal evaluator, so the two entry points can never disagree on
+     * currency or duty semantics.
+     *
      * @param array{0: string, 1: float, 2: float, 3: string}|null $dutyInputs
      *        [htsCode, goodsValue, quantity, uom] — the real product inputs.
-     *        Without them, candidates report duty_basis=unresolved and
-     *        total_landed_cost=null and sort AFTER every ranked candidate —
-     *        "duty unknown" is never equivalent to zero duty.
+     *        Without them (or without tariff data), candidates report
+     *        duty_basis=unresolved, total_landed_cost=null and sort AFTER
+     *        every ranked candidate — "duty unknown" is never zero duty.
      */
-    public function compareRoutes(string $destinationCountry, float $weightKg, float $volumeM3, ?array $dutyInputs = null): array
-    {
-        $this->compareDutyInputs = $dutyInputs;
-
-        // 1. Get all ranked routes
-        $routes = $this->rankRoutes($destinationCountry);
-
+    public function compareRoutes(
+        string $destinationCountry,
+        float $weightKg,
+        float $volumeM3,
+        ?array $dutyInputs = null,
+        ?string $origin = 'MA'
+    ): array {
+        $routes = $this->rankRoutes($destinationCountry, $origin);
         if (empty($routes)) {
             return [];
         }
 
-        // 2. Evaluate each route
+        $mode = $this->evaluateModeByWeight($weightKg, $volumeM3);
+
         $comparisons = [];
-
         foreach ($routes as $route) {
-            try {
-                $mode = $this->evaluateModeByWeight($weightKg, $volumeM3);
-
-                if (!$this->validateRoute($route, $weightKg, $volumeM3)) {
-                    continue;
-                }
-
-                $freightCost = $this->getFreightCost(
-                    $route->getLaneCode(),
-                    $mode,
-                    $weightKg,
-                    $volumeM3
-                );
-
-                $laneDetails = $this->parseLaneCode($route->getLaneCode());
-
-                // ── SAFE duty semantics ──
-                $dutyAmount = 0.0;
-                $dutyBasis = 'unresolved';
-                if ($this->compareDutyInputs !== null) {
-                    [$cHts, $cValue, $cQty, $cUom] = $this->compareDutyInputs;
-                    try {
-                        $duty = $this->dutyCalculationService->calculateDuty(
-                            $cHts,
-                            $cValue,
-                            $cQty,
-                            $cUom,
-                            $destinationCountry,
-                            'MA'
-                        );
-                        if (isset($duty['dutyAmount'])) {
-                            $dutyAmount = (float) $duty['dutyAmount'];
-                            $dutyBasis = $duty['method'] ?? 'MFN';
-                        }
-                    } catch (\Throwable) {
-                        // tariff data unavailable: stays unresolved
-                    }
-                }
-
-                $rateCurrency = strtoupper((string) ($freightCost['currency'] ?? 'USD'));
-                $baseCurrency = strtoupper($this->currencyConverter->getDisplayCurrency());
-                $freightNormalized = $this->currencyConverter->convert((float) $freightCost['cost'], $rateCurrency, $baseCurrency);
-
-                $totalLanded = $dutyBasis === 'unresolved'
-                    ? null
-                    : round($freightNormalized + $dutyAmount, 2);
-
-                $comparisons[] = [
-                    'route_code' => $route->getLaneCode(),
-                    'mode' => $mode,
-                    'rank' => $route->getRank(),
-                    'origin_port' => $laneDetails['origin_port'],
-                    'destination_port' => $laneDetails['destination_port'],
-                    'transit_days' => $freightCost['transit_days'],
-                    'freight_cost' => $freightCost['cost'],
-                    'duty_amount' => $dutyAmount,
-                    'duty_basis' => $dutyBasis,
-                    'total_landed_cost' => $totalLanded,
-                    'currency' => $freightCost['currency'],
-                ];
-            } catch (\Exception $e) {
-                // Skip routes that don't have pricing
+            if (!$this->modeFamilyMatches($route->getMode(), $mode)) {
                 continue;
+            }
+            if (!$this->validateRoute($route, $weightKg, $volumeM3)) {
+                continue;
+            }
+
+            $candidate = $this->evaluateLaneCandidate(
+                $route,
+                $mode,
+                $weightKg,
+                $volumeM3,
+                $destinationCountry,
+                strtoupper($origin ?? 'MA'),
+                $dutyInputs
+            );
+
+            if ($candidate !== null) {
+                $comparisons[] = $candidate;
             }
         }
 
-        // 3. Sort by TOTAL LANDED COST; UNRESOLVED candidates sort last
-        // (never as zero); ties broken by transit time.
-        usort($comparisons, fn ($a, $b) =>
+        // Ranked candidates by landed cost; unresolved (null total) sort
+        // last — never as zero; ties broken by transit time.
+        usort($comparisons, fn (array $a, array $b) =>
             (($a['total_landed_cost'] ?? PHP_FLOAT_MAX) <=> ($b['total_landed_cost'] ?? PHP_FLOAT_MAX)) !== 0
                 ? ($a['total_landed_cost'] ?? PHP_FLOAT_MAX) <=> ($b['total_landed_cost'] ?? PHP_FLOAT_MAX)
                 : $a['transit_days'] <=> $b['transit_days']
@@ -514,26 +351,189 @@ class RouteSelectionService
         return $comparisons;
     }
 
+    // ──────────────────────────────────────────────────
+    // Internal: shared candidate evaluation
+    // ──────────────────────────────────────────────────
+
+    /**
+     * ONE internal candidate evaluator used by BOTH selectOptimalRoute()
+     * and compareRoutes(): freight from the real freight model, duty from
+     * real inputs, and currency normalization that FAILS CLOSED — an
+     * unresolvable FX pair excludes the candidate (flagged), never compares
+     * it 1:1 against another currency.
+     *
+     * @param array{0: string, 1: float, 2: float, 3: string}|null $dutyInputs
+     * @return array|null null when the lane has no applicable freight rate;
+     *                    otherwise a candidate row whose total_landed_cost is
+     *                    null + unresolved_reason set when it cannot be ranked.
+     */
+    private function evaluateLaneCandidate(
+        RoutePreference $route,
+        string $mode,
+        float $weightKg,
+        float $volumeM3,
+        string $destinationCountry,
+        string $origin,
+        ?array $dutyInputs
+    ): ?array {
+        try {
+            $freightCost = $this->getFreightCost((string) $route->getLaneCode(), $mode, $weightKg, $volumeM3);
+        } catch (\Throwable) {
+            return null; // no pricing for this lane
+        }
+
+        $laneDetails = $this->parseLaneCode((string) $route->getLaneCode());
+        $baseCurrency = strtoupper($this->currencyConverter->getDisplayCurrency());
+
+        $candidate = [
+            'route_code' => $route->getLaneCode(),
+            'mode' => $mode,
+            'origin_port' => $laneDetails['origin_port'],
+            'destination_port' => $laneDetails['destination_port'],
+            'transit_days' => $freightCost['transit_days'] ?? 7,
+            'freight_cost' => $freightCost['cost'],
+            'freight_currency' => $freightCost['currency'],
+            'container_type' => $freightCost['container_type'] ?? null,
+            'rank' => $route->getRank(),
+            'base_currency' => $baseCurrency,
+            'total_landed_cost' => null,
+            'unresolved_reason' => null,
+        ];
+
+        // ── Duty: real inputs only; unresolved is never zero ──
+        $dutyAmount = 0.0;
+        $dutyBasis = 'unresolved';
+        if ($dutyInputs !== null) {
+            [$htsCode, $goodsValue, $quantity, $uom] = $dutyInputs;
+            try {
+                $duty = $this->dutyCalculationService->calculateDuty(
+                    $htsCode,
+                    $goodsValue,
+                    $quantity,
+                    $uom,
+                    $destinationCountry,
+                    $origin
+                );
+                if (isset($duty['dutyAmount'])) {
+                    $dutyAmount = (float) $duty['dutyAmount'];
+                    $dutyBasis = $duty['method'] ?? 'MFN';
+                }
+            } catch (\Throwable) {
+                // tariff data unavailable: stays unresolved
+            }
+        }
+
+        $candidate['duty_amount'] = $dutyAmount;
+        $candidate['duty_basis'] = $dutyBasis;
+
+        if ($dutyBasis === 'unresolved') {
+            $candidate['unresolved_reason'] = $dutyInputs === null
+                ? 'duty_inputs_missing'
+                : 'tariff_unresolved';
+            return $candidate;
+        }
+
+        // ── Currency normalization: FAIL CLOSED for ranking ──
+        $rateCurrency = strtoupper((string) ($freightCost['currency'] ?? 'USD'));
+        try {
+            $freightNormalized = $this->currencyConverter->convertOrFail((float) $freightCost['cost'], $rateCurrency, $baseCurrency);
+            $dutyNormalized = $this->currencyConverter->convertOrFail($dutyAmount, $baseCurrency, $baseCurrency);
+        } catch (\RuntimeException $e) {
+            $candidate['unresolved_reason'] = 'fx_unresolved: ' . $e->getMessage();
+            return $candidate;
+        }
+
+        $candidate['freight_cost_base'] = round($freightNormalized, 2);
+        $candidate['currency'] = $baseCurrency;
+        $candidate['total_landed_cost'] = round($freightNormalized + $dutyNormalized, 2);
+
+        return $candidate;
+    }
+
+    /**
+     * RoutePreference.mode values (AIR/OCEAN/RAIL/TRUCK — or ANY) must match
+     * the recommended mode's transport family: AIR↔AIR, OCEAN↔LCL/FCL.
+     */
+    private function modeFamilyMatches(?string $preferredMode, string $recommendedMode): bool
+    {
+        if ($preferredMode === null || trim($preferredMode) === '') {
+            return true;
+        }
+        $preferred = strtoupper(trim($preferredMode));
+        if ($preferred === 'ANY') {
+            return true;
+        }
+
+        $family = match ($recommendedMode) {
+            'AIR' => ['AIR'],
+            'LCL', 'FCL' => ['OCEAN', 'LCL', 'FCL', 'SEA'],
+            default => [strtoupper($recommendedMode)],
+        };
+
+        return in_array($preferred, $family, true);
+    }
+
+    /**
+     * freight_tables.transport_mode uses either the operational values
+     * (AIR/LCL/FCL as imported from datasets) or the carrier family
+     * (Air/Ocean). Map the commercial mode to its family for row matching —
+     * MySQL's default collation makes the comparison case-insensitive.
+     *
+     * @return list<string>
+     */
+    private function transportModeFamily(string $mode): array
+    {
+        return match ($mode) {
+            'AIR' => ['AIR'],
+            default => ['LCL', 'FCL', 'OCEAN'],
+        };
+    }
+
+    /**
+     * Pick the applicable row: for FCL prefer the container tier matching
+     * the shipment volume, then any container-tier row; for LCL prefer an
+     * LCL-typed row; AIR takes the newest row. Rows arrive newest-first.
+     *
+     * @param list<FreightTable> $rows
+     */
+    private function pickFreightRow(array $rows, string $mode, float $volumeM3): ?FreightTable
+    {
+        if ($mode === 'FCL') {
+            $desired = $volumeM3 > 67 ? '40HQ' : ($volumeM3 > 33 ? '40GP' : '20GP');
+            foreach ($rows as $row) {
+                if (strtoupper((string) $row->getContainerType()) === $desired) {
+                    return $row;
+                }
+            }
+            foreach ($rows as $row) {
+                if (in_array(strtoupper((string) $row->getContainerType()), ['20GP', '40GP', '40HQ'], true)) {
+                    return $row;
+                }
+            }
+
+            return null;
+        }
+
+        if ($mode === 'LCL') {
+            foreach ($rows as $row) {
+                if (strtoupper((string) $row->getContainerType()) === 'LCL') {
+                    return $row;
+                }
+            }
+        }
+
+        return $rows[0] ?? null;
+    }
+
     /**
      * Validate route supports given weight/volume
-     * 
-     * @param RoutePreference $route Route to validate
-     * @param float $weightKg Weight in kg
-     * @param float $volumeM3 Volume in m³
-     * @return bool True if route supports shipment
-     * 
-     * Implementation:
-     * 1. Check route.min_weight_kg <= weightKg <= route.max_weight_kg
-     * 2. Check route.min_volume_m3 <= volumeM3 <= route.max_volume_m3
-     * 3. Check mode compatibility
-     * 4. Return true if all checks pass
+     *
+     * The REAL entity carries single weightThresholdKg / volumeThresholdM3
+     * values (the mode switch-over points for this preference), not min/max
+     * pairs. The threshold is the upper bound for the preference's feasibility.
      */
     public function validateRoute(RoutePreference $route, float $weightKg, float $volumeM3): bool
     {
-        // The REAL entity carries single weightThresholdKg / volumeThresholdM3
-        // values (the mode switch-over points for this preference), not
-        // min/max pairs. Treat the threshold as the upper bound for the
-        // preference's feasibility.
         $weightThreshold = $route->getWeightThresholdKg();
         if ($weightThreshold !== null && $weightThreshold !== '' && $weightKg > (float) $weightThreshold) {
             return false;
@@ -549,20 +549,14 @@ class RouteSelectionService
 
     /**
      * Parse lane code to extract ports
-     * 
+     *
      * @param string $laneCode Lane code (e.g., 'CMN-JFK', 'TAN-CDG-ORY')
-     * @return array ['origin_port' => 'CMN', 'destination_port' => 'JFK', 'transit_ports' => []]
-     * 
-     * Implementation:
-     * - Split by '-' delimiter
-     * - First element: origin_port
-     * - Last element: destination_port
-     * - Middle elements: transit_ports
+     * @return array{origin_port: ?string, destination_port: ?string, transit_ports: list<string>}
      */
     public function parseLaneCode(string $laneCode): array
     {
         $ports = explode('-', $laneCode);
-        
+
         return [
             'origin_port' => $ports[0] ?? null,
             'destination_port' => $ports[count($ports) - 1] ?? null,

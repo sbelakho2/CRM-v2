@@ -16,19 +16,19 @@
         <div class="rams-page__actions mobile-stack">
             <div class="rams-btn-group mobile-stack">
                 <a href="{{ path('app_task_my_day') }}" class="rams-btn rams-btn--primary">
-                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <circle cx="8" cy="8" r="6"/><path d="M8 4V8L10 10"/>
                 </svg>
                 {{ 'task.my_day'|trans }}
                 </a>
                 <a href="{{ path('app_task_kanban') }}" class="rams-btn rams-btn--primary">
-                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <rect x="2" y="2" width="4" height="12" rx="1"/><rect x="6" y="2" width="4" height="8" rx="1"/><rect x="10" y="2" width="4" height="10" rx="1"/>
                 </svg>
                 {{ 'task.kanban'|trans }}
                 </a>
                 <a href="{{ path('app_task_new') }}" class="rams-btn rams-btn--primary">
-                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path d="M8 2V14M2 8H14"/>
                 </svg>
                 {{ 'task.new_task'|trans }}
@@ -114,12 +114,12 @@
                 <caption class="rams-sr-only">{{ 'task.title'|trans }}</caption>
                 <thead>
                     <tr>
-                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase" style="letter-spacing: 0.05em;">{{     'common.status'|trans }}</th>
-                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase" style="letter-spacing: 0.05em;">{{     'task.title_header'|trans }}</th>
-                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase" style="letter-spacing: 0.05em;">{{     'task.priority'|trans }}</th>
-                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase" style="letter-spacing: 0.05em;">{{     'task.due_date'|trans }}</th>
-                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase" style="letter-spacing: 0.05em;">{{     'task.assigned_to'|trans }}</th>
-                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase" style="letter-spacing: 0.05em;">{{     'common.actions'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase rams-tracked">{{     'common.status'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase rams-tracked">{{     'task.title_header'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase rams-tracked">{{     'task.priority'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase rams-tracked">{{     'task.due_date'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase rams-tracked">{{     'task.assigned_to'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase rams-tracked">{{     'common.actions'|trans }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -162,7 +162,7 @@
                         <td>
                             <div class="rams-actions rams-actions--sm">
                                 <a href="{{ path('app_task_edit', {id: task.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.edit'|trans }}">
-                                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                         <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                                     </svg>
                                 </a>

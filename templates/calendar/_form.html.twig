@@ -19,13 +19,13 @@
             </div>
 
             <div class="rams-actions rams-mt-6 mobile-stack">
-                <button type="submit" class="rams-btn rams-btn--primary rams-uppercase">  
-                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <button type="submit" class="rams-btn rams-btn--primary">  
+                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                     </svg>
                     {{ button_label|default('calendar.save_event'|trans) }}
                 </button>
-                <a href="{{ path('calendar_index') }}" class="rams-btn rams-btn--ghost rams-uppercase">{{  'common.cancel'|trans }}</a>
+                <a href="{{ path('calendar_index') }}" class="rams-btn rams-btn--ghost">{{  'common.cancel'|trans }}</a>
             </div>
         </div>
 

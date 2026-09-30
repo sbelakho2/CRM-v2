@@ -16,7 +16,7 @@
     {# Header with Back Link #}
     <header class="rams-module__header rams-module__header--border-bottom rams-mb-6">
         <a href="{{ path('quote_copilot_index') }}" class="rams-link rams-link--back">
-            <svg class="rams-link__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="rams-link__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
             {{ 'quote.copilot.back'|trans }}
@@ -89,10 +89,10 @@
 
     {# BOM Lines Table #}
     <div class="rams-module rams-mt-6">
-        <div class="rams-module__header" style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="rams-module__header rams-panel-head">
             <h2 class="rams-heading rams-heading--3">{{ 'quote.copilot.bill_of_materials'|trans }}</h2>
             <a href="{{ path('quote_review_detail', {id: quote.id}) }}" class="rams-btn rams-btn--sm rams-btn--indigo">
-                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="rams-icon--sm">
+                <svg class="rams-btn__icon rams-icon--sm" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                 </svg>
                 {{ 'quote.copilot.review_verify_lines'|trans }}
@@ -110,8 +110,8 @@
                         <th scope="col" class="rams-table__cell rams-table__cell--header rams-table__cell--right">{{ 'quote.copilot.unit_price'|trans }}</th>
                         <th scope="col" class="rams-table__cell rams-table__cell--header rams-table__cell--right">{{ 'quote.copilot.ext_price'|trans }}</th>
                         <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.source'|trans }}</th>
-                        <th scope="col" class="rams-table__cell rams-table__cell--header" style="text-align:center;">{{ 'quote.review.confidence'|trans }}</th>
-                        <th scope="col" class="rams-table__cell rams-table__cell--header" style="text-align:center;">{{ 'quote.copilot.link'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header rams-text--center">{{ 'quote.review.confidence'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header rams-text--center">{{ 'quote.copilot.link'|trans }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -147,11 +147,11 @@
                                 {% else %}
                                     <span class="rams-badge rams-badge--green">{{ line.procurementSource }}</span>
                                     {% if line.isFallback %}
-                                        <br><span class="rams-badge rams-badge--yellow" title="Found via {{ line.fallbackLabel }}{% if line.matchedMpn and line.matchedMpn != line.mpn %} — matched: {{ line.matchedMpn }}{% endif %}" style="font-size:0.65rem;margin-top:2px;display:inline-block;">⚡ {{ line.fallbackLabel }}</span>
+                                        <br><span class="rams-badge rams-badge--yellow rams-inline-block rams-badge-code">⚡ {{ line.fallbackLabel }}</span>
                                     {% endif %}
                                 {% endif %}
                             </td>
-                            <td class="rams-table__cell" style="text-align:center;">
+                            <td class="rams-table__cell rams-text--center">
                                 {% if line.confidenceLevel == 'HIGH' %}
                                     <span class="rams-badge rams-badge--green" title="Score: {{ line.confidenceScore }}">HIGH</span>
                                 {% elseif line.confidenceLevel == 'MEDIUM' %}
@@ -164,7 +164,7 @@
                                     <span class=" rams-text--muted">—</span>
                                 {% endif %}
                             </td>
-                            <td class="rams-table__cell" style="text-align:center;">
+                            <td class="rams-table__cell rams-text--center">
                                 {% if line.supplierProductUrl %}
                                     <a href="{{ line.supplierProductUrl }}" target="_blank" rel="noopener" class="rams-link" title="View listing">↗</a>
                                 {% elseif line.distributorSearchUrl %}
@@ -224,33 +224,33 @@
                     {# Customer-Facing Documents #}
                     <span class="rams-dymo rams-text--xs">{{ 'quote.copilot.customer_documents'|trans({}, 'messages')|default('Customer Documents') }}</span>
                     <a href="{{ path('quote_copilot_pdf', {id: quote.id}) }}" class="rams-btn rams-btn--primary rams-btn--full">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                         {{ 'quote.copilot.download_pdf'|trans }}
                     </a>
                     <a href="{{ path('quote_copilot_customer_excel', {id: quote.id}) }}" class="rams-btn rams-btn--full">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                         {{ 'quote.copilot.download_customer_excel'|trans({}, 'messages')|default('Customer Excel') }}
                     </a>
 
                     {# Internal Documents #}
-                    <hr class="rams-border-t" style="margin: 8px 0;">
+                    <hr class="rams-border-t rams-my-2">
                     <span class="rams-dymo rams-text--xs">{{ 'quote.copilot.internal_documents'|trans({}, 'messages')|default('Internal Documents') }}</span>
                     <a href="{{ path('quote_copilot_full_excel', {id: quote.id}) }}" class="rams-btn rams-btn--full rams-btn--accent-outline">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                         {{ 'quote.copilot.download_full_excel'|trans({}, 'messages')|default('Full Sourcing Excel') }}
                     </a>
 
                     {# Publish #}
-                    <hr class="rams-border-t" style="margin: 8px 0;">
+                    <hr class="rams-border-t rams-my-2">
                     {% if quote.coveragePercent >= 60 %}
                         <button onclick="initiatePublish({{ quote.id }})" class="rams-btn rams-btn--full">
-                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
                             </svg>
                             {{ 'quote.copilot.publish'|trans }}
@@ -339,7 +339,7 @@ function showContactModal(contacts) {
                 <p class=" rams-text--sm rams-text--muted">${escapeHtml(contact.email)}</p>
                 ${contact.role ? `<p class=" rams-text--xs rams-text--muted">${escapeHtml(contact.role)}</p>` : ''}
             </div>
-            <svg class="rams-list__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="rams-list__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
             </svg>
         </div>

@@ -20,7 +20,7 @@
         </div>
         <div class="rams-page-actions mobile-stack">
             <a href="{{ path('abm_dashboard_account_new') }}" class="rams-btn rams-btn--primary">
-                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M8 3V13M3 8H13"/>
                 </svg>
                 {{ 'abm_dashboard.add_account'|trans }}
@@ -53,7 +53,7 @@
                         <option value="prospect" {% if status|default('') == 'prospect' %}selected{% endif %}>{{  'abm_dashboard.status_prospect'|trans }}</option>
                         <option value="inactive" {% if status|default('') == 'inactive' %}selected{% endif %}>{{  'common.inactive'|trans }}</option>
                     </select>
-                </div> <div class="rams-form__group rams-form__group--actions rams-grid-span-3"> <button type="submit" class="rams-btn rams-w-full"> <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"> <circle cx="7" cy="7" r="4"/> <path d="M11 11L14 14"/> </svg> {{ 'common.filter'|trans }} </button> </div>
+                </div> <div class="rams-form__group rams-form__group--actions rams-grid-span-3"> <button type="submit" class="rams-btn rams-w-full"> <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"> <circle cx="7" cy="7" r="4"/> <path d="M11 11L14 14"/> </svg> {{ 'common.filter'|trans }} </button> </div>
             </form>
         </div>
     </div>
@@ -104,7 +104,7 @@
                             {{ 'common.view'|trans }}
                         </a>
                         <a href="{{ path('abm_dashboard_account_edit', {'id': account.id})    }}" class="rams-btn rams-btn--ghost rams-btn--sm">
-                            <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                             </svg>
                         </a>
@@ -131,7 +131,7 @@
             <div class="rams-module__content">
                 <div class="rams-flex rams-items-center rams-gap-3 rams-mb-2">
                     <div class="rams-icon rams-icon--xl">
-                        <svg class="rams-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg class="rams-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
@@ -146,7 +146,7 @@
             <div class="rams-module__content">
                 <div class="rams-flex rams-items-center rams-gap-3 rams-mb-2">
                     <div class="rams-icon rams-icon--xl">
-                        <svg class="rams-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg class="rams-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <line x1="18" y1="20" x2="18" y2="10"></line>
                             <line x1="12" y1="20" x2="12" y2="4"></line>
                             <line x1="6" y1="20" x2="6" y2="14"></line>

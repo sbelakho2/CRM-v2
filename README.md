@@ -58,9 +58,13 @@ composer install
 Copy-Item .env .env.local
 # Edit .env.local with your DATABASE_URL and API credentials
 
-# Setup database
+# Setup database (development: empty databases, plain migrate is fine)
 php bin/console doctrine:database:create
 php bin/console doctrine:migrations:migrate
+
+# PRODUCTION databases: use the safe wrapper instead (preflight + legacy
+# compliance preservation + post-migration verification):
+#   php bin/console app:migrations:safe-migrate --env=prod
 
 # Start development server
 symfony server:start

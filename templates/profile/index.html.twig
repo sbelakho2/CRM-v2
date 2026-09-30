@@ -16,7 +16,7 @@
     {% for message in app.flashes('success') %}
         <div class="rams-alert rams-alert--success">
             <span class="rams-alert__icon">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
             </span>
@@ -27,7 +27,7 @@
     {% for message in app.flashes('error') %}
         <div class="rams-alert rams-alert--error">
             <span class="rams-alert__icon">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </span>

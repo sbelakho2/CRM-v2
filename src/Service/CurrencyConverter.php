@@ -100,6 +100,45 @@ class CurrencyConverter
         }
     }
 
+    /**
+     * Presentation-grade conversion: same as convert() — degrades to the
+     * unconverted amount (loudly logged) when the FX pair cannot be
+     * resolved. ONLY for display; business calculations (ranking, quoting,
+     * landed cost) must use convertOrFail().
+     */
+    public function convertForDisplay(?float $amount, ?string $fromCurrency, ?string $toCurrency = null): float
+    {
+        return $this->convert($amount, $fromCurrency, $toCurrency);
+    }
+
+    /**
+     * Business-grade conversion: FAILS CLOSED. Throws RuntimeException when
+     * the FX pair cannot be resolved from any data source. Financial
+     * comparisons (route ranking, landed cost, quote totals) must use this —
+     * silently comparing €900 to $950 1:1 is exactly the bug this prevents.
+     *
+     * @throws \RuntimeException when no rate exists for the currency pair
+     */
+    public function convertOrFail(?float $amount, ?string $fromCurrency, ?string $toCurrency = null): float
+    {
+        if ($amount === null) {
+            return 0.0;
+        }
+
+        $displayCurrency = $this->currencyPreferenceService->getDisplayCurrency();
+        $fallback = $fromCurrency ?? $toCurrency ?? $displayCurrency ?? 'USD';
+        $from = strtoupper((string) $fallback);
+        $to = strtoupper($toCurrency ?? $this->currencyPreferenceService->getDisplayCurrency($from));
+
+        if ($from === $to) {
+            return $amount;
+        }
+
+        $result = $this->conversionService->convert((float) $amount, $from, $to);
+
+        return (float) ($result['amount'] ?? $amount);
+    }
+
     public function format(?float $amount, ?string $fromCurrency, ?string $toCurrency = null, int $decimals = 2): string
     {
         if ($amount === null) {

@@ -22,8 +22,8 @@
             {% endif %}
         </div>
         <div class="rams-page__actions mobile-stack">
-            <a href="{{ path('meeting_edit', {id: slot.id}) }}" class="rams-btn rams-uppercase"> 
-                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <a href="{{ path('meeting_edit', {id: slot.id}) }}" class="rams-btn"> 
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                 </svg>
                 {{ 'common.edit'|trans }}
@@ -31,8 +31,8 @@
             {% if slot.isBooked %}
             <form action="{{ path('meeting_cancel', {id: slot.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'meeting.cancel_this_meeting'|trans|e('js') }}', {variant: 'warning'});">
                 <input type="hidden" name="_token" value="{{ csrf_token('cancel' ~ slot.id) }}">
-                <button type="submit" class="rams-btn rams-btn--warning rams-uppercase">
-                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <button type="submit" class="rams-btn rams-btn--warning">
+                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <circle cx="8" cy="8" r="6"/><path d="M11 5L5 11M5 5L11 11"/>
                     </svg>
                     {{ 'meeting.cancel_meeting'|trans }}
@@ -41,8 +41,8 @@
             {% endif %}
             <form action="{{ path('meeting_delete', {id: slot.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'meeting.delete_this_slot'|trans|e('js') }}', {variant: 'danger'});">
                 <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ slot.id) }}">
-                <button type="submit" class="rams-btn rams-btn--danger rams-uppercase">
-                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <button type="submit" class="rams-btn rams-btn--danger">
+                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                          <path d="M2 4H14M5 4V2H11V4M6 4V13H10V4"/>
                     </svg>
                     {{ 'common.delete'|trans }}
@@ -171,22 +171,22 @@
                 <div class="rams-module__content">
                     <div class="rams-text--center rams-p-4">
                         {% if slot.isPast %}
-                        <svg class="rams-icon rams-icon--xl rams-text--muted rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <svg class="rams-icon rams-icon--xl rams-text--muted rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                             <circle cx="8" cy="8" r="6"/><path d="M8 4V8L6 10"/>
                         </svg>
                         <p class="rams-text--muted">{{ 'meeting.meeting_passed'|trans }}</p>
                         {% elseif slot.isBooked %}
-                        <svg class="rams-icon rams-icon--xl rams-text--success rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <svg class="rams-icon rams-icon--xl rams-text--success rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                              <circle cx="8" cy="8" r="6"/><path d="M6 8L7 9L10 6"/>
                         </svg>
                         <p>{{ 'meeting.meeting_confirmed'|trans }}</p>
                         {% elseif slot.isAvailable %}
-                        <svg class="rams-icon rams-icon--xl rams-text--warning rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <svg class="rams-icon rams-icon--xl rams-text--warning rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                              <circle cx="8" cy="8" r="6"/><path d="M8 4V8L10 10"/>
                         </svg>
                         <p>{{ 'meeting.slot_available'|trans }}</p>
                         {% elseif slot.isCancelled %}
-                        <svg class="rams-icon rams-icon--xl rams-text--danger rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <svg class="rams-icon rams-icon--xl rams-text--danger rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                              <circle cx="8" cy="8" r="6"/><path d="M11 5L5 11M5 5L11 11"/>
                         </svg>
                         <p>{{ 'meeting.meeting_was_cancelled'|trans }}</p>
@@ -198,8 +198,8 @@
                     <p class="rams-text--sm rams-text--muted rams-mb-2">{{ 'meeting.share_booking_link'|trans }}</p>
                     <div class="rams-flex rams-gap-2"> 
                         <input type="text" class="rams-form__input rams-flex-1"  value="{{ url('meeting_book_slot', {token: slot.bookingToken}) }}" readonly id="booking-link" aria-label="{{ 'meeting.share_booking_link'|trans }}"> 
-                        <button type="button" class="rams-btn rams-uppercase"  onclick="copyBookingLink()">
-                            <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <button type="button" class="rams-btn"  onclick="copyBookingLink()">
+                            <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                 <rect x="4" y="4" width="8" height="8" rx="1"/><path d="M12 4V2H2V12H4"/>
                             </svg>
                             {{ 'common.copy'|trans }}

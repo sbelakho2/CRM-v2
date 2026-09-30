@@ -132,7 +132,8 @@
     "search": "Search",
     "skip_to_content": "Skip to main content",
     "success": "Success",
-    "user_menu": "User menu"
+    "user_menu": "User menu",
+    "toggle_navigation": "Toggle navigation"
   },
   "activity": {
     "actions": {
@@ -4262,5 +4263,25 @@
   "emails.meeting_cancellation.body": "We are sorry to inform you that the following meeting has been cancelled:",
   "emails.meeting_cancellation.title": "Meeting",
   "emails.meeting_cancellation.date": "Date & time",
-  "emails.meeting_cancellation.footer": "Thank you for your understanding. We remain at your disposal."
+  "emails.meeting_cancellation.footer": "Thank you for your understanding. We remain at your disposal.",
+  "quote_request": {
+    "title": "Quote Requests",
+    "subtitle": "Customer requests and acceptances from interactive live quotes",
+    "open": "Open",
+    "empty_title": "No requests here",
+    "empty_body": "When a customer requests a change or a quantity price from an interactive quote link, it appears here for follow-up.",
+    "empty_filtered": "No requests match this filter.",
+    "show_open": "Show open requests",
+    "received": "Received",
+    "quote": "Quote",
+    "type": "Type",
+    "quantity": "Quantity",
+    "estimated": "Estimated",
+    "status": "Status",
+    "customer_notes": "Customer notes",
+    "action": "Action",
+    "start_review": "Start review",
+    "mark_handled": "Mark handled",
+    "resolution": "Resolution"
+  }
 }

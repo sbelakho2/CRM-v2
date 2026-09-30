@@ -7,7 +7,7 @@
     <div class="rams-page-header">
         <div class="rams-page__header-content">
             <h1 class="rams-page__title">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="rams-mr-3"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="rams-mr-3" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
                  {{ 'report.title'|trans }}
             </h1>
             <nav class="rams-breadcrumb">
@@ -18,7 +18,7 @@
         </div>
         <div class="rams-page-header__actions">
             <a href="{{ path('report_new') }}" class="rams-btn rams-btn--primary">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="rams-mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="rams-mr-2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 {{ 'report.new_report'|trans }}
             </a>
         </div>
@@ -85,7 +85,7 @@
                             <td class="rams-text--right rams-whitespace-nowrap">
                                 <a href="{{ path('report_builder', {'id': report.id}) }}" class="rams-btn rams-btn--sm rams-mr-1">{{ 'report.builder'|trans }}</a>
                                 <a href="{{ path('report_edit', {'id': report.id}) }}" class="rams-btn rams-btn--ghost rams-btn__icon" title="{{ 'common.edit'|trans }}" aria-label="{{ 'common.edit'|trans }}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                                 </a>
                             </td>
                         </tr>

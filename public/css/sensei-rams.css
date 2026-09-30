@@ -771,8 +771,8 @@ body {
 
 .rams-module--hoverable:hover {
     border-color: var(--rams-muted);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    transform: translateY(-1px);
+    /* Stable-machinery hover: boundary + surface respond, the module
+       does not float (style guide: card hover lift → avoid). */
 }
 
 .rams-module--hoverable--selected {
@@ -842,8 +842,10 @@ body {
     font-family: var(--font-sans);
     font-size: var(--text-sm);
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    /* Normal case for action labels (round-8 UI-18): "Save report", not
+       "SAVE REPORT" — uppercase stays reserved for status/metadata. Opt
+       back in per-element with .rams-uppercase where genuinely wanted. */
+    letter-spacing: 0.01em;
     border-radius: var(--radius-sm);
     border: 1px solid var(--rams-line);
     background: var(--rams-module);
@@ -1077,14 +1079,8 @@ body {
 }
 
 @keyframes rams-dropdown-enter {
-    from {
-        opacity: 0;
-        transform: translateY(-4px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .rams-dropdown__content {
@@ -3263,8 +3259,6 @@ body {
 .rams-stat-card:hover {
     border-color: var(--rams-muted);
     background: var(--rams-panel);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.08);
 }
 
 .rams-stat-card__value {
@@ -3612,7 +3606,8 @@ body {
 }
 
 .rams-tier-card:hover {
-    transform: translateY(-2px);
+    border-color: var(--rams-muted);
+    background: var(--rams-panel);
 }
 
 .rams-tier-card--selected {
@@ -3972,7 +3967,6 @@ a.rams-module:hover {
 .rams-kanban__card:hover {
     border-color: var(--rams-muted);
     background: var(--rams-panel);
-    transform: translateY(-1px);
 }
 
 .rams-kanban__card-header {
@@ -5110,7 +5104,6 @@ a.rams-module:hover {
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(4px);
     z-index: 9999;
     display: flex;
     align-items: center;
@@ -5523,3 +5516,354 @@ svg.rams-icon--xs, svg.rams-icon--sm, svg.rams-icon--lg { display: inline-block;
 .rams-w-sm { width: 60px; }
 .rams-w-md { width: 100px; }
 .rams-w-lg { width: 140px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   REPORT BUILDER — Data → Configure → Preview layout
+   Templates describe semantics; the stylesheet owns presentation.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.rams-builder-layout {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .rams-builder-layout {
+        grid-template-columns: 1fr; /* component-level responsive strategy */
+    }
+}
+
+.rams-builder-fieldlist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 480px;
+    overflow-y: auto;
+}
+
+.rams-builder-field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    border: 1px solid var(--rams-border);
+    background: var(--rams-surface);
+    margin-bottom: var(--space-1);
+    flex-wrap: wrap;
+}
+
+.rams-builder-field__label {
+    font-weight: 600;
+    margin-right: auto;
+}
+
+.rams-builder-field__actions {
+    display: flex;
+    gap: var(--space-1);
+}
+
+.rams-builder-field:hover {
+    border-color: var(--rams-primary);
+}
+
+.rams-builder-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    min-height: 3rem;
+    border: 1px dashed var(--rams-line);
+}
+
+.rams-builder-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    border-bottom: 1px solid var(--rams-line);
+    background: var(--rams-surface);
+    flex-wrap: wrap;
+}
+
+.rams-builder-row:last-child {
+    border-bottom: none;
+}
+
+.rams-builder-row__label {
+    font-weight: 600;
+    margin-right: auto;
+}
+
+.rams-builder-row__control {
+    min-width: 10rem;
+}
+
+.rams-builder-row--filter .rams-builder-row__control {
+    min-width: 8rem;
+}
+
+.rams-builder-row__remove {
+    border: 1px solid var(--rams-border);
+    background: var(--rams-surface);
+    color: var(--rams-text);
+    cursor: pointer;
+    padding: 0 var(--space-2);
+}
+
+.rams-builder-row__remove:hover {
+    border-color: var(--rams-danger);
+    color: var(--rams-danger);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CALENDAR — component-owned sizing (was inline min-height: 700px
+   hostile to short viewports; scales down on laptops and mobile)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.rams-calendar-wrap {
+    min-height: clamp(420px, 72vh, 700px);
+}
+
+.rams-calendar {
+    height: 100%;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TOASTS — single ordered region; errors persist until acknowledged
+   ═══════════════════════════════════════════════════════════════════ */
+
+.rams-toast-region {
+    position: fixed;
+    top: var(--space-4);
+    right: var(--space-4);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: min(24rem, calc(100vw - 2 * var(--space-4)));
+}
+
+.rams-toast__close {
+    margin-left: var(--space-3);
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 var(--space-1);
+}
+
+.rams-toast__close:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 1px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SEMANTIC UTILITIES for former inline styles (round-8 UI-8 sweep)
+   Templates state meaning; these classes carry the presentation.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.rams-inline-icon {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: var(--space-1);
+}
+
+.rams-cell--metric {
+    min-width: 20px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.rams-cell--measure {
+    min-width: 120px;
+    text-align: center;
+}
+
+.rams-cell--wide {
+    min-width: 180px;
+}
+
+.rams-block {
+    display: block;
+}
+
+.rams-inline {
+    display: inline;
+}
+
+.rams-hidden-soft {
+    display: none; /* server-rendered hidden state (JS reveals) */
+}
+
+.rams-fit {
+    height: fit-content;
+}
+
+.rams-scroll-region {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.rams-min-h-60vh {
+    min-height: 60vh;
+}
+
+.rams-strike {
+    text-decoration: line-through;
+}
+
+.rams-tracked {
+    letter-spacing: 0.05em;
+}
+
+.rams-w-80 {
+    width: 80px;
+}
+
+.rams-measure-input {
+    width: 140px;
+    flex-shrink: 0;
+}
+
+.rams-icon-sm {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.rams-stack-h {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.rams-max-w-form {
+    max-width: 500px;
+    width: 100%;
+}
+
+/* Second-wave inline-style replacements */
+.rams-my-2 {
+    margin: 8px 0;
+}
+
+.rams-py-2 {
+    padding: 8px 0;
+}
+
+.rams-px-1 {
+    padding: 0 6px;
+}
+
+.rams-opacity-50 {
+    opacity: 0.5;
+}
+
+.rams-cell--qty {
+    min-width: 50px;
+}
+
+.rams-w-200 {
+    min-width: 200px;
+}
+
+.rams-min-h-600 {
+    min-height: 600px;
+}
+
+.rams-centered {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.rams-centered--narrow {
+    max-width: 600px;
+    width: 100%;
+}
+
+.rams-centered--form {
+    max-width: 480px;
+    margin: 48px auto;
+}
+
+.rams-w-280 {
+    max-width: 280px;
+}
+
+.rams-scroll-region--sm {
+    max-height: 560px;
+}
+
+.rams-scroll-region--notes {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.rams-panel-head {
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.rams-chart-area {
+    height: 400px;
+    width: 100%;
+}
+
+.rams-meta-row {
+    gap: 0.75rem;
+    font-size: 0.85rem;
+}
+
+.rams-flex-2 {
+    flex: 2;
+}
+
+.rams-progress-line {
+    flex: 1;
+    height: 20px;
+}
+
+.rams-badge-code {
+    font-size: 0.65rem;
+}
+
+.rams-value-lg {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.rams-value-md {
+    font-size: 1.25rem;
+}
+
+.rams-text-body {
+    font-weight: 500;
+}
+
+.rams-list-plain {
+    list-style: none;
+    padding-left: 0;
+}
+
+.rams-week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0;
+    min-height: 600px;
+}
+
+a[data-dashed="true"] {
+    border-style: dashed;
+}
+
+div[data-past-marker="true"] {
+    border-left: 4px solid rgba(0, 0, 0, 0.2);
+}
+
+summary[data-clickable="true"] {
+    cursor: pointer;
+    user-select: none;
+}

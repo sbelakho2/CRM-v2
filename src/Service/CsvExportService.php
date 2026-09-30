@@ -72,10 +72,17 @@ class CsvExportService
                 'updated_at' => 'Updated At',
             ];
             
-            // Use specified fields or all
-            $exportFields = $fields ?? array_keys($availableFields);
+            // Use specified fields or all. Unknown ?fields= values are
+            // DROPPED — they previously became user-controlled header strings
+            // with permanently blank columns.
+            $exportFields = $fields !== null
+                ? array_values(array_intersect($fields, array_keys($availableFields)))
+                : array_keys($availableFields);
+            if ($exportFields === []) {
+                $exportFields = array_keys($availableFields);
+            }
             
-            // Write header row
+            // Write header row (labels come from the whitelist, never input)
             $headers = array_map(fn($f) => $availableFields[$f] ?? $f, $exportFields);
             fputcsv($handle, $headers, ',', '"', '\\');
             

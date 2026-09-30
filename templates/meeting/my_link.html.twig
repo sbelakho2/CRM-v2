@@ -17,7 +17,7 @@
         </div>
     </div>
 
-    <div class="rams-grid rams-grid" style="max-width: 700px; margin: 0 auto;">
+    <div class="rams-grid rams-centered">
         <div class="rams-module">
             <div class="rams-module__header">
                 <h2>{{ 'meeting.my_booking_link'|trans }}</h2>
@@ -31,7 +31,7 @@
                     <label for="booking-link" class="rams-sr-only">{{ 'meeting.booking_link'|trans }}</label>
                     <input type="text" class="rams-form__input" value="{{ bookingUrl }}" readonly id="booking-link">
                     <button type="button" class="rams-btn" onclick="copyLink()">
-                        <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                             <rect x="4" y="4" width="8" height="8" rx="1"/><path d="M12 4V2H2V12H4"/>
                         </svg>
                         {{ 'meeting.copy'|trans }}
@@ -40,13 +40,13 @@
                 
                 <div class="rams-actions">
                     <a href="{{ bookingUrl }}" target="_blank" class="rams-btn rams-btn--primary">
-                        <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                             <path d="M10 4H14V8M14 4L8 10"/>
                         </svg>
                         {{ 'meeting.preview_my_page'|trans }}
                     </a>
                     <button type="button" class="rams-btn" onclick="shareLink()">
-                        <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                             <circle cx="12" cy="4" r="2"/><circle cx="4" cy="8" r="2"/><circle cx="12" cy="12" r="2"/><path d="M10 5L6 7M6 9L10 11"/>
                         </svg>
                         {{ 'meeting.share'|trans }}

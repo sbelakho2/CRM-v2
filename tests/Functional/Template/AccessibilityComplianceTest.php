@@ -7,20 +7,56 @@ use Symfony\Component\Finder\Finder;
 
 /**
  * Accessibility Compliance Tests (WCAG 2.1 AA)
- * 
+ *
  * Tests verify all templates meet accessibility requirements
  * following the Sensei-Rams design philosophy which emphasizes
  * clarity, function, and inclusive design.
+ *
+ * Round-8 audit correction: a DETECTED violation must FAIL the build.
+ * The previous suite discovered violations and then markTestSkipped()-ed
+ * with an unconditional pass — a static linter report masquerading as an
+ * enforcement gate. Known, reviewed violations live in
+ * accessibility_allowlist.php; anything NOT in the allowlist fails here.
  */
 class AccessibilityComplianceTest extends TestCase
 {
     private string $templatesPath;
     private string $cssPath;
-    
+
+    /**
+     * Reviewed allowlist: file => list of known violation substrings that
+     * are ACCEPTED for now. Remove an entry after fixing the template —
+     * new violations always fail.
+     */
+    private array $allowlist;
+
     protected function setUp(): void
     {
         $this->templatesPath = __DIR__ . '/../../../templates';
         $this->cssPath = __DIR__ . '/../../../public/css/sensei-rams.css';
+        $this->allowlist = require __DIR__ . '/accessibility_allowlist.php';
+    }
+
+    /**
+     * Apply the reviewed allowlist: drop violation entries that match an
+     * allowed substring for their file.
+     */
+    private function applyAllowlist(string $file, array $violations): array
+    {
+        $allowed = $this->allowlist[$file] ?? [];
+        if ($allowed === []) {
+            return $violations;
+        }
+
+        return array_values(array_filter($violations, function ($violation) use ($allowed) {
+            foreach ($allowed as $needle) {
+                if (str_contains((string) $violation, $needle)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }));
     }
     
     // ========================================
@@ -128,14 +164,18 @@ class AccessibilityComplianceTest extends TestCase
             }
         }
         
-        if (!empty($violations)) {
-            $this->markTestSkipped(
-                "INFO: Some form inputs may need explicit labels:\n" .
-                print_r($violations, true)
-            );
+        foreach ($violations as $template => $items) {
+            $violations[$template] = $this->applyAllowlist($template, $items);
+            if ($violations[$template] === []) {
+                unset($violations[$template]);
+            }
         }
-        
-        $this->assertTrue(true);
+
+        $this->assertEmpty(
+            $violations,
+            "Form inputs without labels (fix or review into accessibility_allowlist.php):\n" .
+            print_r($violations, true)
+        );
     }
     
     public function testFormErrorsAreAccessible(): void
@@ -272,14 +312,18 @@ class AccessibilityComplianceTest extends TestCase
             }
         }
         
-        if (!empty($violations)) {
-            $this->markTestSkipped(
-                "INFO: Some click handlers may need keyboard equivalents:\n" .
-                print_r($violations, true)
-            );
+        foreach ($violations as $template => $items) {
+            $violations[$template] = $this->applyAllowlist($template, $items);
+            if ($violations[$template] === []) {
+                unset($violations[$template]);
+            }
         }
-        
-        $this->assertTrue(true);
+
+        $this->assertEmpty(
+            $violations,
+            "Click handlers without keyboard equivalents (fix or review into accessibility_allowlist.php):\n" .
+            print_r($violations, true)
+        );
     }
     
     // ========================================
@@ -314,11 +358,42 @@ class AccessibilityComplianceTest extends TestCase
     
     public function testDecorativeImagesHaveEmptyAlt(): void
     {
-        $cssContent = file_get_contents($this->cssPath);
-        
-        // Check that decorative images are handled properly
-        // (SVG icons should have aria-hidden="true")
-        $this->assertTrue(true, 'Decorative images should have alt="" or aria-hidden="true"');
+        $finder = new Finder();
+        $finder->files()->in($this->templatesPath)->name('*.twig');
+
+        $violations = [];
+
+        foreach ($finder as $file) {
+            $relativePath = $file->getRelativePathname();
+            $content = $file->getContents();
+
+            // Decorative INLINE SVGs must be hidden from assistive tech:
+            // svg WITH stroke/currentColor iconography but no text content
+            // and no aria-hidden / aria-label / role="img" + title.
+            preg_match_all('/<svg\b[^>]*>.*?<\/svg>/s', $content, $matches);
+
+            foreach ($matches[0] as $svg) {
+                $hasText = preg_match('/<(title|text)\b/', $svg) === 1;
+                $isHidden = str_contains($svg, 'aria-hidden="true"') || str_contains($svg, "aria-hidden='true'");
+                $isLabeled = str_contains($svg, 'aria-label') || str_contains($svg, 'role="img"');
+                if (!$hasText && !$isHidden && !$isLabeled) {
+                    $violations[$relativePath][] = substr($svg, 0, 90) . '…';
+                }
+            }
+        }
+
+        foreach ($violations as $template => $items) {
+            $violations[$template] = $this->applyAllowlist($template, $items);
+            if ($violations[$template] === []) {
+                unset($violations[$template]);
+            }
+        }
+
+        $this->assertEmpty(
+            $violations,
+            "Decorative inline SVGs without aria-hidden/label (fix or review into accessibility_allowlist.php):\n" .
+            print_r($violations, true)
+        );
     }
     
     // ========================================
@@ -354,14 +429,18 @@ class AccessibilityComplianceTest extends TestCase
             }
         }
         
-        if (!empty($violations)) {
-            $this->markTestSkipped(
-                "INFO: Some templates may have heading level skips:\n" .
-                print_r($violations, true)
-            );
+        foreach ($violations as $template => $items) {
+            $violations[$template] = $this->applyAllowlist($template, $items);
+            if ($violations[$template] === []) {
+                unset($violations[$template]);
+            }
         }
-        
-        $this->assertTrue(true);
+
+        $this->assertEmpty(
+            $violations,
+            "Heading level skips (fix or review into accessibility_allowlist.php):\n" .
+            print_r($violations, true)
+        );
     }
     
     public function testPageTemplatesHaveH1(): void
@@ -394,14 +473,13 @@ class AccessibilityComplianceTest extends TestCase
             }
         }
         
-        if (!empty($missing)) {
-            $this->markTestSkipped(
-                "INFO: Some page templates may be missing h1/page header:\n" .
-                implode("\n", $missing)
-            );
-        }
-        
-        $this->assertTrue(true);
+        $missing = array_values(array_filter($missing, fn ($t) => empty($this->allowlist[$t])));
+
+        $this->assertEmpty(
+            $missing,
+            "Page templates missing h1/page header (fix or review into accessibility_allowlist.php):\n" .
+            implode("\n", $missing)
+        );
     }
     
     // ========================================
@@ -427,14 +505,13 @@ class AccessibilityComplianceTest extends TestCase
             }
         }
         
-        if (!empty($violations)) {
-            $this->markTestSkipped(
-                "INFO: Some tables may be missing headers:\n" .
-                implode("\n", $violations)
-            );
-        }
-        
-        $this->assertTrue(true);
+        $violations = array_values(array_filter($violations, fn ($t) => empty($this->allowlist[$t])));
+
+        $this->assertEmpty(
+            $violations,
+            "Tables without headers (fix or review into accessibility_allowlist.php):\n" .
+            implode("\n", $violations)
+        );
     }
     
     public function testTableStylesAreDefined(): void
@@ -484,14 +561,13 @@ class AccessibilityComplianceTest extends TestCase
             }
         }
         
-        if (!empty($violations)) {
-            $this->markTestSkipped(
-                "INFO: Some modals may be missing aria attributes:\n" .
-                implode("\n", $violations)
-            );
-        }
-        
-        $this->assertTrue(true);
+        $violations = array_values(array_filter($violations, fn ($t) => empty($this->allowlist[$t])));
+
+        $this->assertEmpty(
+            $violations,
+            "Modals missing ARIA (fix or review into accessibility_allowlist.php):\n" .
+            implode("\n", $violations)
+        );
     }
     
     public function testDropdownsHaveAriaExpanded(): void
@@ -513,15 +589,13 @@ class AccessibilityComplianceTest extends TestCase
             }
         }
         
-        // This is informational - many dropdowns are JavaScript controlled
-        if (!empty($violations)) {
-            $this->markTestSkipped(
-                "INFO: Some dropdowns may need aria-expanded:\n" .
-                implode("\n", $violations)
-            );
-        }
-        
-        $this->assertTrue(true);
+        $violations = array_values(array_filter($violations, fn ($t) => empty($this->allowlist[$t])));
+
+        $this->assertEmpty(
+            $violations,
+            "Dropdowns without aria-expanded (fix or review into accessibility_allowlist.php):\n" .
+            implode("\n", $violations)
+        );
     }
     
     // ========================================
@@ -531,14 +605,41 @@ class AccessibilityComplianceTest extends TestCase
     public function testLoadingStatesAreAccessible(): void
     {
         $cssContent = file_get_contents($this->cssPath);
-        
-        // Check for loading indicator styles
-        if (strpos($cssContent, '.rams-loading') !== false || 
-            strpos($cssContent, '.rams-spinner') !== false) {
-            $this->assertTrue(true, 'Loading states should have aria-busy or similar');
-        } else {
-            $this->markTestSkipped('No loading states defined in CSS');
+
+        $hasLoadingStyles = strpos($cssContent, '.rams-loading') !== false
+            || strpos($cssContent, '.rams-spinner') !== false;
+        if (!$hasLoadingStyles) {
+            $this->markTestIncomplete('No loading states defined in CSS yet');
         }
+
+        // Every TEMPLATE that renders a loading indicator must expose it to
+        // assistive tech: role="status" / aria-live / aria-busy on or near
+        // the indicator.
+        $finder = new Finder();
+        $finder->files()->in($this->templatesPath)->name('*.twig');
+
+        $violations = [];
+        foreach ($finder as $file) {
+            $content = $file->getContents();
+            if (!preg_match('/rams-loading|rams-spinner/', $content)) {
+                continue;
+            }
+            $hasA11y = str_contains($content, 'role="status"')
+                || str_contains($content, 'aria-live')
+                || str_contains($content, 'aria-busy')
+                || str_contains($content, 'rams-sr-only');
+            if (!$hasA11y) {
+                $violations[] = $file->getRelativePathname();
+            }
+        }
+
+        $violations = array_values(array_filter($violations, fn ($t) => empty($this->allowlist[$t])));
+
+        $this->assertEmpty(
+            $violations,
+            "Loading indicators without status semantics (fix or review into accessibility_allowlist.php):\n" .
+            implode("\n", $violations)
+        );
     }
     
     // ========================================
@@ -579,14 +680,18 @@ class AccessibilityComplianceTest extends TestCase
             }
         }
         
-        if (!empty($violations)) {
-            $this->markTestSkipped(
-                "INFO: Some icon buttons may need accessible names:\n" .
-                print_r($violations, true)
-            );
+        foreach ($violations as $template => $items) {
+            $violations[$template] = $this->applyAllowlist($template, $items);
+            if ($violations[$template] === []) {
+                unset($violations[$template]);
+            }
         }
-        
-        $this->assertTrue(true);
+
+        $this->assertEmpty(
+            $violations,
+            "Icon buttons without accessible names (fix or review into accessibility_allowlist.php):\n" .
+            print_r($violations, true)
+        );
     }
     
     // ========================================

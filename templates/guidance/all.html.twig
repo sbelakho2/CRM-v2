@@ -14,14 +14,14 @@
             <div class="rams-btn-group mobile-stack">
                 {% if notifications|length > 0 %}
                     <button type="button" onclick="clearAllGuidanceNotifications()" class="rams-btn">
-                        <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <path d="M12 4l-1 10H5L4 4M3 4h10M6 4V2h4v2"/>
                         </svg>
                         {{ 'guidance.clear_all'|trans }}
                     </button>
                 {% endif %}
                 <a href="{{ path('app_dashboard') }}" class="rams-btn rams-btn--primary">
-                    <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <path d="M10 12l-6-4 6-4"/>
                     </svg>
                     {{ 'nav.dashboard'|trans }}
@@ -65,14 +65,14 @@
                                 {% if notification.actionUrl and notification.actionLabel %}
                                     <a href="{{ notification.actionUrl }}" class="rams-btn rams-btn--primary rams-btn--sm">
                                         {{ notification.actionLabel }}
-                                        <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                        <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                             <path d="M6 4l4 4-4 4"/>
                                         </svg>
                                     </a>
                                 {% endif %}
                                 {# Dismiss Button #}
                                 <button type="button" onclick="dismissGuidanceNotification(this)" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.close'|trans }}">
-                                    <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                    <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                         <path d="M4 4l8 8M4 12l8-8"/>
                                     </svg>
                                 </button>

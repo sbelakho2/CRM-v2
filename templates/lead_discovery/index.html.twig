@@ -234,7 +234,7 @@
         <div class="rams-module__content">
             <form method="post" action="{{ path('lead_discovery_search') }}" class="rams-form">
                 <div class="rams-flex rams-flex-wrap rams-gap-4 rams-items-end">
-                    <div class="rams-form__group" style="min-width: 180px; flex: 1;">
+                    <div class="rams-form__group rams-cell--wide rams-flex-1">
                         <label for="query" class="rams-form__label rams-dymo">
                             {{ 'lead_discovery.search_query'|trans }}
                         </label>
@@ -247,7 +247,7 @@
                             required
                         >
                     </div>
-                    <div class="rams-form__group" style="min-width: 150px;">
+                    <div class="rams-form__group rams-cell--wide">
                         <label for="sector" class="rams-form__label rams-dymo">
                             {{ 'lead_discovery.sector'|trans }}
                         </label>
@@ -261,7 +261,7 @@
                             <option value="pharmaceutical">{{ 'lead_discovery.sector_pharmaceutical'|trans }}</option>
                         </select>
                     </div>
-                    <div class="rams-form__group" style="min-width: 150px;">
+                    <div class="rams-form__group rams-cell--wide">
                         <label for="location" class="rams-form__label rams-dymo">
                             {{ 'lead_discovery.location'|trans }}
                         </label>
@@ -273,7 +273,7 @@
                             placeholder="{{ 'lead_discovery.location_placeholder'|trans }}"
                         >
                     </div>
-                    <div class="rams-form__group" style="min-width: 120px;">
+                    <div class="rams-form__group rams-cell--wide">
                         <label for="limit" class="rams-form__label rams-dymo">
                             {{ 'lead_discovery.num_results'|trans }}
                         </label>
@@ -286,7 +286,7 @@
                     </div>
                     <div class="rams-form__actions rams-flex rams-gap-2">
                         <button type="submit" class="rams-btn rams-btn--primary">
-                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                             </svg>
                             {{ 'lead_discovery.search_companies'|trans }}
@@ -360,7 +360,7 @@
                             <td class="rams-table__cell">
                                 {% if lead.leadScore is not null %}
                                     <div class="rams-flex rams-gap-2 rams-items-center">
-                                        <div class="rams-progress rams-progress--compact" class="rams-w-sm">
+                                        <div class="rams-progress rams-progress--compact rams-w-sm">
                                             <div class="rams-progress__bar" style="--rams-progress-value: {{  lead.leadScore  }}%\3"></div>
                                         </div>
                                         <span class="rams-text--xs">{{ lead.leadScore }}</span>
@@ -375,16 +375,16 @@
                             <td class="rams-table__cell rams-text--center">
                                 <div class="rams-flex rams-gap-1 rams-justify-center">
                                     <a href="{{ path('app_lead_review', {id: lead.id}) }}" class="rams-btn rams-btn--sm rams-btn--ghost" title="{{ 'lead_discovery.view_lead'|trans }}" aria-label="{{ 'lead_discovery.view_lead'|trans }}">
-                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </a>
                                     {% if lead.reviewStatus == 'pending' %}
                                     <button type="button" class="rams-btn rams-btn--sm rams-btn--ghost rams-text--success" onclick="enrichLead(this, {{ lead.id }})" title="{{ 'lead_discovery.enrich'|trans }}" aria-label="{{ 'lead_discovery.enrich'|trans }}">
-                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                                     </button>
                                     {% endif %}
                                     {% if lead.reviewStatus == 'approved' and not lead.company %}
                                     <button type="button" class="rams-btn rams-btn--sm rams-btn--ghost rams-text--info" onclick="convertLead(this, {{ lead.id }})" data-csrf="{{ csrf_token('lead_action_' ~ lead.id) }}" title="{{ 'lead_discovery.convert_to_contact'|trans }}" aria-label="{{ 'lead_discovery.convert_to_contact'|trans }}">
-                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                                     </button>
                                     {% endif %}
                                 </div>
@@ -449,15 +449,15 @@
                 </div>
                 <div class="rams-module__content rams-stack rams-gap-2">
                     <a href="{{ path('discovery_pipeline_index') }}" class="rams-btn rams-btn--primary rams-w-full">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="m12 15-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-5c1.62-2.2 5-3 5-3"/><path d="M12 15v5s3.03-.55 5-2c2.2-1.62 3-5 3-5"/></svg>
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="m12 15-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-5c1.62-2.2 5-3 5-3"/><path d="M12 15v5s3.03-.55 5-2c2.2-1.62 3-5 3-5"/></svg>
                         {{ 'lead_discovery.run_full_pipeline'|trans }}
                     </a>
                     <button type="button" onclick="enrichExistingLeads()" class="rams-btn rams-w-full">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 3-1.912 5.813a2 2 0 01-1.275 1.275L3 12l5.813 1.912a2 2 0 011.275 1.275L12 21l1.912-5.813a2 2 0 011.275-1.275L21 12l-5.813-1.912a2 2 0 01-1.275-1.275L12 3Z"/></svg>
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 3-1.912 5.813a2 2 0 01-1.275 1.275L3 12l5.813 1.912a2 2 0 011.275 1.275L12 21l1.912-5.813a2 2 0 011.275-1.275L21 12l-5.813-1.912a2 2 0 01-1.275-1.275L12 3Z"/></svg>
                         {{ 'lead_discovery.enrich_existing_leads'|trans }}
                     </button>
                     <a href="{{ path('export_leads') }}" class="rams-btn rams-btn--ghost rams-w-full">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         {{ 'lead_discovery.export_leads'|trans }}
                     </a>
                 </div>

@@ -539,4 +539,57 @@ class Task
 
         return $this;
     }
+
+    public function isArchived(): bool
+    {
+        return $this->archivedAt !== null;
+    }
+
+    /** Archive (hide from every live surface; history is preserved). */
+    public function archive(): self
+    {
+        if ($this->archivedAt === null) {
+            $this->archivedAt = new \DateTime();
+        }
+
+        return $this;
+    }
+
+    /** Restore an archived task back into the live workflow. */
+    public function restore(): self
+    {
+        $this->archivedAt = null;
+
+        return $this;
+    }
+
+    /**
+     * THE authoritative status transition. Invariants:
+     * - entering DONE sets completedAt; leaving DONE clears it (status=todo
+     *   with completedAt!=null is a corrupt state that archiving logic and
+     *   reports rely on not existing);
+     * - archived tasks accept no workflow mutation;
+     * - unknown statuses are rejected.
+     * Controllers must NOT hand-synchronize status/completedAt.
+     */
+    public function transitionTo(string $status): self
+    {
+        if ($this->archivedAt !== null) {
+            throw new \LogicException('Archived tasks cannot change status; restore the task first.');
+        }
+
+        if (!in_array($status, self::STATUSES, true)) {
+            throw new \InvalidArgumentException(sprintf('Unknown task status "%s".', $status));
+        }
+
+        $this->status = $status;
+        if ($status === self::STATUS_DONE) {
+            $this->completedAt ??= new \DateTime();
+        } else {
+            $this->completedAt = null;
+        }
+        $this->updatedAt = new \DateTime();
+
+        return $this;
+    }
 }

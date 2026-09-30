@@ -14,13 +14,13 @@
             </div>
             <div class="rams-page__actions mobile-stack">
                 <a href="{{ path('app_activity_timeline') }}" class="rams-btn">
-                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     {{ 'activity.timeline_view'|trans }}
                 </a>
                 <a href="{{ path('app_activity_new') }}" class="rams-btn rams-btn--primary">
-                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
                     {{ 'activity.log_activity'|trans }}
@@ -136,13 +136,13 @@
                                 <td class="rams-table__cell">{{ activity.activityDate|date('M d, Y') }}</td>
                                 <td class="rams-table__cell rams-table__cell--actions">
                                     <a href="{{ path('app_activity_show', {id: activity.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.view'|trans }}" aria-label="{{ 'common.view'|trans }}">
-                                        <svg class="rams-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="rams-icon--sm">
+                                        <svg class="rams-icon rams-icon--sm" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                                         </svg>
                                     </a>
                                     <a href="{{ path('app_activity_edit', {id: activity.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.edit'|trans }}" aria-label="{{ 'common.edit'|trans }}">
-                                        <svg class="rams-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="rams-icon--sm">
+                                        <svg class="rams-icon rams-icon--sm" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg>
                                     </a>
@@ -152,7 +152,7 @@
                             <tr>
                                 <td colspan="6" class="rams-table__cell rams-table__cell">
                                     <div class="rams-empty-state">
-                                        <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="rams-icon--lg">
+                                        <svg class="rams-empty-state__icon rams-icon--lg" aria-hidden="true">
                                             <circle cx="8" cy="8" r="6" stroke-width="2"/>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4V8L11 11"/>
                                         </svg>
@@ -160,7 +160,7 @@
                                         <p class="rams-empty-state__description">{{ 'activity.create_first'|trans }}</p>
                                         <div class="rams-flex rams-gap-2 rams-justify-center"> 
                                             <a href="{{ path('app_activity_new') }}" class="rams-btn rams-btn--primary">
-                                                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                                 </svg>
                                                 {{ 'activity.create_first_button'|trans }}

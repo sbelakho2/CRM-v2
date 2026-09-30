@@ -40,7 +40,9 @@ class ReportBuilderService
             'email' => ['label' => 'Email', 'type' => 'string'],
             'phone' => ['label' => 'Phone', 'type' => 'string'],
             'jobTitle' => ['label' => 'Job Title', 'type' => 'string'],
-            'isPrimaryContact' => ['label' => 'Primary Contact', 'type' => 'boolean'],
+            // DQL uses MAPPED property names, not getter names — the Contact
+            // property is $primaryContact (isPrimaryContact() is only the getter).
+            'primaryContact' => ['label' => 'Primary Contact', 'type' => 'boolean'],
             'createdAt' => ['label' => 'Created Date', 'type' => 'datetime'],
             'company.name' => ['label' => 'Company Name', 'type' => 'string', 'relation' => 'company'],
         ],
@@ -200,27 +202,36 @@ class ReportBuilderService
         $selectParts = [];
         $joinsMade = [];
         $warnings = [];
+        $nonAggregatedSelectExprs = [];
+        $nonAggregatedSelectFields = [];
+        $hasAggregatedSelect = false;
         
         foreach ($columns as $column) {
             if (is_array($column)) {
-                $field = $column['field'] ?? $column;
-                $alias = $column['alias'] ?? str_replace('.', '_', $field);
+                $field = (string) ($column['field'] ?? '');
+                $alias = $column['alias'] ?? null;
                 $aggregation = $column['aggregation'] ?? null;
             } else {
-                $field = $column;
-                $alias = str_replace('.', '_', $field);
+                $field = (string) $column;
+                $alias = null;
                 $aggregation = null;
             }
-            
-            // ── Defense in depth: field names come from ReportDefinition
-            // (admin-created), but they are interpolated into raw DQL — reject
-            // anything not whitelisted in SOURCE_FIELDS for this data source.
-            if (!$this->isValidField($field, $report->getDataSource())) {
-                $warnings[] = "Skipped column '{$field}': not a valid field for data source '{$report->getDataSource()}'";
+
+            if ($field === '') {
                 continue;
             }
-            
+
+            // ── Client-supplied ALIASES are DQL result identifiers too — a
+            // whitelisted field does not sanitize the alias. Validate the
+            // shape; anything else falls back to the server-generated alias.
+            $alias = $this->sanitizeAlias($alias) ?? $this->defaultAlias($field, $aggregation);
+
             // ── Aggregation functions are whitelisted to a known set ──
+            // An EMPTY aggregation means "none" (what the form submits),
+            // never an invalid value.
+            if ($aggregation !== null && (string) $aggregation === '') {
+                $aggregation = null;
+            }
             if ($aggregation !== null) {
                 $aggregation = strtolower((string) $aggregation);
                 if (!in_array($aggregation, ['count', 'sum', 'avg', 'min', 'max'], true)) {
@@ -228,26 +239,33 @@ class ReportBuilderService
                     continue;
                 }
             }
-            
-            // Handle relation fields
-            if (str_contains($field, '.')) {
-                [$relation, $relField] = explode('.', $field, 2);
-                if (!in_array($relation, $joinsMade)) {
-                    $qb->leftJoin("e.{$relation}", $relation);
-                    $joinsMade[] = $relation;
-                }
-                $fieldPath = "{$relation}.{$relField}";
-            } else {
-                $fieldPath = "e.{$field}";
+
+            $fieldPath = $this->resolveFieldExpression($qb, $field, $report->getDataSource(), $joinsMade);
+            if ($fieldPath === null) {
+                $warnings[] = "Skipped column '{$field}': not a valid field for data source '{$report->getDataSource()}'";
+                continue;
             }
-            
+
             if ($aggregation) {
+                $hasAggregatedSelect = true;
                 $selectParts[] = "{$aggregation}({$fieldPath}) as {$alias}";
             } else {
+                $nonAggregatedSelectExprs[] = $fieldPath;
+                $nonAggregatedSelectFields[$field] = true;
                 $selectParts[] = "{$fieldPath} as {$alias}";
             }
         }
-        
+
+        // ONLY_FULL_GROUP_BY contract: an aggregate column alongside plain
+        // columns is invalid without a GROUP BY — group by every plain
+        // selected column (the standard "count by X" reporting behavior)
+        // instead of letting the query die at execution.
+        if ($hasAggregatedSelect && empty($report->getGroupBy()) && $nonAggregatedSelectExprs !== []) {
+            foreach ($nonAggregatedSelectExprs as $expr) {
+                $qb->addGroupBy($expr);
+            }
+        }
+
         if (empty($selectParts)) {
             return [
                 'success' => false,
@@ -274,20 +292,13 @@ class ReportBuilderService
         $groupBy = $report->getGroupBy();
         if (!empty($groupBy)) {
             foreach ($groupBy as $groupField) {
-                if (!$this->isValidField($groupField, $report->getDataSource())) {
+                $groupField = (string) $groupField;
+                $expr = $this->resolveFieldExpression($qb, $groupField, $report->getDataSource(), $joinsMade);
+                if ($expr === null) {
                     $warnings[] = "Skipped group-by field '{$groupField}': not valid for data source '{$report->getDataSource()}'";
                     continue;
                 }
-                if (str_contains($groupField, '.')) {
-                    [$relation, $relField] = explode('.', $groupField, 2);
-                    if (!in_array($relation, $joinsMade)) {
-                        $qb->leftJoin("e.{$relation}", $relation);
-                        $joinsMade[] = $relation;
-                    }
-                    $qb->addGroupBy("{$relation}.{$relField}");
-                } else {
-                    $qb->addGroupBy("e.{$groupField}");
-                }
+                $qb->addGroupBy($expr);
             }
         }
         
@@ -295,22 +306,33 @@ class ReportBuilderService
         $orderBy = $report->getOrderBy();
         if (!empty($orderBy)) {
             foreach ($orderBy as $order) {
-                $field = is_array($order) ? $order['field'] : $order;
-                $direction = is_array($order) ? ($order['direction'] ?? 'ASC') : 'ASC';
-                
-                if (!$this->isValidField($field, $report->getDataSource())) {
+                $field = (string) (is_array($order) ? ($order['field'] ?? '') : $order);
+                // Direction is interpolated into DQL — only ASC|DESC survive,
+                // case-normalized.
+                $direction = strtoupper((string) (is_array($order) ? ($order['direction'] ?? 'ASC') : 'ASC'));
+                if (!in_array($direction, ['ASC', 'DESC'], true)) {
+                    $direction = 'ASC';
+                }
+
+                // ONLY_FULL_GROUP_BY: with aggregate columns and implicit
+                // grouping, ordering by a non-grouped column is invalid DQL —
+                // restrict to the grouped (plain selected) fields.
+                if ($hasAggregatedSelect && empty($report->getGroupBy()) && $nonAggregatedSelectExprs !== []
+                    && !isset($nonAggregatedSelectFields[$field])) {
+                    $warnings[] = "Skipped order-by field '{$field}': not part of the implicit GROUP BY";
+                    continue;
+                }
+
+                $expr = $this->resolveFieldExpression($qb, $field, $report->getDataSource(), $joinsMade);
+                if ($expr === null) {
                     $warnings[] = "Skipped order-by field '{$field}': not valid for data source '{$report->getDataSource()}'";
                     continue;
                 }
-                
-                if (str_contains($field, '.')) {
-                    [$relation, $relField] = explode('.', $field, 2);
-                    $qb->addOrderBy("{$relation}.{$relField}", $direction);
-                } else {
-                    $qb->addOrderBy("e.{$field}", $direction);
-                }
+                $qb->addOrderBy($expr, $direction);
             }
-        } else {
+        } elseif (empty($groupBy)) {
+            // Deterministic default order — but NOT alongside GROUP BY:
+            // ordering by a non-grouped column breaks ONLY_FULL_GROUP_BY.
             $qb->orderBy('e.id', 'DESC');
         }
         
@@ -388,7 +410,91 @@ class ReportBuilderService
     {
         return isset(self::SOURCE_FIELDS[$dataSource][$field]);
     }
+
+    /**
+     * THE single field resolver. Every DQL property path in this service —
+     * SELECT, FILTER, GROUP BY, ORDER BY and DATE RANGE — goes through this
+     * method: whitelist validation, idempotent relation join, expression
+     * build. No other code may construct "e.field" or "relation.field" paths.
+     *
+     * @return string|null the DQL expression, or null when the field is not
+     *                     valid for the data source
+     */
+    private function resolveFieldExpression(QueryBuilder $qb, string $field, string $dataSource, array &$joinsMade): ?string
+    {
+        if (!$this->isValidField($field, $dataSource)) {
+            return null;
+        }
+
+        if (str_contains($field, '.')) {
+            [$relation, $relField] = explode('.', $field, 2);
+            $this->ensureJoin($qb, $dataSource, $relation);
+            if (!in_array($relation, $joinsMade, true)) {
+                $joinsMade[] = $relation;
+            }
+
+            return "{$relation}.{$relField}";
+        }
+
+        return "e.{$field}";
+    }
+
+    /**
+     * Can $field be used as a DATE-RANGE anchor? Must be whitelisted AND of
+     * a date/datetime schema type — a string field compared against dates
+     * would silently filter nothing.
+     */
+    public function isValidDateField(string $field, string $dataSource): bool
+    {
+        $fieldDef = self::SOURCE_FIELDS[$dataSource][$field] ?? null;
+
+        return $fieldDef !== null
+            && !str_contains($field, '.')
+            && in_array($fieldDef['type'] ?? '', ['datetime', 'date'], true);
+    }
+
+    /**
+     * Canonical data-source check — the ONLY source of truth for which
+     * sources exist (controllers must not keep a second list).
+     */
+    public function supportsDataSource(string $dataSource): bool
+    {
+        return isset(self::ENTITY_MAP[$dataSource]) && class_exists(self::ENTITY_MAP[$dataSource]);
+    }
     
+    /**
+     * Client aliases become DQL result identifiers — only plain identifier
+     * shapes are accepted; everything else falls back to the generated one.
+     */
+    /** DQL/SQL keywords that must never be used as result aliases. */
+    private const RESERVED_ALIASES = [
+        'count', 'sum', 'avg', 'min', 'max', 'select', 'where', 'from', 'as',
+        'order', 'group', 'by', 'and', 'or', 'not', 'in', 'is', 'null', 'between',
+        'like', 'join', 'left', 'inner', 'distinct', 'asc', 'desc', 'having',
+        'case', 'when', 'then', 'else', 'end', 'update', 'delete', 'insert',
+    ];
+
+    private function sanitizeAlias(mixed $alias): ?string
+    {
+        if (!is_string($alias) || $alias === '') {
+            return null;
+        }
+
+        $normalized = strtolower($alias);
+
+        return preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $alias)
+            && !in_array($normalized, self::RESERVED_ALIASES, true)
+            ? $alias
+            : null;
+    }
+
+    private function defaultAlias(string $field, ?string $aggregation): string
+    {
+        $base = str_replace('.', '_', $field);
+
+        return $aggregation !== null ? strtolower((string) $aggregation) . '_' . $base : $base;
+    }
+
     /**
      * Apply filters to query
      */
@@ -406,23 +512,14 @@ class ReportBuilderService
             $value = $filter['value'] ?? null;
             
             // WHITELIST (fix for filter bypass): filter fields resolve through
-            // the exact same SOURCE_FIELDS validation as SELECT columns — a
+            // the exact same centralized resolver as SELECT columns — a
             // client-supplied identifier is never interpolated into DQL.
-            // Unknown field/operator: skipped (consistent with the rest of
-            // the builder), never turned into DQL.
-            if (!$this->isValidField($field, $dataSource)) {
+            // Unknown field: skipped (consistent with the rest of the
+            // builder), never turned into DQL.
+            $joinsMade = [];
+            $fieldExpr = $this->resolveFieldExpression($qb, (string) $field, $dataSource, $joinsMade);
+            if ($fieldExpr === null) {
                 continue;
-            }
-            
-            // Relation fields: ENSURE the alias is joined (fix for broken
-            // relation filters — previously they only worked if another
-            // part of the query happened to create the join).
-            if (str_contains($field, '.')) {
-                [$relation, $relField] = explode('.', $field, 2);
-                $this->ensureJoin($qb, $dataSource, $relation);
-                $fieldExpr = "{$relation}.{$relField}";
-            } else {
-                $fieldExpr = "e.{$field}";
             }
             
             $paramName = "p{$paramIndex}";
@@ -527,12 +624,18 @@ class ReportBuilderService
             return;
         }
         
-        // Handle relation fields
-        if (str_contains($dateField, '.')) {
-            [$relation, $relField] = explode('.', $dateField, 2);
-            $fieldExpr = "{$relation}.{$relField}";
-        } else {
-            $fieldExpr = "e.{$dateField}";
+        // DATE RANGE goes through the SAME centralized resolver as every
+        // other DQL path (previously it interpolated the stored dateField
+        // unvalidated — another identifier-interpolation route), and the
+        // field must actually BE a date/datetime field.
+        if (!$this->isValidDateField($dateField, $report->getDataSource())) {
+            return;
+        }
+
+        $joinsMade = [];
+        $fieldExpr = $this->resolveFieldExpression($qb, $dateField, $report->getDataSource(), $joinsMade);
+        if ($fieldExpr === null) {
+            return;
         }
         
         $now = new DateTimeImmutable();
@@ -723,7 +826,9 @@ class ReportBuilderService
                 } elseif (is_array($value)) {
                     $value = json_encode($value);
                 }
-                $rowData[] = $value;
+                // OWASP formula-injection guard — the SHARED sanitizer
+                // (same one CsvExportService uses), not a third variant.
+                $rowData[] = \App\Service\CsvExportService::sanitizeCsvCell($value);
             }
             fputcsv($output, $rowData, ',', '"', '\\');
         }
@@ -783,25 +888,29 @@ class ReportBuilderService
      */
     public function getSuggestedReports(string $dataSource): array
     {
+        // Every suggested field MUST exist in SOURCE_FIELDS for its source —
+        // suggestions that the engine rejects are worse than no suggestions.
+        // (Round-8 audit: these previously used industry/status/source/
+        // estimatedValue — fields the entities never had.)
         $suggestions = [
             'company' => [
                 [
-                    'name' => 'Companies by Industry',
+                    'name' => 'Companies by Sector',
                     'type' => ReportDefinition::TYPE_CHART_PIE,
                     'columns' => [
-                        ['field' => 'industry', 'aggregation' => null],
-                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'count'],
+                        ['field' => 'sector', 'aggregation' => null],
+                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'total'],
                     ],
-                    'groupBy' => ['industry'],
+                    'groupBy' => ['sector'],
                 ],
                 [
                     'name' => 'Companies by Status',
                     'type' => ReportDefinition::TYPE_CHART_BAR,
                     'columns' => [
-                        ['field' => 'status', 'aggregation' => null],
-                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'count'],
+                        ['field' => 'companyStatus', 'aggregation' => null],
+                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'total'],
                     ],
-                    'groupBy' => ['status'],
+                    'groupBy' => ['companyStatus'],
                 ],
                 [
                     'name' => 'New Companies Over Time',
@@ -809,33 +918,122 @@ class ReportBuilderService
                     'dateField' => 'createdAt',
                 ],
             ],
+            'contact' => [
+                [
+                    'name' => 'Contacts by Company',
+                    'type' => ReportDefinition::TYPE_TABLE,
+                    'columns' => [
+                        ['field' => 'firstName', 'aggregation' => null],
+                        ['field' => 'lastName', 'aggregation' => null],
+                        ['field' => 'company.name', 'aggregation' => null],
+                        ['field' => 'email', 'aggregation' => null],
+                    ],
+                ],
+            ],
             'lead' => [
                 [
-                    'name' => 'Leads by Source',
+                    'name' => 'Leads by Review Status',
                     'type' => ReportDefinition::TYPE_CHART_PIE,
                     'columns' => [
-                        ['field' => 'source', 'aggregation' => null],
-                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'count'],
+                        ['field' => 'reviewStatus', 'aggregation' => null],
+                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'total'],
                     ],
-                    'groupBy' => ['source'],
+                    'groupBy' => ['reviewStatus'],
                 ],
                 [
-                    'name' => 'Lead Conversion Funnel',
+                    'name' => 'Leads by Region',
+                    'type' => ReportDefinition::TYPE_CHART_BAR,
+                    'columns' => [
+                        ['field' => 'regionTag', 'aggregation' => null],
+                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'total'],
+                    ],
+                    'groupBy' => ['regionTag'],
+                ],
+                [
+                    'name' => 'Average Lead Score by Region',
+                    'type' => ReportDefinition::TYPE_CHART_BAR,
+                    'columns' => [
+                        ['field' => 'regionTag', 'aggregation' => null],
+                        ['field' => 'leadScore', 'aggregation' => 'avg', 'alias' => 'avg_score'],
+                    ],
+                    'groupBy' => ['regionTag'],
+                ],
+            ],
+            'rfq' => [
+                [
+                    'name' => 'RFQs by Status',
                     'type' => ReportDefinition::TYPE_CHART_BAR,
                     'columns' => [
                         ['field' => 'status', 'aggregation' => null],
-                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'count'],
+                        ['field' => 'id', 'aggregation' => 'sum', 'alias' => 'total'],
                     ],
                     'groupBy' => ['status'],
                 ],
                 [
-                    'name' => 'Lead Value by Source',
+                    'name' => 'RFQ Value by Currency',
+                    'type' => ReportDefinition::TYPE_TABLE,
+                    'columns' => [
+                        ['field' => 'rfqNumber', 'aggregation' => null],
+                        ['field' => 'estimatedValue', 'aggregation' => null],
+                        ['field' => 'currency', 'aggregation' => null],
+                    ],
+                ],
+            ],
+            'quote' => [
+                [
+                    'name' => 'Quotes by Status',
+                    'type' => ReportDefinition::TYPE_CHART_DOUGHNUT,
+                    'columns' => [
+                        ['field' => 'status', 'aggregation' => null],
+                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'total'],
+                    ],
+                    'groupBy' => ['status'],
+                ],
+                [
+                    // A SUM alongside a raw datetime column is invalid DQL
+                    // (ONLY_FULL_GROUP_BY) — over-time value is a row listing.
+                    'name' => 'Quote Value Over Time',
+                    'type' => ReportDefinition::TYPE_TABLE,
+                    'columns' => [
+                        ['field' => 'quoteNumber', 'aggregation' => null],
+                        ['field' => 'totalCost', 'aggregation' => null],
+                        ['field' => 'currency', 'aggregation' => null],
+                        ['field' => 'createdAt', 'aggregation' => null],
+                    ],
+                    'dateField' => 'createdAt',
+                ],
+            ],
+            'calendar' => [
+                [
+                    'name' => 'Events by Type',
+                    'type' => ReportDefinition::TYPE_CHART_PIE,
+                    'columns' => [
+                        ['field' => 'eventType', 'aggregation' => null],
+                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'total'],
+                    ],
+                    'groupBy' => ['eventType'],
+                ],
+            ],
+            'email_campaign' => [
+                [
+                    'name' => 'Campaigns by Status',
                     'type' => ReportDefinition::TYPE_CHART_BAR,
                     'columns' => [
-                        ['field' => 'source', 'aggregation' => null],
-                        ['field' => 'estimatedValue', 'aggregation' => 'sum', 'alias' => 'total_value'],
+                        ['field' => 'status', 'aggregation' => null],
+                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'total'],
                     ],
-                    'groupBy' => ['source'],
+                    'groupBy' => ['status'],
+                ],
+            ],
+            'email_send' => [
+                [
+                    'name' => 'Sends by Status',
+                    'type' => ReportDefinition::TYPE_CHART_BAR,
+                    'columns' => [
+                        ['field' => 'status', 'aggregation' => null],
+                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'total'],
+                    ],
+                    'groupBy' => ['status'],
                 ],
             ],
             'task' => [
@@ -844,7 +1042,7 @@ class ReportBuilderService
                     'type' => ReportDefinition::TYPE_CHART_DOUGHNUT,
                     'columns' => [
                         ['field' => 'status', 'aggregation' => null],
-                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'count'],
+                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'total'],
                     ],
                     'groupBy' => ['status'],
                 ],
@@ -853,7 +1051,7 @@ class ReportBuilderService
                     'type' => ReportDefinition::TYPE_CHART_BAR,
                     'columns' => [
                         ['field' => 'priority', 'aggregation' => null],
-                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'count'],
+                        ['field' => 'id', 'aggregation' => 'count', 'alias' => 'total'],
                     ],
                     'groupBy' => ['priority'],
                 ],

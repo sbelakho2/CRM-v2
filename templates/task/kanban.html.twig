@@ -21,14 +21,14 @@
             <h1 class="rams-page__title">{{ 'task.kanban_board'|trans }}</h1>
         </div>
         <div class="rams-page__actions mobile-stack">
-             <a href="{{ path('app_task_index') }}" class="rams-btn rams-uppercase"> 
-                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+             <a href="{{ path('app_task_index') }}" class="rams-btn"> 
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6 8L7 9L10 6"/>
                 </svg>
                 {{ 'task.list_view'|trans }}
             </a>
-            <a href="{{ path('app_task_new') }}" class="rams-btn rams-btn--primary rams-uppercase"> 
-                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <a href="{{ path('app_task_new') }}" class="rams-btn rams-btn--primary"> 
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path d="M8 2V14M2 8H14"/>
                 </svg>
                 {{ 'task.new_task'|trans }}

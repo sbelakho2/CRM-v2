@@ -25,26 +25,26 @@
         </div>
         <div class="rams-page__actions mobile-stack">
             {% if task.status != 'done' %}
-            <form method="post" action="{{ path('app_task_complete', {id: task.id}) }}" style="display:inline;">
+            <form method="post" action="{{ path('app_task_complete', {id: task.id}) }}" class="rams-inline">
                 <input type="hidden" name="_token" value="{{ csrf_token('complete' ~ task.id) }}">
-                <button class="rams-btn rams-btn--success rams-uppercase"> 
-                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <button class="rams-btn rams-btn--success"> 
+                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <path d="M3 8L6 11L13 4"/>
                     </svg>
                     {{ 'task.complete'|trans }}
                 </button>
             </form>
             {% endif %}
-            <a href="{{ path('app_task_edit', {id: task.id}) }}" class="rams-btn rams-uppercase"> 
-                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <a href="{{ path('app_task_edit', {id: task.id}) }}" class="rams-btn"> 
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                 </svg>
                 {{ 'common.edit'|trans }}
             </a>
-            <form method="post" action="{{ path('app_task_delete', {id: task.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'task.confirm_delete'|trans|e('js') }}', {variant: 'danger'});" style="display:inline;">
+            <form method="post" action="{{ path('app_task_delete', {id: task.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'task.confirm_delete'|trans|e('js') }}', {variant: 'danger'});" class="rams-inline">
                 <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ task.id) }}">
-                <button class="rams-btn rams-btn--danger rams-uppercase"> 
-                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <button class="rams-btn rams-btn--danger"> 
+                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <path d="M2 4H14M5 4V2H11V4M6 4V13H10V4"/>
                     </svg>
                     {{ 'common.delete'|trans }}

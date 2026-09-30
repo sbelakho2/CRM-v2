@@ -19,8 +19,8 @@
             <h1 class="rams-page-title">{{ 'playbook.title'|trans }}</h1>
         </div>
         <div class="rams-page-actions mobile-stack">
-            <a href="{{ path('app_playbook_new') }}" class="rams-btn rams-btn--primary rams-uppercase"> 
-                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+            <a href="{{ path('app_playbook_new') }}" class="rams-btn rams-btn--primary"> 
+                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M8 3v10M3 8h10"/>
                 </svg>
                 {{ 'playbook.new_playbook'|trans }}
@@ -57,8 +57,8 @@
                     </select>
                 </div>
                 <div class="rams-form__group rams-form__group--actions">
-                    <button type="submit" class="rams-btn rams-uppercase rams-w-full">
-                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <button type="submit" class="rams-btn rams-w-full">
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <circle cx="7" cy="7" r="4"/>
                             <path d="M11 11l3 3"/>
                         </svg>
@@ -108,11 +108,11 @@
                     </div>
                 </div>
                 <div class="rams-module__footer rams-flex rams-gap-2 mobile-stack">
-                    <a href="{{ path('abm_dashboard_accounts') }}" class="rams-btn rams-btn--sm rams-btn--ghost rams-uppercase rams-flex-1">
+                    <a href="{{ path('abm_dashboard_accounts') }}" class="rams-btn rams-btn--sm rams-btn--ghost rams-flex-1">
                         {{ 'common.view'|trans }}
                     </a>
                     <a href="{{ path('app_playbook_edit', {id: playbook.id})  }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.edit'|trans }}">
-                        <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <path d="M11 2l3 3-8 8H3v-3l8-8z"/>
                         </svg>
                     </a>
@@ -122,7 +122,7 @@
         {% else %}
         <div class="rams-module rams-module--inset rams-p-8 rams-text--center">
             <div class="rams-empty-state">
-                <svg class="rams-empty-state__icon" width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <svg class="rams-empty-state__icon" width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path d="M2 4L8 2L14 4V12L8 14L2 12V4Z" stroke-width="1.5"/>
                     <path d="M2 4L8 6L14 4" stroke-width="1.5"/>
                     <path d="M8 6V14" stroke-width="1.5"/>
@@ -134,9 +134,9 @@
         {% endif %}
 
         {# Create New Playbook Card #}
-        <a href="{{ path('app_playbook_new') }}" class="rams-module rams-module--hoverable rams-flex rams-items-center rams-justify-center rams-p-8 rams-no-underline" style="border-style: dashed;">
+        <a href="{{ path('app_playbook_new') }}" class="rams-module rams-module--hoverable rams-flex rams-items-center rams-justify-center rams-p-8 rams-no-underline" data-dashed="true">
             <div class="rams-empty-state">
-                <svg class="rams-empty-state__icon" width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <svg class="rams-empty-state__icon" width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path d="M8 3V13M3 8H13"/>
                 </svg>
                 <h3 class="rams-empty-state__title rams-mt-4">{{ 'playbook.new_playbook'|trans }}</h3>

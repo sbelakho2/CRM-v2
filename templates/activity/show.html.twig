@@ -19,7 +19,7 @@
     <div class="rams-page-header">
         <div class="rams-flex rams-items-center rams-gap-4 mobile-stack">
             <div class="rams-avatar">    
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                 </svg>
             </div>
@@ -40,7 +40,7 @@
         <div class="rams-page-actions mobile-stack">
             <div class="rams-btn-group mobile-stack">
                 <a href="{{ path('app_activity_edit', {id: activity.id}) }}" class="rams-btn">
-                    <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                     </svg>
                     {{ 'common.edit'|trans }}
@@ -48,7 +48,7 @@
                 <form method="post" action="{{ path('app_activity_delete', {id: activity.id}) }}" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'activity.confirm_delete'|trans }}', {variant: 'danger'})">
                     <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ activity.id) }}">
                     <button type="submit" class="rams-btn rams-btn--danger">
-                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <path d="M2 4H14M5 4V2H11V4M6 7V11M10 7V11M3 4L4 14H12L13 4"/>
                         </svg>
                         {{ 'common.delete'|trans }}

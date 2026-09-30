@@ -21,7 +21,9 @@ class RoutePreference
     #[ORM\Column(length: 100)]
     private ?string $laneCode = null;
 
-    #[ORM\Column(type: 'integer')]
+    // `rank` is a MySQL 8 reserved word — the mapping must quote it (the
+    // migrations' DDL already does) or Doctrine's runtime INSERT/UPDATE fails.
+    #[ORM\Column(name: '`rank`', type: 'integer')]
     private ?int $rank = null;
 
     #[ORM\Column(length: 100, nullable: true)]

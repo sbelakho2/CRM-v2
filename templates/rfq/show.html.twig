@@ -21,7 +21,7 @@
         <div class="rams-page-actions mobile-stack">
             <div class="rams-btn-group mobile-stack">
                 <a href="{{ path('app_rfq_edit', {id: rfq.id}) }}" class="rams-btn">
-                    <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                     </svg>
                     {{ 'common.edit'|trans }}
@@ -29,7 +29,7 @@
                 <form method="post" action="{{ path('app_rfq_delete', {id: rfq.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'rfq.confirm.delete'|trans }}', {variant: 'danger'});" class="rams-inline-block">
                     <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ rfq.id) }}">
                     <button type="submit" class="rams-btn rams-btn--danger">
-                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <path d="M2 4H14M5 4V2H11V4M6 7V11M10 7V11M3 4L4 14H12L13 4"/>
                         </svg>
                         {{ 'common.delete'|trans }}
@@ -191,7 +191,7 @@
                                         <form method="post" action="{{ path('app_rfq_nda_sent', {id: rfq.id}) }}">
                                             <input type="hidden" name="_token" value="{{ csrf_token('nda_sent' ~ rfq.id) }}">
                                             <button type="submit" class="rams-btn rams-btn--sm rams-w-full">
-                                                <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                                <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                                     <path d="M2 3L8 8L14 3M2 3V11C2 11.5 2.5 12 3 12H13C13.5 12 14 11.5 14 11V3"/>
                                                 </svg>
                                                 {{ 'rfq.nda.mark_as_sent'|trans }}
@@ -218,7 +218,7 @@
                                             <form method="post" action="{{ path('app_rfq_nda_executed', {id: rfq.id}) }}">
                                                 <input type="hidden" name="_token" value="{{ csrf_token('nda_executed' ~ rfq.id) }}">
                                                 <button type="submit" class="rams-btn rams-btn--sm rams-w-full">
-                                                    <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                                         <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                                                     </svg>
                                                     {{ 'rfq.nda.mark_as_executed'|trans }}
@@ -266,7 +266,7 @@
                     <div class="rams-stack rams-gap-2">
                         {% if safe_company_id(rfq) %}
                         <a href="{{ path('app_company_show', {id: safe_company_id(rfq)}) }}" class="rams-btn rams-w-full">
-                            <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M2 13V5L8 2L14 5V13"/><rect x="5" y="8" width="2" height="5"/><rect x="9" y="8" width="2" height="5"/>
                             </svg>
                             {{ 'rfq.actions.view_company'|trans }}
@@ -274,14 +274,14 @@
 
                         <a href="{{ path('app_activity_new', {company: safe_company_id(rfq), redirect: 'app_rfq_show', redirect_params: {id: rfq.id}|json_encode}) }}" class="rams-btn rams-w-full">
                         {% endif %}
-                            <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <circle cx="8" cy="8" r="6"/><path d="M8 4V8L11 11"/>
                             </svg>
                             {{ 'activity.actions.log'|trans }}
                         </a>
 
                         <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn rams-w-full">
-                            <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6 7H10M6 10H8"/>
                             </svg>
                             {{ 'rfq.actions.view_pipeline'|trans }}

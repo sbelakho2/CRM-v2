@@ -32,8 +32,8 @@
                         {{ (campaign.active ? 'email_campaign.deactivate' : 'email_campaign.activate')|trans }}
                     </button>
                 </form>
-                <a href="{{ path('app_email_campaign_send', {id: campaign.id}) }}" class="rams-btn rams-btn--primary rams-uppercase"> 
-                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <a href="{{ path('app_email_campaign_send', {id: campaign.id}) }}" class="rams-btn rams-btn--primary"> 
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                     </svg>
                     {{ 'email_campaign.send_emails'|trans }}
@@ -205,8 +205,8 @@
                                             {% if not send.replied %}
                                                 <form method="post" action="{{ path('app_email_send_mark_replied', {id: send.id}) }}" class="rams-inline-block">
                                                     <input type="hidden" name="_token" value="{{ csrf_token('mark_replied' ~ send.id) }}">
-                                                    <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm rams-uppercase"  title="{{ 'email_campaign.mark_replied'|trans }}" aria-label="{{ 'email_campaign.mark_replied'|trans }}">
-                                                        <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                                    <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm"  title="{{ 'email_campaign.mark_replied'|trans }}" aria-label="{{ 'email_campaign.mark_replied'|trans }}">
+                                                        <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                                             <path d="M13 12V7C13 5.89543 12.1046 5 11 5H3M3 5L6 2M3 5L6 8"/>
                                                         </svg>
                                                     </button>
@@ -215,8 +215,8 @@
                                             {% if not send.bounced %}
                                                 <form method="post" action="{{ path('app_email_send_mark_bounced', {id: send.id}) }}" class="rams-inline-block">
                                                     <input type="hidden" name="_token" value="{{ csrf_token('mark_bounced' ~ send.id) }}">
-                                                    <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm rams-uppercase"  title="{{ 'email_campaign.mark_bounced'|trans }}" aria-label="{{ 'email_campaign.mark_bounced'|trans }}">
-                                                        <svg class="rams-icon rams-text--danger" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                                    <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm"  title="{{ 'email_campaign.mark_bounced'|trans }}" aria-label="{{ 'email_campaign.mark_bounced'|trans }}">
+                                                        <svg class="rams-icon rams-text--danger" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                                             <path d="M8 2L1 14H15L8 2Z M8 6V10 M8 12H8.01"/>
                                                         </svg>
                                                     </button>
@@ -248,7 +248,7 @@
                 </div>
                 <form method="post" action="{{ path('app_email_campaign_delete', {id: campaign.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'email_campaign.confirm_delete'|trans }}', {variant: 'danger'})">
                     <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ campaign.id) }}">
-                    <button type="submit" class="rams-btn rams-btn--danger rams-uppercase"> 
+                    <button type="submit" class="rams-btn rams-btn--danger"> 
                         {{ 'common.delete'|trans }}
                     </button>
                 </form>

@@ -130,8 +130,8 @@
             <h1 class="rams-page__title">{{ 'calendar.title'|trans }}</h1>
         </div>
         <div class="rams-page__actions mobile-stack">
-            <a href="{{ path('calendar_new') }}" class="rams-btn rams-btn--primary rams-uppercase">  
-                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <a href="{{ path('calendar_new') }}" class="rams-btn rams-btn--primary">  
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path d="M8 2V14M2 8H14"/>
                 </svg>
                 {{ 'calendar.new_event'|trans }}
@@ -140,29 +140,10 @@
     </div>
 
     <div class="rams-grid rams-grid--4 rams-gap-6 mobile-stack">
-        <div class="mobile-w-full">  
-             <div class="rams-module rams-mb-4">
-                 <div class="rams-module__header">
-                     <h2 class="rams-module__title">{{ 'calendar.views'|trans }}</h2>
-                 </div>
-                 <div class="rams-module__content">
-                     <div class="rams-list">
-                         <a href="{{ path('calendar_index') }}" class="rams-list__item {{ app.request.get('_route') == 'calendar_index' ? 'active' : '' }}">
-                             {{ 'calendar.month_view'|trans }}
-                         </a>
-                         <a href="{{ path('calendar_week', {date: 'now'|date('Y-m-d')}) }}" class="rams-list__item {{ app.request.get('_route') == 'calendar_week' ? 'active' : '' }}">
-                             {{ 'calendar.week_view'|trans }}
-                         </a>
-                         <a href="{{ path('calendar_day', {date: 'now'|date('Y-m-d')}) }}" class="rams-list__item {{ app.request.get('_route') == 'calendar_day' ? 'active' : '' }}">
-                             {{ 'calendar.day_view'|trans }}
-                         </a>
-                     </div>
-                 </div>
-             </div>
-
+        <div class="mobile-w-full">
              <div class="rams-module">
                  <div class="rams-module__header">
-                     <h3 class="rams-module__title">{{ 'calendar.upcoming_events'|trans }}</h3>
+                     <h2 class="rams-module__title">{{ 'calendar.upcoming_events'|trans }}</h2>
                  </div>
                  <div class="rams-module__content">
                     {% if upcomingEvents|length > 0 %}
@@ -189,10 +170,10 @@
              </div>
         </div>
 
-        <div class="rams-grid-span-3 mobile-w-full">
+        <div class="rams-grid-span-4 mobile-w-full">
            <div class="rams-module">
-               <div class="rams-module__content" style="min-height: 700px;">
-                   <div id="calendar" style="height: 100%;"></div>
+               <div class="rams-module__content rams-calendar-wrap">
+                   <div id="calendar" class="rams-calendar"></div>
                </div>
            </div>
         </div>
@@ -214,7 +195,10 @@
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
             navLinks: true,
-            editable: true,
+            // NOT editable: there are no eventDrop/eventResize persistence
+            // handlers — draggable-looking events that silently revert are
+            // the worst form of false affordance.
+            editable: false,
             dayMaxEvents: true,
             events: function(info, successCallback, failureCallback) {
                 fetch('{{ path('calendar_events_json') }}?start=' + encodeURIComponent(info.startStr) + '&end=' + encodeURIComponent(info.endStr), {

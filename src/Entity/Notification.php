@@ -19,6 +19,8 @@ class Notification
     public const TYPE_LEAD_APPROVAL  = 'lead_approval';
     public const TYPE_ENGAGEMENT_DROP = 'engagement_drop';
     public const TYPE_QUOTE_VIEWED   = 'quote_viewed';
+    public const TYPE_QUOTE_REQUEST  = 'quote_request';
+    public const TYPE_QUOTE_ACCEPTED = 'quote_accepted';
     public const TYPE_COMP_CERT_ADDED   = 'comp_cert_added';
     public const TYPE_COMP_CERT_REMOVED = 'comp_cert_removed';
 

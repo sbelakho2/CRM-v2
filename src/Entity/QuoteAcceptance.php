@@ -14,6 +14,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: QuoteAcceptanceRepository::class)]
 #[ORM\Table(name: 'quote_acceptances')]
 #[ORM\Index(name: 'idx_qa_quote', columns: ['quote_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_qa_quote', columns: ['quote_id'])]
 class QuoteAcceptance
 {
     #[ORM\Id]

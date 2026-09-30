@@ -51,7 +51,7 @@
                         <div class="rams-upload-zone" role="button" tabindex="0" onclick="document.getElementById('file-input').click()" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); document.getElementById('file-input').click(); }">
                             <input type="file" name="dataset_file" class="rams-sr-only" id="file-input" accept=".xlsx,.xls,.csv,.json" required onchange="updateFileName(this)">
                             <div class="rams-upload-zone__icon">
-                                <svg class="rams-icon rams-icon--lg rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <svg class="rams-icon rams-icon--lg rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                     <path d="M2 3C2 1.89543 2.89543 1 4 1H7L9 3H12C13.1046 3 14 3.89543 14 5V13C14 14.1046 13.1046 15 12 15H4C2.89543 15 2 14.1046 2 13V3Z"/>
                                 </svg>
                             </div>
@@ -68,7 +68,7 @@
 
                     <div class="rams-form__actions">
                         <button type="submit" class="rams-btn rams-btn--primary">
-                            <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M8 12V2M4 6L8 2L12 6"/>
                             </svg>
                             {{ 'administration.datasets.upload_import'|trans }}

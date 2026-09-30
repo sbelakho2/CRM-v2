@@ -16,8 +16,8 @@
         </div>
         <div class="rams-page__actions mobile-stack">
             <span class="rams-font-mono rams-text-2xs rams-uppercase rams-text--muted rams-mr-4">{{ 'common.date'|trans }}: {{ data.timestamp|date('H:i:s') }}</span>
-            <button class="rams-btn rams-uppercase"  onclick="location.reload()">
-                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <button class="rams-btn"  onclick="location.reload()">
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path d="M2 8a6 6 0 0110.472-4M14 8a6 6 0 01-10.472 4"/>
                     <path d="M14 2v4h-4M2 14v-4h4"/>
                 </svg>
@@ -270,7 +270,7 @@
     <div class="rams-module">
         <div class="rams-module__header">
             <h2 class="rams-font-mono rams-text-2xs rams-uppercase rams-text--muted">{{      'dashboard.recent_activity'|trans }}</h2>
-            <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--ghost rams-uppercase rams-text-xs">{{   'common.view'|trans }} {{ 'common.all'|trans }}</a>
+            <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--ghost rams-text-xs">{{   'common.view'|trans }} {{ 'common.all'|trans }}</a>
         </div>
         <div class="rams-module__content">
             <div class="rams-grid rams-grid--4 rams-gap-4">
@@ -477,7 +477,7 @@ let leadModalFocus = null; function openLeadModal() { const modal = document.get
             linkDiv.className = 'rams-mt-6';
             const link = document.createElement('a');
             link.href = '{{ path('app_lead_show', {id: 0}) }}'.replace('/0', '/' + leadId);
-            link.className = 'rams-btn rams-btn--primary rams-uppercase'; 
+            link.className = 'rams-btn rams-btn--primary'; 
             link.textContent = '{{ 'common.view'|trans }} {{ 'common.details'|trans }}';
             linkDiv.appendChild(link);
             container.appendChild(linkDiv);

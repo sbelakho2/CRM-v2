@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Quote;
 use App\Service\InteractiveLiveQuoteService;
+use App\Service\RateLimitExceeded;
 use App\Service\PricingEngine;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -209,15 +210,21 @@ class InteractiveLiveQuoteController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
         
-        $result = $this->liveQuoteService->requestQuoteAtQuantity(
-            $quote,
-            $quantity,
-            $notes,
-            $token,
-            $request->getClientIp(),
-            $request->headers->get('User-Agent')
-        );
-        
+        try {
+            $result = $this->liveQuoteService->requestQuoteAtQuantity(
+                $quote,
+                $quantity,
+                $notes,
+                $token,
+                $request->getClientIp(),
+                $request->headers->get('User-Agent')
+            );
+        } catch (RateLimitExceeded $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_TOO_MANY_REQUESTS);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        }
+
         return new JsonResponse($result);
     }
     
@@ -255,7 +262,14 @@ class InteractiveLiveQuoteController extends AbstractController
         try {
             $result = $this->liveQuoteService->acceptQuote($quote, $quantity, $customerInfo, $token);
         } catch (\InvalidArgumentException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+            // Archived quotes are a CONFLICT (409), other validation is a
+            // bad request (400) — previously both surfaced as generic 500s
+            // or misleading 400s.
+            $isArchived = str_contains($e->getMessage(), 'archived');
+            return new JsonResponse(
+                ['error' => $e->getMessage()],
+                $isArchived ? Response::HTTP_CONFLICT : Response::HTTP_BAD_REQUEST
+            );
         }
 
         return new JsonResponse($result);
@@ -287,7 +301,12 @@ class InteractiveLiveQuoteController extends AbstractController
         $quantityTiers = $data['quantity_tiers'] ?? null;
         $expirationDays = $data['expiration_days'] ?? 30;
         
-        $result = $this->liveQuoteService->enableInteractiveMode($quote, $quantityTiers, $expirationDays);
+        try {
+            $result = $this->liveQuoteService->enableInteractiveMode($quote, $quantityTiers, $expirationDays);
+        } catch (\InvalidArgumentException $e) {
+            // Archived quotes are read-only: explicit CONFLICT, not a 500.
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_CONFLICT);
+        }
         
         return new JsonResponse([
             'success' => true,
@@ -316,7 +335,12 @@ class InteractiveLiveQuoteController extends AbstractController
             ], Response::HTTP_NOT_FOUND);
         }
         
-        $this->liveQuoteService->disableInteractiveMode($quote);
+        try {
+            $this->liveQuoteService->disableInteractiveMode($quote);
+        } catch (\InvalidArgumentException $e) {
+            // Archived quotes are read-only: explicit CONFLICT, not a 500.
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_CONFLICT);
+        }
         
         return new JsonResponse([
             'success' => true,
@@ -359,10 +383,15 @@ class InteractiveLiveQuoteController extends AbstractController
         }
         
         $data = json_decode($request->getContent(), true);
-        $expirationDays = $data['expiration_days'] ?? 30;
-        
-        $result = $this->liveQuoteService->regenerateToken($quote, $expirationDays);
-        
+        $expirationDays = (int) ($data['expiration_days'] ?? 30);
+
+        try {
+            $result = $this->liveQuoteService->regenerateToken($quote, $expirationDays);
+        } catch (\InvalidArgumentException $e) {
+            // Archived quotes are read-only: explicit CONFLICT, not a 500.
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_CONFLICT);
+        }
+
         return new JsonResponse([
             'success' => true,
             'message' => 'Token regenerated',

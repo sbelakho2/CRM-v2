@@ -46,17 +46,15 @@ steps:
     image: bash
     depends_on: [composer-install]
     environment:
-      # CI steps run with a sanitized environment that does not carry the
-      # user's docker context; point the CLI at the colima socket explicitly.
+      # CI steps run with a sanitized environment; the docker endpoint is
+      # supplied by the agent process environment (DOCKER_HOST, required).
     commands:
       - |
         set -eu
         export PATH="/opt/homebrew/bin:$PATH"
-        # Colima docker socket (machine-local runner; override DOCKER_HOST
-        # in the agent environment to relocate).
-        # Machine-local colima socket (the runner IS this Mac). Relocate by
-        # exporting DOCKER_HOST in the agent environment.
-        export DOCKER_HOST="${DOCKER_HOST:-unix:///Users/sabelakhoua/.colima/default/docker.sock}"
+        # Docker endpoint: the CI agent supplies DOCKER_HOST (see
+        # ~/.woodpecker/env on this machine). No personal paths in the repo.
+        : "${DOCKER_HOST:?DOCKER_HOST must be configured on the CI agent environment}"
         # Idempotent throwaway MySQL for this lane. Fresh volume every run:
         # the container is removed with its anonymous volume after tests.
         if docker rm -f crm-ci-mysql >/dev/null 2>&1; then
@@ -136,9 +134,8 @@ steps:
       - |
         set -eu
         export PATH="/opt/homebrew/bin:$PATH"
-        # Machine-local colima socket (the runner IS this Mac). Relocate by
-        # exporting DOCKER_HOST in the agent environment.
-        export DOCKER_HOST="${DOCKER_HOST:-unix:///Users/sabelakhoua/.colima/default/docker.sock}"
+        # The CI agent supplies DOCKER_HOST — required, not defaulted.
+        : "${DOCKER_HOST:?DOCKER_HOST must be configured on the CI agent environment}"
         # The MySQL container is still up (cleanup runs after this step).
         docker exec crm-ci-mysql mysql -uroot -pci_root_pw -e "GRANT ALL ON \`crm_upgrade_test\`.* TO 'crm_test'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
         bash scripts/ci/populated-upgrade.sh
@@ -151,7 +148,6 @@ steps:
     commands:
       - |
         export PATH="/opt/homebrew/bin:$PATH"
-        # Machine-local colima socket (the runner IS this Mac). Relocate by
-        # exporting DOCKER_HOST in the agent environment.
-        export DOCKER_HOST="${DOCKER_HOST:-unix:///Users/sabelakhoua/.colima/default/docker.sock}"
+        # The CI agent supplies DOCKER_HOST — required, not defaulted.
+        : "${DOCKER_HOST:?DOCKER_HOST must be configured on the CI agent environment}"
         docker rm -f crm-ci-mysql >/dev/null 2>&1 || true

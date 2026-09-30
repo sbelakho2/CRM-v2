@@ -43,7 +43,7 @@
         <div class="rams-page-actions mobile-stack">
             <div class="rams-btn-group mobile-stack">
                 <a href="{{ path('app_contact_edit', {id: contact.id}) }}" class="rams-btn">
-                    <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                     </svg>
                     {{ 'common.edit'|trans }}
@@ -51,7 +51,7 @@
                 <form method="post" action="{{ path('app_contact_delete', {id: contact.id}) }}" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'contact.confirm.delete'|trans }}', {variant: 'danger'})">
                     <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ contact.id) }}">
                     <button type="submit" class="rams-btn rams-btn--danger">
-                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <path d="M2 4H14M5 4V2H11V4M6 7V11M10 7V11M3 4L4 14H12L13 4"/>
                         </svg>
                         {{ 'common.delete'|trans }}
@@ -108,7 +108,7 @@
                                 <dt class="rams-definition-list__term">{{ 'contact.linkedin.label'|trans }}</dt>
                                 <dd class="rams-definition-list__desc">
                                     <a href="{{ contact.linkedInUrl }}" target="_blank" rel="noopener" class="rams-link rams-link--linkedin rams-url-break">
-                                        <svg class="rams-icon--sm" style="vertical-align:middle;margin-right:4px" viewBox="0 0 24 24" fill="currentColor">
+                                        <svg class="rams-icon--sm rams-inline-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                             <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                                         </svg>
                                         {{ 'contact.actions.view_profile'|trans }}
@@ -215,7 +215,7 @@
                     <div class="rams-stack rams-gap-2">
                         {% if contact.email %}
                             <a href="mailto:{{ contact.email }}" class="rams-btn rams-w-full">
-                                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                     <path d="M2 4L8 8L14 4V12H2V4Z"/>
                                 </svg>
                                 {{ 'contact.actions.send_email'|trans }}
@@ -223,7 +223,7 @@
                         {% endif %}
                         {% if contact.phone %}
                             <a href="tel:{{ contact.phone }}" class="rams-btn rams-w-full">
-                                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                     <path d="M3 3H6L7 6L5 7C6 9 7 10 9 11L10 9L13 10V13C13 14 12 14 12 14C6 14 2 10 2 4C2 4 2 3 3 3Z"/>
                                 </svg>
                                 {{ 'contact.actions.call'|trans }}
@@ -231,7 +231,7 @@
                         {% endif %}
                         {% if contact.linkedInUrl %}
                             <a href="{{ contact.linkedInUrl }}" target="_blank" rel="noopener" class="rams-btn rams-w-full rams-link--linkedin">
-                                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                     <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                                 </svg>
                                 {{ 'contact.linkedin.label'|trans }}

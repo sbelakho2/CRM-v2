@@ -12,7 +12,7 @@
         </div>
         <div class="rams-page-actions mobile-stack">
             <a href="{{ path('lead_discovery_index') }}" class="rams-btn">
-                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M11 4L13 8L11 12M5 4L3 8L5 12"/>
                 </svg>
                 {{ 'lead_discovery.new_search'|trans }}
@@ -59,7 +59,7 @@
         {% if results is empty %}
             <div class="rams-module">
                 <div class="rams-module__content rams-empty-state">
-                    <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                     </svg>
                     <h2 class="rams-empty-state__title">{{ 'lead_discovery.no_results'|trans }}</h2>
@@ -87,7 +87,7 @@
                                 id="importSelected"
                                 disabled
                             >
-                                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                     <path d="M8 12V2M4 6L8 2L12 6"/>
                                 </svg>
                                 {{ 'lead_discovery.import_selected'|trans }}
@@ -133,7 +133,7 @@
                                             class="rams-link rams-text--xs"
                                         >
                                             {{ result.displayLink }}
-                                            <svg class="rams-icon rams-icon--3xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="rams-icon rams-icon--3xs" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                                             </svg>
                                         </a>

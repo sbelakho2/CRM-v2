@@ -13,14 +13,14 @@
                 <p class="rams-page__subtitle">{{ 'lead.review_subtitle'|trans }}</p>
             </div>
             <div class="rams-page__actions mobile-stack">
-                <a href="{{ path('app_lead_dashboard') }}" class="rams-btn rams-uppercase"> 
-                    <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <a href="{{ path('app_lead_dashboard') }}" class="rams-btn"> 
+                    <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <path d="M2 14V6l6-4 6 4v8M6 14V9h4v5"/>
                     </svg>
                     {{ 'lead.dashboard'|trans }}
                 </a>
-                <a href="{{ path('app_lead_export', {region: region_filter, status: status_filter}) }}" class="rams-btn rams-btn--primary rams-uppercase"> 
-                    <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <a href="{{ path('app_lead_export', {region: region_filter, status: status_filter}) }}" class="rams-btn rams-btn--primary"> 
+                    <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <path d="M8 12V2M4 6l4-4 4 4M2 14h12"/>
                     </svg>
                     {{ 'common.export'|trans }} CSV
@@ -58,8 +58,8 @@
                     </div>
 
                     <div class="rams-form__group">  
-                        <button type="submit" class="rams-btn rams-btn--primary rams-uppercase"> 
-                            <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <button type="submit" class="rams-btn rams-btn--primary"> 
+                            <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M2 4h12M4 8h8M6 12h4"/>
                             </svg>
                             {{ 'common.apply'|trans }}
@@ -132,14 +132,14 @@
                                 <td class="rams-table__cell">
                                     {% if lead.supplierPortalUrl %}
                                         <a href="{{ lead.supplierPortalUrl }}" target="_blank" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'lead.supplier_portal'|trans }}" aria-label="{{ 'lead.supplier_portal'|trans }}">
-                                            <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                                             </svg>
                                         </a>
                                     {% endif %}
                                     {% if lead.contactEmailsPublic %}
                                         <span class="rams-badge rams-badge--success rams-badge--small"  title="{{ lead.contactEmailsPublic|join(', ') }}">
-                                            <svg class="rams-icon rams-icon--xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="rams-icon rams-icon--xs" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                                             </svg>
                                             {{ lead.contactEmailsPublic|length }}
@@ -158,32 +158,32 @@
                                 <td class="rams-table__cell">
                                     {% if lead.reviewStatus == 'pending' %}
                                         <button class="rams-btn rams-btn--primary rams-btn--sm" onclick="approveLead(this, {{ lead.id }})" data-csrf="{{ csrf_token('lead_action_' ~ lead.id) }}" title="{{ 'lead.approve'|trans }}" aria-label="{{ 'lead.approve'|trans }}">
-                                            <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                             </svg>
                                         </button>
                                         <button class="rams-btn rams-btn--danger rams-btn--sm" onclick="denyLead(this, {{ lead.id }})" data-csrf="{{ csrf_token('lead_action_' ~ lead.id) }}" title="{{ 'lead.deny'|trans }}" aria-label="{{ 'lead.deny'|trans }}">
-                                            <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                             </svg>
                                         </button>
                                     {% endif %}
                                     {% if lead.reviewStatus == 'approved' and not lead.company %}
                                         <button class="rams-btn rams-btn--primary rams-btn--sm" onclick="convertLead(this, {{ lead.id }})" data-csrf="{{ csrf_token('lead_action_' ~ lead.id) }}" title="{{ 'lead.convert'|trans }}">
-                                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                             </svg>
                                             {{ 'lead.add_to_companies'|trans }}
                                         </button>
                                     {% elseif safe_company_id(lead) %}
                                         <span class="rams-badge rams-badge--success">
-                                            <svg class="rams-icon rams-icon--xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="rams-icon rams-icon--xs" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                             </svg>
                                             {{ 'lead.in_crm'|trans }}
                                         </span>
                                         <a href="{{ path('app_company_show', {id: safe_company_id(lead)}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'lead.view_company'|trans }}" aria-label="{{ 'lead.view_company'|trans }}">
-                                            <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
                                             </svg>
                                         </a>

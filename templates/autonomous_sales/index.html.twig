@@ -220,15 +220,15 @@
 
                         {# Compact checklist showing completed vs remaining #}
                         <details class="rams-mt-4">
-                            <summary class="rams-text--xs rams-text--muted" style="cursor:pointer; user-select:none">{{ 'autonomous_sales.wizard_show_all_steps'|trans }}</summary>
+                            <summary class="rams-text--xs rams-text--muted" data-clickable="true">{{ 'autonomous_sales.wizard_show_all_steps'|trans }}</summary>
                             <div class="rams-stack rams-gap-1 rams-mt-2">
                                 {% for step in setup.steps %}
                                     <div class="rams-flex rams-gap-2 rams-items-center rams-text--sm">
                                         {% if step.done %}
-                                            <span class="rams-badge rams-badge--success rams-badge--small"  style="min-width:20px;text-align:center">✓</span>
-                                            <span class="rams-text--muted" style="text-decoration:line-through">{{ step.label }}</span>
+                                            <span class="rams-badge rams-badge--success rams-badge--small rams-cell--metric">✓</span>
+                                            <span class="rams-text--muted rams-strike">{{ step.label }}</span>
                                         {% else %}
-                                            <span class="rams-badge rams-badge--small"  style="min-width:20px;text-align:center">{{ loop.index }}</span>
+                                            <span class="rams-badge rams-badge--small rams-cell--metric">{{ loop.index }}</span>
                                             <span>{{ step.label }}</span>
                                         {% endif %}
                                     </div>
@@ -544,11 +544,11 @@
                                 {% set max_pct = max_pct > 0 ? max_pct : 100 %}
                                 {% for item in section.items|slice(0, 10) %}
                                     <div class="rams-flex rams-gap-3 rams-items-center">
-                                        <div class="rams-text--xs" style="width: 140px; flex-shrink: 0;">{{ item.name|length > 25 ? item.name[:25] ~ '…' : item.name }}</div>
-                                        <div class="rams-progress" style="flex: 1; height: 20px;">
+                                        <div class="rams-text--xs rams-measure-input">{{ item.name|length > 25 ? item.name[:25] ~ '…' : item.name }}</div>
+                                        <div class="rams-progress rams-progress-line">
                                             <div class="rams-progress__bar {% if item.badge == 'winning' %}rams-progress__bar--success{% elseif item.badge == 'losing' %}rams-progress__bar--danger{% else %}rams-progress__bar--info{% endif %}"
                                                  style="--rams-meter-value: {{  (item.successPct / max_pct * 100)|round  }}%; height: 20px; line-height: 20px;">
-                                                <span class="rams-text--xs" style="padding: 0 6px;">{{ item.successPct }}%</span>
+                                                <span class="rams-text--xs rams-px-1">{{ item.successPct }}%</span>
                                             </div>
                                         </div>
                                         <span class="rams-badge rams-badge--small rams-badge--{{ item.badge == 'winning' ? 'success' : (item.badge == 'losing' ? 'danger' : (item.badge == 'baseline' ? 'info' : 'neutral')) }}">
@@ -626,7 +626,7 @@
                                     </div>
                                     <div>
                                         <label class="rams-form__label">{{ 'autonomous_sales.action_howmany_label'|trans }}</label>
-                                        <input type="number" name="limit" value="50" min="1" max="100" class="rams-form__input" style="width:80px">
+                                        <input type="number" name="limit" value="50" min="1" max="100" class="rams-form__input rams-w-80">
                                     </div>
                                     <button type="submit" class="rams-btn rams-btn--primary">{{ 'autonomous_sales.action_run_now'|trans }}</button>
                                 </form>
@@ -642,7 +642,7 @@
                                     <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_score_leads') }}">
                                     <div>
                                         <label class="rams-form__label">{{ 'autonomous_sales.action_howmany_label'|trans }}</label>
-                                        <input type="number" min="1" max="500" name="limit" value="50" class="rams-form__input" style="width:80px">
+                                        <input type="number" min="1" max="500" name="limit" value="50" class="rams-form__input rams-w-80">
                                     </div>
                                     <button type="submit" class="rams-btn">{{ 'autonomous_sales.score_leads'|trans }}</button>
                                 </form>
@@ -686,7 +686,7 @@
                                     </thead>
                                     <tbody>
                                         {% for item in section.items|slice(0, display_limit) %}
-                                            <tr{% if item.quarantined %} style="opacity: 0.5"{% endif %}>
+                                            <tr{% if item.quarantined %} class="rams-opacity-50"{% endif %}>
                                                 <td>
                                                     <div class="rams-text--bold">{{ item.name }}</div>
                                                     <div class="rams-text--xs rams-text--muted">{{ item.value|length > 50 ? item.value[:50] ~ '…' : item.value }}</div>
@@ -741,16 +741,16 @@
                         {% if section.type == 'subject_line' %}
                             <div class="rams-border-t rams-my-md"></div>
                             <details>
-                                <summary class="rams-text--sm rams-text--bold" style="cursor: pointer; user-select: none;">{{ 'autonomous_sales.custom_variation_summary'|trans }}</summary>
+                                <summary class="rams-text--sm rams-text--bold" data-clickable="true">{{ 'autonomous_sales.custom_variation_summary'|trans }}</summary>
                                 <p class="rams-text--xs rams-text--muted rams-mt-2 rams-mb-3">{{ 'autonomous_sales.custom_variation_desc'|trans }}</p>
                                 <form method="post" action="{{ path('autonomous_sales_arm_create') }}" class="rams-flex rams-gap-3 rams-items-end">
                                     <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_arm_create') }}">
                                     <input type="hidden" name="armType" value="subject_line">
-                                    <div style="flex: 1">
+                                    <div class="rams-flex-1">
                                         <label class="rams-form__label">{{ 'autonomous_sales.custom_variation_name_label'|trans }}</label>
                                         <input type="text" name="armName" class="rams-form__input" placeholder="{{ 'autonomous_sales.arm_name_placeholder'|trans }}" required>
                                     </div>
-                                    <div style="flex: 2">
+                                    <div class="rams-flex-2">
                                         <label class="rams-form__label">{{ 'autonomous_sales.custom_variation_subject_label'|trans }}</label>
                                         <input type="text" name="armValue" class="rams-form__input" placeholder="{{ 'autonomous_sales.arm_value_placeholder'|trans }}" required>
                                     </div>
@@ -892,14 +892,14 @@
 
                     <div class="rams-stack rams-gap-2">
                         {% for step in setup.steps %}
-                            <div class="rams-flex rams-gap-3 rams-items-center" style="padding: 8px 0;">
+                            <div class="rams-flex rams-gap-3 rams-items-center rams-py-2">
                                 {% if step.done %}
-                                    <span class="rams-badge rams-badge--success rams-badge--small"  style="min-width: 24px; text-align: center">{{ 'autonomous_sales.setup_done_badge'|trans }}</span>
+                                    <span class="rams-badge rams-badge--success rams-badge--small rams-cell--metric">{{ 'autonomous_sales.setup_done_badge'|trans }}</span>
                                 {% else %}
-                                    <span class="rams-badge rams-badge--small"  style="min-width: 24px; text-align: center">{{ loop.index }}</span>
+                                    <span class="rams-badge rams-badge--small rams-cell--metric">{{ loop.index }}</span>
                                 {% endif %}
                                 <div>
-                                    <div class="rams-text--sm {% if step.done %}rams-text--muted{% else %}rams-text--bold{% endif %}" style="{% if step.done %}text-decoration: line-through{% endif %}">{{ step.label }}</div>
+                                    <div class="rams-text--sm {% if step.done %}rams-text--muted{% else %}rams-text--bold{% endif %}" {% if step.done %}class="rams-strike"{% endif %}>{{ step.label }}</div>
                                     {% if not step.done %}
                                         <div class="rams-text--xs rams-text--muted">{{ step.help }}</div>
                                     {% endif %}

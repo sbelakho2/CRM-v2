@@ -44,7 +44,7 @@
                             <td>{{ company.archivedBy ? (company.archivedBy.firstName ~ ' ' ~ company.archivedBy.lastName) : '—' }}</td>
                             <td>{{ company.archiveReason|default('—') }}</td>
                             <td>
-                                <form method="post" action="{{ path('app_company_restore', {id: company.id}) }}" style="display:inline">
+                                <form method="post" action="{{ path('app_company_restore', {id: company.id}) }}" class="rams-inline">
                                     <input type="hidden" name="_token" value="{{ csrf_token('restore' ~ company.id) }}">
                                     <button type="submit" class="rams-btn rams-btn--primary rams-btn--sm">{{ 'company.flash.restore'|trans }}</button>
                                 </form>

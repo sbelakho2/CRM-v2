@@ -132,7 +132,8 @@
     "search": "Rechercher",
     "skip_to_content": "Aller au contenu principal",
     "success": "Succès",
-    "user_menu": "Menu utilisateur"
+    "user_menu": "Menu utilisateur",
+    "toggle_navigation": "Basculer la navigation"
   },
   "activity": {
     "actions": {
@@ -4262,5 +4263,25 @@
   "emails.meeting_cancellation.body": "Nous sommes désolés de vous informer que le rendez-vous suivant a été annulé :",
   "emails.meeting_cancellation.title": "Rendez-vous",
   "emails.meeting_cancellation.date": "Date et heure",
-  "emails.meeting_cancellation.footer": "Merci de votre compréhension. Nous restons à votre disposition."
+  "emails.meeting_cancellation.footer": "Merci de votre compréhension. Nous restons à votre disposition.",
+  "quote_request": {
+    "title": "Demandes de devis",
+    "subtitle": "Demandes et acceptations clients des devis interactifs",
+    "open": "Ouvertes",
+    "empty_title": "Aucune demande ici",
+    "empty_body": "Lorsqu'un client demande un changement ou un prix pour une quantité depuis un lien de devis interactif, la demande apparaît ici pour suivi.",
+    "empty_filtered": "Aucune demande ne correspond à ce filtre.",
+    "show_open": "Afficher les demandes ouvertes",
+    "received": "Reçue le",
+    "quote": "Devis",
+    "type": "Type",
+    "quantity": "Quantité",
+    "estimated": "Estimé",
+    "status": "Statut",
+    "customer_notes": "Notes du client",
+    "action": "Action",
+    "start_review": "Démarrer la revue",
+    "mark_handled": "Marquer traitée",
+    "resolution": "Résolution"
+  }
 }

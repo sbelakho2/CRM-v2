@@ -48,6 +48,7 @@ class TaskRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('t')
             ->where('t.assignedTo = :user OR t.createdBy = :user')
+            ->andWhere('t.archivedAt IS NULL')
             ->setParameter('user', $user)
             ->orderBy('t.dueDate', 'ASC')
             ->addOrderBy('t.priority', 'DESC')
@@ -71,6 +72,7 @@ class TaskRepository extends ServiceEntityRepository
             ->leftJoin('t.company', 'c')
             ->leftJoin('t.contact', 'co')
             ->addSelect('a', 'c', 'co')
+            ->andWhere('t.archivedAt IS NULL')
             ->orderBy('t.sortOrder', 'ASC')
             ->addOrderBy('t.priority', 'DESC')
             ->addOrderBy('t.dueDate', 'ASC');
@@ -101,6 +103,7 @@ class TaskRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('t')
             ->where('t.dueDate < :today')
+            ->andWhere('t.archivedAt IS NULL')
             ->andWhere('t.status NOT IN (:completedStatuses)')
             ->setParameter('today', new \DateTime('today'))
             ->setParameter('completedStatuses', [Task::STATUS_DONE, Task::STATUS_CANCELLED])
@@ -125,6 +128,7 @@ class TaskRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('t')
             ->where('t.dueDate >= :today')
             ->andWhere('t.dueDate < :tomorrow')
+            ->andWhere('t.archivedAt IS NULL')
             ->andWhere('t.status NOT IN (:completedStatuses)')
             ->setParameter('today', $today)
             ->setParameter('tomorrow', $tomorrow)
@@ -151,6 +155,7 @@ class TaskRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('t')
             ->where('t.dueDate >= :today')
             ->andWhere('t.dueDate <= :endOfWeek')
+            ->andWhere('t.archivedAt IS NULL')
             ->andWhere('t.status NOT IN (:completedStatuses)')
             ->setParameter('today', $today)
             ->setParameter('endOfWeek', $endOfWeek)
@@ -173,6 +178,7 @@ class TaskRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('t')
             ->where('t.company = :company')
+            ->andWhere('t.archivedAt IS NULL')
             ->setParameter('company', $company)
             ->orderBy('t.dueDate', 'ASC');
 
@@ -195,6 +201,7 @@ class TaskRepository extends ServiceEntityRepository
             ->where('t.reminderAt IS NOT NULL')
             ->andWhere('t.reminderAt <= :now')
             ->andWhere('t.reminderSent = false')
+            ->andWhere('t.archivedAt IS NULL')
             ->andWhere('t.status NOT IN (:completedStatuses)')
             ->setParameter('now', $now)
             ->setParameter('completedStatuses', [Task::STATUS_DONE, Task::STATUS_CANCELLED])
@@ -226,7 +233,8 @@ class TaskRepository extends ServiceEntityRepository
             ->setParameter('endOfWeek', $endOfWeek)
             ->setParameter('completedStatuses', [Task::STATUS_DONE, Task::STATUS_CANCELLED])
             ->setParameter('completedStatuses2', [Task::STATUS_DONE, Task::STATUS_CANCELLED])
-            ->setParameter('completedStatuses3', [Task::STATUS_DONE, Task::STATUS_CANCELLED]);
+            ->setParameter('completedStatuses3', [Task::STATUS_DONE, Task::STATUS_CANCELLED])
+            ->andWhere('t.archivedAt IS NULL');
 
         if ($user !== null) {
             $qb->andWhere('t.assignedTo = :user')
@@ -246,9 +254,12 @@ class TaskRepository extends ServiceEntityRepository
         foreach ($results as $row) {
             $stats['by_status'][$row['status']] = (int) $row['count'];
             $stats['total'] += (int) $row['count'];
-            $stats['overdue'] = (int) ($row['overdueCnt'] ?? 0);
-            $stats['due_today'] = (int) ($row['dueTodayCnt'] ?? 0);
-            $stats['due_this_week'] = (int) ($row['dueWeekCnt'] ?? 0);
+            // The query GROUPs BY status, so each duration bucket arrives
+            // once per status group — accumulate across groups instead of
+            // overwriting (last-group-wins bug).
+            $stats['overdue'] += (int) ($row['overdueCnt'] ?? 0);
+            $stats['due_today'] += (int) ($row['dueTodayCnt'] ?? 0);
+            $stats['due_this_week'] += (int) ($row['dueWeekCnt'] ?? 0);
         }
 
         return $stats;
@@ -259,6 +270,7 @@ class TaskRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('t')
             ->select('COUNT(t.id)')
             ->where('t.dueDate < :today')
+            ->andWhere('t.archivedAt IS NULL')
             ->andWhere('t.status NOT IN (:completedStatuses)')
             ->setParameter('today', new \DateTime('today'))
             ->setParameter('completedStatuses', [Task::STATUS_DONE, Task::STATUS_CANCELLED]);
@@ -280,6 +292,7 @@ class TaskRepository extends ServiceEntityRepository
             ->select('COUNT(t.id)')
             ->where('t.dueDate >= :today')
             ->andWhere('t.dueDate < :tomorrow')
+            ->andWhere('t.archivedAt IS NULL')
             ->andWhere('t.status NOT IN (:completedStatuses)')
             ->setParameter('today', $today)
             ->setParameter('tomorrow', $tomorrow)
@@ -302,6 +315,7 @@ class TaskRepository extends ServiceEntityRepository
             ->select('COUNT(t.id)')
             ->where('t.dueDate >= :today')
             ->andWhere('t.dueDate <= :endOfWeek')
+            ->andWhere('t.archivedAt IS NULL')
             ->andWhere('t.status NOT IN (:completedStatuses)')
             ->setParameter('today', $today)
             ->setParameter('endOfWeek', $endOfWeek)
@@ -327,7 +341,11 @@ class TaskRepository extends ServiceEntityRepository
             if ($task) {
                 $task->setSortOrder($order['sortOrder']);
                 if (isset($order['status'])) {
-                    $task->setStatus($order['status']);
+                    try {
+                        $task->transitionTo($order['status']);
+                    } catch (\InvalidArgumentException | \LogicException) {
+                        continue; // invalid/archived task — never corrupt it
+                    }
                 }
             }
         }
@@ -343,10 +361,30 @@ class TaskRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('t')
             ->where('t.isRecurring = true')
             ->andWhere('t.status = :done')
+            ->andWhere('t.archivedAt IS NULL')
             ->andWhere('t.recurringFrequency IS NOT NULL')
             ->setParameter('done', Task::STATUS_DONE)
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Explicitly fetch archived tasks (admin archive browser). Live
+     * repository paths exclude archived rows; this is the only query that
+     * surfaces them.
+     */
+    public function findArchived(?User $user = null): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->where('t.archivedAt IS NOT NULL')
+            ->orderBy('t.archivedAt', 'DESC');
+
+        if ($user !== null) {
+            $qb->andWhere('t.assignedTo = :user OR t.createdBy = :user')
+               ->setParameter('user', $user);
+        }
+
+        return $qb->getQuery()->getResult();
     }
 
     /**
@@ -356,6 +394,7 @@ class TaskRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('t')
             ->where('t.title LIKE :query OR t.description LIKE :query')
+            ->andWhere('t.archivedAt IS NULL')
             ->setParameter('query', '%' . addcslashes($query, '%_') . '%')
             ->orderBy('t.createdAt', 'DESC')
             ->setMaxResults($limit);

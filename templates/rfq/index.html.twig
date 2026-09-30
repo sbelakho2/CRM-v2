@@ -11,14 +11,14 @@
             <p class="rams-page-subtitle">{{ 'rfq.index.subtitle'|trans }}</p>
         </div>
         <div class="rams-btn-group mobile-stack">
-            <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn rams-uppercase"> 
-                <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+            <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn"> 
+                <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M2 14V6l6-4 6 4v8M6 14V9h4v5"/>
                 </svg>
                 {{ 'rfq.actions.pipeline_view'|trans }}
             </a>
-            <a href="{{ path('app_rfq_new') }}" class="rams-btn rams-btn--primary rams-uppercase"> 
-                <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+            <a href="{{ path('app_rfq_new') }}" class="rams-btn rams-btn--primary"> 
+                <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M8 2v12M2 8h12"/>
                 </svg>
                 {{ 'rfq.actions.new'|trans }}
@@ -73,8 +73,8 @@
                 <div class="rams-form__group rams-form__group--actions">
                     <label class="rams-dymo">&nbsp;</label>
                     <div class="rams-btn-group mobile-stack">
-                        <button type="submit" class="rams-btn rams-btn--primary rams-uppercase">{{  'common.apply'|trans }}</button>
-                        <a href="{{ path('app_rfq_index') }}" class="rams-btn rams-uppercase">{{  'common.clear'|trans }}</a>
+                        <button type="submit" class="rams-btn rams-btn--primary">{{  'common.apply'|trans }}</button>
+                        <a href="{{ path('app_rfq_index') }}" class="rams-btn">{{  'common.clear'|trans }}</a>
                     </div>
                 </div>
             </form>
@@ -97,14 +97,14 @@
                                     {# Type Badge #}
                                     {% if rfq.type == 'NPI' %}
                                         <span class="rams-badge rams-badge--npi">
-                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                                                 <path d="M8 2L9.5 6.5L14 8L9.5 9.5L8 14L6.5 9.5L2 8L6.5 6.5L8 2Z"/>
                                             </svg>
                                             {{ 'rfq.type.npi'|trans }}
                                         </span>
                                     {% elseif rfq.type == 'Framework Agreement' %}
                                         <span class="rams-badge rams-badge--framework">
-                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                                 <rect x="3" y="3" width="10" height="10" rx="1"/>
                                             </svg>
                                             {{ 'rfq.type.framework'|trans }}
@@ -161,21 +161,21 @@
                                 <div class="rams-mt-2">
                                     {% if rfq.ndaExecuted %}
                                         <span class="rams-badge rams-badge--success rams-badge--small">
-                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                                 <path d="M3 8L6 11L13 4"/>
                                             </svg>
                                             {{ 'rfq.nda.executed'|trans }}
                                         </span>
                                     {% elseif rfq.ndaSent %}
                                         <span class="rams-badge rams-badge--warning rams-badge--small">
-                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                                 <path d="M2 3L8 8L14 3M2 3V11C2 11.5 2.5 12 3 12H13C13.5 12 14 11.5 14 11V3"/>
                                             </svg>
                                             {{ 'rfq.nda.sent'|trans }} ({{ rfq.ndaDate|date('d/m/Y') }})
                                         </span>
                                     {% else %}
                                         <span class="rams-badge rams-badge--small">
-                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                                 <circle cx="8" cy="8" r="6"/>
                                                 <path d="M8 5V8"/>
                                                 <circle cx="8" cy="11" r="0.5" fill="currentColor"/>
@@ -188,13 +188,13 @@
 
                             <div class="rams-flex rams-gap-2">
                                 <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.view'|trans }}" aria-label="{{ 'common.view'|trans }}">
-                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                         <path d="M2 8C2 8 4 4 8 4C12 4 14 8 14 8C14 8 12 12 8 12C4 12 2 8 2 8Z"/>
                                         <circle cx="8" cy="8" r="2"/>
                                     </svg>
                                 </a>
                                 <a href="{{ path('app_rfq_edit', {id: rfq.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.edit'|trans }}" aria-label="{{ 'common.edit'|trans }}">
-                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                         <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                                     </svg>
                                 </a>
@@ -209,7 +209,7 @@
             <div class="rams-module__content">
                 <div class="rams-empty-state">
                      
-                        <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="rams-empty-state__icon">
+                        <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="rams-empty-state__icon" aria-hidden="true">
                             <rect x="3" y="3" width="10" height="10" rx="1"/>
                             <path d="M6 7H10M6 10H8"/>
                         </svg>
@@ -217,7 +217,7 @@
                     <h2 class="rams-empty-state__title">{{ 'rfq.empty.title'|trans }}</h2>
                     <p class="rams-empty-state__description">{{ 'rfq.empty.description'|trans }}</p>
                     <a href="{{ path('app_rfq_new') }}" class="rams-btn rams-btn--primary">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <path d="M8 3V13M3 8H13"/>
                         </svg>
                         {{ 'rfq.actions.new'|trans }}

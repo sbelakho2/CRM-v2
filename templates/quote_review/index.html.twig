@@ -49,13 +49,13 @@
         <div class="rams-module">
             <div class="rams-module__content rams-p-8 rams-text--center">
                 <div class="rams-text--green rams-text--4xl rams-mb-4">
-                    <svg class="rams-icon rams-icon--xl" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg class="rams-icon rams-icon--xl" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <path d="M3 8L6 11L13 4"/>
                     </svg>
                 </div>
                 <h2 class="rams-font-mono rams-text--xs rams-uppercase rams-text--muted rams-mb-2">{{ 'quote.review.all_caught_up'|trans }}</h2>
                 <p class="rams-text--sm rams-text--muted rams-mb-6">{{ 'quote.review.no_pending'|trans }}</p>
-                <a href="{{ path('quote_copilot_index') }}" class="rams-btn rams-btn--primary rams-uppercase"> 
+                <a href="{{ path('quote_copilot_index') }}" class="rams-btn rams-btn--primary"> 
                     {{ 'quote.copilot.new_quote'|trans }}
                 </a>
             </div>
@@ -107,8 +107,8 @@
                                 </td>
                                 <td class="tabular-nums rams-text--muted">{{  q.createdAt|date('M j, Y') }}</td>
                                 <td class="rams-text--right">
-                                    <a href="{{ path('quote_review_detail', {id: q.id}) }}" class="rams-btn rams-btn--ghost rams-uppercase"> 
-                                        <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                    <a href="{{ path('quote_review_detail', {id: q.id}) }}" class="rams-btn rams-btn--ghost"> 
+                                        <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                             <path d="M1 8s3-6 7-6 7 6 7 6-3 6-7 6-7-6-7-6zM8 11a3 3 0 100-6 3 3 0 000 6z"/>
                                         </svg>
                                         {{ 'quote.review.review'|trans }}

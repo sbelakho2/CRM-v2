@@ -36,13 +36,13 @@
             </div>
 
             <div class="rams-actions rams-mt-6 mobile-stack">
-                <button type="submit" class="rams-btn rams-btn--primary rams-uppercase"> 
-                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <button type="submit" class="rams-btn rams-btn--primary"> 
+                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                     </svg>
                     {{ button_label|default('meeting.save_slot'|trans) }}
                 </button>
-                <a href="{{ path('meeting_index') }}" class="rams-btn rams-btn--ghost rams-uppercase">{{  'common.cancel'|trans }}</a>
+                <a href="{{ path('meeting_index') }}" class="rams-btn rams-btn--ghost">{{  'common.cancel'|trans }}</a>
             </div>
         </div>
         
@@ -58,13 +58,13 @@
                     </p>
                     <ul class="rams-list">
                         <li class="rams-list__item">
-                            <svg class="rams-icon rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <svg class="rams-icon rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                 <circle cx="8" cy="8" r="6"/><path d="M8 4V8L10 10"/>
                             </svg>
                             <span>{{ 'meeting.duration_includes_buffer'|trans }}</span>
                         </li>
                         <li class="rams-list__item">
-                            <svg class="rams-icon rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <svg class="rams-icon rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                 <rect x="2" y="3" width="12" height="10" rx="2"/><path d="M8 7V13M4 10H12"/>
                             </svg>
                             <span>{{ 'meeting.video_links_auto'|trans }}</span>

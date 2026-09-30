@@ -238,6 +238,12 @@ class RouteCrawlTest extends WebTestCase
         $abm->setEngagementScore(42);
         $em->persist($abm);
 
+        $quoteRequest = new \App\Entity\QuoteCustomerRequest();
+        $quoteRequest->setQuote($quote);
+        $quoteRequest->setRequestType(\App\Entity\QuoteCustomerRequest::TYPE_QUANTITY_REQUEST);
+        $quoteRequest->setRequestedQuantity(100);
+        $em->persist($quoteRequest);
+
         $em->flush();
 
         $bookingSecret = (string) self::getContainer()->getParameter('app.booking_secret');
@@ -268,6 +274,7 @@ class RouteCrawlTest extends WebTestCase
             'customField' => $customField->getId(),
             'webinar' => $webinar->getId(),
             'abm' => $abm->getId(),
+            'requestEntity' => $quoteRequest->getId(),
         ];
     }
 
@@ -347,6 +354,9 @@ class RouteCrawlTest extends WebTestCase
         ];
 
         // Route-specific params
+        if (in_array($routeName, ['app_quote_request_status', 'app_quote_request_index'], true)) {
+            $map['id'] = $this->ids['requestEntity'] ?? 0;
+        }
         if (in_array($routeName, ['quote_live_view', 'quote_live_pricing', 'quote_live_calculate', 'quote_live_request', 'quote_live_accept', 'quote_live_reject'], true)) {
             $map['token'] = $this->ids['quoteToken'];
         }

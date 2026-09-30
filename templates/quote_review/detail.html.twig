@@ -83,31 +83,31 @@
             <p class="rams-page__subtitle">{{ company_name ?? ('common.n_a'|trans) }} · {{ quote.createdAt|date('M j, Y g:i A') }}</p>
         </div>
         <div class="rams-page__actions mobile-stack">
-            <a href="{{ path('quote_copilot_pdf', {id: quote.id}) }}" class="rams-btn rams-uppercase"  title="{{ 'quote.copilot.download_pdf'|trans }}">
-                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <a href="{{ path('quote_copilot_pdf', {id: quote.id}) }}" class="rams-btn"  title="{{ 'quote.copilot.download_pdf'|trans }}">
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path d="M8 12V2M4 6L8 2L12 6"/>
                 </svg>
                 {{ 'quote.review.download_pdf'|trans }}
             </a>
-            <a href="{{ path('quote_copilot_full_excel', {id: quote.id}) }}" class="rams-btn rams-uppercase rams-btn--accent-outline">
-                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <a href="{{ path('quote_copilot_full_excel', {id: quote.id}) }}" class="rams-btn rams-btn--accent-outline">
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <rect x="3" y="3" width="10" height="10" rx="1"/>
                     <path d="M3 6H13M3 9H13M6 3V13M10 3V13"/>
                 </svg>
                 {{ 'quote.copilot.download_full_excel'|trans({}, 'messages')|default('Full Sourcing') }}
             </a>
-            <a href="{{ path('export_quote_bom', {id: quote.id}) }}" class="rams-btn rams-uppercase"> 
-                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <a href="{{ path('export_quote_bom', {id: quote.id}) }}" class="rams-btn"> 
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path d="M8 12V2M4 6L8 2L12 6"/>
                 </svg>
                 {{ 'common.export_csv'|trans }}
             </a>
-            <button id="verify-all-high-btn" class="rams-btn rams-uppercase"> 
+            <button id="verify-all-high-btn" class="rams-btn"> 
                 {{ 'quote.review.verify_all_high'|trans }}
             </button>
-            <button id="approve-quote-btn" class="rams-btn rams-btn--primary rams-uppercase" 
+            <button id="approve-quote-btn" class="rams-btn rams-btn--primary" 
                 {% if not stats.ready_for_approval %}disabled{% endif %}>
-                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path d="M3 8L6 11L13 4"/>
                 </svg>
                 {{ 'quote.review.approve'|trans }}
@@ -324,24 +324,24 @@
                             <td>
                                 <div class="rams-actions rams-actions--sm">
                                     {% if not line.manuallyVerified %}
-                                        <button onclick="verifyLine({{ line.id }})" class="rams-btn rams-btn--ghost rams-text--green rams-uppercase"   title="{{ 'quote.review.verify_match'|trans }}" aria-label="{{ 'quote.review.verify_match'|trans }}">
-                                            <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                        <button onclick="verifyLine({{ line.id }})" class="rams-btn rams-btn--ghost rams-text--green"   title="{{ 'quote.review.verify_match'|trans }}" aria-label="{{ 'quote.review.verify_match'|trans }}">
+                                            <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                                 <path d="M3 8L6 11L13 4"/>
                                             </svg>
                                         </button>
                                     {% endif %}
-                                    <button onclick="openOverrideModal({{ line.id }}, '{{ (line.mpn ?? '')|e('js') }}', {{ line.unitPrice ?? 0 }})" class="rams-btn rams-btn--ghost rams-uppercase"  title="{{ 'quote.review.enter_manual_price'|trans }}">
+                                    <button onclick="openOverrideModal({{ line.id }}, '{{ (line.mpn ?? '')|e('js') }}', {{ line.unitPrice ?? 0 }})" class="rams-btn rams-btn--ghost"  title="{{ 'quote.review.enter_manual_price'|trans }}">
                                         <span class="rams-font-mono rams-text--2xs">{{   quote.currency ?? display_currency() }}</span>
                                     </button>
-                                    <button onclick="repriceLine({{ line.id }})" class="rams-btn rams-btn--ghost rams-text--warning rams-uppercase"   title="{{ 'quote.review.reprice'|trans }}" aria-label="{{ 'quote.review.reprice'|trans }}">
-                                        <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                    <button onclick="repriceLine({{ line.id }})" class="rams-btn rams-btn--ghost rams-text--warning"   title="{{ 'quote.review.reprice'|trans }}" aria-label="{{ 'quote.review.reprice'|trans }}">
+                                        <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                             <path d="M1 8a7 7 0 0111.95-5M15 8a7 7 0 01-11.95 5"/>
                                             <path d="M15 1v7h-7M1 15v-7h7"/>
                                         </svg>
                                     </button>
                                     {% if line.unitPrice and not line.manuallyVerified %}
-                                        <button onclick="rejectLine({{ line.id }})" class="rams-btn rams-btn--ghost rams-text--red rams-uppercase"   title="{{ 'quote.review.reject_match'|trans }}" aria-label="{{ 'quote.review.reject_match'|trans }}">
-                                            <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                        <button onclick="rejectLine({{ line.id }})" class="rams-btn rams-btn--ghost rams-text--red"   title="{{ 'quote.review.reject_match'|trans }}" aria-label="{{ 'quote.review.reject_match'|trans }}">
+                                            <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                                 <path d="M4 4l8 8M12 4l-8 8"/>
                                             </svg>
                                         </button>
@@ -388,8 +388,8 @@
             </form>
         </div>
         <div class="rams-modal__footer rams-flex rams-justify-end rams-gap-2">
-            <button type="button" onclick="closeOverrideModal()" class="rams-btn rams-uppercase">{{  'common.cancel'|trans }}</button>
-            <button type="submit" form="override-form" class="rams-btn rams-btn--primary rams-uppercase">{{  'quote.review.apply_override'|trans }}</button>
+            <button type="button" onclick="closeOverrideModal()" class="rams-btn">{{  'common.cancel'|trans }}</button>
+            <button type="submit" form="override-form" class="rams-btn rams-btn--primary">{{  'quote.review.apply_override'|trans }}</button>
         </div>
     </div>
 </div>

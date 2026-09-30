@@ -9,7 +9,7 @@
         <p class="rams-page__subtitle">{{ 'meeting.schedule_with'|trans }}{{ owner.firstName|default(owner.email) }}</p>
     </div>
     
-    <div class="rams-grid"   style="max-width: 800px; margin: 0 auto;">
+    <div class="rams-grid rams-centered">
         <div class="rams-module">
             <div class="rams-module__header">
                 <h2>{{ 'meeting.available_times'|trans }}</h2>
@@ -33,7 +33,7 @@
                     {% endfor %}
                 {% else %}
                     <div class="rams-empty-state">
-                        <svg class="rams-icon rams-icon--2xl rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <svg class="rams-icon rams-icon--2xl rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                             <circle cx="8" cy="8" r="6"/><path d="M8 4V8L6 10"/>
                         </svg>
                         <h3>{{ 'meeting.no_slots_available'|trans }}</h3>

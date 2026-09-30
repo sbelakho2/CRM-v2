@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Entity\Notification;
 use App\Entity\Quote;
 use App\Entity\BomLine;
 use App\Repository\QuoteRepository;
@@ -42,6 +43,14 @@ class InteractiveLiveQuoteService
     
     // Maximum token validity in days
     private const MAX_TOKEN_VALIDITY_DAYS = 90;
+
+    // Tier bounds: sane client input, bounded storage
+    private const MAX_TIERS = 20;
+    private const MAX_TIER_QUANTITY = 1_000_000;
+
+    // Public rate limits (per token / per IP buckets)
+    private const RATE_LIMIT_PER_TOKEN_PER_HOUR = 10;
+    private const RATE_LIMIT_PER_IP_PER_HOUR = 30;
     
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -51,6 +60,43 @@ class InteractiveLiveQuoteService
         private ?\App\Service\PricingEngine $pricingEngine = null,
     ) {}
     
+    /**
+     * Normalize client-supplied quantity tiers: integers only, 1..1,000,000,
+     * unique, ascending, bounded count. Garbage input falls back to the
+     * defaults rather than poisoning the stored quote configuration.
+     *
+     * @return list<int>
+     */
+    private function normalizeQuantityTiers(?array $quantityTiers): array
+    {
+        if (!is_array($quantityTiers) || $quantityTiers === []) {
+            return self::DEFAULT_QUANTITY_TIERS;
+        }
+
+        $tiers = [];
+        foreach ($quantityTiers as $tier) {
+            if (is_int($tier) || (is_string($tier) && preg_match('/^\d+$/', $tier))) {
+                $tier = (int) $tier;
+            } elseif (is_float($tier) && floor($tier) === $tier) {
+                $tier = (int) $tier;
+            } else {
+                continue; // non-integer garbage — dropped
+            }
+            if ($tier >= 1 && $tier <= self::MAX_TIER_QUANTITY) {
+                $tiers[$tier] = $tier; // de-dupe
+            }
+        }
+
+        $tiers = array_values($tiers);
+        sort($tiers);
+
+        if ($tiers === []) {
+            return self::DEFAULT_QUANTITY_TIERS;
+        }
+
+        return array_slice($tiers, 0, self::MAX_TIERS);
+    }
+
     /**
      * Guard: archived quotes are read-only. All interactive-mode MUTATIONS
      * route through this — the public token resolver already refuses them;
@@ -78,23 +124,26 @@ class InteractiveLiveQuoteService
     ): array {
         $this->assertNotArchived($quote);
 
-        // Validate expiration
-        $expirationDays = min($expirationDays, self::MAX_TOKEN_VALIDITY_DAYS);
-        
+        // Expiration: bounded 1..90 days (previously min() only — a
+        // negative value minted an instantly-expired token).
+        $expirationDays = max(1, min(self::MAX_TOKEN_VALIDITY_DAYS, $expirationDays));
+
         // Generate secure token
         $quote->generatePublicToken($expirationDays);
         $quote->setInteractiveEnabled(true);
-        
-        // Set quantity tiers
-        $tiers = $quantityTiers ?? self::DEFAULT_QUANTITY_TIERS;
-        
+
+        // Tiers: normalized (integers, 1..1,000,000, unique, ascending,
+        // bounded count) — client arrays were previously stored verbatim.
+        $tiers = $this->normalizeQuantityTiers($quantityTiers);
+
         // Ensure current quantity is included in tiers
         $currentQty = $quote->getQuantity();
-        if ($currentQty && !in_array($currentQty, $tiers)) {
-            $tiers[] = $currentQty;
+        if ($currentQty && !in_array((int) $currentQty, $tiers, true)) {
+            $tiers[] = (int) $currentQty;
             sort($tiers);
         }
-        
+        $tiers = array_values(array_slice($tiers, 0, self::MAX_TIERS));
+
         $quote->setQuantityOptions($tiers);
         
         $this->entityManager->flush();
@@ -252,6 +301,7 @@ class InteractiveLiveQuoteService
         $extendedTotal = 0.0;
         $perUnitBreakdown = [];
         $allInStock = true;
+        $anyStockKnown = true;
         $processedLines = [];
 
         foreach ($bomData as $line) {
@@ -267,9 +317,13 @@ class InteractiveLiveQuoteService
             $unitTotal += $perUnitCost;
             $extendedTotal += $lineExtended;
 
-            $stock = $line['stock'] ?? 0;
-            if ($stock < $lineQty) {
+            $stock = $line['stock'] ?? null;
+            $hasStockData = $stock !== null;
+            if ($hasStockData && (int) $stock < $lineQty) {
                 $allInStock = false;
+            }
+            if (!$hasStockData) {
+                $anyStockKnown = false;
             }
 
             $perUnitBreakdown[] = [
@@ -279,7 +333,7 @@ class InteractiveLiveQuoteService
                 'unit_price' => round($unitPrice, 5),
                 'extended' => round($lineExtended, 2),
                 'stock_available' => $stock,
-                'sufficient_stock' => $stock >= $lineQty,
+                'sufficient_stock' => $hasStockData ? ((int) $stock >= $lineQty) : null,
             ];
 
             // Canonical processed-line shape (what PricingEngine totals consume).
@@ -307,10 +361,40 @@ class InteractiveLiveQuoteService
             'margin_amount' => $totals['margin_amount'] ?? null,
             'currency' => $totals['currency'] ?? $currency,
             'per_unit_breakdown' => $perUnitBreakdown,
-            'stock_status' => $allInStock ? 'all_in_stock' : 'partial_stock',
+            'stock_status' => !$anyStockKnown ? 'unknown_stock' : ($allInStock ? 'all_in_stock' : 'partial_stock'),
         ];
     }
     
+    /**
+     * Validate a stored price-break array: quantity/price pairs, positive
+     * quantities, non-negative prices, bounded count. Anything malformed is
+     * dropped — a corrupted snapshot must never produce a wrong quote.
+     *
+     * @return list<array{quantity: int, price: float}>
+     */
+    private function sanitizePriceBreaks(mixed $priceBreaks): array
+    {
+        if (!is_array($priceBreaks)) {
+            return [];
+        }
+
+        $clean = [];
+        foreach (array_slice($priceBreaks, 0, 50) as $break) {
+            if (!is_array($break) || !isset($break['quantity'], $break['price'])) {
+                continue;
+            }
+            $quantity = (int) $break['quantity'];
+            $price = (float) $break['price'];
+            if ($quantity >= 1 && $price >= 0.0) {
+                $clean[] = ['quantity' => $quantity, 'price' => $price];
+            }
+        }
+
+        usort($clean, fn ($a, $b) => $a['quantity'] <=> $b['quantity']);
+
+        return $clean;
+    }
+
     /**
      * Get unit price based on price breaks
      */
@@ -372,13 +456,13 @@ class InteractiveLiveQuoteService
         
         foreach ($bomData as $line) {
             $lineQty = ($line['quantity_per_unit'] ?? 1) * $quantity;
-            $stock = $line['stock'] ?? 0;
+            $stock = $line['stock'] ?? null;
             $standardLeadTime = $line['leadtime_days'] ?? 14;
             
             $effectiveLeadTime = $standardLeadTime;
             
-            // If stock is insufficient, add procurement time
-            if ($stock < $lineQty) {
+            // If stock is insufficient (KNOWN stock only), add procurement time
+            if ($stock !== null && $stock < $lineQty) {
                 $shortfall = $lineQty - $stock;
                 // Estimate additional lead time based on shortfall
                 $additionalDays = min(60, (int)($shortfall / 100) + 14);
@@ -416,22 +500,37 @@ class InteractiveLiveQuoteService
         if ($bomLines->count() > 0) {
             $data = [];
             foreach ($bomLines as $line) {
-                // Build pricing from unit price if available
-                $pricing = [];
-                $unitPrice = $line->getUnitPrice();
-                if ($unitPrice !== null) {
-                    $pricing = [
-                        ['quantity' => 1, 'price' => (float) $unitPrice],
-                    ];
+                // IMMUTABLE PRICING SNAPSHOT: the sourcing pipeline persists
+                // the approved supplier price breaks into sourcing_data —
+                // live tier pricing reprices against THAT snapshot (never
+                // against volatile external APIs after issuance, and no
+                // longer a flat qty-1 price scaled linearly).
+                $sourcing = $line->getSourcingData() ?? [];
+                $pricing = $this->sanitizePriceBreaks($sourcing['price_breaks'] ?? null);
+
+                if ($pricing === []) {
+                    $unitPrice = $line->getUnitPrice();
+                    if ($unitPrice !== null) {
+                        $pricing = [
+                            ['quantity' => 1, 'price' => (float) $unitPrice],
+                        ];
+                    }
                 }
-                
+
+                // Stock: only claimed when the sourcing snapshot actually
+                // carries a number — a fabricated 0 made every line look
+                // stock-constrained.
+                $stock = isset($sourcing['stock']) && is_numeric($sourcing['stock'])
+                    ? max(0, (int) $sourcing['stock'])
+                    : null;
+
                 $data[] = [
                     'mpn' => $line->getMpn(),
                     'manufacturer' => $line->getManufacturer(),
                     'description' => $line->getDescription(),
                     'quantity_per_unit' => $line->getQuantity(),
                     'pricing' => $pricing,
-                    'stock' => 0, // BomLine doesn't have stock, will be filled from pricing lookup
+                    'stock' => $stock,
                     'leadtime_days' => $line->getLeadTimeDays() ?? 14,
                 ];
             }
@@ -442,7 +541,20 @@ class InteractiveLiveQuoteService
         $bomJson = $quote->getBomDataJson();
         if ($bomJson) {
             $decoded = json_decode($bomJson, true);
-            return $decoded['lines'] ?? $decoded ?? [];
+            $lines = $decoded['lines'] ?? $decoded ?? [];
+
+            // Normalize stored JSON lines into the pricing shape the tier
+            // engine consumes — a flat unit_price becomes a qty-1 break.
+            foreach ($lines as $i => $line) {
+                if (!is_array($line)) {
+                    continue;
+                }
+                if (empty($line['pricing']) && isset($line['unit_price']) && is_numeric($line['unit_price'])) {
+                    $lines[$i]['pricing'] = [['quantity' => 1, 'price' => (float) $line['unit_price']]];
+                }
+            }
+
+            return $lines;
         }
         
         return [];
@@ -467,6 +579,11 @@ class InteractiveLiveQuoteService
         if ($requestedQuantity <= 0 || $requestedQuantity > 1_000_000) {
             throw new \InvalidArgumentException('Requested quantity must be between 1 and 1,000,000.');
         }
+
+        // RATE LIMITING (the PHPDoc promised it; now it exists): durable
+        // buckets on the request ledger itself — 10/hour per token, 30/hour
+        // per IP. CSRF is not abuse prevention.
+        $this->assertRateLimit($token, $requestIp);
 
         // Calculate pricing for requested quantity (canonical engine)
         $bomData = $this->extractBomData($quote);
@@ -499,6 +616,23 @@ class InteractiveLiveQuoteService
             'estimated_total' => $request->getEstimatedTotal(),
         ]);
 
+        // Surface the request in the SALES WORKFLOW: admins get a CRM
+        // notification with the request ID, and the request itself is
+        // discoverable in the quote-request queue (see QuoteRequestController).
+        $this->notifyOperations(
+            Notification::TYPE_QUOTE_REQUEST,
+            sprintf(
+                'New quote request #%d for %s: %d units (~%s %s)',
+                (int) $request->getId(),
+                (string) $quote->getQuoteNumber(),
+                $requestedQuantity,
+                $request->getEstimatedTotal(),
+                (string) ($pricing['currency'] ?? $quote->getCurrency())
+            ),
+            (int) $quote->getId(),
+            ['request_id' => $request->getId(), 'quantity' => $requestedQuantity]
+        );
+
         return [
             'status' => 'request_received',
             'request_id' => $request->getId(),
@@ -529,6 +663,10 @@ class InteractiveLiveQuoteService
      */
     public function acceptQuote(Quote $quote, int $acceptedQuantity, array $customerInfo, ?string $token = null): array
     {
+        // Archived quotes are read-only — public tokens already refuse them,
+        // the authenticated flow must too.
+        $this->assertNotArchived($quote);
+
         if ($token !== null) {
             if (!$quote->isTokenValid() || !hash_equals((string) ($quote->getPublicToken() ?? ''), $token)) {
                 $this->logger->warning('Quote acceptance rejected: invalid or expired token', [
@@ -561,7 +699,19 @@ class InteractiveLiveQuoteService
 
         $bomData = $this->extractBomData($quote);
         $pricing = $this->calculatePricingForQuantity($bomData, $acceptedQuantity, $quote->getCurrency());
-        $acceptedTotal = (string) number_format((float) ($pricing['canonical_total'] ?? $pricing['extended_total']), 2, '.', '');
+        $acceptedTotalFloat = (float) ($pricing['canonical_total'] ?? $pricing['extended_total']);
+
+        // ACCEPTANCE POLICY — fail closed: a quote with no priced lines (no
+        // BOM pricing, missing/zero unit prices) is not a commercially
+        // acceptable offer. Accepting a 0.00 total would fabricate an order.
+        if ($bomData === []) {
+            throw new \InvalidArgumentException('This quote has no priced BOM lines and cannot be accepted.');
+        }
+        if ($acceptedTotalFloat <= 0.0) {
+            throw new \InvalidArgumentException('This quote has no valid pricing and cannot be accepted. Please request a formal quote.');
+        }
+
+        $acceptedTotal = (string) number_format($acceptedTotalFloat, 2, '.', '');
 
         // Idempotent acceptance: an already-accepted quote keeps its
         // ORIGINAL acceptance record and returns it (no second event).
@@ -614,14 +764,57 @@ class InteractiveLiveQuoteService
             isset($customerInfo['po_number']) && is_string($customerInfo['po_number']) ? mb_substr($customerInfo['po_number'], 0, 100) : null
         );
 
-        // ONE transaction: acceptance record + quote state transition commit
-        // together (neither can exist without the other).
-        // One flush boundary: acceptance + state transition commit together.
+        // ONE flush boundary: acceptance + state transition commit together.
+        // quote_acceptances.quote_id is UNIQUE at the database level — a
+        // concurrent acceptance loses the race here and is converted into an
+        // idempotent replay of the WINNER's record (no second acceptance,
+        // no duplicate order event).
         $this->entityManager->persist($acceptance);
         $quote->setStatus('accepted');
         $quote->setQuantity($acceptedQuantity);
         $quote->setUpdatedAt(new \DateTime());
-        $this->entityManager->flush();
+
+        // The follow-on sales/operations event lives in the SAME commit:
+        // admin notifications + CRM activity (the promised order-confirmation
+        // workflow — the customer message below is now TRUE).
+        $this->queueAcceptanceNotifications($quote, $acceptedQuantity, $acceptedTotal, $pricing['currency'] ?? $quote->getCurrency());
+        $activity = $this->buildAcceptanceActivity($quote, $acceptedQuantity, $acceptedTotal, $pricing['currency'] ?? $quote->getCurrency());
+        if ($activity !== null) {
+            $this->entityManager->persist($activity);
+        }
+
+        try {
+            $this->entityManager->flush();
+        } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException) {
+            // We lost the acceptance race — replay the winner's record.
+            $this->entityManager->clear();
+            /** @var \App\Entity\Quote $freshQuote */
+            $freshQuote = $this->quoteRepository->find($quote->getId());
+            $winner = ($this->entityManager->getRepository(\App\Entity\QuoteAcceptance::class) instanceof \App\Repository\QuoteAcceptanceRepository)
+                ? $this->entityManager->getRepository(\App\Entity\QuoteAcceptance::class)->findLatestForQuote($freshQuote)
+                : null;
+
+            if ($winner !== null) {
+                $this->logger->info('Concurrent quote acceptance resolved to existing record', [
+                    'quote_id' => $quote->getId(),
+                    'acceptance_id' => $winner->getId(),
+                ]);
+
+                return [
+                    'status' => 'accepted',
+                    'acceptance_id' => $winner->getId(),
+                    'quote_number' => $freshQuote->getQuoteNumber(),
+                    'accepted_quantity' => $winner->getAcceptedQuantity(),
+                    'accepted_total' => (float) $winner->getAcceptedTotal(),
+                    'idempotent_replay' => true,
+                    'message' => 'This quote has already been accepted.',
+                ];
+            }
+
+            // Unique violation without a visible winner should not happen —
+            // surface it as a conflict.
+            throw new \RuntimeException('Quote acceptance conflict, please retry.');
+        }
 
         // Audit-log only structural IDs — never the customer-info payload
         // (unnecessary PII in logs).
@@ -642,13 +835,124 @@ class InteractiveLiveQuoteService
             'currency' => $pricing['currency'] ?? $quote->getCurrency(),
             'message' => 'Thank you for accepting this quote! Our team will reach out to begin the order process.',
             'next_steps' => [
-                'You will receive an order confirmation email',
+                'Our sales team has been notified and will confirm your order',
                 'Our engineering team will review requirements',
                 'Production will be scheduled based on lead times',
             ],
         ];
     }
     
+    /**
+     * Public request rate limiting: durable buckets over the request ledger.
+     *
+     * @throws RateLimitExceeded when a bucket is exhausted
+     */
+    private function assertRateLimit(?string $token, ?string $requestIp): void
+    {
+        $since = (new \DateTime())->modify('-1 hour');
+        $repository = $this->entityManager->getRepository(\App\Entity\QuoteCustomerRequest::class);
+
+        if ($repository instanceof \App\Repository\QuoteCustomerRequestRepository) {
+            if ($token !== null) {
+                $fingerprint = hash('sha256', $token);
+                if ($repository->countRecentByFingerprint($fingerprint, $since) >= self::RATE_LIMIT_PER_TOKEN_PER_HOUR) {
+                    throw new RateLimitExceeded('Too many requests for this quote link. Please try again later.');
+                }
+            }
+            if ($requestIp !== null && $repository->countRecentByIp($requestIp, $since) >= self::RATE_LIMIT_PER_IP_PER_HOUR) {
+                throw new RateLimitExceeded('Too many requests from your network. Please try again later.');
+            }
+        }
+    }
+
+    /**
+     * Notify the operations/admin queue in the CRM notification center.
+     * (The data model has no per-quote sales owner — quotes and companies
+     * only carry archivedBy — so the admin group IS the follow-up queue.)
+     */
+    private function notifyOperations(string $type, string $message, int $entityId, array $data = []): void
+    {
+        try {
+            $admins = $this->entityManager->createQuery(
+                "SELECT u FROM App\Entity\User u WHERE u.roles LIKE '%ROLE_ADMIN%' AND u.active = true"
+            )?->getResult() ?? [];
+        } catch (\Throwable) {
+            $admins = []; // mocked EM or transient failure — never block the flow
+        }
+
+        foreach ($admins as $admin) {
+            $notification = new Notification();
+            $notification->setUser($admin);
+            $notification->setType($type);
+            $notification->setEntityType('quote');
+            $notification->setEntityId($entityId);
+            $notification->setMessage($message);
+            $notification->setData($data ?: null);
+            $this->entityManager->persist($notification);
+        }
+        $this->entityManager->flush();
+    }
+
+    /**
+     * CRM activity recording the acceptance — the follow-on sales event.
+     * Activity.user is NOT NULL, so ownerless quotes skip it (the
+     * notification still records with a null user).
+     */
+    private function queueAcceptanceNotifications(Quote $quote, int $quantity, string $total, ?string $currency): void
+    {
+        try {
+            $admins = $this->entityManager->createQuery(
+                "SELECT u FROM App\Entity\User u WHERE u.roles LIKE '%ROLE_ADMIN%' AND u.active = true"
+            )?->getResult() ?? [];
+        } catch (\Throwable) {
+            return; // mocked EM or transient failure — never block the flow
+        }
+
+        foreach ($admins as $admin) {
+            $notification = new Notification();
+            $notification->setUser($admin);
+            $notification->setType(Notification::TYPE_QUOTE_ACCEPTED);
+            $notification->setEntityType('quote');
+            $notification->setEntityId((int) $quote->getId());
+            $notification->setMessage(sprintf(
+                'Quote %s ACCEPTED: %d units for %s %s',
+                (string) $quote->getQuoteNumber(),
+                $quantity,
+                $total,
+                (string) $currency
+            ));
+            $notification->setData(['acceptance_quantity' => $quantity, 'accepted_total' => $total]);
+            $this->entityManager->persist($notification);
+        }
+    }
+
+    private function buildAcceptanceActivity(Quote $quote, int $quantity, string $total, ?string $currency): ?\App\Entity\Activity
+    {
+        try {
+            $company = $quote->getCompany();
+        } catch (\Doctrine\ORM\EntityNotFoundException) {
+            return null;
+        }
+
+        // Activity.user is NOT NULL — attribute to the acting user when the
+        // acceptance came through an authenticated session; public-token
+        // acceptances are covered by the admin notifications instead.
+        $actingUser = $this->security?->getUser();
+        if ($actingUser === null || $company === null) {
+            return null;
+        }
+
+        $activity = new \App\Entity\Activity();
+        $activity->setUser($actingUser);
+        $activity->setCompany($company);
+        $activity->setType('quote_accepted');
+        $activity->setSubject(sprintf('Quote %s accepted (%d units, %s %s)', (string) $quote->getQuoteNumber(), $quantity, $total, (string) $currency));
+        $activity->setDescription('Customer accepted the interactive live quote. Begin the order process.');
+        $activity->setActivityDate(new \DateTime());
+
+        return $activity;
+    }
+
     /**
      * Get interactive quote statistics for dashboard
      */

@@ -10,7 +10,9 @@
 #   3. app:migrations:preflight must FAIL (estimates populated → blocker)
 #   4. archive estimates rows out of the way (the documented preservation
 #      step), preflight must PASS
-#   5. migrate to latest
+#   5. app:migrations:safe-migrate — THE documented production entry point —
+#      must preserve the populated legacy compliance values automatically,
+#      migrate to latest, and verify the restoration byte-for-byte
 #   6. assert business-history invariants: company/contact rows preserved
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -124,16 +126,10 @@ INSERT INTO compliance_documents (company_id, name, required, provided, status, 
 SELECT id, 'Legacy ISO Certificate', 1, 1, 'Approved', 'SENTINEL_DOCTYPE_7f3a', 'aaa7f3a9c1d2e5b80917263544556677889900aabbccddeeff1122334455667', 'SENTINEL_VER_9b2c'
 FROM companies WHERE name = 'Legacy Manufacturing SARL';
 SQL
-APP_ENV=test php bin/console app:migrations:preserve-compliance-legacy | tail -1
+# NOTE: legacy compliance values stay POPULATED — the safe-migrate wrapper
+# below must detect and preserve them itself (that is its contract).
 
-# Values are now in the archive table: clear the live legacy columns (the
-# drop migration would otherwise still see populated data — exactly what
-# the preflight blocks on).
-docker exec -i crm-ci-mysql mysql -ucrm_test -pcrm_test_pw "$UPGRADE_DB" 2>/dev/null <<'SQL'
-UPDATE compliance_documents SET document_type = NULL, sha256_hash = NULL, version_id = NULL;
-SQL
-
-step "preserve estimates data (documented operator step), then preflight must PASS"
+step "preserve estimates data (documented operator step)"
 docker exec -i crm-ci-mysql mysql -ucrm_test -pcrm_test_pw "$UPGRADE_DB" <<'SQL'
 CREATE TABLE IF NOT EXISTS legacy_estimates_preserved AS SELECT * FROM estimates;
 DELETE FROM estimates;
@@ -142,10 +138,24 @@ DELETE FROM estimates;
 CREATE TABLE IF NOT EXISTS legacy_contacts_subscribed AS SELECT id, email, subscribed FROM contacts WHERE subscribed IS NOT NULL AND subscribed <> 0;
 UPDATE contacts SET subscribed = 0;  -- column is NOT NULL at this schema era
 SQL
-APP_ENV=test php bin/console app:migrations:preflight | tail -1
 
-step "migrate populated schema to LATEST"
-APP_ENV=test php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration | tail -1
+step "preflight must still BLOCK on the populated compliance legacy values"
+if APP_ENV=test php bin/console app:migrations:preflight >/tmp/preflight_out.txt 2>&1; then
+  echo "✖ preflight PASSED with populated legacy compliance data present — safety net is broken" >&2
+  exit 1
+fi
+if ! grep -q "compliance_documents" /tmp/preflight_out.txt; then
+  echo "✖ preflight failed for the wrong reason (expected compliance blocker):" >&2
+  tail -3 /tmp/preflight_out.txt >&2
+  exit 1
+fi
+echo "✓ preflight correctly blocked the destructive upgrade"
+
+step "ONE production entry point: app:migrations:safe-migrate (preserve + migrate + verify)"
+APP_ENV=test php bin/console app:migrations:safe-migrate || {
+  echo "✖ safe-migrate wrapper failed on a populated legacy database" >&2
+  exit 1
+}
 
 step "verify compliance legacy values restored byte-for-byte"
 RESTORED=$(docker exec crm-ci-mysql mysql -N -ucrm_test -pcrm_test_pw "$UPGRADE_DB" -e "SELECT CONCAT(IFNULL(sha256_hash,'-'), '|', IFNULL(JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.legacy_document_type')),'-'), '|', IFNULL(version_id,'-')) FROM compliance_documents WHERE name = 'Legacy ISO Certificate';" 2>/dev/null)

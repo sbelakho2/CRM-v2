@@ -130,13 +130,13 @@
                 </div>
 
                 <div class="rams-actions rams-mt-6">
-                    <button type="submit" class="rams-btn rams-btn--primary rams-uppercase"> 
-                        <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <button type="submit" class="rams-btn rams-btn--primary"> 
+                        <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                              <circle cx="8" cy="8" r="6"/><path d="M8 4V8L10 10"/>
                         </svg>
                         {{ 'meeting.generate_slots'|trans }}
                     </button>
-                    <a href="{{ path('meeting_index') }}" class="rams-btn rams-btn--ghost rams-uppercase">{{  'common.cancel'|trans }}</a>
+                    <a href="{{ path('meeting_index') }}" class="rams-btn rams-btn--ghost">{{  'common.cancel'|trans }}</a>
                 </div>
             </div>
             

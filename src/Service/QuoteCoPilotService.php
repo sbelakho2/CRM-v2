@@ -600,6 +600,10 @@ class QuoteCoPilotService
                 'moq' => $lineData['moq'] ?? null,
                 'pack_quantity' => $lineData['pack_quantity'] ?? null,
                 'stock' => $lineData['stock'] ?? 0,
+                // IMMUTABLE PRICING SNAPSHOT: persist the approved supplier
+                // price breaks so live-quote tier repricing works against
+                // THIS quote's snapshot instead of a flat qty-1 price.
+                'price_breaks' => $lineData['pricing'] ?? null,
                 'confidence' => $confidence,
                 'alt_mpn_used' => $lineData['alt_mpn_used'] ?? null,
                 'supplier_type' => $lineData['supplier_type'] ?? null,

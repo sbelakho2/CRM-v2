@@ -132,7 +132,8 @@
     "search": "بحث",
     "skip_to_content": "تجاوز إلى المحتوى الرئيسي",
     "success": "نجاح",
-    "user_menu": "قائمة المستخدم"
+    "user_menu": "قائمة المستخدم",
+    "toggle_navigation": "تبديل التنقل"
   },
   "activity": {
     "actions": {

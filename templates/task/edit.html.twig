@@ -18,8 +18,8 @@
             <h1 class="rams-page__title">{{ 'task.edit_task'|trans }}</h1>
         </div>
         <div class="rams-page__actions mobile-stack">
-            <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-btn rams-uppercase"> 
-                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-btn"> 
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path d="M10 4L6 8L10 12"/>
                 </svg>
                 {{ 'task.back_to_task'|trans }}
@@ -61,13 +61,13 @@
             </div>
 
             <div class="rams-actions rams-mt-6 mobile-stack">
-                <button type="submit" class="rams-btn rams-btn--primary rams-uppercase"> 
-                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <button type="submit" class="rams-btn rams-btn--primary"> 
+                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                     </svg>
                     {{ 'task.update_task'|trans }}
                 </button>
-                <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-btn rams-btn--ghost rams-uppercase">{{  'common.cancel'|trans }}</a>
+                <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-btn rams-btn--ghost">{{  'common.cancel'|trans }}</a>
             </div>
             {{ form_end(form) }}
         </div>

@@ -77,7 +77,7 @@
 
                 <div class="rams-form__actions">
                     <button type="submit" id="btn-start" class="rams-btn rams-btn--primary">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
                         {{ 'webcrawler.start_discovery'|trans }}
@@ -93,14 +93,14 @@
             {# Live Status Panel #}
             <div id="discovery-status" class="rams-hidden rams-mt-6">
                 <div style="background: var(--rams-bg-alt, #f8fafc); border: 1px solid var(--rams-border, #e2e8f0); border-radius: 0.5rem; padding: 1rem;">
-                    <div class="rams-flex" style="justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                        <div class="rams-flex" style="align-items: center; gap: 0.5rem;">
+                    <div class="rams-flex rams-panel-head">
+                        <div class="rams-flex rams-items-center rams-gap-2">
                             <span id="status-indicator" class="rams-andon__light rams-andon__light--yellow rams-pulse" style="--rams-icon-size: 12px"></span>
                             <strong id="status-label">{{ 'webcrawler.status_discovery_running'|trans }}</strong>
                         </div>
                         <span id="status-time" style="font-size: 0.8rem; color: var(--rams-text-muted, #64748b);"></span>
                     </div>
-                    <div class="rams-grid rams-grid--3" style="gap: 0.75rem; font-size: 0.85rem;">
+                    <div class="rams-grid rams-grid--3 rams-meta-row">
                         <div><span>{{ 'webcrawler.stat_searches'|trans }}:</span> <strong id="stat-searches">0</strong></div>
                         <div><span>{{ 'webcrawler.stat_llm_accept'|trans }}:</span> <strong id="stat-llm-accept">0</strong></div>
                         <div><span>{{ 'webcrawler.stat_llm_reject'|trans }}:</span> <strong id="stat-llm-reject">0</strong></div>
@@ -170,11 +170,11 @@
                                     <td class="rams-table__cell rams-text--muted rams-text--xs">{{ company.createdAt|date('M d, Y') }}</td>
                                     <td class="rams-table__cell rams-table__cell--actions">
                                         {% if company.companyStatus == 'discovered' %}
-                                            <form method="post" action="{{ path('app_company_approve', {id: company.id}) }}" style="display:inline">
+                                            <form method="post" action="{{ path('app_company_approve', {id: company.id}) }}" class="rams-inline">
                                                 <input type="hidden" name="_token" value="{{ csrf_token('approve' ~ company.id) }}">
                                                 <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.approve'|trans }}</button>
                                             </form>
-                                            <form method="post" action="{{ path('app_company_delete', {id: company.id}) }}" style="display:inline">
+                                            <form method="post" action="{{ path('app_company_delete', {id: company.id}) }}" class="rams-inline">
                                                 <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ company.id) }}">
                                                 <input type="hidden" name="_redirect" value="discovered">
                                                 <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.delete'|trans }}</button>

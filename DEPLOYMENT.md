@@ -34,10 +34,14 @@ This document summarizes the deployment flow for the SMART OPS Bundle release. U
    php bin/console cache:warmup --env=prod
    php bin/console assets:install --symlink --relative public
    ```
-5. **Run migrations** and seed baseline data:
+5. **Run migrations** and seed baseline data. On production ALWAYS use the
+   safe-migrate wrapper — it runs the preflight, preserves legacy compliance
+   data before the historical drop migration, migrates, then verifies the
+   restoration byte-for-byte (plain `doctrine:migrations:migrate` can destroy
+   legacy compliance values on a populated database):
    ```bash
    php bin/console doctrine:database:create --if-not-exists --env=prod
-   php bin/console doctrine:migrations:migrate --no-interaction --env=prod
+   php bin/console app:migrations:safe-migrate --env=prod
    ```
 6. **Configure web server** using the vhost templates located in `Documentation/07-Deployment-Operations/`.
 7. **Schedule jobs** (cron or task scheduler) using `bin/console` commands described in the notification and email automation guides.

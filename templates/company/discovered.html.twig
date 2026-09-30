@@ -11,7 +11,7 @@
         </div>
         <div class="rams-page-actions mobile-stack">
             <a href="{{ path('app_company_discovered_export', {format: 'xlsx', sector: current_sector, region: current_region, search: current_search}) }}" class="rams-btn">
-                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
                 {{ 'company.discovered.download_excel'|trans }}
@@ -115,11 +115,11 @@
                                     </td>
                                     <td class="rams-table__cell rams-text--xs rams-text--muted">{{ company.createdAt|date('M d, Y') }}</td>
                                     <td class="rams-table__cell rams-table__cell--actions">
-                                        <form method="post" action="{{ path('app_company_approve', {id: company.id}) }}" style="display:inline">
+                                        <form method="post" action="{{ path('app_company_approve', {id: company.id}) }}" class="rams-inline">
                                             <input type="hidden" name="_token" value="{{ csrf_token('approve' ~ company.id) }}">
                                             <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'company.actions.approve'|trans }}</button>
                                         </form>
-                                        <form method="post" action="{{ path('app_company_delete', {id: company.id}) }}" style="display:inline">
+                                        <form method="post" action="{{ path('app_company_delete', {id: company.id}) }}" class="rams-inline">
                                             <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ company.id) }}">
                                             <input type="hidden" name="_redirect" value="discovered">
                                             <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.delete'|trans }}</button>

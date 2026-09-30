@@ -140,7 +140,7 @@ Follow `Documentation/GOOGLE_SEARCH_SETUP.md`:
 #### 3. Database Migration
 ```bash
 # Production database
-php bin/console doctrine:migrations:migrate --no-interaction
+php bin/console app:migrations:safe-migrate  # preflight + legacy preservation + migrate + verify
 
 # Verify schema
 php bin/console doctrine:schema:validate
@@ -231,7 +231,7 @@ FLUSH PRIVILEGES;
 EXIT;
 
 # Run migrations
-php bin/console doctrine:migrations:migrate --no-interaction
+php bin/console app:migrations:safe-migrate  # preflight + legacy preservation + migrate + verify
 ```
 
 ### 4. Web Server Configuration

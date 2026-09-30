@@ -121,7 +121,9 @@ class CalendarController extends AbstractController
                 return $this->redirectToRoute('calendar_index');
             }
             $event->setStartAt($start);
-            $event->setEndAt((clone $event->getStartAt())->modify('+1 hour'));
+            // getStartAt() is typed DateTimeInterface — clone+modify() is
+            // undefined on the interface; convert to a concrete DateTime.
+            $event->setEndAt(\DateTime::createFromInterface($event->getStartAt())->modify('+1 hour'));
         } else {
             $event->setStartAt(new \DateTime());
             $event->setEndAt((new \DateTime())->modify('+1 hour'));
@@ -353,7 +355,7 @@ class CalendarController extends AbstractController
             }
             $event->setEndAt($end);
         } else {
-            $event->setEndAt((clone $event->getStartAt())->modify('+1 hour'));
+            $event->setEndAt(\DateTime::createFromInterface($event->getStartAt())->modify('+1 hour'));
         }
         
         if (!empty($data['allDay'])) {

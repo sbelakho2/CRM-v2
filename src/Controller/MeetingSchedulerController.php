@@ -543,6 +543,10 @@ class MeetingSchedulerController extends AbstractController
             throw $this->createAccessDeniedException('User not authenticated.');
         }
 
+        if (!$user instanceof \App\Entity\User) {
+            throw $this->createAccessDeniedException('Only CRM accounts have booking links.');
+        }
+
         $bookingUrl = $this->generateUrl('meeting_public_book_by_id', [
             'id' => $user->getId(),
             'token' => $this->buildBookingToken($user->getId(), $user->getEmail()),

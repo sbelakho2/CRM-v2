@@ -90,6 +90,33 @@ foreach ($twigIterator as $file) {
     }
 }
 
+// ── 7. native browser dialogs in templates ───────────────────────────
+// alert()/confirm()/prompt() are visually inconsistent, poor on mobile,
+// and inaccessible. The designated compat components (which DOCUMENT the
+// replacements in comments) are the only allowed locations. Comment text
+// is stripped before matching so docs don't false-positive.
+$nativeDialogAllowed = [
+    'confirm_modal.html.twig', // documents ramsConfirm/ramsPrompt
+    'alert_modal.html.twig',   // documents ramsAlert
+];
+foreach ($twigIterator as $file) {
+    if (!$file instanceof SplFileInfo || $file->getExtension() !== 'twig') {
+        continue;
+    }
+    if (in_array($file->getFilename(), $nativeDialogAllowed, true)) {
+        continue;
+    }
+    $source = (string) file_get_contents($file->getPathname());
+    // Strip HTML comments, JS line/block comments, and Twig comments.
+    $code = preg_replace('/<!--.*?-->/s', '', $source) ?? $source;
+    $code = preg_replace('/\{#.*?#\}/s', '', $code) ?? $code;
+    $code = preg_replace('#^\s*//.*$#m', '', $code) ?? $code;
+    $code = preg_replace('/\/\*.*?\*\//s', '', $code) ?? $code;
+    if (preg_match('/\b(alert|confirm|prompt)\s*\(/', $code)) {
+        fail($failures, "{$file->getPathname()}: native alert()/confirm()/prompt() — use ramsAlert()/ramsConfirm()/ramsPrompt() from the modal components");
+    }
+}
+
 // ── 4. hard-delete calls on preserved entities ───────────────────────
 $preservedRemovals = [
     'src/Controller' => '/->remove\(\s*\$(company|user|quote)\b/i',
