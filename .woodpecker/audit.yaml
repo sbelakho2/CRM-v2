@@ -134,3 +134,15 @@ steps:
         set -eu
         export PATH="/opt/homebrew/bin:$PATH"
         php -d memory_limit=-1 /opt/homebrew/bin/composer audit --locked --abandoned=ignore
+
+# ── Branch protection (audit round 8, item 28) ────────────────────────
+# main IS protected at the forge (enabled 2026-09-30 via the GitHub API):
+#   - force pushes and deletions: BLOCKED
+#   - linear history: REQUIRED
+#   - required status checks: PREPARED but NOT enforced — the two Woodpecker
+#     contexts (ci/woodpecker/manual/audit, ci/woodpecker/manual/tests) only
+#     exist on manually-triggered pipelines because this runner is local and
+#     the forge cannot deliver webhooks to it. Enforcing them now would make
+#     every direct push permanently unmergeable (checks never appear).
+#     Flip required_status_checks on once webhooks reach the runner and
+#     pipelines fire on push.

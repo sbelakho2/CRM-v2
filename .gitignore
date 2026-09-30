@@ -26,6 +26,7 @@
 # ========================================
 .env
 .env.*
+!/.env.local.e2e
 !.env.example
 !.env.test
 
@@ -176,5 +177,3 @@ credentials.json
 /.zcode/
 /router-dev.php
 .output.txt
-
-/.env.local.e2e
