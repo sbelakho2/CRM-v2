@@ -13,7 +13,8 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ORM\Entity(repositoryClass: QuoteAcceptanceRepository::class)]
 #[ORM\Table(name: 'quote_acceptances')]
-#[ORM\Index(name: 'idx_qa_quote', columns: ['quote_id'])]
+// The UNIQUE constraint replaces the old non-unique idx_qa_quote
+// (the migration drops the redundant index; the FK uses the unique one).
 #[ORM\UniqueConstraint(name: 'uniq_qa_quote', columns: ['quote_id'])]
 class QuoteAcceptance
 {
