@@ -140,9 +140,41 @@ steps:
         docker exec crm-ci-mysql mysql -uroot -pci_root_pw -e "GRANT ALL ON \`crm_upgrade_test\`.* TO 'crm_test'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
         bash scripts/ci/populated-upgrade.sh
 
+  ui-e2e:
+    image: bash
+    depends_on: [phpunit]
+    environment:
+      APP_ENV: test
+      DATABASE_URL: mysql://crm_test:crm_test_pw@127.0.0.1:3309/crm_ci?charset=utf8mb4
+      LOCK_DSN: flock
+      MAILER_DSN: null://null
+    commands:
+      - |
+        set -eu
+        export PATH="/opt/homebrew/bin:$PATH"
+        lsof -ti :8080 | xargs kill -9 2>/dev/null || true
+        # Deterministic server config: .env.local outranks .env. Test-DB
+        # credentials only — never deployed anywhere.
+        cp .env.local.e2e .env.local
+        # Seed the demo account the mutation flows log in with.
+        php -d memory_limit=-1 tests/e2e/seed.php
+        php -S 127.0.0.1:8080 -t public >/tmp/php-server.log 2>&1 &
+        SERVER_PID=$!
+        trap 'kill $SERVER_PID 2>/dev/null || true; lsof -ti :8080 | xargs kill -9 2>/dev/null || true' EXIT
+        for i in $(seq 1 30); do
+          curl -sf http://localhost:8080/login >/dev/null && break
+          sleep 1
+        done
+        npm install --no-audit --no-fund >/dev/null 2>&1
+        npx playwright install chromium >/dev/null 2>&1 || true
+        # REAL UI mutation flows (round-8 audit item 27): login, create,
+        # complete, archive — the interactions a broken form or mis-wired
+        # controller can only reveal in a browser.
+        npx playwright test tests/e2e/mutation-flows.spec.js --reporter=list
+
   cleanup:
     image: bash
-    depends_on: [phpunit, populated-upgrade]
+    depends_on: [phpunit, populated-upgrade, ui-e2e]
     failure: ignore
     environment:
     commands:
