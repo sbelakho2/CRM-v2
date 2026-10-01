@@ -26,7 +26,10 @@ class SecurityHeadersTest extends WebTestCase
 
     protected function setUp(): void
     {
-        $this->client = static::createClient();
+        // debug=false IS the production contract: Symfony's debug exception
+        // page strips CSP from error responses (a dev-only convenience) —
+        // the armor this test enforces must hold where it actually matters.
+        $this->client = static::createClient(['debug' => false]);
     }
 
     public function testLoginResponseCarriesFullHeaderArmor(): void
