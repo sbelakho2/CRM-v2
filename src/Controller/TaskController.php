@@ -36,10 +36,15 @@ class TaskController extends AbstractController
     {
         $user = $this->getUser();
         $view = $request->query->get('view', 'list');
+        /** @var string|int|float|bool|null $status */
         $status = $request->query->get('status');
+        /** @var string|int|float|bool|null $priority */
         $priority = $request->query->get('priority');
+        /** @var string|int|float|bool|null $assignee */
         $assignee = $request->query->get('assignee');
+        /** @var string|int|float|bool|null $company */
         $company = $request->query->get('company');
+        /** @var string|int|float|bool|null $search */
         $search = $request->query->get('search');
         // "all" is an ADMIN scope toggle — gating it on the role here (not
         // just in the view) closes the ?all=1 bypass any ROLE_USER had.

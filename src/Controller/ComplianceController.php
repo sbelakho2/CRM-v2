@@ -325,6 +325,7 @@ class ComplianceController extends AbstractController
     #[Route('/overview', name: 'app_compliance_overview', methods: ['GET'])]
     public function overview(Request $request): Response
     {
+        /** @var string|int|float|bool|null $sector */
         $sector = $request->query->get('sector');
         
         $queryBuilder = $this->entityManager->createQueryBuilder()

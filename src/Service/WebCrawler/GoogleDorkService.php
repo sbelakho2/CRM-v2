@@ -25,9 +25,41 @@ use Psr\Log\LoggerInterface;
 
 /**
  * Service to use Google Dorks for finding companies and supplier portals
- * 
+ *
  * Enhanced to actually execute searches through GoogleSearchService API
  * instead of just logging URLs for manual review.
+ *
+ * @phpstan-type WebSearchResult array{title?: string, link?: string, snippet?: string, displayLink?: string}
+ * @phpstan-type WebSearchResponse array{results: list<WebSearchResult>, totalResults: int|string, searchTime: float|int}
+ * @phpstan-type ContactInfo array<string, mixed>
+ * @phpstan-type CompanyCandidate array{
+ *     name: string,
+ *     website?: string|null,
+ *     title?: string,
+ *     snippet?: string,
+ *     link?: string,
+ *     displayLink?: string,
+ *     source_query?: string,
+ *     sector?: string|null,
+ *     location?: string|null,
+ *     location_validated?: bool,
+ *     language?: string|null,
+ *     contacts?: list<ContactInfo>,
+ *     phone?: string|null,
+ *     email?: string|null,
+ *     address?: string|null,
+ *     description?: string|null,
+ *     linkedin_url?: string|null,
+ *     _homepage_text?: string,
+ *     homepage_rejected?: bool,
+ *     verification_status?: string,
+ *     buyer_evidence?: mixed,
+ *     service_product?: mixed,
+ *     competitor_veto?: mixed,
+ *     rule_verdict?: mixed,
+ *     directory_seed?: mixed
+ * }
+ * @phpstan-type LocationVocabulary array{tlds: list<string>, terms: list<string>, alt_names?: list<string>, regions?: list<string>}
  */
 class GoogleDorkService
 {
@@ -46,11 +78,11 @@ class GoogleDorkService
         private ?GoogleSearchService $googleSearchService = null,
         ?CompanyClassifierService $companyClassifier = null,
         private ?SearchProviderInterface $searchProvider = null,
-        private ?BuyerEvidenceGate $buyerEvidenceGate = null,
+        ?BuyerEvidenceGate $buyerEvidenceGate = null,
         private ?TextNormalizer $textNormalizer = null,
-        private ?RuleEngine $ruleEngine = null,
-        private ?ServiceProductClassifier $serviceProductClassifier = null,
-        private ?CompetitorProximityVeto $competitorProximityVeto = null,
+        ?RuleEngine $ruleEngine = null,
+        ?ServiceProductClassifier $serviceProductClassifier = null,
+        ?CompetitorProximityVeto $competitorProximityVeto = null,
         private ?DirectorySeedExtractor $directorySeedExtractor = null,
         private ?LanguageDetector $languageDetector = null,
         private ?LinkedInProfileParser $linkedInParser = null,
@@ -78,7 +110,25 @@ class GoogleDorkService
      */
     public function getMetricsCollector(): PipelineMetricsCollector
     {
-        return $this->metricsCollector;
+        return $this->metrics();
+    }
+
+    /**
+     * Metrics collector — guaranteed non-null after construction
+     * (the constructor installs a default instance when none is injected).
+     */
+    private function metrics(): PipelineMetricsCollector
+    {
+        return $this->metricsCollector ?? new PipelineMetricsCollector();
+    }
+
+    /**
+     * LinkedIn profile parser — guaranteed non-null after construction
+     * (the constructor installs a default instance when none is injected).
+     */
+    private function linkedIn(): LinkedInProfileParser
+    {
+        return $this->linkedInParser ?? new LinkedInProfileParser();
     }
     
     /**
@@ -93,7 +143,7 @@ class GoogleDorkService
      * Unified search method — uses the SearchProviderInterface when available,
      * falls back to the legacy GoogleSearchService for backward compatibility.
      *
-     * @return array{results: array, totalResults: int, searchTime: float}
+     * @return WebSearchResponse
      */
     private function executeProviderSearch(string $query, int $num = 10, int $startIndex = 1, ?string $gl = null): array
     {
@@ -112,13 +162,15 @@ class GoogleDorkService
 
             // If the provider returned empty/no results (e.g. SearXNG not running),
             // fall back to Google CSE automatically.
+            /** @var WebSearchResponse $legacyResult */
+            $legacyResult = $resultSet->toLegacyArray();
             if (!empty($legacyResult['results'])) {
                 return $legacyResult;
             }
 
             $this->logger->notice('Search provider returned empty results, falling back to Google CSE', [
                 'query' => mb_substr($query, 0, 80),
-                'provider' => $resultSet->providerName ?? 'unknown',
+                'provider' => $resultSet->getProviderName(),
             ]);
         } elseif ($this->searchProvider !== null) {
             $this->logger->notice('Search provider is unavailable, falling back to Google CSE', [
@@ -139,10 +191,8 @@ class GoogleDorkService
                     if (($cursor + $chunk - 1) > 100) {
                         $chunk = 100 - $cursor + 1;
                     }
-                    if ($chunk <= 0) {
-                        break;
-                    }
 
+                    /** @var WebSearchResponse $part */
                     $part = $this->googleSearchService->searchCompanies($query, $chunk, $cursor, $gl);
                     $items = $part['results'] ?? [];
                     if (!empty($items)) {
@@ -170,7 +220,10 @@ class GoogleDorkService
                 return ['results' => [], 'totalResults' => 0, 'searchTime' => 0];
             }
 
-            return $this->googleSearchService->searchCompanies($query, $num, $startIndex, $gl);
+            /** @var WebSearchResponse $legacy */
+            $legacy = $this->googleSearchService->searchCompanies($query, $num, $startIndex, $gl);
+
+            return $legacy;
         }
 
         return ['results' => [], 'totalResults' => 0, 'searchTime' => 0];
@@ -189,11 +242,15 @@ class GoogleDorkService
      *
      * For NON-LinkedIn queries, use executeProviderSearch() instead.
      */
+    /**
+     * @return WebSearchResponse
+     */
     private function executeLinkedInSearch(string $query, int $num = 10): array
     {
         // Use Google CSE directly — the only reliable engine for site:linkedin.com
         if ($this->googleSearchService !== null) {
             try {
+                /** @var WebSearchResponse $result */
                 $result = $this->googleSearchService->searchCompanies($query, $num);
                 $this->logger->debug('LinkedIn search via Google CSE', [
                     'query' => $query,
@@ -235,7 +292,7 @@ class GoogleDorkService
     public function searchCompanies(?string $sector, ?string $location = null, bool $executeSearch = true): array
     {
         // ── Pipeline observability ──
-        $this->metricsCollector->startRun();
+        $this->metrics()->startRun();
 
         $this->logger->info("Google Dork search for companies", [
             'sector' => $sector,
@@ -364,7 +421,7 @@ class GoogleDorkService
                     }
                     
                     if (!empty($paginatedResults)) {
-                        $this->metricsCollector->recordCandidates(count($paginatedResults));
+                        $this->metrics()->recordCandidates(count($paginatedResults));
                         foreach ($paginatedResults as $result) {
                             // Deduplicate by domain
                             $domain = $this->canonicalizeResultDomain((string) ($result['displayLink'] ?? ''), (string) ($result['link'] ?? ''));
@@ -391,7 +448,7 @@ class GoogleDorkService
 
                             // Filter out non-company domains
                             if ($this->isBlockedDomain($domain)) {
-                                $this->metricsCollector->recordReject('domain_block', $domain);
+                                $this->metrics()->recordReject('domain_block', $domain);
                                 $this->logger->debug('Skipping blocked domain', ['domain' => $domain]);
                                 continue;
                             }
@@ -408,7 +465,7 @@ class GoogleDorkService
                             // belongs to a different region (e.g. .it domain
                             // in an Egypt search, .de in a Morocco search).
                             if ($this->isCcTldRegionMismatch($domain, $region)) {
-                                $this->metricsCollector->recordReject('cctld_mismatch', $domain);
+                                $this->metrics()->recordReject('cctld_mismatch', $domain);
                                 $this->logger->debug('Skipping ccTLD region mismatch', [
                                     'domain' => $domain,
                                     'region' => $region,
@@ -422,7 +479,7 @@ class GoogleDorkService
                                 
                                 // Post-filter: reject names that still look like page titles
                                 if ($this->isJunkCompanyName($companyName)) {
-                                    $this->metricsCollector->recordReject('name_junk', $companyName);
+                                    $this->metrics()->recordReject('name_junk', $companyName);
                                     $this->logger->debug('Skipping junk company name', [
                                         'name' => $companyName,
                                         'domain' => $domain,
@@ -432,7 +489,7 @@ class GoogleDorkService
 
                                 // Giant OEM filter: real companies but not sales targets
                                 if ($this->isGiantOem($companyName)) {
-                                    $this->metricsCollector->recordReject('giant_oem', $companyName);
+                                    $this->metrics()->recordReject('giant_oem', $companyName);
                                     $this->logger->debug('Skipping giant OEM', [
                                         'name' => $companyName,
                                         'domain' => $domain,
@@ -484,7 +541,7 @@ class GoogleDorkService
                                 // student orgs, job portals, investment agencies before
                                 // expensive LLM call. No rescue possible.
                                 if ($this->isObviousNonTarget($companyName, $snippet . ' ' . $title, $domain)) {
-                                    $this->metricsCollector->recordReject('entity_type_prefilter', $companyName);
+                                    $this->metrics()->recordReject('entity_type_prefilter', $companyName);
                                     $this->logger->info('Entity-type pre-filter REJECT (obvious non-target)', [
                                         'name' => $companyName,
                                         'domain' => $domain,
@@ -501,7 +558,7 @@ class GoogleDorkService
                                     $score = $classification['score'] ?? 0;
                                     
                                     if ($verdict === 'REJECT') {
-                                        $this->metricsCollector->recordReject('classifier_reject', $classification['reason'] ?? '');
+                                        $this->metrics()->recordReject('classifier_reject', $classification['reason'] ?? '');
                                         $this->logger->info('Classifier REJECT', [
                                             'name' => $companyName,
                                             'domain' => $domain,
@@ -530,7 +587,7 @@ class GoogleDorkService
                                 // searches etc. (e.g. Hope Global → no Egypt presence)
                                 $locationValidated = false;
                                 if ($location !== null && !$this->hasLocationPresence($snippet, $title, $domain, $location)) {
-                                    $this->metricsCollector->recordReject('location_presence', $companyName);
+                                    $this->metrics()->recordReject('location_presence', $companyName);
                                     $this->logger->info('No location presence', [
                                         'name'     => $companyName,
                                         'domain'   => $domain,
@@ -650,8 +707,8 @@ class GoogleDorkService
         }
 
         // ── Pipeline observability: end run ──
-        $this->metricsCollector->recordOutput(count($discovered));
-        $this->metricsCollector->endRun();
+        $this->metrics()->recordOutput(count($discovered));
+        $this->metrics()->endRun();
 
         return $discovered;
     }
@@ -10840,7 +10897,7 @@ class GoogleDorkService
                 $companyDomain = $data['displayLink'] ?? '';
                 foreach ($data['contacts'] as &$ct) {
                     $ct['company_domain'] = $companyDomain;
-                    $ct['role_score'] = $this->linkedInParser->computeRoleScore($ct['job_title'] ?? '');
+                    $ct['role_score'] = $this->linkedIn()->computeRoleScore($ct['job_title'] ?? '');
                 }
                 unset($ct);
                 $data['contacts'] = $this->contactScorer->scoreAndSort($data['contacts']);
@@ -10883,7 +10940,7 @@ class GoogleDorkService
                 ];
 
                 // ── Improvement 5A: Use LinkedInProfileParser for company pages ──
-                $companyPageData = $this->linkedInParser->parseCompanyPage($link, $title, $snippet);
+                $companyPageData = $this->linkedIn()->parseCompanyPage($link, $title, $snippet);
                 if ($companyPageData !== null) {
                     if (!empty($companyPageData['company_name'])) {
                         $enrichment['name'] = $companyPageData['company_name'];
@@ -14196,7 +14253,7 @@ class GoogleDorkService
 
                     // ── Try parsing the title format ─────────────
                     // Use new LinkedInProfileParser first (Improvement 5A)
-                    $contact = $this->linkedInParser->parseProfile($link, $title, $snippet);
+                    $contact = $this->linkedIn()->parseProfile($link, $title, $snippet);
 
                     // Fallback to legacy parser if new one returns null
                     if ($contact === null) {

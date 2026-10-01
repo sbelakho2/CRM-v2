@@ -165,8 +165,11 @@ class CustomFieldController extends AbstractController
     #[Route('/api/check-key', name: 'custom_field_check_key', methods: ['GET'])]
     public function checkKey(Request $request): JsonResponse
     {
+        /** @var string|int|float|bool|null $fieldKey */
         $fieldKey = $request->query->get('key');
+        /** @var string|int|float|bool|null $entityType */
         $entityType = $request->query->get('entity');
+        /** @var string|int|float|bool|null $excludeId */
         $excludeId = $request->query->get('exclude');
 
         if (!$fieldKey || !$entityType) {

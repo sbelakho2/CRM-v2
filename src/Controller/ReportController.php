@@ -33,7 +33,9 @@ class ReportController extends AbstractController
         if (!$user instanceof User) {
             throw $this->createAccessDeniedException('User not authenticated.');
         }
+        /** @var string|int|float|bool|null $dataSource */
         $dataSource = $request->query->get('source');
+        /** @var string|int|float|bool|null $category */
         $category = $request->query->get('category');
         
         $reports = $this->reportRepository->findAccessibleByUser($user, $dataSource, $category);

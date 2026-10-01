@@ -298,6 +298,7 @@ class AdminDatasetController extends AbstractController
     public function history(Request $request): Response
     {
         // 1. Get optional dataset type filter
+        /** @var string|int|float|bool|null $datasetType */
         $datasetType = $request->query->get('type');
         
         // 2. Build version history queries for each dataset type

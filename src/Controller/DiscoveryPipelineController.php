@@ -88,6 +88,7 @@ class DiscoveryPipelineController extends AbstractController
                 ORDER BY run_date DESC
                 LIMIT 5";
 
+        /** @var array<int, array<string, mixed>> $pipelineHistory native-query rows */
         $pipelineHistory = $this->entityManager
             ->createNativeQuery($sql, $rsm)
             ->setParameter('empty', $emptyJson)

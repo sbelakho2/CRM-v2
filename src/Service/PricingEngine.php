@@ -36,8 +36,9 @@ use Psr\Log\LoggerInterface;
  * The engine now tracks WHY a distributor was chosen and provides
  * alternatives so users can make informed decisions.
  *
- * @phpstan-type PriceBreak array{quantity: int, price: int|float, currency?: string, unit_price?: int|float, unitPrice?: int|float}
- * @phpstan-type ConfidenceInfo array{score: int|float, level: string, requiresReview?: bool, reasons?: list<string>, warnings?: list<string>}
+ * @phpstan-type PriceBreak array{quantity: int, price?: int|float, currency?: string, unit_price?: int|float, unitPrice?: int|float}
+ * @phpstan-type PricedBreak array{quantity: int, price: int|float, currency?: string, unit_price?: int|float, unitPrice?: int|float}
+ * @phpstan-type ConfidenceInfo array{score?: int|float, level?: string, requiresReview?: bool, reasons?: list<string>, warnings?: list<string>}
  * @phpstan-type PartPricing array{
  *     mpn?: string,
  *     manufacturer?: string|null,
@@ -117,7 +118,7 @@ use Psr\Log\LoggerInterface;
  *     waterfall_triggered_count?: int,
  *     with_alternatives_count?: int,
  *     quantity_adjusted_count?: int,
- *     coverage_percent?: int|float,
+ *     coverage_percent: int|float,
  *     high_confidence_percent?: int|float,
  *     lifecycle_health_percent?: int|float
  * }
@@ -514,7 +515,7 @@ class PricingEngine
                 $alternatives = $pricing['alternatives'] ?? [];
                 /** @var PartPricing $alt */
                 foreach ($alternatives as $alt) {
-                    $altBreaks = $alt['pricing'] ?? [];
+                    $altBreaks = $alt['pricing'];
                     if (empty($altBreaks)) continue;
                     $altPrice = $this->calculateUnitPrice($altBreaks, $effectiveQty);
                     if ($altPrice > 0 && $altPrice < $unitPrice * 0.85) {
@@ -531,9 +532,8 @@ class PricingEngine
                             'savings_pct' => $savings . '%',
                         ]);
                         // Preserve the full alternatives list from original pricing
-                        $fullAlternatives = $pricing['alternatives'] ?? [];
                         $pricing = $alt;
-                        $pricing['alternatives'] = $fullAlternatives;
+                        $pricing['alternatives'] = $alternatives;
                         $unitPrice = $altPrice;
                         $processedLine['source'] = $altSource;
                         // Only update manufacturer/description when switching to a distributor
@@ -576,7 +576,7 @@ class PricingEngine
                             /** @var PartPricing|null $digiKeyAlt */
                             $digiKeyAlt = $this->digikeyClient->searchByPartNumber($altMpn);
                             if ($digiKeyAlt) {
-                                $dkAltPrice = $this->calculateUnitPrice($digiKeyAlt['pricing'] ?? [], $effectiveQty);
+                                $dkAltPrice = $this->calculateUnitPrice($digiKeyAlt['pricing'], $effectiveQty);
                                 if ($dkAltPrice > 0 && ($altUnitPrice <= 0 || $dkAltPrice < $altUnitPrice)) {
                                     $altPricing = $digiKeyAlt;
                                     $altPricing['source'] = 'digikey';
@@ -598,7 +598,7 @@ class PricingEngine
                                 /** @var PartPricing|null $dkPrimary */
                                 $dkPrimary = $this->digikeyClient->searchByPartNumber($line['mpn']);
                                 if ($dkPrimary) {
-                                    $dkPrimaryPrice = $this->calculateUnitPrice($dkPrimary['pricing'] ?? [], $effectiveQty);
+                                    $dkPrimaryPrice = $this->calculateUnitPrice($dkPrimary['pricing'], $effectiveQty);
                                     if ($dkPrimaryPrice > 0 && $dkPrimaryPrice < $unitPrice) {
                                         $this->logger->info('DigiKey cheaper for primary MPN at order qty', [
                                             'mpn' => $line['mpn'], 'alibaba_price' => $unitPrice, 'dk_price' => $dkPrimaryPrice,
@@ -629,7 +629,7 @@ class PricingEngine
                             $unitPrice = $altUnitPrice;
                             $processedLine['alt_mpn_used'] = $altMpn;
                             $processedLine['alt_mpn_savings_pct'] = $savings;
-                            $processedLine['source'] = $altPricing['source'] ?? $processedLine['source'];
+                            $processedLine['source'] = $altPricing['source'] ?? ($processedLine['source'] ?? null);
                             
                             if (isset($altPricing['confidence'])) {
                                 $processedLine['confidence'] = $altPricing['confidence'];
@@ -678,7 +678,7 @@ class PricingEngine
                 
                 $processedLine['unit_price'] = $unitPrice;
                 $processedLine['extended_price'] = $unitPrice * $effectiveQty;
-                $processedLine['currency'] = $this->resolveCurrencyFromPriceBreaks($pricing['pricing'] ?? []);
+                $processedLine['currency'] = $this->resolveCurrencyFromPriceBreaks($pricing['pricing']);
                 
                 // ── Passive component price sanity check ──
                 // Standard passives (CRCW, RC, CL, GRM, C08, C16 etc.) cost $0.001-$0.50.
@@ -688,7 +688,7 @@ class PricingEngine
                     // Try each alternative for a cheaper, saner result
                     /** @var PartPricing $alt */
                     foreach ($processedLine['alternatives'] ?? [] as $alt) {
-                        $altBreaks = $alt['pricing'] ?? [];
+                        $altBreaks = $alt['pricing'];
                         if (empty($altBreaks)) continue;
                         $altPrice = $this->calculateUnitPrice($altBreaks, $effectiveQty);
                         if ($altPrice > 0 && $altPrice <= $passivePriceCap) {
@@ -817,7 +817,7 @@ class PricingEngine
                 } catch (\Exception $e) {
                     // Risk analysis is non-critical — log and continue
                     $this->logger->warning('Risk-adjusted pricing analysis failed', [
-                        'mpn' => $line['mpn'] ?? 'unknown',
+                        'mpn' => $line['mpn'],
                         'error' => $e->getMessage(),
                     ]);
                 }
@@ -950,7 +950,7 @@ class PricingEngine
             return $processedLine;
         }
 
-        $mpn = $processedLine['mpn'] ?? '';
+        $mpn = $processedLine['mpn'];
 
         // ── Step 1: Pull manufacturer/description from DigiKey/Mouser alternatives ──
         $realManufacturer = null;
@@ -1014,10 +1014,10 @@ class PricingEngine
         }
 
         // ── Step 4: Final cleanup — remove MPN from description (already in MPN column) ──
-        $desc = is_string($processedLine['description'] ?? null) ? $processedLine['description'] : '';
+        $desc = $processedLine['description'];
         if (!empty($mpn) && strlen($mpn) >= 6) {
             $desc = str_ireplace($mpn, '', $desc);
-            $desc = preg_replace('/\s{2,}/', ' ', $desc);
+            $desc = preg_replace('/\s{2,}/', ' ', $desc) ?? $desc;
             $desc = trim($desc, " \t\n\r\0\x0B,.-;:");
         }
         $processedLine['description'] = $desc;
@@ -1295,7 +1295,7 @@ class PricingEngine
             
             if (isset($override['unit_price']) && $override['unit_price'] > 0) {
                 $line['unit_price'] = (float) $override['unit_price'];
-                $line['extended_price'] = $line['unit_price'] * ($line['quantity'] ?? 1);
+                $line['extended_price'] = $line['unit_price'] * $line['quantity'];
                 $line['source'] = 'manual';
                 $line['status'] = 'manual_override';
                 $line['manual_notes'] = $override['notes'] ?? null;
@@ -1345,7 +1345,7 @@ class PricingEngine
         ];
         
         foreach ($processedLines as $line) {
-            if (in_array($line['status'], ['sourced', 'manual_override', 'verified'])) {
+            if (in_array($line['status'] ?? '', ['sourced', 'manual_override', 'verified'], true)) {
                 $stats['sourced']++;
                 $stats['total_cost'] += ($line['extended_price'] ?? 0);
                 
@@ -1389,7 +1389,7 @@ class PricingEngine
         
         // Normalise key variants: accept 'price', 'unit_price', or 'unitPrice'
         $priceBreaks = array_map(
-            /** @param PriceBreak $b */
+            /** @param PriceBreak $b @return PricedBreak */
             function (array $b): array {
             if (!isset($b['price'])) {
                 $b['price'] = $b['unit_price'] ?? $b['unitPrice'] ?? 0.0;
@@ -1398,14 +1398,14 @@ class PricingEngine
         }, $priceBreaks);
 
         // Sort price breaks by quantity (ascending) - lowest qty first
-        usort($priceBreaks, fn($a, $b) => ($a['quantity'] ?? 0) <=> ($b['quantity'] ?? 0));
+        usort($priceBreaks, fn($a, $b) => $a['quantity'] <=> $b['quantity']);
 
         // Default to the smallest quantity break price (most expensive)
         $applicablePrice = (float) $priceBreaks[0]['price'];
 
         // Find the best applicable price break (highest quantity the customer qualifies for)
         foreach ($priceBreaks as $break) {
-            if ($quantity >= ($break['quantity'] ?? 0)) {
+            if ($quantity >= $break['quantity']) {
                 // Customer qualifies for this break - use its price
                 $applicablePrice = (float) $break['price'];
             } else {
@@ -1422,13 +1422,13 @@ class PricingEngine
         $highestBreak = $priceBreaks[array_key_last($priceBreaks)];
         // Guard against zero/negative break quantities: a 0-qty tier would otherwise
         // divide by zero in the log-extrapolation below (PHP 8 throws DivisionByZeroError).
-        $highestQty = max(1, (int) ($highestBreak['quantity'] ?? 1));
+        $highestQty = max(1, (int) $highestBreak['quantity']);
         $highestPrice = (float) $highestBreak['price'];
 
         if ($quantity > $highestQty * 2 && $highestPrice > 0 && count($priceBreaks) >= 2) {
             // Calculate the learning rate from the existing breaks
             $lowestBreak = $priceBreaks[0];
-            $lowestQty = max(1, (int) ($lowestBreak['quantity'] ?? 1));
+            $lowestQty = max(1, (int) $lowestBreak['quantity']);
             $lowestPrice = (float) $lowestBreak['price'];
             
             if ($lowestPrice > $highestPrice && $highestQty > $lowestQty) {
@@ -1521,13 +1521,13 @@ class PricingEngine
         }
         
         // Normalize for comparison
-        $normalizedPrimary = strtoupper(preg_replace('/[\s\-]/', '', $primaryMpn));
+        $normalizedPrimary = strtoupper(preg_replace('/[\s\-]/', '', $primaryMpn) ?? $primaryMpn);
 
         // Strip trailing packaging suffixes (" TR", " T&R", " RL", " CT", " REEL"…)
         // before matching, so "TAJC107K006RNJ TR" resolves to the base MPN.
-        $remark = preg_replace('/\s+(?:TR|T&R|RL|CT|CS|REEL)\s*$/i', '', $remark);
+        $remark = preg_replace('/\s+(?:TR|T&R|RL|CT|CS|REEL)\s*$/i', '', $remark) ?? $remark;
 
-        $normalizedRemark = strtoupper(preg_replace('/[\s\-]/', '', $remark));
+        $normalizedRemark = strtoupper(preg_replace('/[\s\-]/', '', $remark) ?? $remark);
         
         // Skip if remark is the same as the primary MPN
         if ($normalizedRemark === $normalizedPrimary) {
@@ -1555,7 +1555,7 @@ class PricingEngine
                 if (!preg_match('/[0-9]/', $candidate) || !preg_match('/[A-Za-z]/', $candidate)) {
                     continue;
                 }
-                $normalizedCandidate = strtoupper(preg_replace('/[\s\-]/', '', $candidate));
+                $normalizedCandidate = strtoupper(preg_replace('/[\s\-]/', '', $candidate) ?? $candidate);
                 if ($normalizedCandidate !== $normalizedPrimary) {
                     return $candidate;
                 }
@@ -1641,8 +1641,8 @@ class PricingEngine
             return null;
         }
         
-        usort($priceBreaks, fn($a, $b) => ($a['quantity'] ?? 0) <=> ($b['quantity'] ?? 0));
-        
+        usort($priceBreaks, fn($a, $b) => $a['quantity'] <=> $b['quantity']);
+
         $currentPrice = $this->calculateUnitPrice($priceBreaks, $quantity);
         $currentCost = $currentPrice * $quantity;
         
@@ -1666,7 +1666,7 @@ class PricingEngine
         
         // Calculate cost at next break
         $nextBreakQty = $nextBreak['quantity'];
-        $nextBreakPrice = $nextBreak['price'];
+        $nextBreakPrice = $nextBreak['price'] ?? 0;
         $nextBreakCost = $nextBreakPrice * $nextBreakQty;
         
         // Only recommend if we'd save money or break even
@@ -1744,7 +1744,7 @@ class PricingEngine
         foreach ($processedLines as $line) {
             $currency = $line['currency'] ?? null;
 
-            if (!$currency && isset($line['pricing']) && is_array($line['pricing'])) {
+            if (!$currency && array_key_exists('pricing', $line)) {
                 $currency = $this->resolveCurrencyFromPriceBreaks($line['pricing']);
             }
 
@@ -1797,7 +1797,7 @@ class PricingEngine
             if (($line['status'] ?? '') !== 'sourced') {
                 $estimatedValue = self::UNSOURCED_LINE_ESTIMATED_VALUE; // Assume $50 if no price
                 
-                if ($estimatedValue * (int) ($line['quantity'] ?? 1) > 1000) {
+                if ($estimatedValue * (int) $line['quantity'] > 1000) {
                     $checks['high_value_sourced'] = false;
                     break;
                 }
@@ -1839,7 +1839,7 @@ class PricingEngine
      *     consolidated: array{parts_cost: int|float, suppliers?: array<string, true>, allocation?: array<int, string>, total_cost: int|float, supplier_count?: int, overhead?: int|float, rebate?: int|float, rebate_rate?: int|float, primary?: string},
      *     savings: int|float,
      *     savings_percent: int|float,
-     *     break_recommendations: list<PriceBreakRecommendation&array{mpn: string}>,
+     *     break_recommendations: list<PriceBreakRecommendation>,
      *     recommendation: string
      * }
      */
@@ -1848,7 +1848,7 @@ class PricingEngine
         // ── 1. Build multi-source pricing map ──
         // Each sourced line already has alternatives from multi-distributor.
         // We need price breaks for every part from every available source.
-        /** @var array<int, array{mpn: string, quantity: int, sources: array<string, list<PriceBreak>}>} $lineData */
+        /** @var array<int, array{mpn: string, quantity: int, sources: non-empty-array<string, list<PriceBreak>>}> $lineData */
         $lineData = [];
         foreach ($processedLines as $idx => $line) {
             if (($line['status'] ?? '') === 'no_mpn' || ($line['status'] ?? '') === 'not_found') {
@@ -1859,7 +1859,7 @@ class PricingEngine
 
             // Primary source pricing
             $primarySource = $line['source'] ?? null;
-            if ($primarySource && isset($line['pricing']) && is_array($line['pricing'])) {
+            if ($primarySource && array_key_exists('pricing', $line)) {
                 $sources[$primarySource] = $line['pricing'];
             }
 
@@ -1867,15 +1867,15 @@ class PricingEngine
             /** @var PartPricing $alt */
             foreach (($line['alternatives'] ?? []) as $alt) {
                 $altSource = $alt['source'] ?? null;
-                if ($altSource && isset($alt['pricing']) && is_array($alt['pricing'])) {
+                if ($altSource) {
                     $sources[$altSource] = $alt['pricing'];
                 }
             }
 
             if (!empty($sources)) {
                 $lineData[$idx] = [
-                    'mpn'      => $line['mpn'] ?? '',
-                    'quantity' => $line['effective_quantity'] ?? $line['quantity'] ?? 1,
+                    'mpn'      => $line['mpn'],
+                    'quantity' => $line['effective_quantity'] ?? $line['quantity'],
                     'sources'  => $sources,
                 ];
             }

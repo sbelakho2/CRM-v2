@@ -5,6 +5,8 @@ namespace App\Controller\Api;
 use App\Entity\BanditArm;
 use App\Entity\SpintaxTemplate;
 use App\Entity\InboxMessage;
+use App\Entity\Lead;
+use App\Entity\LearnedCompetitor;
 use App\Repository\BanditArmRepository;
 use App\Repository\ContactRepository;
 use App\Repository\InboxMessageRepository;
@@ -48,10 +50,10 @@ class AutonomousSalesController extends AbstractController
         private ?CompetitorLearnerService $competitorLearner,
         private ?EmailPersonalizationService $personalizationService,
         private EntityManagerInterface $entityManager,
-        private BanditArmRepository $armRepository,
+        protected BanditArmRepository $armRepository,
         private SpintaxTemplateRepository $templateRepository,
         private ContactRepository $contactRepository,
-        private LeadRepository $leadRepository,
+        protected LeadRepository $leadRepository,
         private InboxMessageRepository $inboxRepository,
         private OutboundMessageRepository $outboundRepository,
         private ?LearnedCompetitorRepository $learnedCompetitorRepository,
@@ -72,7 +74,15 @@ class AutonomousSalesController extends AbstractController
             ?? $request->request->get('_token')
             ?? $this->getRequestBodyValue($request, '_token');
 
-        if (!$this->isCsrfTokenValid('autonomous_sales', $token ?? '')) {
+        $tokenString = null;
+        if (is_string($token)) {
+            $tokenString = $token;
+        } elseif (is_scalar($token)) {
+            // Preserve the previous weak-mode coercion of scalar tokens
+            $tokenString = (string) $token;
+        }
+
+        if (!$this->isCsrfTokenValid('autonomous_sales', $tokenString ?? '')) {
             return $this->json(['success' => false, 'error' => 'Invalid CSRF token.'], 403);
         }
 
@@ -94,9 +104,41 @@ class AutonomousSalesController extends AbstractController
     private function getRequestBodyValue(Request $request, string $key): mixed
     {
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         return is_array($data) ? ($data[$key] ?? null) : null;
+    }
+
+    // ========================================================================
+    // Request-value coercion helpers
+    //
+    // json_decode()/request values are mixed; Symfony params are strict. These
+    // helpers mirror the previous weak-mode coercion for scalar values and
+    // fall back to the endpoint default for values that previously crashed
+    // (arrays/objects where a string/array was required).
+    // ========================================================================
+
+    private static function strValue(mixed $value, string $fallback = ''): string
+    {
+        return is_scalar($value) ? (string) $value : $fallback;
+    }
+
+    private static function nullableStrValue(mixed $value): ?string
+    {
+        return is_scalar($value) ? (string) $value : null;
+    }
+
+    private static function intValue(mixed $value, int $fallback): int
+    {
+        return is_numeric($value) ? (int) $value : $fallback;
+    }
+
+    /**
+     * @param array<string, mixed> $fallback
+     * @return array<string, mixed>
+     */
+    private static function arrayValue(mixed $value, array $fallback = []): array
+    {
+        return is_array($value) ? $value : $fallback;
     }
 
     /**
@@ -117,7 +159,7 @@ class AutonomousSalesController extends AbstractController
             ?? getenv('EMAIL_WEBHOOK_SECRET')
             ?: null;
 
-        if (!$configuredSecret) {
+        if (!$configuredSecret || !is_string($configuredSecret)) {
             // Fail closed: never process webhook events without a configured secret
             $this->logger->critical('EMAIL_WEBHOOK_SECRET not configured — rejecting autonomous sales webhook request');
             return $this->json(['success' => false, 'error' => 'Webhook secret not configured'], 403);
@@ -203,9 +245,10 @@ class AutonomousSalesController extends AbstractController
     public function listTemplates(Request $request): JsonResponse
     {
         $type = $request->query->get('type', 'email');
-        
+
+        /** @var list<SpintaxTemplate> $templates */
         $templates = $this->templateRepository->findActiveByType($type);
-        
+
         return $this->json([
             'success' => true,
             'templates' => array_map(fn($t) => [
@@ -237,16 +280,15 @@ class AutonomousSalesController extends AbstractController
 
         try {
             /** @var array<string, mixed>|null $data */
-            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
-            
+
             $template = new SpintaxTemplate();
-            $template->setName($data['name'] ?? 'Untitled');
-            $template->setDescription($data['description'] ?? null);
-            $template->setTemplateType($data['templateType'] ?? 'email');
-            $template->setSubjectSpintax($data['subjectSpintax'] ?? '');
-            $template->setBodySpintax($data['bodySpintax'] ?? '');
-            $template->setAvailableVariables($data['availableVariables'] ?? ['first_name', 'company_name']);
+            $template->setName(self::strValue($data['name'] ?? null, 'Untitled'));
+            $template->setDescription(self::nullableStrValue($data['description'] ?? null));
+            $template->setTemplateType(self::strValue($data['templateType'] ?? null, 'email'));
+            $template->setSubjectSpintax(self::strValue($data['subjectSpintax'] ?? null));
+            $template->setBodySpintax(self::strValue($data['bodySpintax'] ?? null));
+            $template->setAvailableVariables(self::arrayValue($data['availableVariables'] ?? null, ['first_name', 'company_name']));
             
             $this->entityManager->persist($template);
             $this->entityManager->flush();
@@ -276,18 +318,17 @@ class AutonomousSalesController extends AbstractController
 
         try {
             /** @var array<string, mixed>|null $data */
-            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
-            
-            $subjectSpintax = $data['subjectSpintax'] ?? '';
-            $bodySpintax = $data['bodySpintax'] ?? '';
-            $count = min($data['count'] ?? 5, 10);
-            
-            $context = $data['context'] ?? [
+
+            $subjectSpintax = self::strValue($data['subjectSpintax'] ?? null);
+            $bodySpintax = self::strValue($data['bodySpintax'] ?? null);
+            $count = min(self::intValue($data['count'] ?? null, 5), 10);
+
+            $context = self::arrayValue($data['context'] ?? null, [
                 'first_name' => 'John',
                 'company_name' => 'Acme Corp',
                 'sender_name' => 'Sales Team',
-            ];
+            ]);
             
             $variations = $this->spintaxEngine->previewVariations(
                 $subjectSpintax,
@@ -346,9 +387,9 @@ class AutonomousSalesController extends AbstractController
             $data = json_decode($request->getContent(), true);
             
             $arm = $this->thompsonSampler->createArm(
-                $data['armType'] ?? 'subject_line',
-                $data['armName'] ?? 'Untitled',
-                $data['armValue'] ?? ''
+                self::strValue($data['armType'] ?? null, 'subject_line'),
+                self::strValue($data['armName'] ?? null, 'Untitled'),
+                self::strValue($data['armValue'] ?? null)
             );
             
             return $this->json([
@@ -394,13 +435,13 @@ class AutonomousSalesController extends AbstractController
             $failureEvents = ['bounce', 'unsubscribe'];
             
             if (in_array($eventType, $successEvents, true)) {
-                $this->thompsonSampler->recordOutcome((int) $armId, true);
+                $this->thompsonSampler->recordOutcome(self::intValue($armId, 0), true);
             } elseif (in_array($eventType, $failureEvents, true)) {
-                $this->thompsonSampler->recordOutcome((int) $armId, false);
+                $this->thompsonSampler->recordOutcome(self::intValue($armId, 0), false);
             } else {
                 return $this->json([
                     'success' => false,
-                    'error' => 'Invalid eventType: ' . $eventType,
+                    'error' => 'Invalid eventType: ' . self::strValue($eventType),
                 ], 400);
             }
             
@@ -490,8 +531,8 @@ class AutonomousSalesController extends AbstractController
             /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             
-            $limit = min($data['limit'] ?? 50, 100);
-            
+            $limit = min(self::intValue($data['limit'] ?? null, 50), 100);
+
             $result = $this->orchestrator->scoreLeads($limit);
             
             return $this->json([
@@ -516,16 +557,20 @@ class AutonomousSalesController extends AbstractController
     #[Route('/inbox', name: 'api_autonomous_inbox', methods: ['GET'])]
     public function inbox(Request $request): JsonResponse
     {
+        /** @var string|int|float|bool|null $status */
         $status = $request->query->get('status');
-        
+
         if ($status === 'pending_review') {
+            /** @var list<InboxMessage> $messages */
             $messages = $this->inboxRepository->findPendingReview();
         } elseif ($status) {
+            /** @var list<InboxMessage> $messages */
             $messages = $this->inboxRepository->findByClassification($status);
         } else {
+            /** @var list<InboxMessage> $messages */
             $messages = $this->inboxRepository->findBy([], ['receivedAt' => 'DESC'], 100);
         }
-        
+
         $stats = $this->emailClassifier->getClassificationStats();
         
         return $this->json([
@@ -564,7 +609,11 @@ class AutonomousSalesController extends AbstractController
             $body = $data['body'] ?? '';
             $fromEmail = $data['fromEmail'] ?? '';
             
-            $result = $this->emailClassifier->classifyEmail($subject, $body, $fromEmail);
+            $result = $this->emailClassifier->classifyEmail(
+                self::strValue($subject),
+                self::strValue($body),
+                self::strValue($fromEmail)
+            );
             
             return $this->json([
                 'success' => true,
@@ -605,8 +654,12 @@ class AutonomousSalesController extends AbstractController
             }
             
             $reviewedBy = $this->getUser()?->getUserIdentifier() ?? 'anonymous';
-            
-            $this->emailClassifier->submitHumanReview($messageId, $correctCategory, $reviewedBy);
+
+            $this->emailClassifier->submitHumanReview(
+                self::intValue($messageId, 0),
+                self::strValue($correctCategory),
+                $reviewedBy
+            );
             
             return $this->json([
                 'success' => true,
@@ -628,9 +681,11 @@ class AutonomousSalesController extends AbstractController
     #[Route('/competitor-leads', name: 'api_autonomous_competitor_leads', methods: ['GET'])]
     public function competitorLeads(Request $request): JsonResponse
     {
+        /** @var string|int|float|bool|null $tier */
         $tier = $request->query->get('tier');
         $minScore = (int) $request->query->get('minScore', 0);
-        
+
+        /** @var array{leads: list<Lead>, byCompetitor: array<string, list<Lead>>, competitorStats: array<string, mixed>} $result */
         $result = $this->competitorDetection->getCompetitorLeads(
             $tier ? (int) $tier : null,
             $minScore
@@ -666,14 +721,19 @@ class AutonomousSalesController extends AbstractController
             return $this->json(['success' => false, 'error' => 'Competitor learning not available'], 501);
         }
 
+        /** @var string|int|float|bool|null $tier */
         $tier = $request->query->get('tier');
+        /** @var string|int|float|bool|null $verified */
         $verified = $request->query->get('verified');
-        
+
         if ($tier !== null) {
+            /** @var list<LearnedCompetitor> $competitors */
             $competitors = $this->learnedCompetitorRepository->findActiveByTier((int) $tier);
         } elseif ($verified === 'true') {
+            /** @var list<LearnedCompetitor> $competitors */
             $competitors = $this->learnedCompetitorRepository->findVerified();
         } else {
+            /** @var list<LearnedCompetitor> $competitors */
             $competitors = $this->learnedCompetitorRepository->findAllActive();
         }
 
@@ -738,16 +798,16 @@ class AutonomousSalesController extends AbstractController
 
         try {
             /** @var array<string, mixed>|null $data */
-            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
-            $content = $data['content'] ?? '';
-            $sourceUrl = $data['source_url'] ?? 'api_submission';
-            $source = $data['source'] ?? 'website_scrape';
+            $content = self::strValue($data['content'] ?? null);
+            $sourceUrl = self::strValue($data['source_url'] ?? null, 'api_submission');
+            $source = self::strValue($data['source'] ?? null, 'website_scrape');
 
             if (empty($content)) {
                 return $this->json(['success' => false, 'error' => 'content is required'], 400);
             }
 
+            /** @var list<array{action: string, competitor: LearnedCompetitor, ...}> $discovered */
             $discovered = $this->competitorLearner->learnFromContent($content, $sourceUrl, $source);
 
             return $this->json([
@@ -781,10 +841,9 @@ class AutonomousSalesController extends AbstractController
 
         try {
             /** @var array<string, mixed>|null $data */
-            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
-            $verifiedBy = $data['verified_by'] ?? 'api';
-            $newTier = $data['tier'] ?? null;
+            $verifiedBy = self::strValue($data['verified_by'] ?? null, 'api');
+            $newTier = isset($data['tier']) && is_numeric($data['tier']) ? (int) $data['tier'] : null;
 
             $competitor = $this->competitorLearner->verifyCompetitor($id, $verifiedBy, $newTier);
 
@@ -843,12 +902,11 @@ class AutonomousSalesController extends AbstractController
 
         try {
             /** @var array<string, mixed>|null $data */
-            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             $contactId = $data['contact_id'] ?? null;
-            $templateSubject = $data['subject_template'] ?? '';
-            $templateBody = $data['body_template'] ?? '';
-            $variables = $data['variables'] ?? [];
+            $templateSubject = self::strValue($data['subject_template'] ?? null);
+            $templateBody = self::strValue($data['body_template'] ?? null);
+            $variables = self::arrayValue($data['variables'] ?? null);
 
             if (!$contactId) {
                 return $this->json(['success' => false, 'error' => 'contact_id is required'], 400);
@@ -931,12 +989,11 @@ class AutonomousSalesController extends AbstractController
 
         try {
             /** @var array<string, mixed>|null $data */
-            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             $contactId = $data['contact_id'] ?? null;
             $eventType = $data['event_type'] ?? null;
             $messageId = $data['message_id'] ?? null;
-            $metadata = $data['metadata'] ?? [];
+            $metadata = self::arrayValue($data['metadata'] ?? null);
 
             if (!$contactId || !$eventType) {
                 return $this->json(['success' => false, 'error' => 'contact_id and event_type are required'], 400);
@@ -949,7 +1006,7 @@ class AutonomousSalesController extends AbstractController
 
             $message = $messageId ? $this->outboundRepository->find($messageId) : null;
 
-            $profile = $this->personalizationService->recordInteraction($contact, $eventType, $message, $metadata);
+            $profile = $this->personalizationService->recordInteraction($contact, self::strValue($eventType), $message, $metadata);
 
             return $this->json([
                 'success' => true,
@@ -1010,8 +1067,8 @@ class AutonomousSalesController extends AbstractController
                 ], 400);
             }
             
-            $this->orchestrator->recordEmailEvent((int) $messageId, $eventType);
-            
+            $this->orchestrator->recordEmailEvent(self::intValue($messageId, 0), self::strValue($eventType));
+
             return $this->json(['success' => true]);
         } catch (\Exception $e) {
             return $this->json([
@@ -1034,24 +1091,23 @@ class AutonomousSalesController extends AbstractController
 
         try {
             /** @var array<string, mixed>|null $data */
-            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
-            
-            $fromEmail = $data['from'] ?? '';
-            $subject = $data['subject'] ?? '';
-            $body = $data['text'] ?? $data['html'] ?? '';
-            
+
+            $fromEmail = self::strValue($data['from'] ?? null);
+            $subject = self::strValue($data['subject'] ?? null);
+            $body = self::strValue($data['text'] ?? $data['html'] ?? null);
+
             if (!$fromEmail) {
                 return $this->json([
                     'success' => false,
                     'error' => 'from email is required',
                 ], 400);
             }
-            
+
             // Try to find the outbound message this is replying to
             $inReplyTo = null;
             if (isset($data['in_reply_to'])) {
-                $inReplyTo = $this->outboundRepository->findByMessageId($data['in_reply_to']);
+                $inReplyTo = $this->outboundRepository->findByMessageId(self::strValue($data['in_reply_to']));
             }
             
             $inboxMessage = $this->emailClassifier->processIncomingEmail(

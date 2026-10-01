@@ -20,8 +20,11 @@ class UserController extends AbstractController
     #[Route('', name: 'admin_user_index', methods: ['GET'])]
     public function index(Request $request, EntityManagerInterface $em): Response
     {
+        /** @var string|int|float|bool|null $search */
         $search = $request->query->get('search');
+        /** @var string|int|float|bool|null $role */
         $role = $request->query->get('role');
+        /** @var string|int|float|bool|null $status */
         $status = $request->query->get('status');
 
         $qb = $em->getRepository(User::class)->createQueryBuilder('u');

@@ -47,10 +47,15 @@ class CompanyController extends AbstractController
     public function index(Request $request): Response
     {
         // Get filter parameters
+        /** @var string|int|float|bool|null $sector */
         $sector = $request->query->get('sector');
+        /** @var string|int|float|bool|null $tier */
         $tier = $request->query->get('tier');
+        /** @var string|int|float|bool|null $stage */
         $stage = $request->query->get('stage');
+        /** @var string|int|float|bool|null $region */
         $region = $request->query->get('region');
+        /** @var string|int|float|bool|null $search */
         $search = $request->query->get('search');
 
         // Build query — only show approved & active companies (NOT discovered)
@@ -265,8 +270,11 @@ class CompanyController extends AbstractController
     #[Route('/discovered', name: 'app_company_discovered', methods: ['GET'])]
     public function discovered(Request $request): Response
     {
+        /** @var string|int|float|bool|null $sector */
         $sector = $request->query->get('sector');
+        /** @var string|int|float|bool|null $region */
         $region = $request->query->get('region');
+        /** @var string|int|float|bool|null $search */
         $search = $request->query->get('search');
 
         $qb = $this->companyRepository->createQueryBuilder('c');
@@ -395,10 +403,15 @@ class CompanyController extends AbstractController
     public function export(Request $request, string $format): Response
     {
         // Get the same filters as index action
+        /** @var string|int|float|bool|null $sector */
         $sector = $request->query->get('sector');
+        /** @var string|int|float|bool|null $tier */
         $tier = $request->query->get('tier');
+        /** @var string|int|float|bool|null $stage */
         $stage = $request->query->get('stage');
+        /** @var string|int|float|bool|null $region */
         $region = $request->query->get('region');
+        /** @var string|int|float|bool|null $search */
         $search = $request->query->get('search');
 
         $qb = $this->companyRepository->createQueryBuilder('c')
@@ -453,8 +466,11 @@ class CompanyController extends AbstractController
     #[Route('/discovered/export/{format}', name: 'app_company_discovered_export', requirements: ['format' => 'csv|xlsx'], methods: ['GET'])]
     public function discoveredExport(Request $request, string $format = 'xlsx'): Response
     {
+        /** @var string|int|float|bool|null $sector */
         $sector = $request->query->get('sector');
+        /** @var string|int|float|bool|null $region */
         $region = $request->query->get('region');
+        /** @var string|int|float|bool|null $search */
         $search = $request->query->get('search');
 
         $qb = $this->companyRepository->createQueryBuilder('c')

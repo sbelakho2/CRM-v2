@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\BanditArm;
+use App\Entity\Contact;
 use App\Entity\OutboundMessage;
 use App\Repository\BanditArmRepository;
 use App\Repository\OutboundMessageRepository;
@@ -81,12 +82,12 @@ class HourlyOptimizationService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private BanditArmRepository $armRepository,
-        OutboundMessageRepository $outboundRepository,
+        protected OutboundMessageRepository $outboundRepository,
         private ContactRepository $contactRepository,
-        ThompsonSamplerService $thompsonSampler,
+        protected ThompsonSamplerService $thompsonSampler,
         private AutonomousSalesOrchestratorService $orchestrator,
         private ?CadenceGovernorService $cadenceGovernor,
-        ?CopyLintService $copyLintService,
+        protected ?CopyLintService $copyLintService,
         private LoggerInterface $logger,
     ) {}
 
@@ -336,7 +337,8 @@ class HourlyOptimizationService
             // Sort tested arms by expected rate (descending) for exploitation
             usort($tested, fn($a, $b) => $b['expectedRate'] <=> $a['expectedRate']);
 
-            $candidates['exploitation'][$type] = array_values($tested);
+            // usort() reindexes, so $tested is already a list
+            $candidates['exploitation'][$type] = $tested;
             $candidates['exploration'][$type] = array_values($underTested);
         }
 
@@ -437,23 +439,26 @@ class HourlyOptimizationService
 
     /**
      * Send the composed batch, recording each as an OutboundMessage.
-      * @param array<string|int, mixed> $stage3Result
+     *
+     * @param array{dryRun: true, wouldComposeUpTo: int, gateResults: GateResults}|array{composed: list<ComposedMessage>, gateResults: GateResults, totalEligible: int} $stage3Result
+     * @return array{dryRun: bool, sent: 0, failed: 0, skipped: string}|array{sent: int, failed: int, total: int}
      */
     private function stage4_executionWindow(array $stage3Result, bool $dryRun): array
     {
-        if ($dryRun || empty($stage3Result['composed'] ?? [])) {
+        $composed = $stage3Result['composed'] ?? [];
+        if ($dryRun || empty($composed)) {
             return [
                 'dryRun' => $dryRun,
                 'sent' => 0,
                 'failed' => 0,
-                'skipped' => empty($stage3Result['composed'] ?? []) ? 'no_composed_messages' : 'dry_run',
+                'skipped' => empty($composed) ? 'no_composed_messages' : 'dry_run',
             ];
         }
 
         $sent = 0;
         $failed = 0;
 
-        foreach ($stage3Result['composed'] as $item) {
+        foreach ($composed as $item) {
             $contact = $this->contactRepository->find($item['contactId']);
             if (!$contact) {
                 $failed++;
@@ -475,15 +480,9 @@ class HourlyOptimizationService
                 );
 
                 // Set additional tracking fields
-                if (method_exists($message, 'setIcpCluster')) {
-                    $message->setIcpCluster($composedResult['icpCluster'] ?? 'global');
-                }
-                if (method_exists($message, 'setIsControlGroup')) {
-                    $message->setIsControlGroup($composedResult['isControlGroup'] ?? false);
-                }
-                if (method_exists($message, 'setDecisionTrace')) {
-                    $message->setDecisionTrace($composedResult['decisionTrace'] ?? []);
-                }
+                $message->setIcpCluster($composedResult['icpCluster']);
+                $message->setIsControlGroup($composedResult['isControlGroup']);
+                $message->setDecisionTrace($composedResult['decisionTrace']);
 
                 // Attempt send
                 $sendResult = $this->orchestrator->sendEmail($message);
@@ -505,7 +504,7 @@ class HourlyOptimizationService
         return [
             'sent' => $sent,
             'failed' => $failed,
-            'total' => count($stage3Result['composed']),
+            'total' => count($composed),
         ];
     }
 
@@ -516,7 +515,9 @@ class HourlyOptimizationService
     /**
      * Evaluate each arm's performance vs baseline over the recent window.
      * Uses messages from the last hour (or last 24h for broader context).
-      * @param array<string|int, mixed> $snapshot
+     *
+     * @param Snapshot $snapshot
+     * @return array<string, TypeEvaluation>
      */
     private function stage5_hourlyEvaluation(array $snapshot): array
     {
@@ -593,7 +594,9 @@ class HourlyOptimizationService
      * 1. Instant kill — quarantine arms with neg rate >= 50%
      * 2. Underperformance check — flag arms performing < 70% of baseline
      * 3. System-wide safe mode — halt non-control sends if overall neg rate >= 35%
-      * @param array<string|int, mixed> $snapshot
+     *
+     * @param Snapshot $snapshot
+     * @return array{instantKills: list<array{armId: int|null, armName: string|null, recentNegRate: float}>, underperformers: list<array{armId: int|null, armName: string|null, relativePerformance: float, armRate: float, baselineRate: float}>, systemNegRate: float, safeModeActive: bool, safeModeTriggerThreshold: float}
      */
     private function stage6_safetyEnforcement(array $snapshot): array
     {
@@ -691,8 +694,10 @@ class HourlyOptimizationService
      * Prune the worst arms, promote the best:
      * - Prune: deactivate arms with verdict 'prune_candidate' or 'instant_kill'
      * - Promote: freeze promoted arms (lock alpha/beta), mark as proven winners
-      * @param array<string|int, mixed> $snapshot
- * @param array<string|int, mixed> $evaluation
+     *
+     * @param Snapshot $snapshot
+     * @param array<string, TypeEvaluation> $evaluation
+     * @return array{pruned: list<ArmEvaluation>, promoted: list<ArmEvaluation>, pruneCount: int, promoteCount: int}
      */
     private function stage7_pruneAndPromote(array $snapshot, array $evaluation, bool $dryRun): array
     {
@@ -788,6 +793,8 @@ class HourlyOptimizationService
 
     /**
      * Decay stale arms and re-seed the exploration pool if it's thin.
+     *
+     * @return array{decayed: list<array{armId: int|null, armName: string|null, daysSinceUse: int, alphaChange: float, betaChange: float}>, decayedCount: int, reseeded: list<array{armId: int|null, armName: string|null, action: string}>, reseededCount: int}
      */
     private function stage8_adaptiveRefresh(bool $dryRun): array
     {
@@ -831,6 +838,7 @@ class HourlyOptimizationService
         // 2. Re-seed exploration pool if running thin
         $armTypes = $this->getActiveArmTypes();
         foreach ($armTypes as $type) {
+            /** @var list<BanditArm> $activeArms */
             $activeArms = $this->armRepository->findActiveByType($type);
             $nonQuarantined = array_filter($activeArms, fn(BanditArm $a) => !$a->isQuarantined());
 
@@ -886,7 +894,9 @@ class HourlyOptimizationService
     /**
      * Invariant checks that must hold at the end of every cycle.
      * Failures are logged as CRITICAL but do not crash the cycle.
-      * @param array<string|int, mixed> $report
+     *
+     * @param array<string, mixed> $report
+     * @return array{assertions: array<string, bool>, allPassed: bool}
      */
     private function stage9_assertions(array $report): array
     {
@@ -896,6 +906,7 @@ class HourlyOptimizationService
         // Assertion 1: At least one control arm exists per type
         $armTypes = $this->getActiveArmTypes();
         foreach ($armTypes as $type) {
+            /** @var list<BanditArm> $arms */
             $arms = $this->armRepository->findActiveByType($type);
             $hasControl = false;
             foreach ($arms as $arm) {
@@ -914,12 +925,14 @@ class HourlyOptimizationService
 
         // Assertion 2: No active arm has alpha or beta <= 0
         foreach ($armTypes as $type) {
+            /** @var list<BanditArm> $arms */
             $arms = $this->armRepository->findActiveByType($type);
             foreach ($arms as $arm) {
                 if ($arm->getAlpha() <= 0 || $arm->getBeta() <= 0) {
-                    $assertions["positive_params_{$arm->getId()}"] = false;
+                    $armId = $arm->getId() ?? '';
+                    $assertions["positive_params_{$armId}"] = false;
                     $allPassed = false;
-                    $this->logger->critical("ASSERTION FAILED: arm {$arm->getId()} has non-positive params", [
+                    $this->logger->critical("ASSERTION FAILED: arm {$armId} has non-positive params", [
                         'alpha' => $arm->getAlpha(),
                         'beta' => $arm->getBeta(),
                     ]);
@@ -929,6 +942,7 @@ class HourlyOptimizationService
 
         // Assertion 3: Pool size >= MIN_POOL_SIZE (warning, not critical)
         foreach ($armTypes as $type) {
+            /** @var list<BanditArm> $arms */
             $arms = $this->armRepository->findActiveByType($type);
             $nonQ = array_filter($arms, fn(BanditArm $a) => !$a->isQuarantined());
             $pass = count($nonQ) >= self::MIN_POOL_SIZE || empty($arms);
@@ -963,21 +977,23 @@ class HourlyOptimizationService
      * - improve:  At least one arm was promoted (beating baseline by >= 15%)
      * - hold:     No significant change; system is stable
      * - rollback: Arms were pruned or instant-killed; system fell back to safer state
-      * @param array<string|int, mixed> $snapshot
- * @param array<string|int, mixed> $evaluation
- * @param array<string|int, mixed> $prunePromote
+     *
+     * @param Snapshot $snapshot
+     * @param array<string, mixed> $evaluation
+     * @param array{pruned: list<ArmEvaluation>, promoted: list<ArmEvaluation>, pruneCount: int, promoteCount: int} $prunePromote
+     * @return array{outcome: string, reason: string, promoteCount: int, pruneCount: int, systemNegRate: float}
      */
     private function stage10_guaranteedOutcome(array $snapshot, array $evaluation, array $prunePromote): array
     {
-        $promoteCount = $prunePromote['promoteCount'] ?? 0;
-        $pruneCount = $prunePromote['pruneCount'] ?? 0;
+        $promoteCount = $prunePromote['promoteCount'];
+        $pruneCount = $prunePromote['pruneCount'];
 
         $outcome = 'hold';
         $reason = 'No significant changes detected this cycle.';
 
         if ($promoteCount > 0) {
             $outcome = 'improve';
-            $promoted = $prunePromote['promoted'] ?? [];
+            $promoted = $prunePromote['promoted'];
             $names = array_map(fn($p) => $p['armName'] ?? 'unknown', $promoted);
             $reason = sprintf(
                 '%d arm(s) promoted as proven winners: %s',
@@ -986,7 +1002,7 @@ class HourlyOptimizationService
             );
         } elseif ($pruneCount > 0) {
             $outcome = 'rollback';
-            $pruned = $prunePromote['pruned'] ?? [];
+            $pruned = $prunePromote['pruned'];
             $names = array_map(fn($p) => $p['armName'] ?? 'unknown', $pruned);
             $reason = sprintf(
                 '%d underperforming arm(s) pruned/rolled back: %s',
@@ -998,8 +1014,9 @@ class HourlyOptimizationService
         // Check for safe mode (overrides to rollback)
         $safetyStage = null;
         foreach ([6, '6_precheck'] as $key) {
-            if (isset($evaluation[$key]) && ($evaluation[$key]['safeModeActive'] ?? false)) {
-                $safetyStage = $evaluation[$key];
+            $stageData = $evaluation[$key] ?? null;
+            if (is_array($stageData) && ($stageData['safeModeActive'] ?? false)) {
+                $safetyStage = $stageData;
                 break;
             }
         }
@@ -1033,6 +1050,8 @@ class HourlyOptimizationService
 
     /**
      * Get distinct arm types currently active in the system.
+     *
+     * @return list<string>
      */
     private function getActiveArmTypes(): array
     {
@@ -1041,6 +1060,7 @@ class HourlyOptimizationService
             ->from(BanditArm::class, 'a')
             ->where('a.active = true');
 
+        /** @var list<array{armType: string}> $results */
         $results = $qb->getQuery()->getScalarResult();
         return array_column($results, 'armType');
     }
@@ -1048,6 +1068,8 @@ class HourlyOptimizationService
     /**
      * Find contacts eligible for outreach this cycle.
      * Excludes recently contacted, bounced, unsubscribed.
+     *
+     * @return list<Contact>
      */
     private function findEligibleContacts(int $limit): array
     {
@@ -1087,7 +1109,9 @@ class HourlyOptimizationService
         $qb->setMaxResults($limit);
 
         try {
-            return $qb->getQuery()->getResult();
+            /** @var list<Contact> $results */
+            $results = $qb->getQuery()->getResult();
+            return $results;
         } catch (\Throwable $e) {
             $this->logger->warning('Error finding eligible contacts', ['error' => $e->getMessage()]);
             return [];

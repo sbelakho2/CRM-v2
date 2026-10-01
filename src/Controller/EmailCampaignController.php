@@ -369,6 +369,7 @@ class EmailCampaignController extends AbstractController
     #[IsGranted('PUBLIC_ACCESS')]
     public function trackOpen(Request $request, EmailSend $send): Response
     {
+        /** @var string|int|float|bool|null $sig */
         $sig = $request->query->get('sig');
 
         if (!$send->isOpened() && $send->getId() && $this->trackingSigner->verifyOpen($send->getId(), $sig)) {
@@ -386,6 +387,7 @@ class EmailCampaignController extends AbstractController
     {
         // Redirect to the actual URL
         $url = (string)$request->query->get('url', '/');
+        /** @var string|int|float|bool|null $sig */
         $sig = $request->query->get('sig');
 
         $isSigned = $send->getId() && $this->trackingSigner->verifyClick($send->getId(), $url, $sig);

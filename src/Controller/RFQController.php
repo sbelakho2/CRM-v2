@@ -31,9 +31,13 @@ class RFQController extends AbstractController
     public function index(Request $request, RFQRepository $rfqRepository, CompanyRepository $companyRepository): Response
     {
         // Filters
+        /** @var string|int|float|bool|null $type */
         $type = $request->query->get('type');
+        /** @var string|int|float|bool|null $status */
         $status = $request->query->get('status');
+        /** @var string|int|float|bool|null $company */
         $company = $request->query->get('company');
+        /** @var string|int|float|bool|null $ndaStatus */
         $ndaStatus = $request->query->get('nda_status');
 
         $qb = $rfqRepository->createQueryBuilder('r')
@@ -86,7 +90,9 @@ class RFQController extends AbstractController
     public function pipeline(Request $request, RFQRepository $rfqRepository, CompanyRepository $companyRepository): Response
     {
         // Get filters
+        /** @var string|int|float|bool|null $type */
         $type = $request->query->get('type');
+        /** @var string|int|float|bool|null $companyId */
         $companyId = $request->query->get('company');
 
         $qb = $rfqRepository->createQueryBuilder('r')
@@ -133,6 +139,7 @@ class RFQController extends AbstractController
         $rfq = new RFQ();
         
         // Pre-fill company from query parameter
+        /** @var string|int|float|bool|null $companyId */
         $companyId = $request->query->get('company');
         if ($companyId) {
             $company = $entityManager->getRepository(Company::class)->find($companyId);
@@ -328,7 +335,9 @@ class RFQController extends AbstractController
     {
         // Get filter parameters
         $period = $request->query->get('period', '90');
+        /** @var string|int|float|bool|null $startDateParam */
         $startDateParam = $request->query->get('start_date');
+        /** @var string|int|float|bool|null $endDateParam */
         $endDateParam = $request->query->get('end_date');
         $compareMode = $request->query->get('compare') === 'previous';
         

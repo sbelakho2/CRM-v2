@@ -20,9 +20,13 @@ class AuditLogController extends AbstractController
     #[Route('', name: 'app_audit_log_index', methods: ['GET'])]
     public function index(Request $request): Response
     {
+        /** @var string|int|float|bool|null $entityType */
         $entityType = $request->query->get('entity_type');
+        /** @var string|int|float|bool|null $entityId */
         $entityId = $request->query->get('entity_id');
+        /** @var string|int|float|bool|null $action */
         $action = $request->query->get('action');
+        /** @var string|int|float|bool|null $userId */
         $userId = $request->query->get('user_id');
         
         $qb = $this->auditLogRepository->createQueryBuilder('a')

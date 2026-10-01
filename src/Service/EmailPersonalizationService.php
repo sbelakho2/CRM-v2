@@ -28,8 +28,12 @@ use Psr\Log\LoggerInterface;
  * This provides ONNX-equivalent personalization without requiring
  * actual neural network inference, using classical ML techniques
  * that work well in PHP.
- * 
+ *
  * @see Documentation/AUTONOMOUS_SALES_V2.md
+ *
+ * @phpstan-type ProfileMatch array{profile: PersonalizationProfile, similarity: float, engagementScore: float, companyId: int|null, rung: int}
+ * @phpstan-type OptimalSettings array{tone: string, content: string, style: string, topicEmphasis: array<int|string, mixed>, learnedFromSimilar?: bool}
+ * @phpstan-type PersonalizationContext array{variables: array<string, mixed>, tone: string, content: string, toneConfig: array{greeting: string, closing: string, style: string}, contentConfig: array{emphasis: string, detail: string, data: bool, emotional: bool}, industry: string, role: string, contentLength: string, lengthSettings: array{max_sentences: int, max_paragraphs: int, max_words: int, cta_style: string, detail_level: string}, engagementLevel: string}
  */
 class EmailPersonalizationService
 {
@@ -665,8 +669,9 @@ class EmailPersonalizationService
 
     private const OPTIMAL_SEND_DAYS = ['Tuesday', 'Wednesday', 'Thursday'];
 
-    // Extended industry features (covers more industries)
-    private const EXTENDED_INDUSTRY_FEATURES = [
+    // Extended industry features (covers more industries) — kept public so
+    // integrations can reuse the extended vectors
+    public const EXTENDED_INDUSTRY_FEATURES = [
         'automotive' => [0.9, 0.8, 0.7, 0.6, 0.1, 0.2, 0.3, 0.4],
         'aerospace' => [0.8, 0.9, 0.6, 0.5, 0.2, 0.3, 0.4, 0.5],
         'industrial' => [0.7, 0.6, 0.9, 0.5, 0.3, 0.4, 0.5, 0.3],
@@ -687,7 +692,7 @@ class EmailPersonalizationService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private PersonalizationProfileRepository $profileRepository,
-        private ?PersonalizationArchetypeRepository $archetypeRepository,
+        protected ?PersonalizationArchetypeRepository $archetypeRepository,
         private ?ThompsonSamplerService $thompsonSampler,
         private ?SpintaxEngineService $spintaxEngine,
         private LoggerInterface $logger,
@@ -696,19 +701,19 @@ class EmailPersonalizationService
 
     /**
      * Get personalization context for a contact without applying to a template
-     * 
+     *
      * This is used by the orchestrator to get all personalization variables
      * which are then passed to the spintax engine for template rendering.
-     * 
+     *
      * @param Contact $contact The contact to personalize for
-     * @param array $additionalVariables Additional variables to merge
-     * @return array Full personalization context with all variables
+     * @param array<string, mixed> $additionalVariables Additional variables to merge
+     * @return array{variables: array<string, mixed>, profile: PersonalizationProfile, settings: OptimalSettings, tone: string, content: string, industry: string, role: string, contentLength: string, engagementLevel: string, similarProfilesUsed: int, successfulPatterns: array<int|string, mixed>}
      */
     public function getPersonalizationContext(Contact $contact, array $additionalVariables = []): array
     {
         // Get or create personalization profile
-        $profile = $this->profileRepository->findOrCreateForContact($contact->getId());
-        
+        $profile = $this->profileRepository->findOrCreateForContact($this->requireContactId($contact));
+
         // Generate embedding if not exists
         if (empty($profile->getFeatureEmbedding())) {
             $embedding = $this->generateContactEmbedding($contact);
@@ -716,19 +721,19 @@ class EmailPersonalizationService
             $this->entityManager->persist($profile);
             $this->entityManager->flush();
         }
-        
+
         // Find similar high-performing profiles for learning
         $similarProfiles = $this->findSimilarSuccessfulProfiles($profile, $contact);
-        
+
         // Determine optimal tone and content focus
         $optimalSettings = $this->determineOptimalSettings($profile, $similarProfiles);
-        
+
         // Build personalization context
         $context = $this->buildPersonalizationContext($contact, $profile, $optimalSettings);
-        
+
         // Merge with additional variables (additional vars override defaults)
         $variables = array_merge($context['variables'], $additionalVariables);
-        
+
         // Apply tone transformations will happen when the template is rendered
         return [
             'variables' => $variables,
@@ -736,10 +741,10 @@ class EmailPersonalizationService
             'settings' => $optimalSettings,
             'tone' => $context['tone'],
             'content' => $context['content'],
-            'industry' => $context['industry'] ?? 'other',
-            'role' => $context['role'] ?? 'other',
-            'contentLength' => $context['contentLength'] ?? 'standard',
-            'engagementLevel' => $context['engagementLevel'] ?? 'cold',  // NEW: For template architecture
+            'industry' => $context['industry'],
+            'role' => $context['role'],
+            'contentLength' => $context['contentLength'],
+            'engagementLevel' => $context['engagementLevel'],  // NEW: For template architecture
             'similarProfilesUsed' => count($similarProfiles),
             'successfulPatterns' => $profile->getSuccessfulSubjectPatterns(),
         ];
@@ -747,7 +752,9 @@ class EmailPersonalizationService
 
     /**
      * Generate personalized email content for a contact
-      * @param array<string|int, mixed> $additionalVariables
+     *
+     * @param array<string, mixed> $additionalVariables
+     * @return array{subject: string, body: string, profile: PersonalizationProfile, settings: OptimalSettings, context: PersonalizationContext, similarProfilesUsed: int}
      */
     public function personalizeEmail(
         Contact $contact,
@@ -756,8 +763,8 @@ class EmailPersonalizationService
         array $additionalVariables = []
     ): array {
         // Get or create personalization profile
-        $profile = $this->profileRepository->findOrCreateForContact($contact->getId());
-        
+        $profile = $this->profileRepository->findOrCreateForContact($this->requireContactId($contact));
+
         // Generate embedding if not exists
         if (empty($profile->getFeatureEmbedding())) {
             $embedding = $this->generateContactEmbedding($contact);
@@ -765,17 +772,17 @@ class EmailPersonalizationService
             $this->entityManager->persist($profile);
             $this->entityManager->flush();
         }
-        
+
         // Find similar high-performing profiles for learning
         // Now includes archetype profiles for cold-start scenarios
         $similarProfiles = $this->findSimilarSuccessfulProfiles($profile, $contact);
-        
+
         // Determine optimal tone and content focus
         $optimalSettings = $this->determineOptimalSettings($profile, $similarProfiles);
-        
+
         // Build personalization context
         $context = $this->buildPersonalizationContext($contact, $profile, $optimalSettings);
-        
+
         // Merge with additional variables
         $variables = array_merge($context['variables'], $additionalVariables);
         
@@ -801,11 +808,13 @@ class EmailPersonalizationService
 
     /**
      * Generate feature embedding for a contact
+     *
+     * @return list<float>
      */
     public function generateContactEmbedding(Contact $contact): array
     {
         $embedding = array_fill(0, self::EMBEDDING_DIMENSIONS, 0.0);
-        
+
         // Industry features (first 8 dimensions)
         $company = $contact->getCompany();
         $industry = $company ? strtolower($company->getSector() ?? 'other') : 'other';
@@ -813,14 +822,14 @@ class EmailPersonalizationService
         for ($i = 0; $i < 8; $i++) {
             $embedding[$i] = $industryFeatures[$i];
         }
-        
+
         // Role features (dimensions 8-15)
         $role = $this->inferRoleCategory($contact->getJobTitle() ?? '');
         $roleFeatures = self::ROLE_FEATURES[$role] ?? self::ROLE_FEATURES['other'];
         for ($i = 0; $i < 8; $i++) {
             $embedding[$i + 8] = $roleFeatures[$i];
         }
-        
+
         // Company size features (dimensions 16-23)
         if ($company) {
             $sizeScore = $this->normalizeCompanySize($company);
@@ -828,28 +837,28 @@ class EmailPersonalizationService
                 $embedding[$i + 16] = $sizeScore * (1 - $i * 0.1);
             }
         }
-        
+
         // Geographic features (dimensions 24-31)
         $geoFeatures = $this->extractGeographicFeatures($contact);
         for ($i = 0; $i < 8; $i++) {
             $embedding[$i + 24] = $geoFeatures[$i] ?? 0.5;
         }
-        
+
         // Behavioral features (dimensions 32-47) - based on interaction history
-        $profile = $this->profileRepository->findByContactId($contact->getId());
+        $profile = $this->profileRepository->findByContactId($this->requireContactId($contact));
         if ($profile) {
             $behaviorFeatures = $this->extractBehavioralFeatures($profile);
             for ($i = 0; $i < 16; $i++) {
                 $embedding[$i + 32] = $behaviorFeatures[$i] ?? 0.5;
             }
         }
-        
+
         // Text features from company/contact data (dimensions 48-63)
         $textFeatures = $this->extractTextFeatures($contact);
         for ($i = 0; $i < 16; $i++) {
             $embedding[$i + 48] = $textFeatures[$i] ?? 0.0;
         }
-        
+
         // Normalize embedding
         return $this->normalizeVector($embedding);
     }
@@ -878,7 +887,7 @@ class EmailPersonalizationService
      *
      * @param PersonalizationProfile $targetProfile The profile to find matches for
      * @param Contact|null $contact Optional contact for additional context
-     * @return array Array of similar successful profiles with similarity scores
+     * @return list<ProfileMatch> Array of similar successful profiles with similarity scores
      */
     public function findSimilarSuccessfulProfiles(PersonalizationProfile $targetProfile, ?Contact $contact = null): array
     {
@@ -899,6 +908,7 @@ class EmailPersonalizationService
         }
 
         // Get ALL profiles with embeddings and at least some engagement (broad pool)
+        /** @var list<PersonalizationProfile> $allCandidates */
         $allCandidates = $this->profileRepository->findHighEngagement(1, 0); // min 1 open, 0 replies
 
         // Score all candidates against target
@@ -913,12 +923,10 @@ class EmailPersonalizationService
             if ($similarity <= 0.0) continue; // negative sim = anti-correlated
 
             // Determine candidate's ICP attributes
-            $candidateIndustry = null;
-            $candidateRole = null;
             $candidateCompanyId = $candidate->getCompanyId();
-            $meta = $candidate->getMetadata() ?? [];
-            $candidateIndustry = strtolower($meta['industry'] ?? '');
-            $candidateRole = $meta['role_category'] ?? '';
+            $meta = $candidate->getMetadata();
+            $candidateIndustry = strtolower(is_string($meta['industry'] ?? null) ? $meta['industry'] : '');
+            $candidateRole = is_string($meta['role_category'] ?? null) ? $meta['role_category'] : '';
 
             // Determine cohort rung (1=exact, 2=broad, 3=global)
             $rung = 3;
@@ -972,7 +980,9 @@ class EmailPersonalizationService
 
     /**
      * Determine optimal personalization settings
-      * @param array<string|int, mixed> $similarProfiles
+     *
+     * @param list<ProfileMatch> $similarProfiles
+     * @return OptimalSettings
      */
     private function determineOptimalSettings(PersonalizationProfile $profile, array $similarProfiles): array
     {
@@ -983,49 +993,51 @@ class EmailPersonalizationService
             'style' => $profile->getPreferredStyle(),
             'topicEmphasis' => $profile->getTopicInterests(),
         ];
-        
+
         // If profile has low engagement, learn from similar successful profiles
-        if ($profile->getEngagementScore() < 30 && !empty($similarProfiles)) {
+        if ($profile->getEngagementScore() < 30 && $similarProfiles !== []) {
             $toneCounts = [];
             $contentCounts = [];
-            
+
             foreach ($similarProfiles as $similar) {
                 $simProfile = $similar['profile'];
                 $weight = $similar['similarity'] * $similar['engagementScore'] / 100;
-                
+
                 $tone = $simProfile->getPreferredTone();
                 $content = $simProfile->getPreferredContent();
-                
+
                 $toneCounts[$tone] = ($toneCounts[$tone] ?? 0) + $weight;
                 $contentCounts[$content] = ($contentCounts[$content] ?? 0) + $weight;
             }
-            
+
             // Use most successful tone/content from similar profiles
-            if (!empty($toneCounts)) {
+            if ($toneCounts !== []) {
                 arsort($toneCounts);
                 $settings['tone'] = array_key_first($toneCounts);
             }
-            
-            if (!empty($contentCounts)) {
+
+            if ($contentCounts !== []) {
                 arsort($contentCounts);
                 $settings['content'] = array_key_first($contentCounts);
             }
-            
+
             $settings['learnedFromSimilar'] = true;
         }
-        
+
         return $settings;
     }
 
     /**
      * Build personalization context with variables
-     * 
+     *
      * Now generates FULL dynamic content including:
      * - Industry-specific value propositions
      * - Role-specific pain points
      * - Social proof appropriate to segment
      * - Engagement-adaptive content length
-      * @param array<string|int, mixed> $settings
+     *
+     * @param OptimalSettings $settings
+     * @return PersonalizationContext
      */
     private function buildPersonalizationContext(
         Contact $contact,
@@ -1055,15 +1067,14 @@ class EmailPersonalizationService
         };
         
         // Get industry-specific value proposition (claim-sanitized)
-        $valueProp = self::INDUSTRY_VALUE_PROPS[$industry][$contentKey] 
-            ?? self::INDUSTRY_VALUE_PROPS['other']['business'];
+        $valueProp = self::INDUSTRY_VALUE_PROPS[$industry][$contentKey];
         $valueProp = $this->sanitizeClaimsText($valueProp);
-        
+
         // Get role-specific pain point content
-        $painPointData = self::ROLE_PAIN_POINTS[$role] ?? self::ROLE_PAIN_POINTS['other'];
-        
+        $painPointData = self::ROLE_PAIN_POINTS[$role];
+
         // Get social proof for industry
-        $socialProofData = self::SOCIAL_PROOF[$industry] ?? self::SOCIAL_PROOF['other'];
+        $socialProofData = self::SOCIAL_PROOF[$industry];
         
         // Determine content length based on engagement score
         $engagementScore = $profile->getEngagementScore();

@@ -33,8 +33,11 @@ class ContactController extends AbstractController
     public function index(Request $request): Response
     {
         // Get filter parameters
+        /** @var string|int|float|bool|null $role */
         $role = $request->query->get('role');
+        /** @var string|int|float|bool|null $company */
         $company = $request->query->get('company');
+        /** @var string|int|float|bool|null $search */
         $search = $request->query->get('search');
 
         // Build query
@@ -102,6 +105,7 @@ class ContactController extends AbstractController
         $contact = new Contact();
         
         // Pre-select company if company_id is provided in query string
+        /** @var string|int|float|bool|null $companyId */
         $companyId = $request->query->get('company_id');
         if ($companyId) {
             $company = $this->entityManager->getRepository(\App\Entity\Company::class)->find($companyId);
@@ -201,8 +205,11 @@ class ContactController extends AbstractController
     public function export(Request $request, string $format): Response
     {
         // Get the same filters as index action
+        /** @var string|int|float|bool|null $role */
         $role = $request->query->get('role');
+        /** @var string|int|float|bool|null $company */
         $company = $request->query->get('company');
+        /** @var string|int|float|bool|null $search */
         $search = $request->query->get('search');
 
         $qb = $this->contactRepository->createQueryBuilder('c')

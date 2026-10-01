@@ -38,6 +38,7 @@ class ActivityController extends AbstractController
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED');
         
         $query = trim($request->query->get('q', ''));
+        /** @var string|int|float|bool|null $companyId */
         $companyId = $request->query->get('company');
         $limit = min(50, max(1, (int) $request->query->get('limit', 25)));
         
@@ -83,10 +84,15 @@ class ActivityController extends AbstractController
     public function index(Request $request): Response
     {
         // Get filter parameters
+        /** @var string|int|float|bool|null $type */
         $type = $request->query->get('type');
+        /** @var string|int|float|bool|null $company */
         $company = $request->query->get('company');
+        /** @var string|int|float|bool|null $user */
         $user = $request->query->get('user');
+        /** @var string|int|float|bool|null $dateFrom */
         $dateFrom = $request->query->get('date_from');
+        /** @var string|int|float|bool|null $dateTo */
         $dateTo = $request->query->get('date_to');
 
         // Build query
@@ -203,7 +209,9 @@ class ActivityController extends AbstractController
     #[Route('/timeline', name: 'app_activity_timeline', methods: ['GET'])]
     public function timeline(Request $request): Response
     {
+        /** @var string|int|float|bool|null $company */
         $company = $request->query->get('company');
+        /** @var string|int|float|bool|null $contact */
         $contact = $request->query->get('contact');
 
         $qb = $this->activityRepository->createQueryBuilder('a')
@@ -294,6 +302,7 @@ class ActivityController extends AbstractController
             $targetRoute = in_array($targetRoute, $allowedTargets, true) ? $targetRoute : 'app_activity_index';
             $targetParams = [];
             
+            /** @var string|int|float|bool|null $redirectParams */
             $redirectParams = $request->query->get('redirect_params');
             if ($redirectParams) {
                 $targetParams = json_decode($redirectParams, true) ?: [];
