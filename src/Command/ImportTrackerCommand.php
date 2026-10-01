@@ -91,6 +91,7 @@ HELP
         }
 
         // Get file path
+        /** @var string $filePath */
         $filePath = $input->getArgument('file');
 
         // Verify file exists

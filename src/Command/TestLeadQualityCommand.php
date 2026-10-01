@@ -315,6 +315,7 @@ HELP
         $persist = $input->getOption('persist') && !$input->getOption('no-persist');
 
         // Filter to specific country if requested
+        /** @var mixed $countryFilter */
         $countryFilter = $input->getOption('country');
         if ($countryFilter) {
             $code = strtoupper($countryFilter);
@@ -326,6 +327,7 @@ HELP
         }
 
         // Filter to specific sector if requested
+        /** @var mixed $sectorFilter */
         $sectorFilter = $input->getOption('sector');
         if ($sectorFilter) {
             $found = false;

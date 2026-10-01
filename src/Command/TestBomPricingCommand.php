@@ -43,6 +43,8 @@ class TestBomPricingCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+        /** @var string $filePath */
+        /** @var string $filePath */
         $filePath = $input->getArgument('file');
 
         if (!file_exists($filePath) || !is_readable($filePath)) {
@@ -64,7 +66,9 @@ class TestBomPricingCommand extends Command
         // Parse BOM
         $io->section('1. Parsing BOM');
         try {
+            /** @var list<array<string, mixed>> $bomLines */
             $bomLines = $this->bomParser->parse($filePath);
+            /** @var list<array<string, mixed>> $bomLines */
             $bomLines = $this->bomParser->consolidate($bomLines);
             
             // Apply board count multiplier

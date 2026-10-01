@@ -49,12 +49,18 @@ class TestPdfGenerationCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+        /** @var string $filePath */
         $filePath = $input->getArgument('file');
+        /** @var mixed $outputPath */
         $outputPath = $input->getOption('output');
         $marginPercent = (float) $input->getOption('margin');
+        /** @var mixed $companyName */
         $companyName = $input->getOption('company');
+        /** @var mixed $issuerKey */
         $issuerKey = $input->getOption('issuer');
+        /** @var mixed $boardCount */
         $boardCount = $input->getOption('board-count');
+        /** @var mixed $orderMultiple */
         $orderMultiple = $input->getOption('order-multiple');
 
         if (!filter_var($boardCount, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])) {
@@ -90,6 +96,7 @@ class TestPdfGenerationCommand extends Command
         }
         
         // Parse providers option
+        /** @var mixed $providersStr */
         $providersStr = $input->getOption('providers');
         $providers = [];
         if (!empty($providersStr)) {

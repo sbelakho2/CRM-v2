@@ -25,6 +25,7 @@ class EmailSegment
     private ?string $description = null;
 
     #[ORM\Column(type: Types::JSON)]
+    /** @var array<string, mixed>|list<mixed> $filterRulesJson */
     private array $filterRulesJson = [];
 
     #[ORM\Column]

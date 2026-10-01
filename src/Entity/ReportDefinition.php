@@ -70,15 +70,19 @@ class ReportDefinition
     private ?string $dataSource = null;
     
     #[ORM\Column(type: Types::JSON)]
+    /** @var array<string, mixed>|list<mixed> $columns */
     private array $columns = [];
     
     #[ORM\Column(type: Types::JSON)]
+    /** @var array<string, mixed>|list<mixed> $filters */
     private array $filters = [];
     
     #[ORM\Column(type: Types::JSON)]
+    /** @var array<string, mixed>|list<mixed> $groupBy */
     private array $groupBy = [];
     
     #[ORM\Column(type: Types::JSON)]
+    /** @var array<string, mixed>|list<mixed> $orderBy */
     private array $orderBy = [];
     
     #[ORM\Column(type: Types::JSON, nullable: true)]

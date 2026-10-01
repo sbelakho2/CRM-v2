@@ -84,6 +84,7 @@ class EmailAnalyticsService
         $campaignId = $campaign->getId();
 
         // Get opens over time — using native SQL for DATE()
+        /** @var array<int, array<string, mixed>> $opens */
         $opens = $conn->fetchAllAssociative(
             "SELECT DATE(es.opened_at) AS date, COUNT(es.id) AS count
              FROM email_sends es
@@ -95,6 +96,7 @@ class EmailAnalyticsService
         );
 
         // Get clicks over time — using native SQL for DATE()
+        /** @var array<int, array<string, mixed>> $clicks */
         $clicks = $conn->fetchAllAssociative(
             "SELECT DATE(es.clicked_at) AS date, COUNT(es.id) AS count
              FROM email_sends es
@@ -344,6 +346,7 @@ class EmailAnalyticsService
     {
         // Native SQL: HOUR()/DAYOFWEEK() are not registered DQL functions —
         // the DQL variant failed at parse time. Delivered population only.
+        /** @var array<int, array<string, mixed>> $hourlyStats */
         $hourlyStats = $this->entityManager->getConnection()->fetchAllAssociative(
             "SELECT
                 HOUR(opened_at) AS `hour`,
@@ -371,6 +374,7 @@ class EmailAnalyticsService
         }
 
         // Native SQL (same reason as the hourly query above).
+        /** @var array<int, array<string, mixed>> $dailyStats */
         $dailyStats = $this->entityManager->getConnection()->fetchAllAssociative(
             "SELECT
                 DAYOFWEEK(opened_at) AS dayOfWeek,

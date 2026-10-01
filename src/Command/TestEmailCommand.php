@@ -36,6 +36,7 @@ class TestEmailCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
         
+        /** @var mixed $to */
         $to = $input->getOption('to');
         if (!$to) {
             $io->error('Please provide a recipient email address with --to option');

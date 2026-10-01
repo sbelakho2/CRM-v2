@@ -136,6 +136,7 @@ class ComplianceDeduplicateKeysCommand extends Command
      */
     private function findDuplicateSets(): array
     {
+        /** @var array<int, array<string, mixed>> $rows */
         $rows = $this->entityManager->getConnection()->fetchAllAssociative(
             'SELECT company_id, document_key
              FROM compliance_documents

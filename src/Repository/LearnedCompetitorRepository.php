@@ -161,6 +161,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('minConfidence', 70)
             ->groupBy('c.tier, c.industry');
 
+        /** @var array<int, array<string, mixed>> $results */
         $results = $qb->getQuery()->getArrayResult();
 
         $stats = [

@@ -64,8 +64,11 @@ HELP
         }
 
         try {
+            /** @var mixed $cleanup */
             $cleanup = $input->getOption('cleanup');
+            /** @var mixed $userId */
             $userId = $input->getOption('user');
+            /** @var mixed $checkAll */
             $checkAll = $input->getOption('all');
 
             $totalCreated = 0;

@@ -44,6 +44,7 @@ class PriceHistory
     private ?string $unitPrice = null; // Price at qty 1
 
     #[ORM\Column(type: 'json')]
+    /** @var array<string, mixed>|list<mixed> $priceBreaks */
     private array $priceBreaks = []; // Full price break structure
 
     #[ORM\Column(length: 10)]

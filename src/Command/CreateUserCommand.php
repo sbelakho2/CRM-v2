@@ -49,8 +49,10 @@ class CreateUserCommand extends Command
         $lastName = $input->getArgument('lastName') ?? $io->ask('Last Name');
         $password = $input->getArgument('password') ?? $io->askHidden('Password');
         
+        /** @var mixed $isAdmin */
         $isAdmin = $input->getOption('admin');
         $role = $isAdmin ? 'Admin' : $input->getOption('role');
+        /** @var mixed $territory */
         $territory = $input->getOption('territory');
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {

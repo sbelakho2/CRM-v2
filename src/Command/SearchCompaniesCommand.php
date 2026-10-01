@@ -69,11 +69,16 @@ HELP
     {
         $io = new SymfonyStyle($input, $output);
         
+        /** @var string $query */
         $query = $input->getArgument('query');
         $limit = (int)$input->getOption('limit');
+        /** @var mixed $import */
         $import = $input->getOption('import');
+        /** @var mixed $sector */
         $sector = $input->getOption('sector');
+        /** @var mixed $location */
         $location = $input->getOption('location');
+        /** @var mixed $dryRun */
         $dryRun = $input->getOption('dry-run');
 
         $io->title('Google Custom Search - Company Discovery');

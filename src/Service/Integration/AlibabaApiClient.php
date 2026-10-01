@@ -52,6 +52,35 @@ use Symfony\Contracts\Cache\ItemInterface;
  * - Units sold, discount percentage
  * 
  * Caching: 7-day TTL — factory pricing is stable
+ *
+ * Crawled-product record shape shared by all extraction strategies:
+ *
+ * @phpstan-type CrawledProduct array{
+ *     product_id: int|float|string|bool,
+ *     title: string,
+ *     url: string,
+ *     price_low: float,
+ *     price_high: float|null,
+ *     currency: string,
+ *     moq: int,
+ *     ladder_pricing?: list<array{quantity_min: int, quantity_max: int|null, price: float, unit: string}>,
+ *     supplier_years: int|null,
+ *     country: string,
+ *     verified: bool,
+ *     rating: float|null,
+ *     review_count: int|null,
+ *     response_rate?: mixed,
+ *     dispatch_days: int|null,
+ *     units_sold: int|null,
+ *     certifications: list<string>,
+ *     discount_percent: null,
+ *     delivery_estimate: null,
+ *     image_url?: mixed,
+ *     _score?: int,
+ *     _mpn_matched?: bool,
+ *     _mpn_match_score?: int,
+ *     ...
+ * }
  */
 class AlibabaApiClient
 {
@@ -114,16 +143,16 @@ class AlibabaApiClient
 
     /**
      * Search for a part by manufacturer part number
-     * 
+     *
      * Crawls the Alibaba showroom page for the given MPN and extracts
      * all matching product listings with pricing, MOQ, and supplier data.
      * Results are scored by relevance and supplier quality.
-     * 
+     *
      * @param string $partNumber The MPN to search for
      * @param string|null $manufacturer Optional manufacturer name for scoring boost
      * @param string|null $description Optional description for confidence calculation
-     * 
-     * @return array|null Standard distributor result format with confidence scoring
+     *
+     * @return array<string, mixed>|null Standard distributor result format with confidence scoring
      */
     public function searchByPartNumber(
         string $partNumber,
@@ -167,7 +196,7 @@ class AlibabaApiClient
             $selected['stock'] = $virtualStock;
             
             // Calculate confidence
-            $confidence = $this->confidenceCalculator->calculateConfidence(
+            $confidence = $this->confidence()->calculateConfidence(
                 $partNumber,
                 $manufacturer,
                 $description,
@@ -192,7 +221,7 @@ class AlibabaApiClient
                 $confidence['level'] = 'LOW';
             }
             
-            $confidence['warnings'] = array_merge($confidence['warnings'] ?? [], [
+            $confidence['warnings'] = array_merge($confidence['warnings'], [
                 'Alibaba pricing is factory-direct, not from authorized distributor',
             ]);
             // If exact MPN match, don't require review
@@ -209,7 +238,7 @@ class AlibabaApiClient
                 $altStock = $this->estimateSupplierStock($scored[$i]);
                 $alt['stock'] = $altStock;
                 $altMpnScore = $scored[$i]['_mpn_match_score'] ?? 0;
-                $altConfidence = $this->confidenceCalculator->calculateConfidence(
+                $altConfidence = $this->confidence()->calculateConfidence(
                     $partNumber, $manufacturer, $description, $alt
                 );
                 $altPenalty = $altMpnScore >= 60 ? 0 : 3;
@@ -233,7 +262,7 @@ class AlibabaApiClient
                 'mpn' => $partNumber,
                 'products_found' => count($crawlResult),
                 'best_price' => $selected['pricing'][0]['price'] ?? 'N/A',
-                'best_supplier' => $selected['manufacturer'] ?? 'N/A',
+                'best_supplier' => $selected['manufacturer'],
             ]);
             
             return $selected;
@@ -288,12 +317,12 @@ class AlibabaApiClient
      * aggressively blocks automated access with CAPTCHAs, showroom pages
      * serve full HTML to standard HTTP requests.
      * 
-     * @return array[]|null Array of raw product data extracted from HTML
+     * @return CrawledProduct[]|null Array of raw product data extracted from HTML
      */
     private function crawlShowroomPage(string $partNumber): ?array
     {
         $url = sprintf(self::SHOWROOM_URL, urlencode($partNumber));
-        
+
         $html = $this->fetchWithRetry($url);
         
         if ($html === null) {
@@ -379,9 +408,9 @@ class AlibabaApiClient
                         ]);
                         
                         if ($proxy) {
-                            $this->proxyRotation?->reportFailure($proxy);
+                            $this->proxyRotation->reportFailure($proxy);
                         }
-                        
+
                         // Longer backoff before retry — escalate with attempt count
                         $captchaBackoff = rand(10000000, 20000000) + ($attempt * 5000000);
                         $this->logger->info('CAPTCHA backoff', [
@@ -396,9 +425,9 @@ class AlibabaApiClient
                     $this->alibabaBlockedCount = 0;
                     
                     if ($proxy) {
-                        $this->proxyRotation?->reportSuccess($proxy);
+                        $this->proxyRotation->reportSuccess($proxy);
                     }
-                    
+
                     return $content;
                 }
                 
@@ -413,9 +442,9 @@ class AlibabaApiClient
                     ]);
                     
                     if ($proxy) {
-                        $this->proxyRotation?->reportFailure($proxy);
+                        $this->proxyRotation->reportFailure($proxy);
                     }
-                    
+
                     // After 3 consecutive 403s, set fail-fast flag
                     if ($this->alibabaBlockedCount >= 3) {
                         $this->alibabaBlocked = true;
@@ -466,9 +495,9 @@ class AlibabaApiClient
                 ]);
                 
                 if ($proxy) {
-                    $this->proxyRotation?->reportFailure($proxy);
+                    $this->proxyRotation->reportFailure($proxy);
                 }
-                
+
                 if ($attempt < self::MAX_RETRIES) {
                     usleep(rand(3000000, 8000000));
                 }
@@ -523,7 +552,7 @@ class AlibabaApiClient
      * 2. DOM-based parsing via Symfony DomCrawler (product cards)
      * 3. Regex URL + price co-location (most resilient to layout changes)
      * 
-     * @return array[] Parsed product data
+     * @return CrawledProduct[] Parsed product data
      */
     private function parseShowroomHtml(string $html, string $partNumber): array
     {
@@ -588,10 +617,12 @@ class AlibabaApiClient
      * - offer.supplier — companyLogo, assessedSupplier
      * - offer.promotionInfoVO.quantityPrices[] — ladder pricing
      * - offer.features.crossReference — boolean
-     * 
+     *
      * This is the most reliable strategy: structured, stable across page
      * redesigns, and contains data not visible in the HTML (ladder pricing,
      * response rates, transaction levels).
+     *
+     * @return CrawledProduct[]
      */
     private function extractProductsFromPageData(string $html, string $partNumber): array
     {
@@ -617,7 +648,7 @@ class AlibabaApiClient
             // Alibaba embeds control characters (tabs, newlines, etc.) inside
             // JSON string values.  Strip them and retry — this fixes ~50% of
             // pages where the raw JSON is otherwise perfectly valid.
-            $cleaned = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', ' ', $jsonStr);
+            $cleaned = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', ' ', $jsonStr) ?? $jsonStr;
             /** @var array<string, mixed>|null $data */
             $data = json_decode($cleaned, true);
         }
@@ -629,39 +660,40 @@ class AlibabaApiClient
             return [];
         }
         
-        $items = $data['offerResultData']['itemInfoList'] ?? [];
+        $items = self::asArray(self::asArray($data['offerResultData'] ?? null)['itemInfoList'] ?? []);
         if (empty($items)) {
             // Also check firstProductCachedData as a single-item fallback
             $firstProduct = $data['firstProductCachedData'] ?? null;
-            if ($firstProduct && isset($firstProduct['offer'])) {
+            if (is_array($firstProduct) && isset($firstProduct['offer'])) {
                 $items = [['itemType' => $firstProduct['itemType'] ?? 'STANDARD', 'offer' => $firstProduct['offer']]];
             }
         }
-        
+
         if (empty($items)) {
             $this->logger->debug('Alibaba: _PAGE_DATA_ has no itemInfoList');
             return [];
         }
-        
+
         $products = [];
         foreach ($items as $item) {
-            $offer = $item['offer'] ?? null;
-            if ($offer === null) {
+            $offer = is_array($item) ? ($item['offer'] ?? null) : null;
+            if (!is_array($offer)) {
                 continue;
             }
-            
+
             $product = $this->parseOfferJson($offer);
             if ($product !== null) {
                 $products[] = $product;
             }
         }
-        
+
         return $products;
     }
 
     /**
      * Parse a single offer object from _PAGE_DATA_ JSON
-      * @param array<string|int, mixed> $offer
+     * @param array<string|int, mixed> $offer
+     * @return CrawledProduct|null
      */
     private function parseOfferJson(array $offer): ?array
     {
@@ -669,20 +701,23 @@ class AlibabaApiClient
         if (empty($productId)) {
             return null;
         }
-        
-        // Title
-        $title = $offer['information']['enPureTitle'] 
-            ?? $offer['puretitle'] 
-            ?? $offer['information']['title'] 
-            ?? null;
-        if (empty($title)) {
-            $title = 'Alibaba Product ' . $productId;
+        // Guard: non-scalar ids previously crashed on URL/title concatenation below.
+        if (!is_scalar($productId)) {
+            return null;
         }
-        $title = html_entity_decode(strip_tags($title), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        
+        $productIdText = (string) $productId;
+
+        // Title
+        $info = self::asArray($offer['information'] ?? null);
+        $title = $info['enPureTitle'] ?? $offer['puretitle'] ?? $info['title'] ?? null;
+        if (empty($title)) {
+            $title = 'Alibaba Product ' . $productIdText;
+        }
+        $title = html_entity_decode(strip_tags(self::asString($title)), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
         // URL
         $url = $offer['productUrl'] ?? $offer['detailUrl'] ?? null;
-        if ($url) {
+        if (is_string($url) && $url !== '' && $url !== '0') {
             // Normalize protocol-relative URLs
             if (str_starts_with($url, '//')) {
                 $url = 'https:' . $url;
@@ -690,164 +725,175 @@ class AlibabaApiClient
                 $url = 'https://www.alibaba.com' . $url;
             }
         } else {
-            $url = 'https://www.alibaba.com/product-detail/_' . $productId . '.html';
+            $url = 'https://www.alibaba.com/product-detail/_' . $productIdText . '.html';
         }
-        
+
         // === Price Extraction ===
         $priceLow = null;
         $priceHigh = null;
         $currency = 'USD';
         $ladderPricing = [];
-        
+
         // Primary: tradePrice (already in USD, formatted)
-        $tradePrice = $offer['tradePrice'] ?? [];
+        $tradePrice = self::asArray($offer['tradePrice'] ?? []);
         if (!empty($tradePrice['price'])) {
             // "US $0.30-$1.50"
-            if (preg_match('/\$\s*([\d,.]+)\s*-\s*\$?\s*([\d,.]+)/', $tradePrice['price'], $pm)) {
+            $priceText = self::asString($tradePrice['price']);
+            if (preg_match('/\$\s*([\d,.]+)\s*-\s*\$?\s*([\d,.]+)/', $priceText, $pm)) {
                 $priceLow = $this->parsePrice($pm[1]);
                 $priceHigh = $this->parsePrice($pm[2]);
-            } elseif (preg_match('/\$\s*([\d,.]+)/', $tradePrice['price'], $pm)) {
+            } elseif (preg_match('/\$\s*([\d,.]+)/', $priceText, $pm)) {
                 $priceLow = $this->parsePrice($pm[1]);
                 $priceHigh = $priceLow;
             }
         }
-        
+
         // Fallback: lowerPrice/upperPrice fields (e.g., "$0.30")
         if ($priceLow === null) {
             $lower = $offer['lowerPrice'] ?? null;
             $upper = $offer['upperPrice'] ?? null;
             if ($lower) {
-                $priceLow = $this->parsePrice(preg_replace('/[^\d.,]/', '', $lower));
+                $priceLow = $this->parsePrice(preg_replace('/[^\d.,]/', '', self::asString($lower)) ?? '');
             }
             if ($upper) {
-                $priceHigh = $this->parsePrice(preg_replace('/[^\d.,]/', '', $upper));
+                $priceHigh = $this->parsePrice(preg_replace('/[^\d.,]/', '', self::asString($upper)) ?? '');
             }
         }
-        
+
         // Fallback: raw price field (local currency, numeric)
         if ($priceLow === null && !empty($offer['price'])) {
-            $priceLow = (float) $offer['price'];
+            $priceLow = self::asFloat($offer['price']);
             $priceHigh = $priceLow;
             // Check if this is local currency via promotionInfoVO
-            $promoInfo = $offer['promotionInfoVO'] ?? [];
+            $promoInfo = self::asArray($offer['promotionInfoVO'] ?? []);
             if (!empty($promoInfo['originalPriceFrom'])) {
-                $priceLow = (float) $promoInfo['originalPriceFrom'];
+                $priceLow = self::asFloat($promoInfo['originalPriceFrom']);
             }
             if (!empty($promoInfo['originalPriceTo'])) {
-                $priceHigh = (float) $promoInfo['originalPriceTo'];
+                $priceHigh = self::asFloat($promoInfo['originalPriceTo']);
             }
         }
-        
+
         // Must have a valid price
         if ($priceLow === null || $priceLow <= 0) {
             return null;
         }
-        
+
         // Ladder pricing from promotionInfoVO.quantityPrices
-        $quantityPrices = $offer['promotionInfoVO']['quantityPrices'] ?? [];
+        $quantityPrices = self::asArray(self::asArray($offer['promotionInfoVO'] ?? [])['quantityPrices'] ?? []);
         foreach ($quantityPrices as $qp) {
+            if (!is_array($qp)) {
+                continue;
+            }
             if (isset($qp['price']) && isset($qp['quantityMin'])) {
                 $ladderPricing[] = [
-                    'quantity_min' => (int) $qp['quantityMin'],
-                    'quantity_max' => isset($qp['quantityMax']) ? (int) $qp['quantityMax'] : null,
-                    'price' => (float) $qp['price'],
-                    'unit' => $qp['unit'] ?? 'piece',
+                    'quantity_min' => self::asInt($qp['quantityMin']),
+                    'quantity_max' => isset($qp['quantityMax']) ? self::asInt($qp['quantityMax']) : null,
+                    'price' => self::asFloat($qp['price']),
+                    'unit' => self::asString($qp['unit'] ?? 'piece'),
                 ];
             }
         }
-        
+
         // === MOQ ===
         $moq = 1;
-        $minOrder = $tradePrice['minOrder'] ?? '';
+        $minOrder = self::asString($tradePrice['minOrder'] ?? '');
         if (preg_match('/(\d+)\s*(?:piece|set|unit|pcs?)/i', $minOrder, $moqMatch)) {
-            $moq = (int) $moqMatch[1];
+            $moq = self::asInt($moqMatch[1]);
         }
-        
+
         // === Supplier / Company Data ===
-        $company = $offer['company'] ?? [];
-        $supplier = $offer['supplier'] ?? [];
-        
+        $company = self::asArray($offer['company'] ?? []);
+        $supplier = self::asArray($offer['supplier'] ?? []);
+
         $supplierYears = null;
         $transLevel = $company['transactionLevel'] ?? null;
         if ($transLevel !== null) {
-            $supplierYears = (int) $transLevel;
+            $supplierYears = self::asInt($transLevel);
         }
-        
+
         $country = 'CN';
         $expCountry = $company['expCountry'] ?? '';
         if (!empty($expCountry)) {
             // "India/Italy" → take first
-            $parts = preg_split('/[\/,]/', $expCountry);
-            $country = trim($parts[0]);
+            $parts = preg_split('/[\/,]/', self::asString($expCountry));
+            if (is_array($parts) && isset($parts[0])) {
+                $country = trim($parts[0]);
+            }
         }
-        
+
         $responseRate = null;
-        if (!empty($company['record']['responseRate'])) {
-            $responseRate = $company['record']['responseRate'];
+        $record = self::asArray($company['record'] ?? null);
+        if (!empty($record['responseRate'])) {
+            $responseRate = $record['responseRate'];
         }
-        
+
         $verified = (bool) ($supplier['assessedSupplier'] ?? false);
-        
+
         // === Reviews ===
-        $reviews = $offer['reviews'] ?? [];
+        $reviews = self::asArray($offer['reviews'] ?? []);
         $rating = null;
         $reviewCount = null;
         if (!empty($reviews['reviewScore'])) {
-            $rating = (float) $reviews['reviewScore'];
+            $rating = self::asFloat($reviews['reviewScore']);
         } elseif (!empty($reviews['productScore'])) {
-            $rating = (float) $reviews['productScore'];
+            $rating = self::asFloat($reviews['productScore']);
         }
         if (isset($reviews['reviewCount'])) {
-            $reviewCount = (int) $reviews['reviewCount'];
+            $reviewCount = self::asInt($reviews['reviewCount']);
         }
-        
+
         // === Image ===
-        $image = $offer['image'] ?? [];
+        $image = self::asArray($offer['image'] ?? []);
         $imageUrl = $image['mainImage'] ?? $image['bigImage'] ?? $image['extendImage'] ?? null;
-        if ($imageUrl && str_starts_with($imageUrl, '//')) {
+        if (is_string($imageUrl) && str_starts_with($imageUrl, '//')) {
             $imageUrl = 'https:' . $imageUrl;
         }
-        
+
         // === Certifications / Tags ===
         $certifications = [];
-        $tagStr = $offer['tag']['tag'] ?? '';
+        $tagStr = self::asString(self::asArray($offer['tag'] ?? null)['tag'] ?? '');
         // Check product attributes for RoHS, CE, etc.
-        $productAttrs = $offer['features']['productAttribute'] ?? [];
+        $productAttrs = self::asArray(self::asArray($offer['features'] ?? null)['productAttribute'] ?? null);
         foreach ($productAttrs as $attr) {
-            $name = strtolower($attr['name'] ?? '');
-            $value = $attr['value'] ?? '';
+            if (!is_array($attr)) {
+                continue;
+            }
+            $name = strtolower(self::asString($attr['name'] ?? ''));
+            $value = self::asString($attr['value'] ?? '');
             if (str_contains($name, 'certification') || str_contains($name, 'rohs')) {
                 if (preg_match('/RoHS|CE|FCC|UL|ISO/i', $value, $certMatch)) {
                     $certifications[] = $certMatch[0];
                 }
             }
         }
-        
+
         // === Dispatch / Delivery days ===
         $dispatchDays = null;
         // Check tag string for "3-day dispatch" / "5-day dispatch"
         if (!empty($tagStr) && preg_match('/(\d+)-?day\s*dispatch/i', $tagStr, $dm)) {
-            $dispatchDays = (int) $dm[1];
+            $dispatchDays = self::asInt($dm[1]);
         }
         // Check offer-level delivery info
-        $deliveryStr = $offer['deliveryStr'] ?? $offer['delivery'] ?? '';
+        $deliveryStr = self::asString($offer['deliveryStr'] ?? $offer['delivery'] ?? '');
         if (!$dispatchDays && !empty($deliveryStr)) {
             if (preg_match('/(\d+)\s*days?/i', $deliveryStr, $dm)) {
-                $dispatchDays = (int) $dm[1];
+                $dispatchDays = self::asInt($dm[1]);
             }
         }
         // Check for "Ready to Ship" flag = ~3 day dispatch
         if (!$dispatchDays && !empty($offer['readyToShip'])) {
             $dispatchDays = 3;
         }
-        
+
         // === Units sold ===
         $unitsSold = null;
         $salesStr = $offer['salesVolume'] ?? $offer['saleCount'] ?? null;
         if ($salesStr !== null) {
-            $unitsSold = (int) preg_replace('/[^\d]/', '', (string) $salesStr);
+            // Guard: non-scalar sales values previously crashed the (string) cast below.
+            $unitsSold = (int) preg_replace('/[^\d]/', '', self::asString($salesStr));
         }
-        
+
         return [
             'product_id' => $productId,
             'title' => $title,
@@ -931,6 +977,8 @@ class AlibabaApiClient
      *     <span data-component="ProductPrice">US $0.566-$1.044</span>
      *     <span data-component="ProductMoq">MOQ: 1</span>
      *   </div>
+     *
+     * @return CrawledProduct[]
      */
     private function extractProductsFromDataAttributes(string $html, string $partNumber): array
     {
@@ -1045,13 +1093,17 @@ class AlibabaApiClient
     // ========================================================================
     // Strategy 2: DOM-based extraction using Symfony DomCrawler (legacy)
     // ========================================================================
+
+    /**
+     * @return CrawledProduct[]
+     */
     private function extractProductsFromDom(string $html, string $partNumber): array
     {
         $products = [];
-        
+
         try {
             $crawler = new Crawler($html);
-            
+
             // Try known Alibaba product card CSS selectors
             $selectors = [
                 '.organic-list .list-no-v2-outter',
@@ -1062,11 +1114,11 @@ class AlibabaApiClient
                 '.gallery-offer-outter',
                 '.J-offer-card-wrapper',
             ];
-            
+
             foreach ($selectors as $selector) {
                 $cards = $crawler->filter($selector);
                 if ($cards->count() > 0) {
-                    $cards->each(function (Crawler $card) use (&$products, $partNumber) {
+                    $cards->each(function (Crawler $card) use (&$products, $partNumber): void {
                         $product = $this->parseProductCard($card, $partNumber);
                         if ($product !== null) {
                             $products[] = $product;
@@ -1075,13 +1127,13 @@ class AlibabaApiClient
                     break;
                 }
             }
-            
+
             // Fallback: find all product-detail links in the DOM
             if (empty($products)) {
                 $links = $crawler->filter('a[href*="product-detail"]');
                 $seenIds = [];
-                
-                $links->each(function (Crawler $link) use (&$products, &$seenIds, $partNumber) {
+
+                $links->each(function (Crawler $link) use (&$products, &$seenIds): void {
                     $href = $link->attr('href') ?? '';
                     if (preg_match('/_(\d{8,})\.html/', $href, $m)) {
                         $id = $m[1];
@@ -1154,6 +1206,8 @@ class AlibabaApiClient
 
     /**
      * Parse a single product card DOM element
+     *
+     * @return CrawledProduct|null
      */
     private function parseProductCard(Crawler $card, string $partNumber): ?array
     {
@@ -1220,6 +1274,8 @@ class AlibabaApiClient
      * 
      * Finds product URLs paired with price patterns in nearby text.
      * Most resilient to HTML structure changes.
+     *
+     * @return CrawledProduct[]
      */
     private function extractProductsFromRegex(string $html, string $partNumber): array
     {
@@ -1317,22 +1373,22 @@ class AlibabaApiClient
      *   Certifications:     +5 each
      *   Suspiciously cheap: -30 (< $0.05)
      *   Very high MOQ:      -5 (> 1000)
-     * 
-     * @return array[] Sorted descending by score
-      * @param array<string|int, mixed> $products
+     *
+     * @param CrawledProduct[] $products
+     * @return CrawledProduct[] Sorted descending by score
      */
     private function scoreAndRankProducts(array $products, string $partNumber, ?string $manufacturer): array
     {
         $normalizedMpn = strtolower(trim($partNumber));
         $normalizedMpnClean = str_replace(['-', '_', ' ', '.'], '', $normalizedMpn);
         $normalizedMfr = $manufacturer ? strtolower(trim($manufacturer)) : null;
-        
+
         $scored = [];
         foreach ($products as $product) {
             $score = 0;
-            $titleLower = strtolower($product['title'] ?? '');
+            $titleLower = strtolower($product['title']);
             $titleClean = str_replace(['-', '_', ' ', '.'], '', $titleLower);
-            
+
             // MPN match in title
             $mpnMatched = false;
             $mpnMatchScore = 0;
@@ -1352,27 +1408,27 @@ class AlibabaApiClient
                     $mpnMatchScore = 40;
                 }
             }
-            
+
             // Manufacturer match
             if ($normalizedMfr && str_contains($titleLower, $normalizedMfr)) {
                 $score += 20;
             }
-            
+
             // Verified supplier
-            if ($product['verified'] ?? false) {
+            if ($product['verified']) {
                 $score += 25;
             }
-            
+
             // Supplier years
             $years = $product['supplier_years'] ?? 0;
             $score += min(20, $years * 2);
-            
+
             // Rating
             $rating = $product['rating'] ?? 0;
             if ($rating > 0) {
                 $score += min(25, (int)($rating * 5));
             }
-            
+
             // Review count
             $reviews = $product['review_count'] ?? 0;
             if ($reviews >= 50) {
@@ -1380,38 +1436,38 @@ class AlibabaApiClient
             } elseif ($reviews >= 10) {
                 $score += 8;
             }
-            
+
             // Units sold (social proof)
             if (($product['units_sold'] ?? 0) > 0) {
                 $score += 15;
             }
-            
+
             // Fast dispatch
             if (($product['dispatch_days'] ?? null) !== null && $product['dispatch_days'] <= 5) {
                 $score += 10;
             }
-            
+
             // Certifications
-            $score += count($product['certifications'] ?? []) * 5;
-            
+            $score += count($product['certifications']) * 5;
+
             // Penalty: suspiciously cheap (< $0.05 for ICs)
-            $price = $product['price_low'] ?? 0;
+            $price = $product['price_low'];
             if ($price > 0 && $price < 0.05) {
                 $score -= 30;
             }
-            
+
             // Penalty: very high MOQ
-            if (($product['moq'] ?? 1) > 1000) {
+            if ($product['moq'] > 1000) {
                 $score -= 5;
             }
-            
+
             $product['_score'] = $score;
             $product['_mpn_matched'] = $mpnMatched;
             $product['_mpn_match_score'] = $mpnMatchScore;
             $scored[] = $product;
         }
-        
-        usort($scored, fn($a, $b) => $b['_score'] <=> $a['_score']);
+
+        usort($scored, fn(array $a, array $b) => $b['_score'] <=> $a['_score']);
         
         // Require at least SOME MPN match in title — reject garbage matches
         // (e.g. diesel engines when searching for capacitors)
@@ -1426,7 +1482,7 @@ class AlibabaApiClient
             // Recalculate quickly: if score ≥ 40 after removing max possible reputation
             // (verified 25 + years 20 + rating 25 + reviews 15 + sold 15 + dispatch 10 + mfr 20 + certs ~15 = ~145)
             // Actually simpler: tag it during scoring. But we can check the _mpn_match flag.
-            return ($p['_mpn_matched'] ?? false);
+            return $p['_mpn_matched'];
         }));
         
         return $scored;
@@ -1442,21 +1498,21 @@ class AlibabaApiClient
      *
      * This is NOT real stock — it's a confidence-weighted estimate that the
      * supplier CAN deliver. The value is flagged via '_stock_estimated'.
-      * @param array<string|int, mixed> $product
+     * @param CrawledProduct $product
      */
     private function estimateSupplierStock(array $product): int
     {
         $stock = 0;
-        
+
         // Verified/assessed supplier → factory can fulfill
-        if ($product['verified'] ?? false) {
+        if ($product['verified']) {
             $stock += 5000;
         }
-        
+
         // Years on platform → established supply chain
         $years = $product['supplier_years'] ?? 0;
         $stock += min(10000, $years * 1000);
-        
+
         // Good rating → reliable fulfillment
         $rating = $product['rating'] ?? 0;
         if ($rating >= 4.5) {
@@ -1464,7 +1520,7 @@ class AlibabaApiClient
         } elseif ($rating >= 4.0) {
             $stock += 1500;
         }
-        
+
         // Reviews → proven transaction history
         $reviews = $product['review_count'] ?? 0;
         if ($reviews >= 50) {
@@ -1472,12 +1528,12 @@ class AlibabaApiClient
         } elseif ($reviews >= 10) {
             $stock += 500;
         }
-        
+
         // Units sold → active product line
         if (($product['units_sold'] ?? 0) > 0) {
             $stock += 2000;
         }
-        
+
         // Minimum: if product exists on Alibaba with a price, assume some availability
         return max(100, $stock);
     }
@@ -1497,19 +1553,47 @@ class AlibabaApiClient
      * - image_url, product_url
      * - confidence (added by caller)
      * - alternatives[] (added by caller)
-      * @param array<string|int, mixed> $product
+     *
+     * @param CrawledProduct $product
+     * @return array{
+     *     mpn: string,
+     *     manufacturer: string,
+     *     description: string|null,
+     *     datasheet: null,
+     *     pricing: list<array{quantity: int, price: float, currency: string}>,
+     *     stock: int,
+     *     _stock_estimated: true,
+     *     leadtime_days: int,
+     *     lifecycle: null,
+     *     rohs: string|null,
+     *     category: null,
+     *     image_url: mixed,
+     *     product_url: string,
+     *     _all_matches_count: int,
+     *     moq: int,
+     *     pack_quantity: null,
+     *     multiple_quantity: null,
+     *     supplier_type: string,
+     *     trade_assurance: bool,
+     *     shipping_from: string,
+     *     _crawl_data: array<string, mixed>,
+     *     confidence?: array<string, mixed>,
+     *     alternatives?: list<array<string, mixed>>,
+     *     lifecycle_warning?: null,
+     *     ...
+     * }
      */
     private function formatCrawledProduct(array $product, string $requestedMpn): array
     {
-        $priceLow = $product['price_low'] ?? 0;
+        $priceLow = $product['price_low'];
         $priceHigh = $product['price_high'] ?? $priceLow;
-        $moq = max(1, $product['moq'] ?? 1);
-        $currency = $product['currency'] ?? 'USD';
-        
+        $moq = max(1, $product['moq']);
+        $currency = $product['currency'];
+
         // Build price breaks from ladder pricing or low/high range
         $pricing = [];
         $ladderPricing = $product['ladder_pricing'] ?? [];
-        
+
         if (!empty($ladderPricing)) {
             // Use real ladder pricing from JSON (most accurate)
             foreach ($ladderPricing as $tier) {
@@ -1521,9 +1605,10 @@ class AlibabaApiClient
             }
             // Add deep-bulk tier: at 5x the last ladder qty, price drops 35%
             // Fix H5: Use array_key_last() instead of end() to avoid mutating internal array pointer.
-            $lastTier = $ladderPricing[array_key_last($ladderPricing)];
-            $deepQty = ($lastTier['quantity_min'] ?? 100) * 5;
-            $deepPrice = round(($lastTier['price'] ?? $priceLow) * 0.65, 6);
+            $lastKey = array_key_last($ladderPricing);
+            $lastTier = $ladderPricing[$lastKey];
+            $deepQty = $lastTier['quantity_min'] * 5;
+            $deepPrice = round($lastTier['price'] * 0.65, 6);
             if ($deepPrice > 0) {
                 $pricing[] = ['quantity' => $deepQty, 'price' => $deepPrice, 'currency' => $currency];
             }
@@ -1531,16 +1616,16 @@ class AlibabaApiClient
             if ($priceHigh > $priceLow) {
                 // High price at MOQ, graduated to low price at bulk
                 $pricing[] = ['quantity' => $moq, 'price' => $priceHigh, 'currency' => $currency];
-                
+
                 // Interpolated middle break
                 $midQty = max($moq * 10, 100);
                 $midPrice = round(($priceLow + $priceHigh) / 2, 4);
                 $pricing[] = ['quantity' => $midQty, 'price' => $midPrice, 'currency' => $currency];
-                
+
                 // Bulk price (last posted tier)
                 $bulkQty = max($moq * 100, 1000);
                 $pricing[] = ['quantity' => $bulkQty, 'price' => $priceLow, 'currency' => $currency];
-                
+
                 // Deep-bulk: at 5x bulk qty, estimated 35% below price_low
                 // Reflects "contact for price" tier on Alibaba listings
                 $deepBulkQty = $bulkQty * 5;
@@ -1557,19 +1642,19 @@ class AlibabaApiClient
                 }
             }
         }
-        
+
         // Lead time from dispatch days or default
         $leadTimeDays = 30;
         if ($product['dispatch_days'] !== null) {
             $leadTimeDays = $product['dispatch_days'];
         }
-        
+
         // Build rich supplier description
         $supplierParts = [];
         if ($product['verified']) {
             $supplierParts[] = 'Verified Supplier';
         }
-        $supplierParts[] = $product['country'] ?? 'CN';
+        $supplierParts[] = $product['country'];
         if ($product['supplier_years']) {
             $supplierParts[] = $product['supplier_years'] . ' yrs';
         }
@@ -1581,13 +1666,13 @@ class AlibabaApiClient
             $supplierParts[] = $ratingStr;
         }
         $supplierInfo = implode(', ', $supplierParts);
-        
-        $rohs = in_array('RoHS', $product['certifications'] ?? []) ? 'Compliant' : null;
-        
+
+        $rohs = in_array('RoHS', $product['certifications']) ? 'Compliant' : null;
+
         return [
             'mpn' => $requestedMpn,
             'manufacturer' => $supplierInfo,
-            'description' => $product['title'] ?? null,
+            'description' => $product['title'],
             'datasheet' => null,
             'pricing' => $pricing,
             'stock' => 0, // Will be overridden with estimateSupplierStock by caller
@@ -1597,7 +1682,7 @@ class AlibabaApiClient
             'rohs' => $rohs,
             'category' => null,
             'image_url' => $product['image_url'] ?? null,
-            'product_url' => $product['url'] ?? $this->buildSearchUrl($requestedMpn),
+            'product_url' => $product['url'],
             '_all_matches_count' => 1,
             'moq' => $moq,
             'pack_quantity' => null,
@@ -1605,7 +1690,7 @@ class AlibabaApiClient
             // Alibaba-specific
             'supplier_type' => $product['verified'] ? 'Verified Supplier' : 'Standard',
             'trade_assurance' => $product['verified'],
-            'shipping_from' => $product['country'] ?? 'China',
+            'shipping_from' => $product['country'],
             // Crawler metadata — truncated to essential fields only to minimise cache bloat.
             // Raw HTML metadata, full ladder_pricing copies, and verbose arrays are excluded.
             '_crawl_data' => [
@@ -1644,7 +1729,7 @@ class AlibabaApiClient
      */
     private function parsePrice(string $priceStr): float
     {
-        $clean = preg_replace('/[^\d.,]/', '', $priceStr);
+        $clean = preg_replace('/[^\d.,]/', '', $priceStr) ?? '';
         
         // Thousands separator: "1,500.00"
         if (preg_match('/^\d{1,3}(,\d{3})+(\.\d+)?$/', $clean)) {
@@ -1689,12 +1774,63 @@ class AlibabaApiClient
         
         $now = microtime(true);
         $elapsed = ($now - $this->lastRequestTime) * 1000000;
-        
+
         if ($this->lastRequestTime > 0 && $elapsed < $maxDelay) {
             $remainingDelay = max($minDelay, $maxDelay - (int) $elapsed);
             usleep(rand($minDelay, $remainingDelay));
         }
-        
+
         $this->lastRequestTime = microtime(true);
+    }
+
+    // ========================================================================
+    // Internal Typing Helpers
+    // ========================================================================
+
+    /**
+     * The confidence calculator is optional at DI time but always initialised
+     * in the constructor; this accessor exposes the guaranteed non-null instance.
+     */
+    private function confidence(): PartMatchConfidenceCalculator
+    {
+        return $this->confidenceCalculator ??= new PartMatchConfidenceCalculator();
+    }
+
+    /**
+     * Narrow a mixed JSON value to an array (non-arrays are treated as empty,
+     * matching the previous ?? [] / null-coalescing behaviour).
+     *
+     * @return array<string|int, mixed>
+     */
+    private static function asArray(mixed $value): array
+    {
+        return is_array($value) ? $value : [];
+    }
+
+    /**
+     * Narrow a mixed JSON value to a string. Non-scalar values previously
+     * crashed the string-function call sites; scalars are cast as before.
+     */
+    private static function asString(mixed $value): string
+    {
+        return is_scalar($value) ? (string) $value : '';
+    }
+
+    /**
+     * Narrow a mixed JSON value to an int. Non-scalar values previously
+     * crashed or coerced unpredictably at the (int) call sites.
+     */
+    private static function asInt(mixed $value): int
+    {
+        return is_scalar($value) ? (int) $value : 0;
+    }
+
+    /**
+     * Narrow a mixed JSON value to a float. Non-scalar values previously
+     * crashed or coerced unpredictably at the (float) call sites.
+     */
+    private static function asFloat(mixed $value): float
+    {
+        return is_scalar($value) ? (float) $value : 0.0;
     }
 }

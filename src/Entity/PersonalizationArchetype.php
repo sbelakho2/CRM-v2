@@ -50,6 +50,7 @@ class PersonalizationArchetype
     private string $preferredStyle = 'concise';
 
     #[ORM\Column(type: Types::JSON)]
+    /** @var array<string, mixed>|list<mixed> $featureEmbedding */
     private array $featureEmbedding = [];
 
     #[ORM\Column(type: 'integer', options: ['default' => 75])]

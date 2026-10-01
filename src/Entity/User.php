@@ -22,6 +22,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $email = null;
 
     #[ORM\Column]
+    /** @var array<string, mixed>|list<mixed> $roles */
     private array $roles = [];
 
     #[ORM\Column]

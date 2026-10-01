@@ -52,6 +52,7 @@ class EmailCampaign
     private ?int $touchCount = 5; // Default 5-touch sequence
 
     #[ORM\Column(type: 'json')]
+    /** @var array<string, mixed>|list<mixed> $touchTemplates */
     private array $touchTemplates = []; // Array of template IDs
 
     #[ORM\Column(type: 'json', nullable: true)]

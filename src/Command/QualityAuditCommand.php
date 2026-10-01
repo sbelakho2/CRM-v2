@@ -94,8 +94,11 @@ class QualityAuditCommand extends Command
         $regions = $input->getOption('regions')
             ? explode(',', $input->getOption('regions'))
             : self::REGIONS;
+        /** @var mixed $auditOnly */
         $auditOnly = $input->getOption('audit-only');
+        /** @var mixed $wipe */
         $wipe = $input->getOption('wipe');
+        /** @var mixed $force */
         $force = $input->getOption('force');
 
         // ── WIPE PHASE: Delete all discovered companies + contacts ──

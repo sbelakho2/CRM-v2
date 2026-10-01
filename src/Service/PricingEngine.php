@@ -35,6 +35,105 @@ use Psr\Log\LoggerInterface;
  * 
  * The engine now tracks WHY a distributor was chosen and provides
  * alternatives so users can make informed decisions.
+ *
+ * @phpstan-type PriceBreak array{quantity: int, price: int|float, currency?: string, unit_price?: int|float, unitPrice?: int|float}
+ * @phpstan-type ConfidenceInfo array{score: int|float, level: string, requiresReview?: bool, reasons?: list<string>, warnings?: list<string>}
+ * @phpstan-type PartPricing array{
+ *     mpn?: string,
+ *     manufacturer?: string|null,
+ *     description?: string|null,
+ *     pricing: list<PriceBreak>,
+ *     stock?: int|null,
+ *     stock_quantity?: int,
+ *     quantity?: int,
+ *     moq?: int,
+ *     pack_quantity?: int|null,
+ *     multiple_quantity?: int|null,
+ *     source?: string|null,
+ *     _source?: string|null,
+ *     _source_url?: string|null,
+ *     _fallback_method?: string,
+ *     product_url?: string|null,
+ *     search_url?: string|null,
+ *     confidence?: ConfidenceInfo,
+ *     alternatives?: list<array<string, mixed>>,
+ *     lifecycle_warning?: string|null,
+ *     waterfall_info?: array{triggered: bool, reason?: string|null, sources_checked?: list<int|string>},
+ *     alt_mpn_used?: string|null
+ * }
+ * @phpstan-type BomLine array{
+ *     lineNumber?: int,
+ *     designator?: string,
+ *     mpn: string,
+ *     manufacturer?: string|null,
+ *     description?: string|null,
+ *     quantity: int,
+ *     value?: string,
+ *     package?: string,
+ *     supplier?: string,
+ *     supplier_pn?: string,
+ *     category?: string,
+ *     remark?: string|null,
+ *     stock_quantity?: int,
+ *     firm_quantity?: bool|int,
+ *     total_price?: int|float,
+ *     unit_price?: int|float|null,
+ *     leadtime_days?: int,
+ *     status?: string,
+ *     extended_price?: int|float|null,
+ *     source?: string|null,
+ *     confidence?: ConfidenceInfo,
+ *     alternatives?: list<array<string, mixed>>,
+ *     lifecycle_warning?: string|null,
+ *     search_url?: string|null,
+ *     product_url?: string|null,
+ *     currency?: string|null,
+ *     pricing?: list<PriceBreak>,
+ *     moq?: int,
+ *     pack_quantity?: int|null,
+ *     multiple_quantity?: int|null,
+ *     requested_quantity?: int,
+ *     effective_quantity?: int,
+ *     quantity_adjusted?: bool,
+ *     quantity_adjustment_reason?: string|null,
+ *     bom_price_capped?: bool,
+ *     risk_analysis?: mixed,
+ *     alt_mpn_used?: string|null,
+ *     alt_mpn_savings_pct?: int|float,
+ *     manual_notes?: string|null,
+ *     alibaba_supplier?: string,
+ *     alibaba_raw_description?: string,
+ *     waterfall_info?: array{triggered: bool, reason?: string|null, sources_checked?: list<int|string>}
+ * }
+ * @phpstan-type BomStats array{
+ *     total_lines: int,
+ *     sourced: int,
+ *     unsourced: int,
+ *     total_cost: int|float,
+ *     sources: array<string, int>,
+ *     confidence_breakdown?: array<string, int>,
+ *     requires_review_count: int,
+ *     lifecycle_warnings?: array{critical: int, warning: int},
+ *     waterfall_triggered_count?: int,
+ *     with_alternatives_count?: int,
+ *     quantity_adjusted_count?: int,
+ *     coverage_percent?: int|float,
+ *     high_confidence_percent?: int|float,
+ *     lifecycle_health_percent?: int|float
+ * }
+ * @phpstan-type PriceBreakRecommendation array{
+ *     mpn?: string,
+ *     recommended_quantity: int,
+ *     additional_quantity: int,
+ *     current_unit_price: float,
+ *     recommended_unit_price: int|float,
+ *     current_total: float,
+ *     recommended_total: float,
+ *     savings: float,
+ *     savings_percent: int|float,
+ *     currency: string,
+ *     message: string
+ * }
  */
 class PricingEngine
 {
@@ -45,7 +144,7 @@ class PricingEngine
      * inputs always produce the identical result; PHP array values are
      * copy-on-write, so caller mutations never corrupt the memo).
      *
-     * @var array<string, array|null>
+     * @var array<string, PartPricing|null>
      */
     private array $priceMemo = [];
 
@@ -69,17 +168,17 @@ class PricingEngine
 
     /**
      * Get pricing for a single part using enhanced API waterfall with confidence scoring
-     * 
+     *
      * Uses MultiDistributorSourcingService for intelligent distributor selection.
      * Returns alternatives and lifecycle warnings along with the best match.
-     * 
+     *
      * @param string $mpn The manufacturer part number
      * @param string|null $manufacturer The manufacturer name (optional but improves matching)
      * @param string|null $description The part description (optional but improves confidence)
-     * @param array $options Options: ['providers' => ['alibaba','mouser','digikey','nexar']]
-     * 
-     * @return array|null ['mpn', 'manufacturer', 'description', 'pricing', 'stock', 'source', 
-     *                     'confidence', 'alternatives', 'lifecycle_warning', 'search_url', 
+     * @param array{providers?: list<string>} $options Options: ['providers' => ['alibaba','mouser','digikey','nexar']]
+     *
+     * @return PartPricing|null ['mpn', 'manufacturer', 'description', 'pricing', 'stock', 'source',
+     *                     'confidence', 'alternatives', 'lifecycle_warning', 'search_url',
      *                     'waterfall_info']
      */
     public function getPricing(string $mpn, ?string $manufacturer = null, ?string $description = null, array $options = []): ?array
@@ -102,26 +201,28 @@ class PricingEngine
     }
 
     /**
-     * @return array|null ['mpn', 'manufacturer', 'description', 'pricing', 'stock', 'source',
+     * @return PartPricing|null ['mpn', 'manufacturer', 'description', 'pricing', 'stock', 'source',
      *                     'confidence', 'alternatives', 'lifecycle_warning', 'search_url',
      *                     'waterfall_info']
-      * @param array<string|int, mixed> $options
+     * @param array{providers?: list<string>} $options
      */
     private function resolvePricing(string $mpn, ?string $manufacturer = null, ?string $description = null, array $options = []): ?array
     {
         $allowedProviders = $options['providers'] ?? [];
         // Nexar disabled by default — Mouser-only mode
         $useNexar = in_array('nexar', $allowedProviders, true);
-        
+
         // Use multi-distributor service for intelligent waterfall
         $multiResult = $this->multiDistributor->searchPart($mpn, $manufacturer, $description, [
             'providers' => $allowedProviders,
         ]);
-        
-        if ($multiResult && $multiResult['selected']) {
+
+        /** @var array{selected: PartPricing|null, source: string|null, alternatives: list<array<string, mixed>>, all_sources: array<string, mixed>, waterfall_triggered: bool, waterfall_reason: string|null} $multiResult */
+        if ($multiResult['selected']) {
+            /** @var PartPricing $result */
             $result = $multiResult['selected'];
             $result['source'] = $multiResult['source'];
-            $result['alternatives'] = $multiResult['alternatives'] ?? [];
+            $result['alternatives'] = $multiResult['alternatives'];
             $result['waterfall_info'] = [
                 'triggered' => $multiResult['waterfall_triggered'],
                 'reason' => $multiResult['waterfall_reason'],
@@ -168,6 +269,7 @@ class PricingEngine
         
         // If multi-distributor service didn't find anything, try Nexar as last resort
         if ($useNexar) {
+            /** @var PartPricing|null $result */
             $result = $this->nexarClient->searchByPartNumber($mpn);
             
             if ($result) {
@@ -197,6 +299,7 @@ class PricingEngine
         // ─────────────────────────────────────────────────────────────────
         $this->logger->info('AI imputation SKIPPED (disabled) — returning null', [
             'mpn' => $mpn,
+            'imputer' => $this->priceImputation::class,
         ]);
 
         $this->logger->warning('No pricing found in any API', ['mpn' => $mpn]);
@@ -206,8 +309,10 @@ class PricingEngine
     
     /**
      * Get pricing from a specific distributor (for alternative selection)
-     * 
+     *
      * Used when user manually selects an alternative from a different distributor.
+     *
+     * @return PartPricing|null
      */
     public function getPricingFromSource(string $mpn, string $source, ?string $manufacturer = null): ?array
     {
@@ -216,10 +321,11 @@ class PricingEngine
             return $this->priceMemo[$key];
         }
 
+        /** @var PartPricing|null $result */
         $result = match($source) {
             'alibaba' => $this->alibabaClient->searchByPartNumber($mpn, $manufacturer),
             'mouser' => $this->mouserClient->searchByPartNumber($mpn, $manufacturer),
-            'digikey' => $this->digikeyClient->searchByPartNumber($mpn, $manufacturer),
+            'digikey' => $this->digikeyClient->searchByPartNumber($mpn),
             'nexar' => $this->nexarClient->searchByPartNumber($mpn),
             default => null,
         };
@@ -240,13 +346,14 @@ class PricingEngine
      * - Waterfall trigger reasons for transparency
      * - Direct search URLs for verification
      * 
-     * @param array $bomLines Array from BOMParser
-     * @param array $options Options: ['providers' => ['alibaba','mouser','digikey','nexar']]
-     * @return array ['lines' => processed lines, 'stats' => statistics, 'reviewRequired' => bool]
+     * @param array<int, BomLine> $bomLines Array from BOMParser
+     * @param array{providers?: list<string>} $options Options: ['providers' => ['alibaba','mouser','digikey','nexar']]
+     * @return array{lines: list<BomLine>, stats: BomStats, reviewRequired: bool} ['lines' => processed lines, 'stats' => statistics, 'reviewRequired' => bool]
      */
     public function processBOM(array $bomLines, array $options = []): array
     {
         $allowedProviders = $options['providers'] ?? [];
+        /** @var list<BomLine> $processedLines */
         $processedLines = [];
         $stats = [
             'total_lines' => count($bomLines),
@@ -328,6 +435,7 @@ class PricingEngine
                     $useDigikey = in_array('digikey', $allowedProviders, true);
                     if (!$pricing && $useDigikey) {
                         try {
+                            /** @var PartPricing|null $dkFallback */
                             $dkFallback = $this->digikeyClient->searchByPartNumber($fallbackAltMpn);
                             if ($dkFallback) {
                                 $pricing = $dkFallback;
@@ -404,6 +512,7 @@ class PricingEngine
                 // The waterfall selects by confidence score, but at the actual order qty
                 // a different source may be significantly cheaper.
                 $alternatives = $pricing['alternatives'] ?? [];
+                /** @var PartPricing $alt */
                 foreach ($alternatives as $alt) {
                     $altBreaks = $alt['pricing'] ?? [];
                     if (empty($altBreaks)) continue;
@@ -464,6 +573,7 @@ class PricingEngine
                         $useDigikeyForAlt = empty($allowedProviders) || in_array('digikey', $allowedProviders, true);
                         if ($useDigikeyForAlt) {
                             try {
+                            /** @var PartPricing|null $digiKeyAlt */
                             $digiKeyAlt = $this->digikeyClient->searchByPartNumber($altMpn);
                             if ($digiKeyAlt) {
                                 $dkAltPrice = $this->calculateUnitPrice($digiKeyAlt['pricing'] ?? [], $effectiveQty);
@@ -485,6 +595,7 @@ class PricingEngine
                         // Also try DigiKey directly for the PRIMARY MPN if currently using Alibaba
                         if ($useDigikeyForAlt && ($processedLine['source'] ?? '') === 'alibaba' && $unitPrice > 0.01) {
                             try {
+                                /** @var PartPricing|null $dkPrimary */
                                 $dkPrimary = $this->digikeyClient->searchByPartNumber($line['mpn']);
                                 if ($dkPrimary) {
                                     $dkPrimaryPrice = $this->calculateUnitPrice($dkPrimary['pricing'] ?? [], $effectiveQty);
@@ -575,6 +686,7 @@ class PricingEngine
                 $passivePriceCap = $this->getPassivePriceCap($line['mpn'], $processedLine['description'] ?? '');
                 if ($passivePriceCap !== null && $unitPrice > $passivePriceCap && ($processedLine['source'] ?? '') === 'alibaba') {
                     // Try each alternative for a cheaper, saner result
+                    /** @var PartPricing $alt */
                     foreach ($processedLine['alternatives'] ?? [] as $alt) {
                         $altBreaks = $alt['pricing'] ?? [];
                         if (empty($altBreaks)) continue;
@@ -609,10 +721,13 @@ class PricingEngine
                 
                 // Add warning if quantity was adjusted
                 if ($quantityResult['adjusted']) {
-                    $processedLine['confidence']['warnings'] = array_merge(
-                        $processedLine['confidence']['warnings'] ?? [],
-                        [$quantityResult['reason']]
-                    );
+                    $adjustmentWarning = $quantityResult['reason'];
+                    if ($adjustmentWarning !== null) {
+                        $processedLine['confidence']['warnings'] = array_merge(
+                            $processedLine['confidence']['warnings'] ?? [],
+                            [$adjustmentWarning]
+                        );
+                    }
                 }
                 
                 $stats['sourced']++;
@@ -681,6 +796,7 @@ class PricingEngine
                 // Calculate risk factors (stock, lead time, lifecycle, supplier) and annotate
                 // the processed line with risk grade, warnings, and adjusted cost.
                 try {
+                    /** @var array{risk_grade?: string, warnings?: list<string>} $riskAnalysis */
                     $riskAnalysis = $this->riskAdjustedPricing->calculateRiskAdjustedCost(
                         $pricing,
                         $effectiveQty,
@@ -813,8 +929,10 @@ class PricingEngine
      * We fix both by:
      *   1. Pulling real manufacturer + description from alternative DigiKey/Mouser results
      *   2. If no alternative data exists, attempt to clean the Alibaba description
-      * @param array<string|int, mixed> $processedLine
- * @param array<string|int, mixed> $originalBomLine
+     *
+     * @param BomLine $processedLine
+     * @param BomLine $originalBomLine
+     * @return BomLine
      */
     private function enrichAlibabaPresentation(array $processedLine, array $originalBomLine): array
     {
@@ -837,6 +955,7 @@ class PricingEngine
         // ── Step 1: Pull manufacturer/description from DigiKey/Mouser alternatives ──
         $realManufacturer = null;
         $cleanDescription = null;
+        /** @var PartPricing $alt */
         foreach ($processedLine['alternatives'] ?? [] as $alt) {
             $altSource = $alt['_source'] ?? $alt['source'] ?? '';
             if (in_array($altSource, ['digikey', 'mouser', 'nexar'])) {
@@ -895,7 +1014,7 @@ class PricingEngine
         }
 
         // ── Step 4: Final cleanup — remove MPN from description (already in MPN column) ──
-        $desc = $processedLine['description'];
+        $desc = is_string($processedLine['description'] ?? null) ? $processedLine['description'] : '';
         if (!empty($mpn) && strlen($mpn) >= 6) {
             $desc = str_ireplace($mpn, '', $desc);
             $desc = preg_replace('/\s{2,}/', ' ', $desc);
@@ -968,7 +1087,7 @@ class PricingEngine
         ];
 
         foreach ($prefixMap as $prefix => $mfr) {
-            if (str_starts_with($upper, strtoupper($prefix))) {
+            if (str_starts_with($upper, strtoupper((string) $prefix))) {
                 return $mfr;
             }
         }
@@ -998,7 +1117,7 @@ class PricingEngine
         // Check for variant MPNs that share our prefix but aren't our exact part
         // E.g., "IC TCMT1107 TCMT1109" when part is TCMT1103 → garbage
         $mpnPrefix = strtoupper(substr($mpn, 0, min(4, strlen($mpn))));
-        if ($mpnPrefix && preg_match_all('/\b(' . preg_quote($mpnPrefix) . '\w{2,})\b/i', $desc, $variantMatches)) {
+        if ($mpnPrefix && preg_match_all('/\b(' . preg_quote($mpnPrefix, '/') . '\w{2,})\b/i', $desc, $variantMatches)) {
             foreach ($variantMatches[1] as $variant) {
                 if (strcasecmp($variant, $mpn) !== 0 && strlen($variant) > 5) {
                     // Found a variant MPN that isn't our part → Alibaba mashup
@@ -1127,7 +1246,7 @@ class PricingEngine
 
         $cleaned = $description;
         foreach ($spamPatterns as $pattern) {
-            $cleaned = preg_replace($pattern, '', $cleaned);
+            $cleaned = preg_replace($pattern, '', $cleaned) ?? $cleaned;
         }
 
         // Remove stray other IC part numbers (Alibaba often mashes multiple MPNs together)
@@ -1144,10 +1263,10 @@ class PricingEngine
                 return ''; // Remove unrelated part numbers
             },
             $cleaned
-        );
+        ) ?? $cleaned;
 
         // Clean up whitespace and punctuation
-        $cleaned = preg_replace('/\s{2,}/', ' ', $cleaned);
+        $cleaned = preg_replace('/\s{2,}/', ' ', $cleaned) ?? $cleaned;
         $cleaned = trim($cleaned, " \t\n\r\0\x0B,.-;:/()");
 
         // If almost nothing left, fall back to MPN
@@ -1160,10 +1279,10 @@ class PricingEngine
 
     /**
      * Apply manual price overrides to processed BOM lines
-     * 
-     * @param array $processedLines The processed BOM lines
-     * @param array $overrides Array of ['line_index' => ['unit_price' => float, 'notes' => string]]
-     * @return array Updated lines with overrides applied
+     *
+     * @param array<int, BomLine> $processedLines The processed BOM lines
+     * @param array<int|string, array{unit_price?: int|float, notes?: string|null, verified?: bool}> $overrides Array of ['line_index' => ['unit_price' => float, 'notes' => string]]
+     * @return array<int, BomLine> Updated lines with overrides applied
      */
     public function applyManualOverrides(array $processedLines, array $overrides): array
     {
@@ -1204,7 +1323,8 @@ class PricingEngine
     
     /**
      * Recalculate totals after manual overrides
-      * @param array<string|int, mixed> $processedLines
+     * @param array<int, BomLine> $processedLines
+     * @return BomStats
      */
     public function recalculateStats(array $processedLines): array
     {
@@ -1258,7 +1378,8 @@ class PricingEngine
      *   - Qty 5 gets $10 (meets 1 break)
      *   - Qty 15 gets $8 (meets 10 break)
      *   - Qty 200 gets $5 (meets 100 break)
-      * @param array<string|int, mixed> $priceBreaks
+     *
+     * @param list<PriceBreak> $priceBreaks
      */
     private function calculateUnitPrice(array $priceBreaks, int $quantity): float
     {
@@ -1267,31 +1388,33 @@ class PricingEngine
         }
         
         // Normalise key variants: accept 'price', 'unit_price', or 'unitPrice'
-        $priceBreaks = array_map(function (array $b): array {
+        $priceBreaks = array_map(
+            /** @param PriceBreak $b */
+            function (array $b): array {
             if (!isset($b['price'])) {
                 $b['price'] = $b['unit_price'] ?? $b['unitPrice'] ?? 0.0;
             }
             return $b;
         }, $priceBreaks);
-        
+
         // Sort price breaks by quantity (ascending) - lowest qty first
         usort($priceBreaks, fn($a, $b) => ($a['quantity'] ?? 0) <=> ($b['quantity'] ?? 0));
-        
+
         // Default to the smallest quantity break price (most expensive)
-        $applicablePrice = (float) ($priceBreaks[0]['price'] ?? 0.0);
-        
+        $applicablePrice = (float) $priceBreaks[0]['price'];
+
         // Find the best applicable price break (highest quantity the customer qualifies for)
         foreach ($priceBreaks as $break) {
             if ($quantity >= ($break['quantity'] ?? 0)) {
                 // Customer qualifies for this break - use its price
-                $applicablePrice = (float) ($break['price'] ?? 0.0);
+                $applicablePrice = (float) $break['price'];
             } else {
                 // Customer doesn't meet this break threshold - stop checking
                 // (since breaks are sorted ascending, all remaining breaks require more qty)
                 break;
             }
         }
-        
+
         // ── Bulk extrapolation: when qty exceeds highest tier by 2x+, apply volume discount ──
         // This reflects real-world negotiated pricing below last posted break.
         // Uses a log-linear learning curve: each doubling of qty reduces price ~15%.
@@ -1300,13 +1423,13 @@ class PricingEngine
         // Guard against zero/negative break quantities: a 0-qty tier would otherwise
         // divide by zero in the log-extrapolation below (PHP 8 throws DivisionByZeroError).
         $highestQty = max(1, (int) ($highestBreak['quantity'] ?? 1));
-        $highestPrice = (float) ($highestBreak['price'] ?? 0);
-        
+        $highestPrice = (float) $highestBreak['price'];
+
         if ($quantity > $highestQty * 2 && $highestPrice > 0 && count($priceBreaks) >= 2) {
             // Calculate the learning rate from the existing breaks
-            $lowestBreak = reset($priceBreaks);
+            $lowestBreak = $priceBreaks[0];
             $lowestQty = max(1, (int) ($lowestBreak['quantity'] ?? 1));
-            $lowestPrice = (float)($lowestBreak['price'] ?? 0);
+            $lowestPrice = (float) $lowestBreak['price'];
             
             if ($lowestPrice > $highestPrice && $highestQty > $lowestQty) {
                 // Natural learning rate from the existing price breaks
@@ -1508,7 +1631,9 @@ class PricingEngine
      * Example: ordering 95 units at $1.00 each vs 100 units at $0.80 each
      * - Cost at 95: $95.00
      * - Cost at 100: $80.00 (SAVE $15 by ordering 5 more!)
-      * @param array<string|int, mixed> $priceBreaks
+     *
+     * @param list<PriceBreak> $priceBreaks
+     * @return PriceBreakRecommendation|null
      */
     public function getPriceBreakRecommendation(array $priceBreaks, int $quantity): ?array
     {
@@ -1582,7 +1707,8 @@ class PricingEngine
 
     /**
      * Calculate quote totals with margins
-      * @param array<string|int, mixed> $processedLines
+     * @param array<int, BomLine> $processedLines
+     * @return array{subtotal: float, margin_percent: float, margin_amount: float, total: float, currency: string}
      */
     public function calculateQuoteTotals(array $processedLines, float $marginPercent = 25.0, ?string $currency = null): array
     {
@@ -1607,10 +1733,14 @@ class PricingEngine
         ];
     }
 
+    /**
+     * @param array<int, BomLine> $processedLines
+     */
     private function resolveCurrencyFromLines(array $processedLines): ?string
     {
         $counts = [];
 
+        /** @var BomLine $line */
         foreach ($processedLines as $line) {
             $currency = $line['currency'] ?? null;
 
@@ -1633,6 +1763,9 @@ class PricingEngine
         return array_key_first($counts);
     }
 
+    /**
+     * @param list<PriceBreak> $priceBreaks
+     */
     private function resolveCurrencyFromPriceBreaks(array $priceBreaks): ?string
     {
         foreach ($priceBreaks as $break) {
@@ -1646,8 +1779,9 @@ class PricingEngine
 
     /**
      * Check if quote meets auto-publish criteria
-      * @param array<string|int, mixed> $stats
- * @param array<string|int, mixed> $processedLines
+     * @param BomStats $stats
+     * @param array<int, BomLine> $processedLines
+     * @return array{can_publish: bool, checks: array<string, bool>}
      */
     public function canAutoPublish(array $stats, array $processedLines): array
     {
@@ -1698,14 +1832,14 @@ class PricingEngine
      *   3. Volume rebates for consolidated large orders (3–5%)
      *   4. Price-break upgrade recommendations (buy more to pay less total)
      *
-     * @param array $processedLines  Output from processBOM()
+     * @param array<int, BomLine> $processedLines  Output from processBOM()
      * @param float $orderOverhead   Per-supplier fixed cost (default $12)
      * @return array{
-     *     scattered: array{parts_cost: float, supplier_count: int, total_cost: float},
-     *     consolidated: array{parts_cost: float, supplier_count: int, total_cost: float, primary: string},
-     *     savings: float,
-     *     savings_percent: float,
-     *     break_recommendations: array,
+     *     scattered: array{parts_cost: int|float, suppliers?: array<string, true>, allocation?: array<int, string>, total_cost: int|float, supplier_count?: int, overhead?: int|float},
+     *     consolidated: array{parts_cost: int|float, suppliers?: array<string, true>, allocation?: array<int, string>, total_cost: int|float, supplier_count?: int, overhead?: int|float, rebate?: int|float, rebate_rate?: int|float, primary?: string},
+     *     savings: int|float,
+     *     savings_percent: int|float,
+     *     break_recommendations: list<PriceBreakRecommendation&array{mpn: string}>,
      *     recommendation: string
      * }
      */
@@ -1714,6 +1848,7 @@ class PricingEngine
         // ── 1. Build multi-source pricing map ──
         // Each sourced line already has alternatives from multi-distributor.
         // We need price breaks for every part from every available source.
+        /** @var array<int, array{mpn: string, quantity: int, sources: array<string, list<PriceBreak>}>} $lineData */
         $lineData = [];
         foreach ($processedLines as $idx => $line) {
             if (($line['status'] ?? '') === 'no_mpn' || ($line['status'] ?? '') === 'not_found') {
@@ -1729,6 +1864,7 @@ class PricingEngine
             }
 
             // Alternative source pricing
+            /** @var PartPricing $alt */
             foreach (($line['alternatives'] ?? []) as $alt) {
                 $altSource = $alt['source'] ?? null;
                 if ($altSource && isset($alt['pricing']) && is_array($alt['pricing'])) {
@@ -1827,7 +1963,7 @@ class PricingEngine
                 }
             }
             $lineCount    = count($lineData);
-            $primaryRatio = $lineCount > 0 ? $primaryCount / $lineCount : 0;
+            $primaryRatio = $primaryCount / $lineCount;
 
             if ($primaryRatio >= 0.80) {
                 // Recalculate primary spend
@@ -1869,7 +2005,7 @@ class PricingEngine
             }
         }
 
-        $savings    = $scattered['total_cost'] - ($bestConsolidated['total_cost'] ?? $scattered['total_cost']);
+        $savings    = $scattered['total_cost'] - $bestConsolidated['total_cost'];
         $savingsPct = $scattered['total_cost'] > 0
             ? round(($savings / $scattered['total_cost']) * 100, 1)
             : 0;
@@ -1877,7 +2013,7 @@ class PricingEngine
         $recommendation = $savings > 0
             ? sprintf(
                 'Consolidate to %s as primary supplier. Save $%.2f (%.1f%%) through volume pricing, fewer POs, and lower shipping.',
-                $bestConsolidated['primary'] ?? 'N/A',
+                $bestConsolidated['primary'],
                 $savings,
                 $savingsPct
             )
@@ -1885,7 +2021,7 @@ class PricingEngine
 
         return [
             'scattered'             => $scattered,
-            'consolidated'          => $bestConsolidated ?? $scattered,
+            'consolidated'          => $bestConsolidated,
             'savings'               => round($savings, 2),
             'savings_percent'       => $savingsPct,
             'break_recommendations' => $breakRecs,

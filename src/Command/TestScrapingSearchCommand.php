@@ -35,7 +35,9 @@ class TestScrapingSearchCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
+        /** @var string $query */
         $query = $input->getArgument('query');
+        /** @var mixed $region */
         $region = $input->getOption('region');
         $maxResults = (int) $input->getOption('max');
 

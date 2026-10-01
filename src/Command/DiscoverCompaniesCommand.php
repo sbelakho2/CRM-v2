@@ -79,9 +79,13 @@ HELP
     {
         $io->title('Company Discovery Webcrawler');
 
+        /** @var mixed $sector */
         $sector = $input->getOption('sector');
+        /** @var mixed $location */
         $location = $input->getOption('location');
+        /** @var mixed $region */
         $region = $input->getOption('region');
+        /** @var mixed $all */
         $all = $input->getOption('all');
 
         if ($all) {

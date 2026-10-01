@@ -60,8 +60,8 @@ class CommandCenterService
     
     /**
      * Get complete Command Center data
-     * 
-     * @return array All dashboard widgets data
+     *
+     * @return array<string, mixed> All dashboard widgets data
      */
     public function getCommandCenterData(): array
     {
@@ -77,6 +77,8 @@ class CommandCenterService
     
     /**
      * Get Lead Inflow data (LeadBot section)
+     *
+     * @return array<string, mixed>
      */
     public function getLeadInflowData(): array
     {
@@ -109,6 +111,7 @@ class CommandCenterService
             ->getSingleScalarResult();
         
         // High-priority leads (high score, pending)
+        /** @var list<Lead> $highPriorityLeads */
         $highPriorityLeads = $this->leadRepository->createQueryBuilder('l')
             ->where('l.reviewStatus = :status')
             ->andWhere('l.leadScore >= :minScore')
@@ -120,6 +123,7 @@ class CommandCenterService
             ->getResult();
         
         // Leads by region
+        /** @var list<array{regionTag: string|null, count: int|string}> $leadsByRegion */
         $leadsByRegion = $this->leadRepository->createQueryBuilder('l')
             ->select('l.regionTag, COUNT(l.id) as count')
             ->where('l.createdAt >= :monthAgo')
@@ -129,6 +133,7 @@ class CommandCenterService
             ->getResult();
         
         // Recent high-value leads
+        /** @var list<Lead> $recentHighValue */
         $recentHighValue = $this->leadRepository->createQueryBuilder('l')
             ->where('l.createdAt >= :weekAgo')
             ->andWhere('l.leadScore >= :minScore')
@@ -172,21 +177,26 @@ class CommandCenterService
     
     /**
      * Get Quotes Status data (Quote Buddy section)
+     *
+     * @return array<string, mixed>
      */
     public function getQuotesStatusData(): array
     {
         $now = new \DateTime();
-        $weekFromNow = (new \DateTime())->modify('+7 days');
+        // QUOTE_EXPIRY_WARNING_DAYS defines the forward-looking expiry window
+        $weekFromNow = (new \DateTime())->modify('+' . self::QUOTE_EXPIRY_WARNING_DAYS . ' days');
         $displayCurrency = $this->currencyConverter->getDisplayCurrency();
-        
+
         // Quotes by status
+        /** @var list<array{status: string|null, count: int|string}> $quotesByStatus */
         $quotesByStatus = $this->quoteRepository->createQueryBuilder('q')
             ->select('q.status, COUNT(q.id) as count')
             ->groupBy('q.status')
             ->getQuery()
             ->getResult();
-        
+
         // Quotes pending approval
+        /** @var list<Quote> $pendingApproval */
         $pendingApproval = $this->quoteRepository->createQueryBuilder('q')
             ->where('q.status IN (:statuses)')
             ->setParameter('statuses', ['draft', 'pending_review'])
@@ -196,6 +206,7 @@ class CommandCenterService
             ->getResult();
         
         // Interactive quotes with recent activity
+        /** @var list<Quote> $activeInteractive */
         $activeInteractive = $this->quoteRepository->createQueryBuilder('q')
             ->where('q.interactiveEnabled = true')
             ->andWhere('q.lastViewedAt IS NOT NULL')
@@ -212,6 +223,7 @@ class CommandCenterService
         $pipelineStatuses = ['draft', 'pending_review', 'approved', 'sent'];
         $highValueThreshold = 50000;
         $highValueStatuses = ['sent', 'pending_review', 'approved'];
+        /** @var list<array{id: int, totalCost: string|null, currency: string|null, status: string|null}> $pipelineRows */
         $pipelineRows = $this->quoteRepository->createQueryBuilder('q')
             ->select('q.id, q.totalCost, q.currency, q.status')
             ->where('q.status IN (:statuses)')
@@ -241,6 +253,7 @@ class CommandCenterService
 
         $highValueQuotes = [];
         if (!empty($highValueIds)) {
+            /** @var list<Quote> $found */
             $found = $this->quoteRepository->createQueryBuilder('q')
                 ->where('q.id IN (:ids)')
                 ->setParameter('ids', $highValueIds)
@@ -249,7 +262,10 @@ class CommandCenterService
 
             $byId = [];
             foreach ($found as $quote) {
-                $byId[$quote->getId()] = $quote;
+                $quoteId = $quote->getId();
+                if ($quoteId !== null) {
+                    $byId[$quoteId] = $quote;
+                }
             }
             foreach ($highValueIds as $id) {
                 if (isset($byId[$id])) {
@@ -308,6 +324,8 @@ class CommandCenterService
     
     /**
      * Get Supply Alerts data
+     *
+     * @return array{summary: array{total_alerts: int, critical: int, warning: int}, alerts: list<array<string, mixed>>}
      */
     public function getSupplyAlertsData(): array
     {
@@ -326,10 +344,10 @@ class CommandCenterService
         $alerts = array_merge($alerts, $lifecycleAlerts);
         
         // Sort by severity and time
-        usort($alerts, function($a, $b) {
+        usort($alerts, function (array $a, array $b) {
             $severityOrder = ['critical' => 0, 'warning' => 1, 'info' => 2];
-            $aSeverity = $severityOrder[$a['severity']] ?? 2;
-            $bSeverity = $severityOrder[$b['severity']] ?? 2;
+            $aSeverity = $severityOrder[$a['severity']];
+            $bSeverity = $severityOrder[$b['severity']];
             
             if ($aSeverity !== $bSeverity) {
                 return $aSeverity <=> $bSeverity;
@@ -354,14 +372,17 @@ class CommandCenterService
     
     /**
      * Get price change alerts — batch-loads previous prices to avoid N+1 queries
+     *
+     * @return list<array{type: 'price_increase', severity: 'critical'|'warning', mpn: string, distributor: string, previous_price: float, current_price: float, currency: string, percent_change: float, message: string, timestamp: string|null}>
      */
     private function getPriceChangeAlerts(): array
     {
         $alerts = [];
-        
+
         try {
             $priceHistoryRepo = $this->entityManager->getRepository(PriceHistory::class);
-            
+
+            /** @var list<PriceHistory> $recentChanges */
             $recentChanges = $priceHistoryRepo->createQueryBuilder('ph')
                 ->where('ph.recordedAt >= :threshold')
                 ->andWhere('ph.unitPrice IS NOT NULL')
@@ -370,14 +391,15 @@ class CommandCenterService
                 ->setMaxResults(50)
                 ->getQuery()
                 ->getResult();
-            
+
             if (empty($recentChanges)) {
                 return $alerts;
             }
-            
-            $mpns = array_unique(array_map(fn($change) => $change->getMpn(), $recentChanges));
-            $sources = array_unique(array_map(fn($change) => $change->getSource(), $recentChanges));
-            
+
+            $mpns = array_unique(array_map(static fn (PriceHistory $change) => $change->getMpn() ?? '', $recentChanges));
+            $sources = array_unique(array_map(static fn (PriceHistory $change) => $change->getSource() ?? '', $recentChanges));
+
+            /** @var list<PriceHistory> $previousRecords */
             $previousRecords = $priceHistoryRepo->createQueryBuilder('ph2')
                 ->where('ph2.mpn IN (:mpns)')
                 ->andWhere('ph2.source IN (:sources)')
@@ -387,23 +409,23 @@ class CommandCenterService
                 ->orderBy('ph2.recordedAt', 'DESC')
                 ->getQuery()
                 ->getResult();
-            
+
             $indexedByMpnSource = [];
             foreach ($previousRecords as $rec) {
-                $key = $rec->getMpn() . '|' . $rec->getSource();
+                $key = ($rec->getMpn() ?? '') . '|' . ($rec->getSource() ?? '');
                 if (!isset($indexedByMpnSource[$key])) {
                     $indexedByMpnSource[$key] = $rec;
                 }
             }
-            
+
             foreach ($recentChanges as $change) {
-                $mpn = $change->getMpn();
-                $source = $change->getSource();
+                $mpn = $change->getMpn() ?? '';
+                $source = $change->getSource() ?? '';
                 $currentDate = $change->getRecordedAt();
-                
+
                 $previousRecord = null;
                 foreach ($previousRecords as $rec) {
-                    if ($rec->getMpn() === $mpn 
+                    if ($rec->getMpn() === $mpn
                         && $rec->getSource() === $source
                         && $rec->getRecordedAt() < $currentDate) {
                         $previousRecord = $rec;
@@ -457,13 +479,16 @@ class CommandCenterService
     
     /**
      * Get stock warning alerts from quotes
+     *
+     * @return list<array{type: 'low_stock', severity: 'critical'|'warning', mpn: string, quote_number: string|null, stock_available: int, message: string, timestamp: string}>
      */
     private function getStockWarningAlerts(): array
     {
         $alerts = [];
-        
+
         // Get active quotes with BOM data — bounded to the most recent
         // active quotes so the scan stays cheap.
+        /** @var list<Quote> $activeQuotes */
         $activeQuotes = $this->quoteRepository->createQueryBuilder('q')
             ->where('q.status IN (:statuses)')
             ->setParameter('statuses', ['sent', 'approved', 'pending_review'])
@@ -471,21 +496,26 @@ class CommandCenterService
             ->setMaxResults(200)
             ->getQuery()
             ->getResult();
-        
+
         foreach ($activeQuotes as $quote) {
             $bomJson = $quote->getBomDataJson();
             if (!$bomJson) continue;
-            
-            /** @var array<string, mixed>|null $bomData */
+
             /** @var array<string, mixed>|null $bomData */
             $bomData = json_decode($bomJson, true);
             if (!is_array($bomData)) { continue; }
-            $lines = $bomData['lines'] ?? $bomData ?? [];
-            
+            $lines = $bomData['lines'] ?? $bomData;
+            if (!is_array($lines)) { continue; }
+
             foreach ($lines as $line) {
-                $stock = $line['stock'] ?? null;
-                $mpn = $line['mpn'] ?? 'Unknown';
-                
+                if (!is_array($line)) {
+                    continue;
+                }
+                $stockRaw = $line['stock'] ?? null;
+                $stock = is_numeric($stockRaw) ? (int) $stockRaw : null;
+                $mpnRaw = $line['mpn'] ?? null;
+                $mpn = is_scalar($mpnRaw) ? (string) $mpnRaw : 'Unknown';
+
                 if ($stock !== null && $stock <= self::STOCK_WARNING_THRESHOLD) {
                     $alerts[] = [
                         'type' => 'low_stock',
@@ -526,13 +556,16 @@ class CommandCenterService
     
     /**
      * Get lifecycle alerts (EOL, NRND parts)
+     *
+     * @return list<array{type: string, severity: 'critical'|'warning', mpn: string, lifecycle_status: string, quote_number: string|null, message: string, timestamp: string}>
      */
     private function getLifecycleAlerts(): array
     {
         $alerts = [];
-        
+
         // Get active quotes and check BOM lifecycle statuses — bounded to
         // the most recent active quotes so the scan stays cheap.
+        /** @var list<Quote> $activeQuotes */
         $activeQuotes = $this->quoteRepository->createQueryBuilder('q')
             ->where('q.status IN (:statuses)')
             ->setParameter('statuses', ['sent', 'approved', 'pending_review'])
@@ -540,27 +573,32 @@ class CommandCenterService
             ->setMaxResults(200)
             ->getQuery()
             ->getResult();
-        
+
         $criticalTerms = ['obsolete', 'eol', 'end of life', 'discontinued'];
         $warningTerms = ['nrnd', 'not recommended', 'last time buy', 'ltb'];
-        
+
         foreach ($activeQuotes as $quote) {
             $bomJson = $quote->getBomDataJson();
             if (!$bomJson) continue;
-            
-            /** @var array<string, mixed>|null $bomData */
+
             /** @var array<string, mixed>|null $bomData */
             $bomData = json_decode($bomJson, true);
             if (!is_array($bomData)) { continue; }
-            $lines = $bomData['lines'] ?? $bomData ?? [];
-            
+            $lines = $bomData['lines'] ?? $bomData;
+            if (!is_array($lines)) { continue; }
+
             foreach ($lines as $line) {
-                $lifecycle = strtolower($line['lifecycle'] ?? '');
-                $mpn = $line['mpn'] ?? 'Unknown';
-                
+                if (!is_array($line)) {
+                    continue;
+                }
+                $lifecycleRaw = $line['lifecycle'] ?? '';
+                $lifecycle = strtolower(is_scalar($lifecycleRaw) ? (string) $lifecycleRaw : '');
+                $mpnRaw = $line['mpn'] ?? null;
+                $mpn = is_scalar($mpnRaw) ? (string) $mpnRaw : 'Unknown';
+
                 $severity = null;
                 $type = null;
-                
+
                 foreach ($criticalTerms as $term) {
                     if (str_contains($lifecycle, $term)) {
                         $severity = 'critical';
@@ -568,8 +606,8 @@ class CommandCenterService
                         break;
                     }
                 }
-                
-                if (!$severity) {
+
+                if ($severity === null) {
                     foreach ($warningTerms as $term) {
                         if (str_contains($lifecycle, $term)) {
                             $severity = 'warning';
@@ -578,8 +616,8 @@ class CommandCenterService
                         }
                     }
                 }
-                
-                if ($severity) {
+
+                if ($severity !== null && $type !== null) {
                     $alerts[] = [
                         'type' => $type,
                         'severity' => $severity,
@@ -615,9 +653,12 @@ class CommandCenterService
     
     /**
      * Get recent activity feed
+     *
+     * @return list<array{id: int|null, type: string|null, subject: string|null, notes: string, company_id: int|null, company_name: string|null, created_at: string|null}>
      */
     public function getRecentActivityFeed(): array
     {
+        /** @var list<Activity> $activities */
         $activities = $this->activityRepository->createQueryBuilder('a')
             ->orderBy('a.createdAt', 'DESC')
             ->setMaxResults(15)
@@ -645,6 +686,8 @@ class CommandCenterService
     
     /**
      * Get key metrics for the command center
+     *
+     * @return array<string, int|float|string>
      */
     public function getKeyMetrics(): array
     {
@@ -702,6 +745,7 @@ class CommandCenterService
         // Average quote value via aggregate DQL query (avoids loading all entities)
         $avgQuoteValue = 0.0;
         try {
+            /** @var array{avgValue: float|int|string|null, totalCount: int|string}|null $aggResult */
             $aggResult = $this->quoteRepository->createQueryBuilder('q')
                 ->select('AVG(q.totalCost) as avgValue, COUNT(q.id) as totalCount')
                 ->where('q.createdAt >= :monthAgo')
@@ -710,11 +754,11 @@ class CommandCenterService
                 ->getQuery()
                 ->getOneOrNullResult();
 
-            if ($aggResult && $aggResult['totalCount'] > 0) {
-                $avgQuoteValue = (float) $aggResult['avgValue'];
+            if ($aggResult !== null && $aggResult['totalCount'] > 0) {
+                $avgQuoteValue = (float) ($aggResult['avgValue'] ?? 0);
             }
         } catch (\Exception $e) {
-            $this->logger?->warning('Failed to calculate average quote value via DQL, falling back to null', [
+            $this->logger->warning('Failed to calculate average quote value via DQL, falling back to null', [
                 'exception' => $e,
             ]);
             $avgQuoteValue = 0.0;
@@ -722,6 +766,7 @@ class CommandCenterService
 
         // Pipeline health (converted to display currency) — scalar DQL rows
         // instead of hydrating every pipeline quote.
+        /** @var list<array{totalCost: string|null, currency: string|null}> $pipelineRows */
         $pipelineRows = $this->quoteRepository->createQueryBuilder('q')
             ->select('q.totalCost, q.currency')
             ->where('q.status IN (:statuses)')
@@ -772,12 +817,15 @@ class CommandCenterService
     
     /**
      * Get action items requiring immediate attention
+     *
+     * @return list<array{type: string, priority: string, title: string, description: string, link: string, entity_type: string, entity_id: int|null}>
      */
     public function getActionItems(): array
     {
         $items = [];
-        
+
         // High-priority leads
+        /** @var list<Lead> $highPriorityLeads */
         $highPriorityLeads = $this->leadRepository->createQueryBuilder('l')
             ->where('l.reviewStatus = :status')
             ->andWhere('l.leadScore >= :minScore')
@@ -785,20 +833,21 @@ class CommandCenterService
             ->setParameter('minScore', self::LEAD_SCORE_HIGH_PRIORITY)
             ->getQuery()
             ->getResult();
-        
+
         foreach ($highPriorityLeads as $lead) {
             $items[] = [
                 'type' => 'lead_review',
                 'priority' => 'high',
                 'title' => 'Review high-scoring lead: ' . $lead->getCompanyName(),
                 'description' => sprintf('Lead score: %d, Region: %s', $lead->getLeadScore(), $lead->getRegionTag()),
-                'link' => '/lead/' . $lead->getId(),
+                'link' => '/lead/' . ($lead->getId() ?? ''),
                 'entity_type' => 'lead',
                 'entity_id' => $lead->getId(),
             ];
         }
-        
+
         // Quotes with customer activity
+        /** @var list<Quote> $activeQuotes */
         $activeQuotes = $this->quoteRepository->createQueryBuilder('q')
             ->where('q.interactiveEnabled = true')
             ->andWhere('q.lastViewedAt >= :threshold')
@@ -807,28 +856,28 @@ class CommandCenterService
             ->setParameter('excludeStatuses', ['accepted', 'rejected'])
             ->getQuery()
             ->getResult();
-        
+
         foreach ($activeQuotes as $quote) {
             $items[] = [
                 'type' => 'quote_followup',
                 'priority' => 'medium',
                 'title' => 'Follow up on viewed quote: ' . $quote->getQuoteNumber(),
-                'description' => sprintf('Viewed %d times, last: %s', 
+                'description' => sprintf('Viewed %d times, last: %s',
                     $quote->getViewCount(),
                     $quote->getLastViewedAt()?->format('Y-m-d H:i')
                 ),
-                'link' => '/quote/' . $quote->getId(),
+                'link' => '/quote/' . ($quote->getId() ?? ''),
                 'entity_type' => 'quote',
                 'entity_id' => $quote->getId(),
             ];
         }
-        
+
         // Sort by priority
-        usort($items, function($a, $b) {
+        usort($items, function (array $a, array $b) {
             $priorityOrder = ['high' => 0, 'medium' => 1, 'low' => 2];
-            return ($priorityOrder[$a['priority']] ?? 2) <=> ($priorityOrder[$b['priority']] ?? 2);
+            return $priorityOrder[$a['priority']] <=> $priorityOrder[$b['priority']];
         });
-        
+
         return array_slice($items, 0, 10);
     }
 }

@@ -100,6 +100,7 @@ class AutonomousSalesCommand extends Command
             return Command::INVALID;
         }
         
+        /** @var mixed $dryRun */
         $dryRun = $input->getOption('dry-run');
         if ($dryRun) {
             $io->warning('Running in DRY RUN mode - no database changes will be made');

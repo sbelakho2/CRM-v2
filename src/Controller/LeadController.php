@@ -88,6 +88,7 @@ class LeadController extends AbstractController
                 WHERE l.created_at >= :since
                 GROUP BY activity_date
                 ORDER BY activity_date ASC';
+        /** @var array<int, array<string, mixed>> $recentActivity */
         $recentActivity = $conn->fetchAllAssociative($sql, [
             'since' => $sevenDaysAgo->format('Y-m-d H:i:s'),
         ]);

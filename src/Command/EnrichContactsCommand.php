@@ -66,10 +66,13 @@ HELP
         $io = new SymfonyStyle($input, $output);
         $io->title('Contact Enrichment');
 
+        /** @var string $companyArg */
         $companyArg  = $input->getArgument('company');
+        /** @var mixed $sector */
         $sector      = $input->getOption('sector');
         $limit       = (int) $input->getOption('limit');
         $maxContacts = (int) $input->getOption('max-contacts');
+        /** @var mixed $dryRun */
         $dryRun      = $input->getOption('dry-run');
 
         if ($dryRun) {

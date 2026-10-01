@@ -64,6 +64,7 @@ class GoldenDatasetRegressionCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $datasetPath = $this->projectDir . '/' . $input->getOption('dataset');
         $threshold = ((int) $input->getOption('threshold')) / 100;
+        /** @var mixed $jsonMode */
         $jsonMode = $input->getOption('json');
 
         $io->title('Golden Dataset Regression Test');

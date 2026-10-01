@@ -336,6 +336,7 @@ class EmailCampaignController extends AbstractController
                 WHERE s.campaign_id = :campaignId
                 GROUP BY date
                 ORDER BY date ASC';
+        /** @var array<int, array<string, mixed>> $sendsByDate */
         $sendsByDate = $conn->fetchAllAssociative($sql, [
             'campaignId' => $campaign->getId(),
         ]);

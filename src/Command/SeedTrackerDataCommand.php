@@ -32,6 +32,7 @@ class SeedTrackerDataCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        /** @var string $trackerFile */
         $trackerFile = $input->getArgument('file');
         $projectDir = realpath(dirname(__DIR__, 2));
 

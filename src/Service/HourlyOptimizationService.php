@@ -30,12 +30,20 @@ use Psr\Log\LoggerInterface;
  * Stage 8  – Adaptive refresh (decay stale arms, re-seed exploration)
  * Stage 9  – End-of-hour assertions (invariant checks)
  * Stage 10 – Guaranteed outcome (improve / hold / rollback)
+ *
+ * @phpstan-type ArmSnapshot array{armId: int|null, armName: string|null, alpha: float, beta: float, expectedRate: float, empiricalRate: float, totalTrials: int, totalSuccesses: int, icpCluster: string, quarantined: bool, isControl: bool, recentNegRate: float, daysSinceLastUse: int}
+ * @phpstan-type Snapshot array{timestamp: string, armTypes: array<string, list<ArmSnapshot>>, globalStats: array{totalArms: int, totalTrials: int, totalSuccesses: int, quarantinedCount: int, globalExpectedRate?: float}}
+ * @phpstan-type ArmEvaluation array{armId: int|null, armName: string|null, expectedRate: float, relativePerformance: float, totalTrials: int, recentNegRate: float, verdict: string}
+ * @phpstan-type TypeEvaluation array{error?: string, baselineArmId?: int|null, baselineRate?: float, arms?: list<ArmEvaluation>}
+ * @phpstan-type GateResults array{passed: int, lintBlocked: int, cadenceBlocked: int, errors: int}
+ * @phpstan-type ComposeResult array{subject: string, body: string, variationHash: string, templateId: int|null, templateName: string|null, subjectArmId: int|null, subjectArmName: string|null, valuePropArmId: mixed, contentLength: mixed, personalization: mixed, qualityCheck: mixed, copyLintResult: array{passed: bool, ...}|null, isControlGroup: bool, icpCluster: string, toneApplied: mixed, decisionTrace: array<string, mixed>}
+ * @phpstan-type ComposedMessage array{contactId: int|null, contactEmail: string|null, subject: string, body: string, templateName: string|null, subjectArmId: int|null, isControlGroup: bool, icpCluster: string, variationHash: string, composedResult: ComposeResult}
  */
 class HourlyOptimizationService
 {
     // ==================== CONSTANTS ====================
-    /** Minimum traffic share for the baseline arm */
-    private const BASELINE_MIN_TRAFFIC_PCT = 0.10;
+    /** Minimum traffic share for the baseline arm (informational — enforced via Thompson sampling priors) */
+    public const BASELINE_MIN_TRAFFIC_PCT = 0.10;
 
     /** Minimum trials before an arm can be evaluated */
     private const MIN_TRIALS_FOR_EVAL = 5;
@@ -73,12 +81,12 @@ class HourlyOptimizationService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private BanditArmRepository $armRepository,
-        private OutboundMessageRepository $outboundRepository,
+        OutboundMessageRepository $outboundRepository,
         private ContactRepository $contactRepository,
-        private ThompsonSamplerService $thompsonSampler,
+        ThompsonSamplerService $thompsonSampler,
         private AutonomousSalesOrchestratorService $orchestrator,
         private ?CadenceGovernorService $cadenceGovernor,
-        private ?CopyLintService $copyLintService,
+        ?CopyLintService $copyLintService,
         private LoggerInterface $logger,
     ) {}
 
@@ -89,9 +97,12 @@ class HourlyOptimizationService
     /**
      * Execute the full hourly optimization cycle (stages 0-10).
      *
+     * Stages are heterogeneous: numeric keys 0..N hold each stage's
+     * structured result, named keys ('6_precheck') hold prechecks.
+     *
      * @param bool $dryRun  If true, evaluate and report but make no DB changes
      * @param int  $limit   Max sends this cycle (overrides MAX_BATCH_SIZE)
-     * @return array Complete cycle report
+     * @return array{cycleId: string, startedAt: string, dryRun: bool, stages: array<int|string, mixed>, duration: float, finishedAt: string, error?: string}
      */
     public function runHourlyCycle(bool $dryRun = false, int $limit = self::MAX_BATCH_SIZE): array
     {
@@ -125,13 +136,15 @@ class HourlyOptimizationService
                 $report['stages'][4] = ['skipped' => 'safe_mode_active'];
             } else {
                 // Stage 2 — Candidate selection
-                $report['stages'][2] = $this->stage2_candidateSelection($snapshot);
+                $candidates = $this->stage2_candidateSelection($snapshot);
+                $report['stages'][2] = $candidates;
 
                 // Stage 3 — Personalization + QA gates (compose only, no send)
-                $report['stages'][3] = $this->stage3_personalizeAndGate($report['stages'][2], $limit, $dryRun);
+                $stage3Result = $this->stage3_personalizeAndGate($candidates, $limit, $dryRun);
+                $report['stages'][3] = $stage3Result;
 
                 // Stage 4 — Execution window (send batch)
-                $report['stages'][4] = $this->stage4_executionWindow($report['stages'][3], $dryRun);
+                $report['stages'][4] = $this->stage4_executionWindow($stage3Result, $dryRun);
             }
 
             // Stage 5 — Hourly evaluation (always runs, uses historical data)
@@ -180,6 +193,8 @@ class HourlyOptimizationService
     /**
      * Ensure a control/baseline arm exists for every arm type.
      * The baseline is NEVER mutated, always receives >= 10% traffic.
+     *
+     * @return array{armTypes: array<string, array{controlArmId: int|null, controlArmName: string|null, controlExpectedRate: float|null, totalArms: int}>}
      */
     private function stage0_ensureBaseline(): array
     {
@@ -187,6 +202,7 @@ class HourlyOptimizationService
         $results = [];
 
         foreach ($armTypes as $type) {
+            /** @var list<BanditArm> $arms */
             $arms = $this->armRepository->findActiveByType($type);
             $controlArm = null;
 
@@ -231,6 +247,8 @@ class HourlyOptimizationService
 
     /**
      * Capture a frozen snapshot of all arm states before any mutations.
+     *
+     * @return Snapshot
      */
     private function stage1_snapshot(): array
     {
@@ -247,6 +265,7 @@ class HourlyOptimizationService
         ];
 
         foreach ($armTypes as $type) {
+            /** @var list<BanditArm> $arms */
             $arms = $this->armRepository->findActiveByType($type);
             $typeSnapshot = [];
 
@@ -295,7 +314,9 @@ class HourlyOptimizationService
      * Select candidates for this cycle:
      * - Top-K arms by Thompson sampling score
      * - Exploration floor: at least 15% of sends go to under-tested arms
-      * @param array<string|int, mixed> $snapshot
+     *
+     * @param Snapshot $snapshot
+     * @return array{exploitation: array<string, list<ArmSnapshot>>, exploration: array<string, list<ArmSnapshot>>, explorationFloor: float, minTrialsForEval: int}
      */
     private function stage2_candidateSelection(array $snapshot): array
     {
@@ -332,7 +353,9 @@ class HourlyOptimizationService
     /**
      * Compose messages for eligible contacts.
      * Each message passes through copy-lint and cadence governor.
-      * @param array<string|int, mixed> $candidates
+     *
+     * @param array<string, mixed> $candidates Stage-2 candidate selection result (not used for composition)
+     * @return array{dryRun: true, wouldComposeUpTo: int, gateResults: GateResults}|array{composed: list<ComposedMessage>, gateResults: GateResults, totalEligible: int}
      */
     private function stage3_personalizeAndGate(array $candidates, int $limit, bool $dryRun): array
     {
@@ -358,6 +381,7 @@ class HourlyOptimizationService
 
             // Cadence check
             if ($this->cadenceGovernor) {
+                /** @var array{allowed: bool, reason: string|null, nextAllowedAt: \DateTime|null} $cadenceCheck */
                 $cadenceCheck = $this->cadenceGovernor->canSendTo($contact);
                 if (!$cadenceCheck['allowed']) {
                     $gateResults['cadenceBlocked']++;
@@ -366,6 +390,7 @@ class HourlyOptimizationService
             }
 
             try {
+                /** @var ComposeResult $result */
                 $result = $this->orchestrator->composeMessage($contact);
 
                 // Copy lint gate

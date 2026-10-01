@@ -343,6 +343,7 @@ class ReportBuilderService
         }
         
         try {
+            /** @var array<int, array<string, mixed>> $results */
             $results = $qb->getQuery()->getArrayResult();
             
             // Update run statistics

@@ -55,9 +55,13 @@ class QualityGateCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
         $threshold = (int) $input->getOption('threshold');
+        /** @var mixed $datasetPath */
         $datasetPath = $input->getOption('dataset');
+        /** @var mixed $skipTests */
         $skipTests = $input->getOption('skip-tests');
+        /** @var mixed $skipLint */
         $skipLint = $input->getOption('skip-lint');
+        /** @var mixed $jsonOutput */
         $jsonOutput = $input->getOption('json');
 
         $checks = [];

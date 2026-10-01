@@ -67,6 +67,7 @@ HELP
 
         $io->title('Find Procurement Contacts');
 
+        /** @var string $companyInput */
         $companyInput = $input->getArgument('company');
 
         // Try to find company by ID first

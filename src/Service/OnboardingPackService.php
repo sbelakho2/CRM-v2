@@ -19,7 +19,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * 
  * Supplier portal onboarding automation service.
  * 
- * Automates the process of registering CRM Starz Morocco on customer supplier portals:
+ * Automates the process of registering StarzCRM on customer supplier portals:
  * 1. Generate onboarding pack PDF (company profile, certifications, bank details, tax IDs)
  * 2. Auto-fill web forms with company data from PortalCandidate
  * 3. Submit registration to portal (HTTP POST or file upload)
