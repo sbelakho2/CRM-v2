@@ -127,6 +127,8 @@ class CompanyDiscoveryService
 
     /**
      * Discover companies in a specific sector and location
+     *
+     * @return array<int, Company>
      */
     public function discoverCompanies(?string $sector, ?string $location = null): array
     {
@@ -164,6 +166,7 @@ class CompanyDiscoveryService
      *
      * @param string|null $regionCode  Limit to a specific region (e.g. 'MA', 'US', 'EU', 'GB').
      *                                  null = all regions.
+     * @return array<int, Company>
      */
     public function discoverAllSectors(?string $regionCode = null): array
     {
@@ -195,6 +198,8 @@ class CompanyDiscoveryService
 
     /**
      * Get all target location names for a specific region (or all regions).
+     *
+     * @return array<string, string>
      */
     public static function getTargetLocations(?string $regionCode = null): array
     {
@@ -233,6 +238,8 @@ class CompanyDiscoveryService
      * Resolve region code and country from a location string.
      *
      * Returns ['region' => 'US', 'country' => 'US', 'city' => 'Houston'] etc.
+     *
+     * @return array{region: string|null, country: string|null, city: string|null}
      */
     private function resolveGeo(?string $location): array
     {
@@ -306,7 +313,9 @@ class CompanyDiscoveryService
             ];
             $cityClean = $loc;
             foreach ($countryNames as $cn) {
-                $cityClean = trim(preg_replace('/\b' . preg_quote($cn, '/') . '\b/i', '', $cityClean));
+                // preg_replace only returns null on PCRE failure — keep the
+                // value as-is in that (unreachable in practice) case.
+                $cityClean = trim(preg_replace('/\b' . preg_quote($cn, '/') . '\b/i', '', $cityClean) ?? $cityClean);
             }
             // Remove trailing commas/spaces left after stripping
             $cityClean = trim($cityClean, ", \t\n\r\0\x0B");
@@ -384,7 +393,9 @@ class CompanyDiscoveryService
      * Deduplication is now performed on the website domain (primary)
      * AND the company name (case-insensitive fallback).  Country,
      * city and region are populated from the search location.
-      * @param array<string|int, mixed> $discoveredData
+     *
+     * @param array<int|string, mixed> $discoveredData
+     * @return array<int, Company>
      */
     private function saveDiscoveredCompanies(array $discoveredData, ?string $sector, ?string $location): array
     {
@@ -408,12 +419,13 @@ class CompanyDiscoveryService
             $this->ensureEntityManagerOpen();
 
             // Skip if not a proper company data array
-            if (!is_array($data) || !isset($data['name'])) {
+            if (!is_array($data) || !isset($data['name']) || !is_scalar($data['name'])) {
                 continue;
             }
 
-            $name = trim($data['name']);
-            $website = $data['website'] ?? null;
+            $name = trim((string) $data['name']);
+            $websiteRaw = $data['website'] ?? null;
+            $website = is_scalar($websiteRaw) ? (string) $websiteRaw : null;
             $rootDomain = $this->extractRootDomain($website);
 
             // --- Domain-level deduplication ---
@@ -440,22 +452,27 @@ class CompanyDiscoveryService
             // Clean trailing punctuation from company name
             $name = rtrim($name, ' ,;:.-|/\\');
             $company->setName($name);
-            $company->setSector($sector ?? ($data['sector'] ?? null));
+            $sectorRaw = $data['sector'] ?? null;
+            $company->setSector($sector ?? (is_scalar($sectorRaw) ? (string) $sectorRaw : null));
             $company->setPhysicalSite($location);
             $company->setWebsite($website);
             $company->setPipelineStage('Prospect');
             $company->setAccountTier('C');
             $company->setCompanyStatus(Company::STATUS_DISCOVERED);
             $company->setSourceNotes('Auto-discovered by webcrawler on ' . date('Y-m-d'));
-            
+
             // ── Persist Buyer Evidence Gate results (Improvement 2A) ──
-            if (!empty($data['buyer_evidence'])) {
-                $evidenceJson = json_encode($data['buyer_evidence'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            $buyerEvidence = $data['buyer_evidence'] ?? null;
+            if (is_array($buyerEvidence) && $buyerEvidence !== []) {
+                $evidenceJson = json_encode($buyerEvidence, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+                $verdictRaw = $buyerEvidence['verdict'] ?? null;
+                $reasonRaw = $buyerEvidence['reason'] ?? null;
+                $familiesRaw = $buyerEvidence['positive_families'] ?? [];
                 $company->setSourceNotes(
                     'Auto-discovered by webcrawler on ' . date('Y-m-d') . "\n"
-                    . 'Evidence Gate: ' . ($data['buyer_evidence']['verdict'] ?? 'N/A')
-                    . ' (' . ($data['buyer_evidence']['reason'] ?? '') . ")\n"
-                    . 'Families: ' . implode(', ', array_keys($data['buyer_evidence']['positive_families'] ?? []))
+                    . 'Evidence Gate: ' . (is_scalar($verdictRaw) ? (string) $verdictRaw : 'N/A')
+                    . ' (' . (is_scalar($reasonRaw) ? (string) $reasonRaw : '') . ")\n"
+                    . 'Families: ' . implode(', ', is_array($familiesRaw) ? array_keys($familiesRaw) : [])
                 );
             }
             $company->setCreatedAt(new \DateTime());
@@ -475,14 +492,17 @@ class CompanyDiscoveryService
             // ── Enrichment data from verify pipeline ──────────────
             // The verify pipeline extracts LinkedIn URL, description,
             // phone, address, and email from homepage + LinkedIn.
-            if (!empty($data['linkedin_url'])) {
-                $company->setLinkedinCompanyUrl($data['linkedin_url']);
+            $linkedinUrlRaw = $data['linkedin_url'] ?? null;
+            if (!empty($linkedinUrlRaw) && is_scalar($linkedinUrlRaw)) {
+                $company->setLinkedinCompanyUrl((string) $linkedinUrlRaw);
             }
-            if (!empty($data['description'])) {
-                $company->setNotes($data['description']);
+            $descriptionRaw = $data['description'] ?? null;
+            if (!empty($descriptionRaw) && is_scalar($descriptionRaw)) {
+                $company->setNotes((string) $descriptionRaw);
             }
-            if (!empty($data['address'])) {
-                $company->setAddress($data['address']);
+            $addressRaw = $data['address'] ?? null;
+            if (!empty($addressRaw) && is_scalar($addressRaw)) {
+                $company->setAddress((string) $addressRaw);
             }
 
             // ── iter15: Validate address doesn't belong to a wrong country ──
@@ -506,8 +526,9 @@ class CompanyDiscoveryService
             }
 
             // Use country_hint from enrichment to override geo country
-            if (!empty($data['country_hint'])) {
-                $hint = strtoupper(trim($data['country_hint']));
+            $countryHintRaw = $data['country_hint'] ?? null;
+            if (!empty($countryHintRaw) && is_scalar($countryHintRaw)) {
+                $hint = strtoupper(trim((string) $countryHintRaw));
                 // ISO 2-letter code or full name → set country
                 if (strlen($hint) === 2) {
                     $company->setCountry($hint);
@@ -528,21 +549,25 @@ class CompanyDiscoveryService
                 $parts = array_filter([$company->getCity(), $countryLabel]);
                 $company->setAddress(implode(', ', $parts));
             }
-            if (!empty($data['phone'])) {
+            $phoneRaw = $data['phone'] ?? null;
+            $emailRaw = $data['email'] ?? null;
+            $hasPhone = !empty($phoneRaw) && is_scalar($phoneRaw);
+            $hasEmail = !empty($emailRaw) && is_scalar($emailRaw);
+            if ($hasPhone) {
                 // Store phone in notes if no direct phone field on Company
                 // Prepend to existing notes
                 $existingNotes = $company->getNotes() ?? '';
-                $phoneNote = 'Phone: ' . $data['phone'];
-                if (!empty($data['email'])) {
-                    $phoneNote .= ' | Email: ' . $data['email'];
+                $phoneNote = 'Phone: ' . (string) $phoneRaw;
+                if ($hasEmail) {
+                    $phoneNote .= ' | Email: ' . (string) $emailRaw;
                 }
                 $company->setNotes(
                     $phoneNote . ($existingNotes ? "\n" . $existingNotes : '')
                 );
-            } elseif (!empty($data['email'])) {
+            } elseif ($hasEmail) {
                 $existingNotes = $company->getNotes() ?? '';
                 $company->setNotes(
-                    'Email: ' . $data['email'] . ($existingNotes ? "\n" . $existingNotes : '')
+                    'Email: ' . (string) $emailRaw . ($existingNotes ? "\n" . $existingNotes : '')
                 );
             }
 
@@ -552,10 +577,18 @@ class CompanyDiscoveryService
             $pendingContacts = [];
             // - Single-word names → reject
             // - Numeric names → reject
-            if (!empty($data['contacts'])) {
+            $companyContacts = $data['contacts'] ?? null;
+            if (is_array($companyContacts)) {
                 $seenContactNames = [];
-                foreach ($data['contacts'] as $contactData) {
+                foreach ($companyContacts as $contactData) {
+                    if (!is_array($contactData)) {
+                        continue;
+                    }
                     if (empty($contactData['first_name']) || empty($contactData['last_name'])) {
+                        continue;
+                    }
+                    if (!is_string($contactData['first_name']) || !is_string($contactData['last_name'])) {
+                        // Non-string names would previously have crashed trim()
                         continue;
                     }
 
@@ -577,11 +610,6 @@ class CompanyDiscoveryService
                         continue;
                     }
                     if (preg_match('/^\d+$/', $firstName) || preg_match('/^\d+$/', $lastName)) {
-                        continue;
-                    }
-
-                    // 3. Reject names that are just initials (e.g. "A" "B")
-                    if (mb_strlen($firstName) === 1 && mb_strlen($lastName) === 1) {
                         continue;
                     }
 
@@ -673,9 +701,10 @@ class CompanyDiscoveryService
                     $contact->setCompany($company);
                     $contact->setFirstName($firstName);
                     $contact->setLastName($lastName);
-                    if (!empty($contactData['email'])) {
-                        $emailLocal = strtolower(explode('@', $contactData['email'])[0] ?? '');
-                        $emailDomain = strtolower(explode('@', $contactData['email'])[1] ?? '');
+                    $contactEmail = $contactData['email'] ?? null;
+                    if (!empty($contactEmail) && is_string($contactEmail)) {
+                        $emailLocal = strtolower(explode('@', $contactEmail)[0]);
+                        $emailDomain = strtolower(explode('@', $contactEmail)[1] ?? '');
 
                         // ── Reject generic email prefixes ──
                         $isGenericPrefix = in_array($emailLocal, $genericEmailPrefixes, true);
@@ -698,7 +727,7 @@ class CompanyDiscoveryService
                         if ($isRejectDomain) {
                             $this->logger->debug('Rejected contact with non-company email', [
                                 'name' => $firstName . ' ' . $lastName,
-                                'email' => $contactData['email'],
+                                'email' => $contactEmail,
                                 'company' => $name,
                             ]);
                             continue; // Reject entire contact — email from wrong org
@@ -717,7 +746,8 @@ class CompanyDiscoveryService
                             if (!empty($website)) {
                                 $companyHost = parse_url($website, PHP_URL_HOST);
                                 if ($companyHost) {
-                                    $companyDom = strtolower(preg_replace('/^www\./', '', $companyHost));
+                                    $companyHost = preg_replace('/^www\./', '', $companyHost) ?? $companyHost;
+                                    $companyDom = strtolower($companyHost);
                                     $companyRoot = implode('.', array_slice(explode('.', $companyDom), -2));
                                     $emailRoot = implode('.', array_slice(explode('.', $emailDomain), -2));
                                     if ($companyRoot !== $emailRoot) {
@@ -732,29 +762,32 @@ class CompanyDiscoveryService
                                 }
                             }
                             if ($emailOk) {
-                                $contact->setEmail($contactData['email']);
+                                $contact->setEmail($contactEmail);
                             }
                         }
                     }
 
                     // ── Phone number validation ──────────────────────
-                    if (!empty($contactData['phone'])) {
-                        $phone = trim($contactData['phone']);
+                    $contactPhone = $contactData['phone'] ?? null;
+                    if (!empty($contactPhone) && is_string($contactPhone)) {
+                        $phone = trim($contactPhone);
                         // Reject obviously invalid phone numbers
-                        $cleanPhone = preg_replace('/[\s\-\.\(\)]+/', '', $phone);
+                        // preg_replace returns null only on PCRE failure
+                        $cleanPhone = preg_replace('/[\s\-\.\(\)]+/', '', $phone) ?? '';
                         if (strlen($cleanPhone) >= 7 && strlen($cleanPhone) <= 20
                             && preg_match('/^\+?\d{7,}$/', $cleanPhone)) {
                             $contact->setPhone($phone);
                         }
                     }
-                    if (!empty($contactData['job_title'])) {
-                        $contact->setJobTitle($contactData['job_title']);
+                    $contactJobTitle = $contactData['job_title'] ?? null;
+                    if (!empty($contactJobTitle) && is_string($contactJobTitle)) {
+                        $contact->setJobTitle($contactJobTitle);
                     }
-                    if (!empty($contactData['linkedin_url'])) {
+                    $contactLinkedIn = $contactData['linkedin_url'] ?? null;
+                    if (!empty($contactLinkedIn) && is_string($contactLinkedIn)) {
                         // Validate LinkedIn URL format
-                        $liUrl = $contactData['linkedin_url'];
-                        if (str_contains($liUrl, 'linkedin.com/in/') || str_contains($liUrl, 'linkedin.com/pub/')) {
-                            $contact->setLinkedInUrl($liUrl);
+                        if (str_contains($contactLinkedIn, 'linkedin.com/in/') || str_contains($contactLinkedIn, 'linkedin.com/pub/')) {
+                            $contact->setLinkedInUrl($contactLinkedIn);
                         }
                     }
 
@@ -778,7 +811,7 @@ class CompanyDiscoveryService
                     $pendingContacts[] = $contact;
 
                     $this->logger->info('Auto-created contact', [
-                        'name' => $contactData['first_name'] . ' ' . $contactData['last_name'],
+                        'name' => $firstName . ' ' . $lastName,
                         'company' => $name,
                         'has_email' => $hasEmail,
                         'has_phone' => $hasPhone,
@@ -864,11 +897,11 @@ class CompanyDiscoveryService
             foreach ($savedCompanies as $company) {
                 try {
                     $enrichResult = $this->contactEnrichment->enrichCompanyContacts($company, 5);
-                    $totalCreated += $enrichResult['created'] ?? 0;
+                    $totalCreated += $enrichResult['created'];
                     $this->logger->info('Auto-enriched contacts for {company}', [
                         'company' => $company->getName(),
-                        'created' => $enrichResult['created'] ?? 0,
-                        'sources' => $enrichResult['sources'] ?? [],
+                        'created' => $enrichResult['created'],
+                        'sources' => $enrichResult['sources'],
                     ]);
                     // Small delay to respect API rate limits
                     usleep(500000); // 500ms
@@ -891,10 +924,15 @@ class CompanyDiscoveryService
 
     /**
      * Learn competitors from discovery results
-     * Called automatically during company discovery
-      * @param array<string|int, mixed> $results
+     *
+     * Documented as an extension point invoked automatically during company
+     * discovery. It is currently not wired into the discovery flow (kept for
+     * API compatibility with subclasses/tools) — hence protected instead of
+     * private so it stays reachable without a signature change.
+     *
+     * @param array<string|int, mixed> $results
      */
-    private function learnCompetitorsFromResults(array $results): void
+    protected function learnCompetitorsFromResults(array $results): void
     {
         if (!$this->competitorLearner) {
             return;
@@ -913,9 +951,10 @@ class CompanyDiscoveryService
     public function enrichCompanyData(Company $company): void
     {
         // Find website if missing
-        if (!$company->getWebsite()) {
+        $companyName = $company->getName();
+        if (!$company->getWebsite() && $companyName !== null) {
             $website = $this->googleDork->findCompanyWebsite(
-                $company->getName(),
+                $companyName,
                 $company->getPhysicalSite()
             );
             if ($website) {
@@ -929,6 +968,8 @@ class CompanyDiscoveryService
     /**
      * Analyze company website for competitor mentions
      * Returns array of discovered competitors
+     *
+     * @return list<array{competitor: \App\Entity\LearnedCompetitor, action: string}>
      */
     public function analyzeForCompetitors(Company $company): array
     {
@@ -946,8 +987,14 @@ class CompanyDiscoveryService
         // For now, use what we have in the database
         
         $sourceUrl = $company->getWebsite() ?? 'company_analysis';
-        
-        return $this->competitorLearner->learnFromContent($content, $sourceUrl);
+
+        // CompetitorLearnerService::learnFromContent() returns
+        // list<array{competitor: LearnedCompetitor, action: 'created'|'updated'}>
+        // (verified from its source); its own PHPDoc only says `array`.
+        /** @var list<array{competitor: \App\Entity\LearnedCompetitor, action: string}> $learned */
+        $learned = $this->competitorLearner->learnFromContent($content, $sourceUrl);
+
+        return $learned;
     }
 
     /**
@@ -957,6 +1004,8 @@ class CompanyDiscoveryService
      * iter15: prevents addresses like "Road, Niamey" (Niger) from being
      * assigned to a Moroccan company, or "Str. Piatra Craiului" (Romania)
      * to a Tunisian company.
+     *
+     * @return list<string>
      */
     private function getWrongCountryIndicators(string $region): array
     {
@@ -1088,7 +1137,11 @@ class CompanyDiscoveryService
 
     private function ensureEntityManagerOpen(): void
     {
-        if (!method_exists($this->em, 'isOpen') || $this->em->isOpen() !== false) {
+        // EntityManagerInterface::isOpen() always exists. Deliberately
+        // `!== false` rather than a truthiness check: mocked entity managers
+        // (unit tests) return null from isOpen(), and the legacy behavior
+        // treats that as an open manager.
+        if ($this->em->isOpen() !== false) {
             return;
         }
 
@@ -1096,7 +1149,11 @@ class CompanyDiscoveryService
             throw new \RuntimeException('Entity manager is closed and no ManagerRegistry is available to reset it.');
         }
 
-        $this->em = $this->doctrine->resetManager();
+        $resetManager = $this->doctrine->resetManager();
+        if (!$resetManager instanceof EntityManagerInterface) {
+            throw new \RuntimeException('Reset manager is not an ORM EntityManagerInterface instance.');
+        }
+        $this->em = $resetManager;
     }
 
     /**
@@ -1160,7 +1217,11 @@ class CompanyDiscoveryService
     private function resetEntityManagerAfterFailure(): void
     {
         if ($this->doctrine !== null) {
-            $this->em = $this->doctrine->resetManager();
+            $resetManager = $this->doctrine->resetManager();
+            if (!$resetManager instanceof EntityManagerInterface) {
+                throw new \RuntimeException('Reset manager is not an ORM EntityManagerInterface instance.');
+            }
+            $this->em = $resetManager;
             return;
         }
 

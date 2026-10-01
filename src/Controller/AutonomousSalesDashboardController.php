@@ -24,6 +24,83 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * This controller translates the complex ML/bandit internals into
  * plain-English data the template can display without jargon.
  * All backend services remain untouched.
+ *
+ * @phpstan-type BanditArmStats array{
+ *   id: int|null,
+ *   name: string|null,
+ *   value: string|null,
+ *   alpha: float,
+ *   beta: float,
+ *   totalTrials: int,
+ *   totalSuccesses: int,
+ *   empiricalRate: float,
+ *   expectedRate: float,
+ *   icpCluster: string,
+ *   quarantined: bool,
+ *   isControl: bool,
+ *   recentNegRate: float
+ * }
+ * @phpstan-type BanditTypeStats array{
+ *   arm_count: int,
+ *   total_trials: int,
+ *   total_successes: int,
+ *   overall_rate: float|int,
+ *   convergence: float
+ * }
+ * @phpstan-type SystemStats array{
+ *   discovery: array{totalLeads: int, pendingReview: int, scored: int},
+ *   scoring: array{averageScore: float},
+ *   optimizer: array{arms: int, trials: int, successRate: float|int, convergence: float},
+ *   inbox: array<int|string, mixed>,
+ *   competitors: array{detectionsCount: int, stats: array<int|string, mixed>}
+ * }
+ * @phpstan-type HealthStatus array{
+ *   status: string,
+ *   statusLabel: string,
+ *   statusDesc: string,
+ *   totalArms: int,
+ *   totalTrials: int,
+ *   quarantined: int,
+ *   hasControl: bool,
+ *   safeMode: bool,
+ *   successRate: float|int
+ * }
+ * @phpstan-type PerformanceOverview array{
+ *   emailsSent: int,
+ *   variationsActive: int,
+ *   successRate: float|int,
+ *   successPct: float,
+ *   leadsTotal: int,
+ *   leadsScored: int,
+ *   leadsPending: int,
+ *   avgScore: float,
+ *   competitors: int
+ * }
+ * @phpstan-type VariationItem array{
+ *   id: int|null,
+ *   name: string|null,
+ *   value: string|null,
+ *   emailsSent: int,
+ *   opens: int,
+ *   successPct: float|int,
+ *   badge: string,
+ *   badgeLabel: string,
+ *   explanation: string,
+ *   isControl: bool,
+ *   quarantined: bool,
+ *   vsBaseline: float|int|null
+ * }
+ * @phpstan-type VariationsSection array{
+ *   type: string,
+ *   label: string,
+ *   items: list<VariationItem>,
+ *   count: int,
+ *   explanation: string
+ * }
+ * @phpstan-type AutomationStatus array{summary: string, detail: string, actions: list<string>}
+ * @phpstan-type SetupStep array{label: string, done: bool, help: string}
+ * @phpstan-type SetupChecklist array{steps: list<SetupStep>, completed: int, total: int, allDone: bool, pct: float}
+ * @phpstan-type SubtitleSpec array{key: string, params: array<string, bool|float|int|string|null>}
  */
 #[Route('/autonomous-sales')]
 class AutonomousSalesDashboardController extends AbstractController
@@ -43,6 +120,7 @@ class AutonomousSalesDashboardController extends AbstractController
         AutonomousSalesSettingsService $settingsService,
     ): Response {
         $enabled = $settingsService->isEnabled();
+        /** @var SystemStats $systemStats */
         $systemStats = $orchestrator->getStats();
 
         // Tab routing — server-side, same pattern as webinar/index
@@ -86,6 +164,7 @@ class AutonomousSalesDashboardController extends AbstractController
             ->getQuery()->getSingleScalarResult();
 
         // Email engagement rates
+        /** @var array<string, int|string|null> $emailStats DQL aggregate row (SUM/COUNT come back as string|int|null depending on the driver) */
         $emailStats = $emailSendRepo->createQueryBuilder('e')
             ->select(
                 'COUNT(e.id) AS total',
@@ -131,6 +210,7 @@ class AutonomousSalesDashboardController extends AbstractController
         // currency — quotes are captured in mixed currencies (USD/EUR/MAD/...),
         // so SUM(totalCost) in SQL would produce a currency-meaningless number.
         $displayCurrency = $this->currencyConverter->getDisplayCurrency();
+        /** @var array<int, array<string, mixed>> $pipelineRows */
         $pipelineRows = $this->entityManager->createQuery(
             'SELECT q.totalCost, q.currency FROM App\Entity\Quote q WHERE q.status IN (:statuses) AND q.archivedAt IS NULL'
         )->setParameter('statuses', ['draft', 'pending_review', 'approved', 'sent'])
@@ -138,13 +218,16 @@ class AutonomousSalesDashboardController extends AbstractController
 
         $pipelineValue = 0.0;
         foreach ($pipelineRows as $row) {
-            $amount = (float) ($row['totalCost'] ?? 0);
+            $rawAmount = $row['totalCost'] ?? 0;
+            $amount = is_numeric($rawAmount) ? (float) $rawAmount : 0.0;
             if ($amount <= 0) {
                 continue;
             }
+            $rawCurrency = $row['currency'];
+            $fromCurrency = is_string($rawCurrency) && $rawCurrency !== '' ? $rawCurrency : $displayCurrency;
             $pipelineValue += $this->currencyConverter->convert(
                 $amount,
-                $row['currency'] ?: $displayCurrency,
+                $fromCurrency,
                 $displayCurrency
             );
         }
@@ -159,8 +242,12 @@ class AutonomousSalesDashboardController extends AbstractController
         $rawStats = [];
         $rawArms  = [];
         foreach ($armTypes as $type => $label) {
-            $rawStats[$type] = $thompsonSampler->getBanditStats($type);
-            $rawArms[$type]  = $thompsonSampler->getArmsWithStats($type);
+            /** @var BanditTypeStats $stats */
+            $stats = $thompsonSampler->getBanditStats($type);
+            /** @var list<BanditArmStats> $arms */
+            $arms  = $thompsonSampler->getArmsWithStats($type);
+            $rawStats[$type] = $stats;
+            $rawArms[$type]  = $arms;
         }
 
         // ── Translate raw data into user-friendly structures ──
@@ -219,7 +306,7 @@ class AutonomousSalesDashboardController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function toggle(Request $request, AutonomousSalesSettingsService $settingsService): RedirectResponse
     {
-        if (!$this->isCsrfTokenValid('autonomous_sales_toggle', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('autonomous_sales_toggle', $request->request->getString('_token'))) {
             $this->addFlash('error', 'Invalid security token. Please try again.');
             return $this->redirectToRoute('autonomous_sales_index');
         }
@@ -242,17 +329,18 @@ class AutonomousSalesDashboardController extends AbstractController
             return $this->redirectToRoute('autonomous_sales_index');
         }
 
-        if (!$this->isCsrfTokenValid('autonomous_sales_initialize', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('autonomous_sales_initialize', $request->request->getString('_token'))) {
             $this->addFlash('error', 'Invalid security token. Please try again.');
             return $this->redirectToRoute('autonomous_sales_index');
         }
 
+        /** @var array{templates: int, arms: int, valuePropArms: int, competitors: int} $result */
         $result = $orchestrator->initialize();
         $this->addFlash('success', sprintf(
             'System initialized: %d email templates, %d subject line variations, and %d competitor signals loaded.',
-            $result['templates'] ?? 0,
-            ($result['arms'] ?? 0) + ($result['valuePropArms'] ?? 0),
-            $result['competitors'] ?? 0
+            $result['templates'],
+            $result['arms'] + $result['valuePropArms'],
+            $result['competitors']
         ));
 
         return $this->redirectToRoute('autonomous_sales_index');
@@ -267,7 +355,7 @@ class AutonomousSalesDashboardController extends AbstractController
             return $this->redirectToRoute('autonomous_sales_index');
         }
 
-        if (!$this->isCsrfTokenValid('autonomous_sales_seed', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('autonomous_sales_seed', $request->request->getString('_token'))) {
             $this->addFlash('error', 'Invalid security token. Please try again.');
             return $this->redirectToRoute('autonomous_sales_index');
         }
@@ -290,14 +378,15 @@ class AutonomousSalesDashboardController extends AbstractController
             return $this->redirectToRoute('autonomous_sales_index');
         }
 
-        if (!$this->isCsrfTokenValid('autonomous_sales_score_leads', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('autonomous_sales_score_leads', $request->request->getString('_token'))) {
             $this->addFlash('error', 'Invalid security token. Please try again.');
             return $this->redirectToRoute('autonomous_sales_index');
         }
 
         $limit = max(1, (int) $request->request->get('limit', 50));
+        /** @var array{scored: int, byTier: array<string, int>, leads: list<array{id: int|null, name: string|null, score: int, tier: string, competitorBoost: int}>} $result */
         $result = $orchestrator->scoreLeads($limit);
-        $scored = $result['scored'] ?? 0;
+        $scored = $result['scored'];
 
         $this->addFlash('success', sprintf(
             '%d leads scored and ranked by purchase likelihood. The system will prioritize the highest-scoring leads for outreach.',
@@ -316,7 +405,7 @@ class AutonomousSalesDashboardController extends AbstractController
             return $this->redirectToRoute('autonomous_sales_index');
         }
 
-        if (!$this->isCsrfTokenValid('autonomous_sales_hourly_run', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('autonomous_sales_hourly_run', $request->request->getString('_token'))) {
             $this->addFlash('error', 'Invalid security token. Please try again.');
             return $this->redirectToRoute('autonomous_sales_index');
         }
@@ -326,13 +415,18 @@ class AutonomousSalesDashboardController extends AbstractController
 
         $report = $hourlyOptimization->runHourlyCycle($dryRun, $limit);
 
-        $outcome  = $report['stages'][10]['outcome'] ?? 'unknown';
-        $duration = $report['duration'] ?? 0;
+        $stage10 = $report['stages'][10] ?? null;
+        $outcome = is_array($stage10) && is_string($stage10['outcome'] ?? null)
+            ? $stage10['outcome']
+            : 'unknown';
+        $duration = $report['duration'];
 
         // Translate ML outcomes into plain English
-        $stage7 = $report['stages'][7] ?? [];
-        $promoteCount = $stage7['promoteCount'] ?? 0;
-        $pruneCount   = $stage7['pruneCount'] ?? 0;
+        $stage7 = $report['stages'][7] ?? null;
+        $promoteCount = is_array($stage7) && is_numeric($stage7['promoteCount'] ?? null)
+            ? (int) $stage7['promoteCount'] : 0;
+        $pruneCount   = is_array($stage7) && is_numeric($stage7['pruneCount'] ?? null)
+            ? (int) $stage7['pruneCount'] : 0;
 
         if ($outcome === 'improve') {
             $this->addFlash('success', sprintf(
@@ -367,7 +461,7 @@ class AutonomousSalesDashboardController extends AbstractController
             return $this->redirectToRoute('autonomous_sales_index');
         }
 
-        if (!$this->isCsrfTokenValid('autonomous_sales_arm_create', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('autonomous_sales_arm_create', $request->request->getString('_token'))) {
             $this->addFlash('error', 'Invalid security token. Please try again.');
             return $this->redirectToRoute('autonomous_sales_index');
         }
@@ -399,7 +493,7 @@ class AutonomousSalesDashboardController extends AbstractController
             return $this->redirectToRoute('autonomous_sales_index');
         }
 
-        if (!$this->isCsrfTokenValid('autonomous_sales_arm_outcome_' . $id, $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('autonomous_sales_arm_outcome_' . $id, $request->request->getString('_token'))) {
             $this->addFlash('error', 'Invalid security token. Please try again.');
             return $this->redirectToRoute('autonomous_sales_index');
         }
@@ -413,6 +507,9 @@ class AutonomousSalesDashboardController extends AbstractController
         return $this->redirectToRoute('autonomous_sales_index');
     }
 
+    /**
+     * @param array<string, bool|float|int|string|null> $parameters
+     */
     private function trans(string $id, array $parameters = []): string
     {
         return $this->translator->trans($id, $parameters);
@@ -422,8 +519,10 @@ class AutonomousSalesDashboardController extends AbstractController
 
     /**
      * System health: simple traffic-light status for the whole system.
-      * @param array<string|int, mixed> $rawArms
- * @param array<string|int, mixed> $systemStats
+     *
+     * @param array<string, list<BanditArmStats>> $rawArms
+     * @param SystemStats $systemStats
+     * @return HealthStatus
      */
     private function buildHealthStatus(array $rawArms, array $systemStats, bool $enabled): array
     {
@@ -436,10 +535,10 @@ class AutonomousSalesDashboardController extends AbstractController
         foreach ($rawArms as $type => $arms) {
             foreach ($arms as $arm) {
                 $totalArms++;
-                $totalTrials += $arm['totalTrials'] ?? 0;
-                $totalSuccesses += $arm['totalSuccesses'] ?? 0;
-                if ($arm['quarantined'] ?? false) $quarantined++;
-                if ($arm['isControl'] ?? false) $hasControl = true;
+                $totalTrials += $arm['totalTrials'];
+                $totalSuccesses += $arm['totalSuccesses'];
+                if ($arm['quarantined']) $quarantined++;
+                if ($arm['isControl']) $hasControl = true;
             }
         }
 
@@ -492,8 +591,10 @@ class AutonomousSalesDashboardController extends AbstractController
 
     /**
      * Performance: translate raw stats into meaningful business numbers.
-      * @param array<string|int, mixed> $rawStats
- * @param array<string|int, mixed> $systemStats
+     *
+     * @param array<string, BanditTypeStats> $rawStats
+     * @param SystemStats $systemStats
+     * @return PerformanceOverview
      */
     private function buildPerformanceOverview(array $rawStats, array $systemStats): array
     {
@@ -501,29 +602,31 @@ class AutonomousSalesDashboardController extends AbstractController
         $totalArms = 0;
 
         foreach ($rawStats as $type => $stats) {
-            $totalTrials += $stats['total_trials'] ?? 0;
-            $totalArms += $stats['total_arms'] ?? $stats['arm_count'] ?? 0;
+            $totalTrials += $stats['total_trials'];
+            $totalArms += $stats['arm_count'];
         }
 
-        $successRate = $systemStats['optimizer']['successRate'] ?? 0;
+        $successRate = $systemStats['optimizer']['successRate'];
 
         return [
             'emailsSent'       => $totalTrials,
             'variationsActive' => $totalArms,
             'successRate'      => $successRate,
             'successPct'       => round($successRate * 100, 1),
-            'leadsTotal'       => $systemStats['discovery']['totalLeads'] ?? 0,
-            'leadsScored'      => $systemStats['discovery']['scored'] ?? 0,
-            'leadsPending'     => $systemStats['discovery']['pendingReview'] ?? 0,
-            'avgScore'         => $systemStats['scoring']['averageScore'] ?? 0,
-            'competitors'      => $systemStats['competitors']['detectionsCount'] ?? 0,
+            'leadsTotal'       => $systemStats['discovery']['totalLeads'],
+            'leadsScored'      => $systemStats['discovery']['scored'],
+            'leadsPending'     => $systemStats['discovery']['pendingReview'],
+            'avgScore'         => $systemStats['scoring']['averageScore'],
+            'competitors'      => $systemStats['competitors']['detectionsCount'],
         ];
     }
 
     /**
      * Variations: translate each "bandit arm" into a human-readable variation card.
-      * @param array<string|int, mixed> $rawArms
- * @param array<string|int, mixed> $armTypes
+     *
+     * @param array<string, list<BanditArmStats>> $rawArms
+     * @param array<string, string> $armTypes
+     * @return list<VariationsSection>
      */
     private function buildVariationsList(array $rawArms, array $armTypes): array
     {
@@ -536,7 +639,7 @@ class AutonomousSalesDashboardController extends AbstractController
             // Find the control/baseline arm
             $baseline = null;
             foreach ($arms as $arm) {
-                if ($arm['isControl'] ?? false) {
+                if ($arm['isControl']) {
                     $baseline = $arm;
                     break;
                 }
@@ -544,12 +647,12 @@ class AutonomousSalesDashboardController extends AbstractController
 
             $items = [];
             foreach ($arms as $arm) {
-                $trials    = $arm['totalTrials'] ?? 0;
-                $successes = $arm['totalSuccesses'] ?? 0;
-                $rate      = $arm['expectedRate'] ?? 0;
-                $negRate   = $arm['recentNegRate'] ?? 0;
-                $isControl = $arm['isControl'] ?? false;
-                $quarantined = $arm['quarantined'] ?? false;
+                $trials    = $arm['totalTrials'];
+                $successes = $arm['totalSuccesses'];
+                $rate      = $arm['expectedRate'];
+                $negRate   = $arm['recentNegRate'];
+                $isControl = $arm['isControl'];
+                $quarantined = $arm['quarantined'];
 
                 // Compute relative performance vs baseline
                 $baselineRate = $baseline['expectedRate'] ?? 0;
@@ -583,7 +686,7 @@ class AutonomousSalesDashboardController extends AbstractController
                 }
 
                 $items[] = [
-                    'id'          => $arm['id'] ?? null,
+                    'id'          => $arm['id'],
                     'name'        => $arm['name'] ?? 'Unknown',
                     'value'       => $arm['value'] ?? '',
                     'emailsSent'  => $trials,
@@ -599,7 +702,7 @@ class AutonomousSalesDashboardController extends AbstractController
             }
 
             // Sort: baseline first, then by success rate descending
-            usort($items, function ($a, $b) {
+            usort($items, function (array $a, array $b): int {
                 if ($a['isControl']) return -1;
                 if ($b['isControl']) return 1;
                 return $b['successPct'] <=> $a['successPct'];
@@ -624,8 +727,10 @@ class AutonomousSalesDashboardController extends AbstractController
 
     /**
      * Automation status: what the system is doing and what actions are available.
-      * @param array<string|int, mixed> $health
- * @param array<string|int, mixed> $performance
+     *
+     * @param HealthStatus $health
+     * @param PerformanceOverview $performance
+     * @return AutomationStatus
      */
     private function buildAutomationStatus(array $health, array $performance, bool $enabled): array
     {
@@ -684,8 +789,10 @@ class AutonomousSalesDashboardController extends AbstractController
 
     /**
      * Setup checklist: clear steps for getting started.
-      * @param array<string|int, mixed> $rawArms
- * @param array<string|int, mixed> $systemStats
+     *
+     * @param array<string, list<BanditArmStats>> $rawArms
+     * @param SystemStats $systemStats
+     * @return SetupChecklist
      */
     private function buildSetupChecklist(array $rawArms, array $systemStats, bool $enabled): array
     {
@@ -694,9 +801,10 @@ class AutonomousSalesDashboardController extends AbstractController
             $totalArms += count($arms);
         }
 
-        $leadsTotal = $systemStats['discovery']['totalLeads'] ?? 0;
-        $leadsScored = $systemStats['discovery']['scored'] ?? 0;
+        $leadsTotal = $systemStats['discovery']['totalLeads'];
+        $leadsScored = $systemStats['discovery']['scored'];
 
+        /** @var list<SetupStep> $steps */
         $steps = [
             [
                 'label' => 'Turn on sales automation',
@@ -747,9 +855,11 @@ class AutonomousSalesDashboardController extends AbstractController
      *
      * Returns a translation key that the template will pass through |trans.
      * The controller also passes parameters for interpolation.
-      * @param array<string|int, mixed> $setup
- * @param array<string|int, mixed> $performance
- * @param array<string|int, mixed> $health
+     *
+     * @param SetupChecklist $setup
+     * @param PerformanceOverview $performance
+     * @param HealthStatus $health
+     * @return SubtitleSpec
      */
     private function buildDynamicSubtitle(bool $enabled, array $setup, array $performance, array $health): array
     {

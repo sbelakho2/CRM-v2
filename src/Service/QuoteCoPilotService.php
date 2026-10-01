@@ -45,14 +45,31 @@ use Doctrine\ORM\EntityManagerInterface;
  * Used by:
  * - QuoteCoPilotController for BOM uploads
  * - Quote detail page for regeneration
+ *
+ * @phpstan-import-type BomStats from \App\Service\PricingEngine
+ * @phpstan-import-type ConfidenceInfo from \App\Service\PricingEngine
+ * @phpstan-import-type PriceBreak from \App\Service\PricingEngine
+ * @phpstan-type ParsedBomLine array{lineNumber: int, designator: string, mpn: string, manufacturer: string, quantity: int, description: string, value: string, package: string, supplier: string, supplier_pn: string, category: string, remark: string}
+ * @phpstan-type BomInputLine array{lineNumber?: int, designator?: string, mpn: string, original_mpn?: string|null, manufacturer?: string|null, description?: string|null, quantity: int, value?: string, package?: string, supplier?: string, supplier_pn?: string, category?: string, remark?: string|null, stock_quantity?: int}
+ * @phpstan-type PricedBomLine array{lineNumber?: int, designator?: string, mpn: string, manufacturer?: string|null, description?: string|null, quantity: int, value?: string, package?: string, supplier?: string, supplier_pn?: string, category?: string, remark?: string|null, stock_quantity?: int|null, firm_quantity?: bool|int, total_price?: int|float, unit_price?: int|float|null, leadtime_days?: int, status?: string, extended_price?: int|float|null, source?: string|null, confidence?: ConfidenceInfo, alternatives?: list<array<string, mixed>>, lifecycle_warning?: string|null, search_url?: string|null, product_url?: string|null, currency?: string|null, pricing?: list<PriceBreak>, moq?: int, pack_quantity?: int|null, multiple_quantity?: int|null, requested_quantity?: int, effective_quantity?: int, quantity_adjusted?: bool, quantity_adjustment_reason?: string|null, bom_price_capped?: bool, risk_analysis?: mixed, alt_mpn_used?: string|null, alt_mpn_savings_pct?: int|float, manual_notes?: string|null, alibaba_supplier?: string, alibaba_raw_description?: string, waterfall_info?: array{triggered: bool, reason?: string|null, sources_checked?: list<int|string>}, matched_mpn?: string|null, stock?: int|null, _source_url?: string|null, supplier_type?: mixed, trade_assurance?: mixed, shipping_from?: mixed, _fallback_method?: mixed, _original_mpn?: mixed, _fallback_mpn?: mixed, _fallback_keyword?: mixed}
  */
 class QuoteCoPilotService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
         private QuoteRepository $quoteRepository,
-        private BomLineRepository $bomLineRepository,
-        private ProcurementExceptionRepository $procurementExceptionRepository,
+        /**
+         * Kept injected (protected) for subclasses/contracts; not read in
+         * this service today — deletion would change the autowired
+         * constructor signature.
+         */
+        protected BomLineRepository $bomLineRepository,
+        /**
+         * Kept injected (protected) for subclasses/contracts; not read in
+         * this service today — deletion would change the autowired
+         * constructor signature.
+         */
+        protected ProcurementExceptionRepository $procurementExceptionRepository,
         private BOMParser $bomParser,
         private PricingEngine $pricingEngine,
         private CurrencyPreferenceService $currencyPreferenceService,
@@ -61,18 +78,21 @@ class QuoteCoPilotService
 
     /**
      * Auto-generate quote from BOM file
-     * 
+     *
      * @param string $bomFilePath - Path to uploaded BOM file
      * @param int $companyId - Company ID (customer)
      * @param int $contactId - Contact ID (requester)
-     * @param array $metadata - Additional metadata (RFQ ID, notes, etc.)
-     * 
+     * @param array<string, mixed> $metadata - Additional metadata (RFQ ID, notes, etc.)
+     *
      * @return array{
      *   quoteId: int,
-     *   coverage: float,
+     *   coverage: int|float,
      *   autoPublished: bool,
      *   exceptionsCount: int,
-     *   bomLineCount: int
+     *   bomLineCount: int,
+     *   stats: BomStats,
+     *   totals: array{subtotal: float, margin_percent: float, margin_amount: float, total: float, currency: string},
+     *   winPrediction: array{probability: float, confidence: float, grade: string, recommendation: string, factors: array<string, float>, insights: array{strengths?: list<string>, weaknesses?: list<string>, summary: string}}
      * }
      */
     public function autogenerateQuote(
@@ -83,9 +103,11 @@ class QuoteCoPilotService
     ): array {
         // 1. Parse BOM file
         $bomLines = $this->bomParser->parse($bomFilePath);
+        /** @var list<ParsedBomLine> $bomLines */
         $bomLines = $this->bomParser->consolidate($bomLines);
-        
+
         // Validate BOM
+        /** @var list<string> $validationErrors */
         $validationErrors = $this->bomParser->validate($bomLines);
         if (!empty($validationErrors)) {
             throw new \RuntimeException('BOM validation failed: ' . implode(', ', $validationErrors));
@@ -103,7 +125,8 @@ class QuoteCoPilotService
         }
 
         $rfq = null;
-        $quoteCurrency = $metadata['currency'] ?? null;
+        $currencyRaw = $metadata['currency'] ?? null;
+        $quoteCurrency = \is_string($currencyRaw) ? $currencyRaw : null;
         if (isset($metadata['rfq_id'])) {
             $rfq = $this->entityManager->getRepository(RFQ::class)->find($metadata['rfq_id']);
             if ($rfq && !$quoteCurrency) {
@@ -156,6 +179,13 @@ class QuoteCoPilotService
         ]);
         $quote->setMetadata($predictionMetadata);
 
+        // QuoteWinPredictorService::predictWinProbability() returns
+        // array{probability: float, confidence: float, grade: string,
+        // recommendation: string, factors: array<string, float>,
+        // insights: array{strengths?: list<string>, weaknesses?: list<string>, summary: string}}
+        // (verified from its calculateFactors()/generateInsights(); its own
+        // PHPDoc declares the last two as bare arrays).
+        /** @var array{probability: float, confidence: float, grade: string, recommendation: string, factors: array<string, float>, insights: array{strengths?: list<string>, weaknesses?: list<string>, summary: string}} $winPrediction */
         $winPrediction = $this->winPredictor->predictWinProbability($quote);
         $quote->setMetadata(array_merge($quote->getMetadata() ?? [], [
             'win_prediction' => [
@@ -166,7 +196,7 @@ class QuoteCoPilotService
                 'calculated_at' => (new \DateTime())->format('c'),
             ],
         ]));
-        
+
         // 7. Check auto-publish criteria
         $publishCheck = $this->pricingEngine->canAutoPublish($stats, $processedLines);
         
@@ -181,9 +211,13 @@ class QuoteCoPilotService
 
         // C6: Database-level auto-publish validation — queries persisted BomLines and exceptions
         // to double-check coverage, lead times, and critical exceptions.
-        $coveragePct = $stats['coverage_percent'] ?? 0;
+        $coveragePct = $stats['coverage_percent'];
         $dbLevelPublished = false;
-        if ($this->checkAutoPublishCriteria($quote->getId(), $coveragePct)) {
+        $quoteId = $quote->getId();
+        if ($quoteId === null) {
+            throw new \RuntimeException('Quote was not persisted: no ID after flush.');
+        }
+        if ($this->checkAutoPublishCriteria($quoteId, $coveragePct)) {
             $quote->setStatus('PUBLISHED');
             $quote->setAutoPublished(true);
             $quote->setUpdatedAt(new \DateTime());
@@ -192,7 +226,7 @@ class QuoteCoPilotService
         }
         
         return [
-            'quoteId' => $quote->getId(),
+            'quoteId' => $quoteId,
             'coverage' => $stats['coverage_percent'],
             // Return the authoritative DB-level re-check result: the in-memory
             // check can disagree with persisted state (e.g. exceptions written
@@ -216,7 +250,7 @@ class QuoteCoPilotService
      * 
      * @param string $bomFilePath Path to the BOM file
      * @param string|null $extension Optional file extension (for uploaded files without extension in temp path)
-     * @return array Array of parsed BOM lines with keys: designator, mpn, manufacturer, qty, description, value
+     * @return array<int, ParsedBomLine> Array of parsed BOM lines with keys: designator, mpn, manufacturer, qty, description, value
      */
     public function parseBom(string $bomFilePath, ?string $extension = null): array
     {
@@ -227,12 +261,13 @@ class QuoteCoPilotService
     /**
      * Round all BOM line quantities up to the nearest multiple.
      *
-     * @param array $bomData    Parsed BOM data (from parseBom())
+     * @param array<int, BomInputLine> $bomData    Parsed BOM data (from parseBom())
      * @param int   $orderMultiple  Round quantities to this multiple (e.g. 10)
-     * @return array  BOM data with quantities rounded up
+     * @return array<int, BomInputLine>  BOM data with quantities rounded up
      */
     public function applyOrderMultiple(array $bomData, int $orderMultiple): array
     {
+        /** @var array<int, BomInputLine> */
         return $this->bomParser->applyOrderMultiple($bomData, $orderMultiple);
     }
 
@@ -241,10 +276,13 @@ class QuoteCoPilotService
      *
      * Used when the BOM lists per-board quantities and the user wants to order
      * multiple boards (e.g., BOM qty=2, board_count=10 → final qty=20).
-      * @param array<string|int, mixed> $bomData
+     *
+     * @param array<int, BomInputLine> $bomData
+     * @return array<int, BomInputLine>
      */
     public function applyBoardCount(array $bomData, int $boardCount): array
     {
+        /** @var array<int, BomInputLine> */
         return $this->bomParser->applyBoardCount($bomData, $boardCount);
     }
 
@@ -255,16 +293,16 @@ class QuoteCoPilotService
      * Alibaba/DigiKey/Mouser/Nexar waterfall with confidence scoring,
      * alt-MPN fallback, qty-aware re-evaluation, and BOM-price ceiling.
      * 
-     * @param array $bomData - Parsed BOM data (from BOMParser::parse())
+     * @param array<int, BomInputLine> $bomData - Parsed BOM data (from BOMParser::parse())
      * @param int $quoteId - Quote ID
-     * @param array $options - Options: ['providers' => ['alibaba','mouser','digikey','nexar']]
-     * 
+     * @param array{providers?: list<string>} $options - Options: ['providers' => ['alibaba','mouser','digikey','nexar']]
+     *
      * @return array{
      *   coverage: float,
      *   exceptionsCount: int,
      *   sourcedCount: int,
      *   totalCount: int,
-     *   stats: array
+     *   stats: BomStats
      * }
      */
     public function processBom(array $bomData, int $quoteId, array $options = []): array
@@ -275,6 +313,7 @@ class QuoteCoPilotService
         }
 
         // Consolidate duplicate MPNs (same logic as CLI command)
+        /** @var list<BomInputLine> $bomLines */
         $bomLines = $this->bomParser->consolidate($bomData);
 
         // ── Run the REAL PricingEngine waterfall ──
@@ -321,6 +360,7 @@ class QuoteCoPilotService
                 'max_lead_time_days' => $maxLeadTimeDays > 0 ? $maxLeadTimeDays : 30,
             ]));
 
+            /** @var array{probability: float, confidence: float, grade: string, recommendation: string, factors: array<string, float>, insights: array{strengths?: list<string>, weaknesses?: list<string>, summary: string}} $winPrediction */
             $winPrediction = $this->winPredictor->predictWinProbability($quote);
             $quote->setMetadata(array_merge($quote->getMetadata() ?? [], [
                 'win_prediction' => [
@@ -355,10 +395,13 @@ class QuoteCoPilotService
 
     /**
      * Multiply decimal values with BCMath when available, float fallback otherwise.
+     *
+     * Kept as protected extension point (currently unused internally);
+     * deletion would alter the documented helper surface.
      */
-    private function mulMoney(string $left, string $right, int $scale = 2): string
+    protected function mulMoney(string $left, string $right, int $scale = 2): string
     {
-        if (\function_exists('bcmul')) {
+        if (\function_exists('bcmul') && \is_numeric($left) && \is_numeric($right)) {
             return \bcmul($left, $right, $scale);
         }
 
@@ -370,7 +413,7 @@ class QuoteCoPilotService
      */
     private function addMoney(string $left, string $right, int $scale = 2): string
     {
-        if (\function_exists('bcadd')) {
+        if (\function_exists('bcadd') && \is_numeric($left) && \is_numeric($right)) {
             return \bcadd($left, $right, $scale);
         }
 
@@ -411,6 +454,9 @@ class QuoteCoPilotService
         // Check 3: All high-value parts sourced
         $bomLineRepo = $this->entityManager->getRepository(BomLine::class);
         $qb = $bomLineRepo->createQueryBuilder('bl');
+
+        // If any high-value parts (typically > $50) are unsourced, require manual review
+        /** @var list<BomLine> $highValueUnsourced */
         $highValueUnsourced = $qb
             ->where('bl.quote = :quoteId')
             ->andWhere('(bl.unitPrice IS NULL OR bl.procurementSource = :notFound)')
@@ -418,10 +464,9 @@ class QuoteCoPilotService
             ->setParameter('notFound', 'Not Found')
             ->getQuery()
             ->getResult();
-        
-        // If any high-value parts (typically > $50) are unsourced, require manual review
+
         foreach ($highValueUnsourced as $line) {
-            if ($line->getQuantity() * 50 > 1000) { // Extended value > $1000
+            if (($line->getQuantity() ?? 0) * 50 > 1000) { // Extended value > $1000
                 return false;
             }
         }
@@ -453,7 +498,8 @@ class QuoteCoPilotService
      *
      * @param int $quoteId - Quote ID
      *
-     * @return array - Updated coverage and exceptions
+     * @return array{reprocessed: int, newly_sourced: int, coverage: int, total_lines: int, sourced_lines: int}
+     *     |array{coverage: float, exceptionsCount: int, sourcedCount: int, totalCount: int, stats: BomStats}
      */
     public function regenerateQuote(int $quoteId): array
     {
@@ -479,15 +525,24 @@ class QuoteCoPilotService
         // Convert BomLine entities back to array format for the pipeline
         $bomData = [];
         foreach ($existingBomLines as $bomLine) {
-            $bomData[] = [
-                'lineNumber' => $bomLine->getLineNumber(),
+            // Null lineNumber/stock_quantity stay absent: consumers treat an
+            // absent key and a null value identically via ?? / empty().
+            $entry = [
                 'mpn' => $bomLine->getMpn() ?? '',
                 'original_mpn' => $bomLine->getOriginalMpn() ?? $bomLine->getMpn(),
                 'manufacturer' => $bomLine->getManufacturer(),
                 'description' => $bomLine->getDescription() ?? $bomLine->getBomDescription(),
                 'quantity' => $bomLine->getQuantity() ?? 1,
-                'stock_quantity' => $bomLine->getQuantity(), // preserve as order qty
             ];
+            $lineNumber = $bomLine->getLineNumber();
+            if ($lineNumber !== null) {
+                $entry['lineNumber'] = $lineNumber;
+            }
+            $stockQuantity = $bomLine->getQuantity();
+            if ($stockQuantity !== null) {
+                $entry['stock_quantity'] = $stockQuantity;
+            }
+            $bomData[] = $entry;
         }
         
         // Delete existing BomLines and ProcurementExceptions so processBom() can recreate them
@@ -513,7 +568,7 @@ class QuoteCoPilotService
      * to eliminate ~150 lines of duplicated BomLine creation/persistence logic.
      *
      * @param Quote $quote   The quote entity to associate
-     * @param array $lineData  Processed line data from PricingEngine
+     * @param PricedBomLine $lineData  Processed line data from PricingEngine
      * @param int   $lineNum   Sequential line number
      *
      * @return BomLine The persisted BomLine entity
@@ -528,14 +583,14 @@ class QuoteCoPilotService
         $bomLine->setManufacturer($lineData['manufacturer'] ?? null);
         $bomLine->setDescription($lineData['description'] ?? $lineData['value'] ?? null);
         $bomLine->setBomDescription($lineData['description'] ?? $lineData['value'] ?? null);
-        $bomLine->setQuantity($lineData['effective_quantity'] ?? $lineData['qty'] ?? $lineData['quantity'] ?? 1);
+        $bomLine->setQuantity($lineData['effective_quantity'] ?? $lineData['quantity']);
 
         $status = $lineData['status'] ?? 'unsourced';
         $source = $lineData['source'] ?? null;
 
         if ($status === 'sourced' && ($lineData['unit_price'] ?? 0) > 0) {
-            $bomLine->setUnitPrice((string) ($lineData['unit_price']));
-            $bomLine->setExtendedPrice((string) ($lineData['extended_price']));
+            $bomLine->setUnitPrice((string) $lineData['unit_price']);
+            $bomLine->setExtendedPrice((string) ($lineData['extended_price'] ?? null));
             $bomLine->setProcurementSource($source);
             $bomLine->setHasException(false);
 
@@ -639,7 +694,7 @@ class QuoteCoPilotService
             $exception->setBomLine($bomLine);
             $exception->setExceptionType('NOT_FOUND');
             $exception->setSeverity('HIGH');
-            $exception->setMessage('Part not found in supplier APIs: ' . ($lineData['mpn'] ?? 'unknown'));
+            $exception->setMessage('Part not found in supplier APIs: ' . $lineData['mpn']);
             $this->entityManager->persist($exception);
         }
 

@@ -27,7 +27,8 @@ class ExportService
 
     /**
      * Export companies to file
-      * @param array<string|int, mixed> $companies
+     *
+     * @param list<Company> $companies
      */
     public function exportCompanies(array $companies, string $format = 'csv'): string
     {
@@ -65,7 +66,8 @@ class ExportService
 
     /**
      * Export discovered companies with enrichment data (contacts, addresses, LinkedIn)
-      * @param array<string|int, mixed> $companies
+     *
+     * @param list<Company> $companies
      */
     public function exportDiscoveredCompanies(array $companies, string $format = 'xlsx'): string
     {
@@ -113,7 +115,7 @@ class ExportService
             for ($i = 0; $i < 3; $i++) {
                 if (isset($contacts[$i])) {
                     $c = $contacts[$i];
-                    $data[] = $c->getFirstName() . ' ' . $c->getLastName();
+                    $data[] = ($c->getFirstName() ?? '') . ' ' . ($c->getLastName() ?? '');
                     $data[] = $c->getJobTitle();
                     $data[] = $c->getEmail();
                     $data[] = $c->getLinkedInUrl();
@@ -139,7 +141,8 @@ class ExportService
 
     /**
      * Export contacts to file
-      * @param array<string|int, mixed> $contacts
+     *
+     * @param list<Contact> $contacts
      */
     public function exportContacts(array $contacts, string $format = 'csv'): string
     {
@@ -175,7 +178,8 @@ class ExportService
 
     /**
      * Export leads to file
-      * @param array<string|int, mixed> $leads
+     *
+     * @param list<Lead> $leads
      */
     public function exportLeads(array $leads, string $format = 'csv'): string
     {
@@ -190,17 +194,26 @@ class ExportService
         $sheet->fromArray($headers, null, 'A1');
         
         // Add data
+        // NB: maps the intended columns onto the REAL App\Entity\Lead
+        // accessors. The previous implementation called getContactName(),
+        // getContactEmail(), getStatus(), getScore() and getAssignedTo(),
+        // none of which exist on Lead — the first call would have crashed
+        // with "undefined method". Contact name has no Lead equivalent
+        // (empty); public contact emails are joined for 'Contact Email'.
         $row = 2;
         foreach ($leads as $lead) {
+            // contactEmailsPublic is a list of email strings (see Lead::$contactEmailsPublic).
+            /** @var list<string> $contactEmails */
+            $contactEmails = $lead->getContactEmailsPublic() ?? [];
             $data = [
                 $lead->getId(),
                 $lead->getCompanyName(),
-                $lead->getContactName(),
-                $lead->getContactEmail(),
+                '',
+                implode(', ', $contactEmails),
                 $lead->getSource(),
-                $lead->getStatus(),
-                $lead->getScore(),
-                $lead->getAssignedTo()?->getEmail(),
+                $lead->getReviewStatus(),
+                $lead->getLeadScore(),
+                $lead->getOwnerRep(),
                 $lead->getCreatedAt()?->format('Y-m-d H:i:s'),
             ];
             $sheet->fromArray($data, null, 'A' . $row);
@@ -212,7 +225,8 @@ class ExportService
 
     /**
      * Export activities to file
-      * @param array<string|int, mixed> $activities
+     *
+     * @param list<Activity> $activities
      */
     public function exportActivities(array $activities, string $format = 'csv'): string
     {
@@ -229,13 +243,14 @@ class ExportService
         // Add data
         $row = 2;
         foreach ($activities as $activity) {
+            $activityContact = $activity->getContact();
             $data = [
                 $activity->getId(),
                 $activity->getType(),
                 $activity->getSubject(),
                 $activity->getDescription(),
                 $activity->getCompany()?->getName(),
-                $activity->getContact() ? $activity->getContact()->getFirstName() . ' ' . $activity->getContact()->getLastName() : '',
+                $activityContact !== null ? $activityContact->getFirstName() . ' ' . $activityContact->getLastName() : '',
                 $activity->getUser()?->getEmail(),
                 $activity->getActivityDate()?->format('Y-m-d H:i:s'),
                 $activity->getCreatedAt()?->format('Y-m-d H:i:s'),
@@ -298,7 +313,8 @@ class ExportService
      *  - entityClass must be a known App\Entity class
      *  - getters must be real methods matching the ^get[A-Z] pattern
      * (callers currently: none in-repo — kept as a safe generic helper)
-      * @param array<string|int, mixed> $fields
+     *
+     * @param array<string|int, mixed> $fields Map of column label => getter name
      */
     public function exportGeneric(string $entityClass, array $fields, string $filename, string $format = 'csv'): string
     {
@@ -325,8 +341,9 @@ class ExportService
                 // Arbitrary method invocation from caller-supplied strings would
                 // otherwise be a method-injection risk if ever exposed.
                 if (!is_string($getter) || !preg_match('/^get[A-Z][A-Za-z0-9]*$/', $getter) || !method_exists($entity, $getter)) {
+                    $getterLabel = is_string($getter) ? $getter : get_debug_type($getter);
                     throw new \InvalidArgumentException(
-                        "Invalid getter '{$getter}' for field '{$fieldName}' on {$entityClass}"
+                        "Invalid getter '{$getterLabel}' for field '{$fieldName}' on {$entityClass}"
                     );
                 }
                 $value = $entity->$getter();

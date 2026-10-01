@@ -19,15 +19,17 @@ use Psr\Log\LoggerInterface;
 
 /**
  * QuoteReviewController
- * 
+ *
  * Handles the Draft Review Workflow for Quote CoPilot.
  * Allows users to:
  * - Review part matches with confidence scores
  * - Verify or reject auto-matched parts
  * - Manually enter prices for unmatched/low-confidence parts
  * - Approve quotes for publishing
- * 
+ *
  * Workflow: BOM Upload → Draft Quote → REVIEW → Approved Quote → Published
+ *
+ * @phpstan-import-type PriceBreak from \App\Service\PricingEngine
  */
 #[Route('/quote-review')]
 #[IsGranted('ROLE_USER')]
@@ -43,6 +45,16 @@ class QuoteReviewController extends AbstractController
     ) {}
 
     /**
+     * Coerce a decoded-JSON value to string following PHP weak casting
+     * semantics for scalars (string/int/float/bool); anything else falls
+     * back to $default.
+     */
+    private static function scalarString(mixed $value, string $default = ''): string
+    {
+        return is_scalar($value) ? (string) $value : $default;
+    }
+
+    /**
      * Validate the CSRF token (X-CSRF-Token header, or _token/_csrf_token body field).
      * Returns a 403 JsonResponse when invalid, null when valid.
      */
@@ -55,7 +67,7 @@ class QuoteReviewController extends AbstractController
             $token = is_array($data) ? ($data['_token'] ?? $data['_csrf_token'] ?? null) : null;
         }
 
-        if (!$this->isCsrfTokenValid('quote_review', (string) $token)) {
+        if (!$this->isCsrfTokenValid('quote_review', self::scalarString($token))) {
             return new JsonResponse(['success' => false, 'error' => 'Invalid CSRF token.'], 403);
         }
 
@@ -110,13 +122,19 @@ class QuoteReviewController extends AbstractController
             throw $this->createNotFoundException('Quote not found');
         }
 
-        $quote = $row[0] ?? $row;
+        // The joined query hydrates as [Quote, 'company_name' => string]
+        $quote = is_array($row) ? ($row[0] ?? null) : $row;
+        if (!$quote instanceof Quote) {
+            throw $this->createNotFoundException('Quote not found');
+        }
 
         $company = $quote->getCompany();
         if (!$company) {
             throw $this->createAccessDeniedException('Quote has no associated company.');
         }
-        $companyName = is_array($row) ? ($row['company_name'] ?? null) : null;
+        $companyName = is_array($row) && is_string($row['company_name'] ?? null)
+            ? $row['company_name']
+            : null;
 
         // Get BOM lines grouped by review status
         $bomLines = $this->bomLineRepository->findBy(
@@ -143,7 +161,7 @@ class QuoteReviewController extends AbstractController
     {
         /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        if (!$this->isCsrfTokenValid('quote_review_verify_line_' . $id, $data['_csrf_token'] ?? '')) {
+        if (!$this->isCsrfTokenValid('quote_review_verify_line_' . $id, self::scalarString($data['_csrf_token'] ?? null))) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
         }
 
@@ -165,9 +183,9 @@ class QuoteReviewController extends AbstractController
         $bomLine->setVerifiedAt(new \DateTime());
         
         if (isset($data['notes'])) {
-            $bomLine->setManualNotes($data['notes']);
+            $bomLine->setManualNotes(self::scalarString($data['notes']));
         }
-        
+
         $bomLine->setUpdatedAt(new \DateTime());
         $this->entityManager->flush();
 
@@ -195,7 +213,7 @@ class QuoteReviewController extends AbstractController
     {
         /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        if (!$this->isCsrfTokenValid('quote_review_override_line_' . $id, $data['_csrf_token'] ?? '')) {
+        if (!$this->isCsrfTokenValid('quote_review_override_line_' . $id, self::scalarString($data['_csrf_token'] ?? null))) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
         }
 
@@ -229,12 +247,12 @@ class QuoteReviewController extends AbstractController
         $bomLine->setVerifiedAt(new \DateTime());
         
         if (isset($data['notes'])) {
-            $bomLine->setManualNotes($data['notes']);
+            $bomLine->setManualNotes(self::scalarString($data['notes']));
         }
-        
+
         // Save the source URL for manual prices
-        if (isset($data['source_url']) && !empty($data['source_url'])) {
-            $bomLine->setPriceSourceUrl($data['source_url']);
+        if (isset($data['source_url']) && is_scalar($data['source_url']) && !empty($data['source_url'])) {
+            $bomLine->setPriceSourceUrl((string) $data['source_url']);
         }
         
         // Update confidence to reflect manual verification
@@ -246,8 +264,11 @@ class QuoteReviewController extends AbstractController
         $bomLine->setUpdatedAt(new \DateTime());
         $this->entityManager->flush();
 
-        // Recalculate quote totals
-        $this->recalculateQuoteTotals($bomLine->getQuote());
+        // Recalculate quote totals (orphan lines have no quote to update)
+        $quote = $bomLine->getQuote();
+        if ($quote !== null) {
+            $this->recalculateQuoteTotals($quote);
+        }
 
         $this->logger->info('BOM line price overridden', [
             'line_id' => $id,
@@ -260,7 +281,7 @@ class QuoteReviewController extends AbstractController
             'success' => true,
             'message' => 'Price override applied',
             'line' => $this->serializeBomLine($bomLine),
-            'quote_totals' => $this->getQuoteTotals($bomLine->getQuote())
+            'quote_totals' => $quote !== null ? $this->getQuoteTotals($quote) : null
         ]);
         } catch (\Doctrine\ORM\EntityNotFoundException $e) {
             return new JsonResponse(['success' => false, 'error' => 'Related company has been deleted'], 400);
@@ -275,7 +296,7 @@ class QuoteReviewController extends AbstractController
     {
         /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        if (!$this->isCsrfTokenValid('quote_review_reject_line_' . $id, $data['_csrf_token'] ?? '')) {
+        if (!$this->isCsrfTokenValid('quote_review_reject_line_' . $id, self::scalarString($data['_csrf_token'] ?? null))) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
         }
 
@@ -297,7 +318,11 @@ class QuoteReviewController extends AbstractController
         $bomLine->setManuallyVerified(false);
         $bomLine->setRequiresReview(true);
         $bomLine->setHasException(true);
-        $bomLine->setExceptionReason($data['reason'] ?? 'Part match rejected by reviewer');
+        $bomLine->setExceptionReason(
+            isset($data['reason']) && is_scalar($data['reason'])
+                ? (string) $data['reason']
+                : 'Part match rejected by reviewer'
+        );
         
         // Update confidence
         $bomLine->setConfidenceScore(0);
@@ -308,8 +333,11 @@ class QuoteReviewController extends AbstractController
         $bomLine->setUpdatedAt(new \DateTime());
         $this->entityManager->flush();
 
-        // Recalculate quote totals
-        $this->recalculateQuoteTotals($bomLine->getQuote());
+        // Recalculate quote totals (orphan lines have no quote to update)
+        $quote = $bomLine->getQuote();
+        if ($quote !== null) {
+            $this->recalculateQuoteTotals($quote);
+        }
 
         $this->logger->warning('BOM line match rejected', [
             'line_id' => $id,
@@ -335,7 +363,7 @@ class QuoteReviewController extends AbstractController
     {
         /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        if (!$this->isCsrfTokenValid('quote_review_verify_all_high_' . $id, $data['_csrf_token'] ?? '')) {
+        if (!$this->isCsrfTokenValid('quote_review_verify_all_high_' . $id, self::scalarString($data['_csrf_token'] ?? null))) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
         }
 
@@ -389,7 +417,7 @@ class QuoteReviewController extends AbstractController
     {
         /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        if (!$this->isCsrfTokenValid('quote_review_approve_' . $id, $data['_csrf_token'] ?? '')) {
+        if (!$this->isCsrfTokenValid('quote_review_approve_' . $id, self::scalarString($data['_csrf_token'] ?? null))) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
         }
 
@@ -475,36 +503,51 @@ class QuoteReviewController extends AbstractController
 
         /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        
+
         // Allow user to provide a corrected MPN
-        $mpnToSearch = $data['mpn'] ?? $bomLine->getOriginalMpn() ?? $bomLine->getMpn();
-        $manufacturer = $data['manufacturer'] ?? $bomLine->getManufacturer();
+        $mpnFromRequest = $data['mpn'] ?? null;
+        $mpnToSearch = is_scalar($mpnFromRequest)
+            ? (string) $mpnFromRequest
+            : ($bomLine->getOriginalMpn() ?? $bomLine->getMpn() ?? '');
+        $manufacturerFromRequest = $data['manufacturer'] ?? null;
+        $manufacturer = is_scalar($manufacturerFromRequest)
+            ? (string) $manufacturerFromRequest
+            : $bomLine->getManufacturer();
         $description = $bomLine->getBomDescription() ?? $bomLine->getDescription();
 
         // Re-run pricing engine
         $result = $this->pricingEngine->getPricing($mpnToSearch, $manufacturer, $description);
 
         if ($result) {
-            $bomLine->setMatchedMpn($result['mpn']);
+            // Priced rows may carry runtime keys beyond the PartPricing shape
+            // (e.g. leadtime_days injected by individual providers).
+            /** @var array<string, mixed> $rawResult */
+            $rawResult = $result;
+
+            $bomLine->setMatchedMpn($result['mpn'] ?? null);
             $bomLine->setManufacturer($result['manufacturer'] ?? $bomLine->getManufacturer());
             $bomLine->setDescription($result['description'] ?? $bomLine->getDescription());
-            $bomLine->setUnitPrice((string) $this->pricingEngine->calculateUnitPrice(
-                $result['pricing'] ?? [],
-                $bomLine->getQuantity()
+            $bomLine->setUnitPrice((string) $this->calculateUnitPriceFromPricing(
+                $result['pricing'],
+                $bomLine->getQuantity() ?? 0
             ));
-            $bomLine->setExtendedPrice((string) ((float)$bomLine->getUnitPrice() * $bomLine->getQuantity()));
-            $bomLine->setProcurementSource($result['source']);
-            $bomLine->setLeadTimeDays($result['leadtime_days'] ?? null);
-            $bomLine->setAvailability($result['stock'] > 0 ? 'In-Stock' : 'Factory');
-            
+            $bomLine->setExtendedPrice((string) ((float) $bomLine->getUnitPrice() * ($bomLine->getQuantity() ?? 0)));
+            $bomLine->setProcurementSource($result['source'] ?? null);
+            if (isset($rawResult['leadtime_days']) && is_numeric($rawResult['leadtime_days'])) {
+                $bomLine->setLeadTimeDays((int) $rawResult['leadtime_days']);
+            } else {
+                $bomLine->setLeadTimeDays(null);
+            }
+            $bomLine->setAvailability(($result['stock'] ?? 0) > 0 ? 'In-Stock' : 'Factory');
+
             // Update confidence
             $confidence = $result['confidence'] ?? [];
-            $bomLine->setConfidenceScore($confidence['score'] ?? 0);
+            $bomLine->setConfidenceScore((int) ($confidence['score'] ?? 0));
             $bomLine->setConfidenceLevel($confidence['level'] ?? 'MEDIUM');
             $bomLine->setConfidenceReasons($confidence['reasons'] ?? []);
             $bomLine->setConfidenceWarnings($confidence['warnings'] ?? []);
             $bomLine->setRequiresReview($confidence['requiresReview'] ?? true);
-            
+
             $bomLine->setManuallyVerified(false);
             $bomLine->setHasException(false);
             $bomLine->setExceptionReason(null);
@@ -520,8 +563,11 @@ class QuoteReviewController extends AbstractController
         $bomLine->setUpdatedAt(new \DateTime());
         $this->entityManager->flush();
 
-        // Recalculate quote totals
-        $this->recalculateQuoteTotals($bomLine->getQuote());
+        // Recalculate quote totals (orphan lines have no quote to update)
+        $quote = $bomLine->getQuote();
+        if ($quote !== null) {
+            $this->recalculateQuoteTotals($quote);
+        }
 
         return new JsonResponse([
             'success' => true,
@@ -557,8 +603,8 @@ class QuoteReviewController extends AbstractController
             return new JsonResponse(['error' => 'MPN is required'], 400);
         }
 
-        $altMpn = $data['mpn'];
-        $source = $data['source'] ?? 'mouser';
+        $altMpn = self::scalarString($data['mpn']);
+        $source = self::scalarString($data['source'] ?? null, 'mouser');
 
         // Get pricing for the alternative part from the specified source
         $result = $this->pricingEngine->getPricingFromSource($altMpn, $source, $bomLine->getManufacturer());
@@ -570,31 +616,36 @@ class QuoteReviewController extends AbstractController
             ], 404);
         }
 
+        // Priced rows may carry runtime keys beyond the PartPricing shape
+        // (e.g. leadtime_days, lifecycle_status injected by providers).
+        /** @var array<string, mixed> $rawResult */
+        $rawResult = $result;
+
         // Store the original MPN if not already stored
         if (!$bomLine->getOriginalMpn()) {
             $bomLine->setOriginalMpn($bomLine->getMpn());
         }
 
         // Update the BOM line with the alternative
-        $bomLine->setMatchedMpn($result['mpn']);
+        $bomLine->setMatchedMpn($result['mpn'] ?? null);
         $bomLine->setMpn($altMpn); // Update the current MPN
-        
+
         if (isset($result['manufacturer'])) {
             $bomLine->setManufacturer($result['manufacturer']);
         }
         if (isset($result['description'])) {
             $bomLine->setDescription($result['description']);
         }
-        
+
         // Calculate pricing
-        $unitPrice = $this->calculateUnitPriceFromPricing($result['pricing'] ?? [], $bomLine->getQuantity());
+        $unitPrice = $this->calculateUnitPriceFromPricing($result['pricing'], $bomLine->getQuantity() ?? 0);
         $bomLine->setUnitPrice((string) $unitPrice);
-        $bomLine->setExtendedPrice((string) ($unitPrice * $bomLine->getQuantity()));
+        $bomLine->setExtendedPrice((string) ($unitPrice * ($bomLine->getQuantity() ?? 0)));
         $bomLine->setProcurementSource($source);
-        
+
         // Update availability
-        if (isset($result['leadtime_days'])) {
-            $bomLine->setLeadTimeDays($result['leadtime_days']);
+        if (isset($rawResult['leadtime_days']) && is_numeric($rawResult['leadtime_days'])) {
+            $bomLine->setLeadTimeDays((int) $rawResult['leadtime_days']);
         }
         $bomLine->setAvailability(($result['stock'] ?? 0) > 0 ? 'In-Stock' : 'Factory');
         
@@ -612,8 +663,8 @@ class QuoteReviewController extends AbstractController
         if (isset($result['lifecycle_warning'])) {
             $bomLine->setLifecycleWarning($result['lifecycle_warning']);
         }
-        if (isset($result['lifecycle_status'])) {
-            $bomLine->setLifecycleStatus($result['lifecycle_status']);
+        if (isset($rawResult['lifecycle_status']) && is_string($rawResult['lifecycle_status'])) {
+            $bomLine->setLifecycleStatus($rawResult['lifecycle_status']);
         }
         
         // Store search URL for transparency
@@ -638,8 +689,11 @@ class QuoteReviewController extends AbstractController
         
         $this->entityManager->flush();
 
-        // Recalculate quote totals
-        $this->recalculateQuoteTotals($bomLine->getQuote());
+        // Recalculate quote totals (orphan lines have no quote to update)
+        $quote = $bomLine->getQuote();
+        if ($quote !== null) {
+            $this->recalculateQuoteTotals($quote);
+        }
 
         $this->logger->info('Alternative part selected', [
             'line_id' => $id,
@@ -654,7 +708,7 @@ class QuoteReviewController extends AbstractController
             'success' => true,
             'message' => 'Alternative part selected: ' . $altMpn,
             'line' => $this->serializeBomLine($bomLine),
-            'quote_totals' => $this->getQuoteTotals($bomLine->getQuote())
+            'quote_totals' => $quote !== null ? $this->getQuoteTotals($quote) : null
         ]);
         } catch (\Doctrine\ORM\EntityNotFoundException $e) {
             return new JsonResponse(['success' => false, 'error' => 'Related company has been deleted'], 400);
@@ -663,31 +717,51 @@ class QuoteReviewController extends AbstractController
     
     /**
      * Helper to calculate unit price from price breaks
-      * @param array<string|int, mixed> $priceBreaks
+     *
+     * @param list<PriceBreak> $priceBreaks
      */
     private function calculateUnitPriceFromPricing(array $priceBreaks, int $quantity): float
     {
         if (empty($priceBreaks)) {
             return 0.0;
         }
-        
+
         usort($priceBreaks, fn($a, $b) => $a['quantity'] <=> $b['quantity']);
-        $applicablePrice = $priceBreaks[0]['price'];
-        
+        $applicablePrice = $priceBreaks[0]['price'] ?? 0;
+
         foreach ($priceBreaks as $break) {
             if ($quantity >= $break['quantity']) {
-                $applicablePrice = $break['price'];
+                $applicablePrice = $break['price'] ?? 0;
             } else {
                 break;
             }
         }
-        
+
         return (float) $applicablePrice;
     }
 
     /**
      * Calculate review statistics for a set of BOM lines
-      * @param array<string|int, mixed> $bomLines
+     *
+     * @param list<BomLine> $bomLines
+     * @return array{
+     *   total_lines: int,
+     *   verified_count: int,
+     *   requires_review_count: int,
+     *   no_price_count: int,
+     *   high_confidence: int,
+     *   medium_confidence: int,
+     *   low_confidence: int,
+     *   very_low_confidence: int,
+     *   total_value: float,
+     *   sourced_value: float,
+     *   lifecycle_critical: int,
+     *   lifecycle_warning: int,
+     *   with_alternatives: int,
+     *   verification_percent: float|int,
+     *   ready_for_approval: bool,
+     *   lifecycle_health_percent: float|int
+     * }
      */
     private function calculateReviewStats(array $bomLines): array
     {
@@ -739,7 +813,7 @@ class QuoteReviewController extends AbstractController
             
             $effectivePrice = $line->getEffectiveExtendedPrice();
             if ($effectivePrice !== null) {
-                $stats['sourced_value'] += $effectivePrice;
+                $stats['sourced_value'] += (float) $effectivePrice;
             }
             
             // Track lifecycle warnings
@@ -774,6 +848,8 @@ class QuoteReviewController extends AbstractController
 
     /**
      * Serialize a BOM line for JSON response
+     *
+     * @return array<string, mixed>
      */
     private function serializeBomLine(BomLine $line): array
     {
@@ -829,7 +905,7 @@ class QuoteReviewController extends AbstractController
             $totalLines++;
             $effectivePrice = $line->getEffectiveExtendedPrice();
             if ($effectivePrice !== null) {
-                $totalCost += $effectivePrice;
+                $totalCost += (float) $effectivePrice;
                 $sourcedCount++;
             }
         }
@@ -841,6 +917,8 @@ class QuoteReviewController extends AbstractController
 
     /**
      * Get quote totals for JSON response
+     *
+     * @return array{total_cost: string|null, coverage_percent: string|null, currency: string|null}
      */
     private function getQuoteTotals(Quote $quote): array
     {

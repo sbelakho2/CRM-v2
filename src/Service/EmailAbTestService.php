@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Entity\Contact;
 use App\Entity\EmailCampaign;
 use App\Entity\EmailTemplate;
 use App\Entity\EmailSend;
@@ -22,6 +23,53 @@ use Doctrine\ORM\EntityManagerInterface;
  *
  * EmailSend.variant stores the variant ID ('A', 'B', ...) so analytics can
  * filter by it.
+ *
+ * @phpstan-type AbTestVariant array{
+ *   id: string,
+ *   name: string,
+ *   percentage: float,
+ *   configuration: mixed,
+ *   sends_count: int,
+ *   opens_count: int,
+ *   clicks_count: int,
+ *   replies_count: int
+ * }
+ * @phpstan-type AbTestConfig array{
+ *   test_type: string,
+ *   test_percentage: float,
+ *   test_duration_hours: int,
+ *   variants: array<string, AbTestVariant>,
+ *   winner_declared_at: string|null,
+ *   winning_variant: string|null,
+ *   winning_metric?: string|null,
+ *   result?: string,
+ *   variant_metrics?: array<string, float|int>,
+ *   created_at: string
+ * }
+ * @phpstan-type VariantResultRow array{
+ *   id: string,
+ *   name: string,
+ *   configuration: mixed,
+ *   sends: int,
+ *   opens: int,
+ *   clicks: int,
+ *   replies: int,
+ *   open_rate: float|int,
+ *   click_rate: float|int,
+ *   reply_rate: float|int,
+ *   ctor: float|int,
+ *   is_winner: bool
+ * }
+ * @phpstan-type TestResults array{
+ *   test_type: string,
+ *   test_percentage: float,
+ *   test_duration_hours: int,
+ *   created_at: string,
+ *   winner_declared_at: string|null,
+ *   winning_variant: string|null,
+ *   variants: array<string, VariantResultRow>,
+ *   statistical_analysis?: array{significant: bool, confidence: float|int, z_score?: float, improvement?: float}
+ * }
  */
 class EmailAbTestService
 {
@@ -30,18 +78,22 @@ class EmailAbTestService
 
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private EmailAnalyticsService $analyticsService
+        /**
+         * Injected for future analytics hooks; not referenced inside this
+         * service today (variant stats are derived directly from EmailSend).
+         */
+        protected EmailAnalyticsService $analyticsService
     ) {}
 
     /**
      * Create A/B test variants for a campaign
-     * 
+     *
      * @param EmailCampaign $campaign Base campaign
      * @param string $testType Type of test (subject_line, send_time, content, from_name)
-     * @param array $variants Array of variant configurations
+     * @param list<string|array<string, mixed>> $variants Array of variant configurations
      * @param float $testPercentage Percentage of audience to test (0-100)
      * @param int $testDuration Duration in hours before declaring winner
-     * @return array Array of test configuration
+     * @return AbTestConfig Array of test configuration
      */
     public function createAbTest(
         EmailCampaign $campaign,
@@ -80,13 +132,15 @@ class EmailAbTestService
         // Configure each variant
         $percentagePerVariant = $testPercentage / count($variants);
         foreach ($variants as $index => $variantData) {
-            $variantId = chr(65 + $index); // A, B, C, D
+            // Variant IDs run A..Z; clamp so chr() can never see an out-of-range
+            // codepoint (validated tests have 2-4 variants → indexes 0-3).
+            $variantId = chr(65 + max(0, min(25, (int) $index))); // A, B, C, D
 
             $testConfig['variants'][$variantId] = [
                 'id' => $variantId,
                 'name' => is_array($variantData)
-                    ? (string) ($variantData['name'] ?? $variantId)
-                    : (is_string($variantData) ? $variantData : $variantId),
+                    ? (is_scalar($variantData['name'] ?? null) ? (string) $variantData['name'] : $variantId)
+                    : $variantData,
                 'percentage' => $percentagePerVariant,
                 'configuration' => $variantData,
                 'sends_count' => 0,
@@ -108,16 +162,16 @@ class EmailAbTestService
 
     /**
      * Distribute contacts for A/B testing
-     * 
+     *
      * @param EmailCampaign $campaign Campaign with A/B test
-     * @param array $contacts All contacts to send to
-     * @return array Distribution map [variant_id => [contact_ids]]
+     * @param list<Contact> $contacts All contacts to send to
+     * @return array<string, list<int|null>> Distribution map [variant_id => [contact_ids]]
      */
     public function distributeContactsForTest(EmailCampaign $campaign, array $contacts): array
     {
         $abTestConfig = $this->getCurrentAbTest($campaign);
         if (!$abTestConfig) {
-            return ['control' => array_map(fn($c) => $c->getId(), $contacts)];
+            return ['control' => array_map(static fn($c) => $c->getId(), $contacts)];
         }
 
         $totalContacts = count($contacts);
@@ -132,14 +186,14 @@ class EmailAbTestService
         foreach ($abTestConfig['variants'] as $variantId => $variantConfig) {
             $count = (int) ceil($totalContacts * ($variantConfig['percentage'] / 100));
             $variantContacts = array_slice($contacts, $offset, $count);
-            $distribution[$variantId] = array_map(fn($c) => $c->getId(), $variantContacts);
+            $distribution[$variantId] = array_map(static fn($c) => $c->getId(), $variantContacts);
             $offset += $count;
         }
-        
+
         // Remaining contacts get control (winning variant after test)
         if ($offset < $totalContacts) {
             $controlContacts = array_slice($contacts, $offset);
-            $distribution['control'] = array_map(fn($c) => $c->getId(), $controlContacts);
+            $distribution['control'] = array_map(static fn($c) => $c->getId(), $controlContacts);
         }
 
         return $distribution;
@@ -147,10 +201,10 @@ class EmailAbTestService
 
     /**
      * Get configuration for sending a specific variant
-     * 
+     *
      * @param EmailCampaign $campaign Campaign
      * @param string $variantId Variant ID (A, B, C, D, or control)
-     * @return array Configuration to apply
+     * @return array<int|string, mixed> Configuration to apply (empty = campaign defaults)
      */
     public function getVariantConfiguration(EmailCampaign $campaign, string $variantId): array
     {
@@ -163,7 +217,9 @@ class EmailAbTestService
             throw new \InvalidArgumentException("Invalid variant ID: $variantId");
         }
 
-        return $abTestConfig['variants'][$variantId]['configuration'];
+        $configuration = $abTestConfig['variants'][$variantId]['configuration'];
+
+        return is_array($configuration) ? $configuration : [];
     }
 
     /**
@@ -187,6 +243,7 @@ class EmailAbTestService
             return;
         }
 
+        /** @var list<AbTestConfig> $abTestVariants */
         $abTestVariants = $campaign->getAbTestVariants();
         $abTestVariants[$testIndex]['variants'][$variantId]['sends_count']++;
 
@@ -216,11 +273,13 @@ class EmailAbTestService
             return;
         }
 
+        /** @var list<AbTestConfig> $abTestVariants */
         $abTestVariants = $campaign->getAbTestVariants();
 
         $statKey = $engagementType . 's_count'; // opens_count, clicks_count, replies_count
-        if (isset($abTestVariants[$testIndex]['variants'][$variantId][$statKey])) {
-            $abTestVariants[$testIndex]['variants'][$variantId][$statKey]++;
+        $currentCount = $abTestVariants[$testIndex]['variants'][$variantId][$statKey] ?? null;
+        if (is_int($currentCount)) {
+            $abTestVariants[$testIndex]['variants'][$variantId][$statKey] = $currentCount + 1;
         }
 
         $campaign->setAbTestVariants($abTestVariants);
@@ -260,13 +319,6 @@ class EmailAbTestService
     }
 
     /**
-     * Declare the winning variant based on performance
-     * 
-     * @param EmailCampaign $campaign Campaign
-     * @param string|null $metricType Metric to use (open_rate, click_rate, reply_rate)
-     * @return string Winning variant ID, or '' when there is insufficient data
-     */
-    /**
      * Canonical per-variant statistics derived from EmailSend rows:
      * delivered (sent+bounced) population + engagement flags. This is the
      * single decision source for winners and results views — JSON counters
@@ -276,6 +328,7 @@ class EmailAbTestService
      */
     private function deriveVariantStats(EmailCampaign $campaign): array
     {
+        /** @var list<array<string, mixed>> $rows */
         $rows = $this->entityManager->createQuery(
             'SELECT es.variant AS variant,
                     SUM(CASE WHEN es.status IN (:delivered) THEN 1 ELSE 0 END) AS delivered,
@@ -292,17 +345,32 @@ class EmailAbTestService
 
         $stats = [];
         foreach ($rows as $row) {
-            $stats[(string) $row['variant']] = [
-                'delivered' => (int) $row['delivered'],
-                'opened' => (int) $row['opened'],
-                'clicked' => (int) $row['clicked'],
-                'replied' => (int) $row['replied'],
+            $variantId = $row['variant'] ?? null;
+            if (!is_string($variantId)) {
+                continue;
+            }
+            $delivered = $row['delivered'] ?? null;
+            $opened = $row['opened'] ?? null;
+            $clicked = $row['clicked'] ?? null;
+            $replied = $row['replied'] ?? null;
+            $stats[$variantId] = [
+                'delivered' => is_numeric($delivered) ? (int) $delivered : 0,
+                'opened' => is_numeric($opened) ? (int) $opened : 0,
+                'clicked' => is_numeric($clicked) ? (int) $clicked : 0,
+                'replied' => is_numeric($replied) ? (int) $replied : 0,
             ];
         }
 
         return $stats;
     }
 
+    /**
+     * Declare the winning variant based on performance
+     *
+     * @param EmailCampaign $campaign Campaign
+     * @param string|null $metricType Metric to use (open_rate, click_rate, reply_rate)
+     * @return string Winning variant ID, or '' when there is insufficient data
+     */
     public function declareWinner(EmailCampaign $campaign, ?string $metricType = null): string
     {
         $abTestConfig = $this->getCurrentAbTest($campaign);
@@ -330,6 +398,7 @@ class EmailAbTestService
         // Without enough data per variant the test result is meaningless.
         foreach (array_keys($abTestConfig['variants']) as $variantId) {
             if (($liveStats[$variantId]['delivered'] ?? 0) < self::MIN_SENDS_PER_VARIANT) {
+                /** @var list<AbTestConfig> $abTestVariants */
                 $abTestVariants = $campaign->getAbTestVariants();
                 $testIndex = $this->findTestIndex($campaign, $abTestConfig) ?? (count($abTestVariants) - 1);
                 $abTestVariants[$testIndex]['winner_declared_at'] = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
@@ -366,6 +435,7 @@ class EmailAbTestService
         $winningVariantId = array_key_first($variantMetrics);
 
         // Update test configuration
+        /** @var list<AbTestConfig> $abTestVariants */
         $abTestVariants = $campaign->getAbTestVariants();
         $testIndex = $this->findTestIndex($campaign, $abTestConfig) ?? (count($abTestVariants) - 1);
         $abTestVariants[$testIndex]['winner_declared_at'] = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
@@ -373,18 +443,20 @@ class EmailAbTestService
         $abTestVariants[$testIndex]['winning_metric'] = $metricType;
         $abTestVariants[$testIndex]['variant_metrics'] = $variantMetrics;
         $abTestVariants[$testIndex]['result'] = 'winner_declared';
-        
+
         $campaign->setAbTestVariants($abTestVariants);
         $this->entityManager->flush();
 
-        return $winningVariantId;
+        // array_key_first() is null only when no variants exist, which the
+        // 2-4 variant validation makes impossible for well-formed tests.
+        return $winningVariantId ?? '';
     }
 
     /**
      * Get detailed A/B test results with statistical analysis
-     * 
+     *
      * @param EmailCampaign $campaign Campaign
-     * @return array Test results with statistics
+     * @return TestResults|array{} Test results with statistics (empty when no test is configured)
      */
     public function getTestResults(EmailCampaign $campaign): array
     {
@@ -415,7 +487,7 @@ class EmailAbTestService
 
             $results['variants'][$variantId] = [
                 'id' => $variantId,
-                'name' => $variantData['name'] ?? $variantId,
+                'name' => $variantData['name'],
                 'configuration' => $variantData['configuration'],
                 'sends' => $sends,
                 'opens' => $opens,
@@ -431,7 +503,7 @@ class EmailAbTestService
 
         // Calculate statistical significance if winner declared
         if ($abTestConfig['winning_variant'] ?? null) {
-            $metricType = $abTestConfig['winning_metric'] ?? $this->defaultMetricForTestType($abTestConfig['test_type'] ?? '');
+            $metricType = $abTestConfig['winning_metric'] ?? $this->defaultMetricForTestType($abTestConfig['test_type']);
             $results['statistical_analysis'] = $this->calculateStatisticalSignificance($results['variants'], $metricType);
         }
 
@@ -440,13 +512,13 @@ class EmailAbTestService
 
     /**
      * Calculate statistical significance between variants
-     * 
+     *
      * Uses the metric the test actually measures: open_rate compares opens,
      * click_rate compares clicks, reply_rate compares replies.
-     * 
-     * @param array $variants Variant metrics
+     *
+     * @param array<string, VariantResultRow> $variants Variant metrics
      * @param string $metricType Metric the test measures (open_rate, click_rate, reply_rate)
-     * @return array Statistical analysis
+     * @return array{significant: bool, confidence: float|int, z_score?: float, improvement?: float} Statistical analysis
      */
     private function calculateStatisticalSignificance(array $variants, string $metricType = 'open_rate'): array
     {
@@ -549,19 +621,22 @@ class EmailAbTestService
 
     /**
      * Get the current active A/B test configuration
-     * 
+     *
      * @param EmailCampaign $campaign Campaign
-     * @return array|null Test configuration or null
+     * @return AbTestConfig|null Test configuration or null
      */
     public function getCurrentAbTest(EmailCampaign $campaign): ?array
     {
         $abTestVariants = $campaign->getAbTestVariants();
-        if (empty($abTestVariants)) {
+        if ($abTestVariants === []) {
             return null;
         }
 
         // Return the most recent test
-        return end($abTestVariants);
+        $latest = end($abTestVariants);
+
+        /** @var AbTestConfig|null $latest */
+        return is_array($latest) ? $latest : null;
     }
 
     /**
@@ -571,6 +646,7 @@ class EmailAbTestService
      */
     private function findTestIndexForVariant(EmailCampaign $campaign, string $variantId): ?int
     {
+        /** @var list<AbTestConfig> $abTestVariants */
         $abTestVariants = $campaign->getAbTestVariants();
         for ($i = count($abTestVariants) - 1; $i >= 0; $i--) {
             if (isset($abTestVariants[$i]['variants'][$variantId])) {
@@ -583,10 +659,12 @@ class EmailAbTestService
 
     /**
      * Find the index of a specific test config inside the campaign's list.
-      * @param array<string|int, mixed> $testConfig
+     *
+     * @param AbTestConfig $testConfig
      */
     private function findTestIndex(EmailCampaign $campaign, array $testConfig): ?int
     {
+        /** @var list<AbTestConfig> $abTestVariants */
         $abTestVariants = $campaign->getAbTestVariants();
         foreach ($abTestVariants as $index => $config) {
             if ($config === $testConfig) {
@@ -596,12 +674,10 @@ class EmailAbTestService
 
         // Fall back to a structural match on created_at when the arrays differ
         // by reference (e.g. re-loaded entities).
-        $createdAt = $testConfig['created_at'] ?? null;
-        if ($createdAt !== null) {
-            foreach ($abTestVariants as $index => $config) {
-                if (($config['created_at'] ?? null) === $createdAt) {
-                    return $index;
-                }
+        $createdAt = $testConfig['created_at'];
+        foreach ($abTestVariants as $index => $config) {
+            if ($config['created_at'] === $createdAt) {
+                return $index;
             }
         }
 
@@ -610,9 +686,9 @@ class EmailAbTestService
 
     /**
      * Get A/B test recommendations based on campaign history
-     * 
+     *
      * @param EmailCampaign $campaign Campaign
-     * @return array Test recommendations
+     * @return array<string, string> Test recommendations
      */
     public function getTestRecommendations(EmailCampaign $campaign): array
     {
@@ -620,6 +696,7 @@ class EmailAbTestService
 
         // Analyze past campaigns for insights
         $qb = $this->entityManager->createQueryBuilder();
+        /** @var list<EmailCampaign> $pastCampaigns */
         $pastCampaigns = $qb->select('c')
             ->from(EmailCampaign::class, 'c')
             ->where('c.id != :current_id')
@@ -639,7 +716,7 @@ class EmailAbTestService
         }
 
         // Analyze subject lines
-        $subjectLengths = array_map(fn($c) => strlen($c->getName()), $pastCampaigns);
+        $subjectLengths = array_map(static fn($c) => strlen($c->getName() ?? ''), $pastCampaigns);
         $avgLength = array_sum($subjectLengths) / count($subjectLengths);
         
         $recommendations['subject_line'] = $avgLength > 50 

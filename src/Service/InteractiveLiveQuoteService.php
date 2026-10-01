@@ -35,6 +35,98 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
  * 3. Customer toggles between quantity tiers (100, 500, 1000, 5000)
  * 4. Prices update dynamically based on price breaks
  * 5. Customer can accept or request modifications
+ *
+ * @phpstan-type PriceBreakEntry array{quantity: int, price: float}
+ * @phpstan-type BomDataLine array{
+ *   mpn: string|null,
+ *   manufacturer?: string|null,
+ *   description: string|null,
+ *   quantity_per_unit: int|null,
+ *   pricing: list<PriceBreakEntry>,
+ *   stock: int|null,
+ *   leadtime_days: int
+ * }
+ * @phpstan-type PerUnitLine array{
+ *   mpn: string,
+ *   description: string,
+ *   qty_per_unit: int,
+ *   unit_price: float,
+ *   extended: float,
+ *   stock_available: int|null,
+ *   sufficient_stock: bool|null
+ * }
+ * @phpstan-type PricingResult array{
+ *   unit_total: float,
+ *   extended_total: float,
+ *   canonical_total: float|null,
+ *   margin_percent: float|null,
+ *   margin_amount: float|null,
+ *   currency: string|null,
+ *   per_unit_breakdown: list<PerUnitLine>,
+ *   stock_status: string
+ * }
+ * @phpstan-type SavingsInfo array{amount: float|int, percent: float|int}
+ * @phpstan-type LeadTimeEstimate array{
+ *   total_days: int,
+ *   procurement_days: int,
+ *   assembly_days: int,
+ *   constraining_part: string|null,
+ *   estimate_date: string,
+ *   confidence: string
+ * }
+ * @phpstan-type TierPricingRow array{
+ *   quantity: int,
+ *   unit_price: float,
+ *   material_subtotal: float,
+ *   extended_price: float,
+ *   per_unit_breakdown: list<PerUnitLine>,
+ *   savings_vs_minimum: SavingsInfo,
+ *   lead_time_estimate: LeadTimeEstimate,
+ *   stock_status: string,
+ *   currency: string|null,
+ *   next_break?: array{quantity: int, additional_qty: int, new_unit_price: float, savings_per_unit: float}
+ * }
+ * @phpstan-type TierPricingView array{
+ *   quote_number: string|null,
+ *   company: string|null,
+ *   base_quantity: int|null,
+ *   currency: string|null,
+ *   tiers: list<TierPricingRow>,
+ *   bom_line_count: int,
+ *   valid_until: string|null,
+ *   interactive_enabled: bool
+ * }
+ * @phpstan-type QuoteRequestResult array{
+ *   status: string,
+ *   request_id: int|null,
+ *   quote_number: string|null,
+ *   requested_quantity: int,
+ *   estimated_unit_price: float,
+ *   estimated_total: float,
+ *   currency: string|null,
+ *   estimated_lead_time: LeadTimeEstimate,
+ *   customer_notes: string|null,
+ *   message: string,
+ *   next_steps: list<string>
+ * }
+ * @phpstan-type QuoteAcceptanceResult array{
+ *   status: string,
+ *   acceptance_id: int|null,
+ *   quote_number: string|null,
+ *   accepted_quantity: int|null,
+ *   accepted_total: float,
+ *   currency?: string|null,
+ *   idempotent_replay?: true,
+ *   message: string,
+ *   next_steps?: list<string>
+ * }
+ * @phpstan-type InteractiveModeResult array{token: string, url: string, expires_at: string, quantity_tiers: list<int>}
+ * @phpstan-type InteractiveQuoteStats array{
+ *   active_interactive_quotes: int,
+ *   total_customer_views: int,
+ *   recently_viewed_count: int,
+ *   recently_viewed: list<array{quote_number: string|null, company: string|null, last_viewed: string|null, view_count: int|null}>
+ * }
  */
 class InteractiveLiveQuoteService
 {
@@ -112,11 +204,10 @@ class InteractiveLiveQuoteService
 
     /**
      * Enable interactive mode for a quote and generate public token
-     * 
-     * @param Quote $quote The quote to enable
-     * @param array|null $quantityTiers Custom quantity tiers (or use defaults)
+     *
+     * @param array<int|string, mixed>|null $quantityTiers Custom quantity tiers (or use defaults)
      * @param int $expirationDays Token validity period
-     * @return array{token: string, url: string, expires_at: string}
+     * @return InteractiveModeResult
      */
     public function enableInteractiveMode(
         Quote $quote,
@@ -143,23 +234,23 @@ class InteractiveLiveQuoteService
             $tiers[] = (int) $currentQty;
             sort($tiers);
         }
-        $tiers = array_values(array_slice($tiers, 0, self::MAX_TIERS));
+        $tiers = array_slice($tiers, 0, self::MAX_TIERS);
 
         $quote->setQuantityOptions($tiers);
-        
+
         $this->entityManager->flush();
-        
+
         $this->logger->info('Interactive mode enabled for quote', [
             'quote_id' => $quote->getId(),
             'quote_number' => $quote->getQuoteNumber(),
-            'expires_at' => $quote->getTokenExpiresAt()->format('c'),
+            'expires_at' => $quote->getTokenExpiresAt()?->format('c'),
             'tiers' => $tiers,
         ]);
-        
+
         return [
-            'token' => $quote->getPublicToken(),
+            'token' => $quote->getPublicToken() ?? '',
             'url' => '/quote/live/' . $quote->getPublicToken(),
-            'expires_at' => $quote->getTokenExpiresAt()->format('c'),
+            'expires_at' => $quote->getTokenExpiresAt()?->format('c') ?? '',
             'quantity_tiers' => $tiers,
         ];
     }
@@ -220,24 +311,25 @@ class InteractiveLiveQuoteService
     
     /**
      * Calculate pricing for all available quantity tiers
-     * 
+     *
      * @param Quote $quote The quote to calculate
-     * @return array Pricing for each tier with details
+     * @return TierPricingView Pricing for each tier with details
      */
     public function calculateTierPricing(Quote $quote): array
     {
-        $tiers = $quote->getQuantityOptions() ?? self::DEFAULT_QUANTITY_TIERS;
+        $tiers = $this->normalizeQuantityTiers($quote->getQuantityOptions());
         $bomLines = $quote->getBomLines();
         $currency = $quote->getCurrency();
-        
+
         // Get BOM data (either from entity or stored JSON)
         $bomData = $this->extractBomData($quote);
-        
+
+        /** @var list<TierPricingRow> $tierPricing */
         $tierPricing = [];
-        
+
         foreach ($tiers as $quantity) {
             $tierResult = $this->calculatePricingForQuantity($bomData, $quantity, $currency);
-            
+
             $tierPricing[] = [
                 'quantity' => $quantity,
                 'unit_price' => round($tierResult['unit_total'], 4),
@@ -281,10 +373,6 @@ class InteractiveLiveQuoteService
             'interactive_enabled' => $quote->isInteractiveEnabled(),
         ];
     }
-    
-    /**
-     * Calculate pricing for a specific quantity
-     */
     /**
      * Price a quantity through the CANONICAL pricing model.
      *
@@ -295,19 +383,22 @@ class InteractiveLiveQuoteService
      * converted into the SAME processed-line shape the copilot pipeline
      * produces (extended_price per line) and priced by the one canonical
      * engine — same cost components, same margin rules, same currency.
-      * @param array<string|int, mixed> $bomData
+     *
+     * @param list<BomDataLine> $bomData
+     * @return PricingResult
      */
     private function calculatePricingForQuantity(array $bomData, int $quantity, ?string $currency = null): array
     {
         $unitTotal = 0.0;
         $extendedTotal = 0.0;
+        /** @var list<PerUnitLine> $perUnitBreakdown */
         $perUnitBreakdown = [];
         $allInStock = true;
         $anyStockKnown = true;
         $processedLines = [];
 
         foreach ($bomData as $line) {
-            $priceBreaks = $line['pricing'] ?? [];
+            $priceBreaks = $line['pricing'];
             $lineQty = ($line['quantity_per_unit'] ?? 1) * $quantity;
 
             // Get unit price for this quantity
@@ -319,7 +410,7 @@ class InteractiveLiveQuoteService
             $unitTotal += $perUnitCost;
             $extendedTotal += $lineExtended;
 
-            $stock = $line['stock'] ?? null;
+            $stock = $line['stock'];
             $hasStockData = $stock !== null;
             if ($hasStockData && (int) $stock < $lineQty) {
                 $allInStock = false;
@@ -385,8 +476,13 @@ class InteractiveLiveQuoteService
             if (!is_array($break) || !isset($break['quantity'], $break['price'])) {
                 continue;
             }
-            $quantity = (int) $break['quantity'];
-            $price = (float) $break['price'];
+            $quantityRaw = $break['quantity'];
+            $priceRaw = $break['price'];
+            if (!is_numeric($quantityRaw) || !is_numeric($priceRaw)) {
+                continue;
+            }
+            $quantity = (int) $quantityRaw;
+            $price = (float) $priceRaw;
             if ($quantity >= 1 && $price >= 0.0) {
                 $clean[] = ['quantity' => $quantity, 'price' => $price];
             }
@@ -399,31 +495,34 @@ class InteractiveLiveQuoteService
 
     /**
      * Get unit price based on price breaks
-      * @param array<string|int, mixed> $priceBreaks
+     *
+     * @param list<PriceBreakEntry> $priceBreaks
      */
     private function getUnitPriceForQuantity(array $priceBreaks, int $quantity): float
     {
         if (empty($priceBreaks)) {
             return 0.0;
         }
-        
-        usort($priceBreaks, fn($a, $b) => ($a['quantity'] ?? 0) <=> ($b['quantity'] ?? 0));
-        
-        $applicablePrice = $priceBreaks[0]['price'] ?? 0;
-        
+
+        usort($priceBreaks, fn($a, $b) => $a['quantity'] <=> $b['quantity']);
+
+        $applicablePrice = $priceBreaks[0]['price'];
+
         foreach ($priceBreaks as $break) {
-            if ($quantity >= ($break['quantity'] ?? 0)) {
-                $applicablePrice = $break['price'] ?? $applicablePrice;
+            if ($quantity >= $break['quantity']) {
+                $applicablePrice = $break['price'];
             }
         }
-        
+
         return (float) $applicablePrice;
     }
-    
+
     /**
      * Calculate savings compared to minimum quantity tier
-      * @param array<string|int, mixed> $existingTiers
- * @param array<string|int, mixed> $currentResult
+     *
+     * @param list<TierPricingRow> $existingTiers
+     * @param PricingResult $currentResult
+     * @return SavingsInfo
      */
     private function calculateSavings(array $existingTiers, array $currentResult): array
     {
@@ -433,40 +532,42 @@ class InteractiveLiveQuoteService
                 'percent' => 0,
             ];
         }
-        
+
         $minTier = $existingTiers[0];
         $minUnitPrice = $minTier['unit_price'];
         $currentUnitPrice = $currentResult['unit_total'];
-        
+
         if ($minUnitPrice <= 0) {
             return ['amount' => 0, 'percent' => 0];
         }
-        
+
         $savingsPerUnit = $minUnitPrice - $currentUnitPrice;
         $savingsPercent = ($savingsPerUnit / $minUnitPrice) * 100;
-        
+
         return [
             'amount' => round($savingsPerUnit, 4),
             'percent' => round($savingsPercent, 1),
         ];
     }
-    
+
     /**
      * Estimate lead time based on quantity and stock levels
-      * @param array<string|int, mixed> $bomData
+     *
+     * @param list<BomDataLine> $bomData
+     * @return LeadTimeEstimate
      */
     private function estimateLeadTime(int $quantity, array $bomData): array
     {
         $maxLeadTimeDays = 0;
         $constrainingPart = null;
-        
+
         foreach ($bomData as $line) {
             $lineQty = ($line['quantity_per_unit'] ?? 1) * $quantity;
-            $stock = $line['stock'] ?? null;
-            $standardLeadTime = $line['leadtime_days'] ?? 14;
-            
+            $stock = $line['stock'];
+            $standardLeadTime = $line['leadtime_days'];
+
             $effectiveLeadTime = $standardLeadTime;
-            
+
             // If stock is insufficient (KNOWN stock only), add procurement time
             if ($stock !== null && $stock < $lineQty) {
                 $shortfall = $lineQty - $stock;
@@ -474,7 +575,7 @@ class InteractiveLiveQuoteService
                 $additionalDays = min(60, (int)($shortfall / 100) + 14);
                 $effectiveLeadTime = $standardLeadTime + $additionalDays;
             }
-            
+
             if ($effectiveLeadTime > $maxLeadTimeDays) {
                 $maxLeadTimeDays = $effectiveLeadTime;
                 $constrainingPart = $line['mpn'] ?? 'Unknown';
@@ -497,13 +598,16 @@ class InteractiveLiveQuoteService
     
     /**
      * Extract BOM data from quote
+     *
+     * @return list<BomDataLine>
      */
     private function extractBomData(Quote $quote): array
     {
         // First try to get from BOM lines entity
         $bomLines = $quote->getBomLines();
-        
+
         if ($bomLines->count() > 0) {
+            /** @var list<BomDataLine> $data */
             $data = [];
             foreach ($bomLines as $line) {
                 // IMMUTABLE PRICING SNAPSHOT: the sourcing pipeline persists
@@ -542,7 +646,7 @@ class InteractiveLiveQuoteService
             }
             return $data;
         }
-        
+
         // Fallback to JSON data
         $bomJson = $quote->getBomDataJson();
         if ($bomJson) {
@@ -551,29 +655,49 @@ class InteractiveLiveQuoteService
             $lines = $decoded['lines'] ?? $decoded ?? [];
 
             // Normalize stored JSON lines into the pricing shape the tier
-            // engine consumes — a flat unit_price becomes a qty-1 break.
-            foreach ($lines as $i => $line) {
+            // engine consumes — a flat unit_price becomes a qty-1 break and
+            // malformed fields degrade to the documented defaults.
+            if (!is_array($lines)) {
+                return [];
+            }
+
+            /** @var list<BomDataLine> $normalized */
+            $normalized = [];
+            foreach ($lines as $line) {
                 if (!is_array($line)) {
                     continue;
                 }
-                if (empty($line['pricing']) && isset($line['unit_price']) && is_numeric($line['unit_price'])) {
-                    $lines[$i]['pricing'] = [['quantity' => 1, 'price' => (float) $line['unit_price']]];
+                $pricing = $this->sanitizePriceBreaks($line['pricing'] ?? null);
+                if ($pricing === [] && isset($line['unit_price']) && is_numeric($line['unit_price'])) {
+                    $pricing = [['quantity' => 1, 'price' => (float) $line['unit_price']]];
                 }
+
+                $normalized[] = [
+                    'mpn' => is_string($line['mpn'] ?? null) ? $line['mpn'] : null,
+                    'description' => is_string($line['description'] ?? null) ? $line['description'] : null,
+                    'quantity_per_unit' => isset($line['quantity_per_unit']) && is_numeric($line['quantity_per_unit'])
+                        ? (int) $line['quantity_per_unit'] : null,
+                    'pricing' => $pricing,
+                    'stock' => isset($line['stock']) && is_numeric($line['stock'])
+                        ? (int) $line['stock'] : null,
+                    'leadtime_days' => isset($line['leadtime_days']) && is_numeric($line['leadtime_days'])
+                        ? (int) $line['leadtime_days'] : 14,
+                ];
             }
 
-            return $lines;
+            return $normalized;
         }
-        
+
         return [];
     }
     
     /**
      * Customer requests a quote at a specific quantity
-     * 
+     *
      * @param Quote $quote The original quote
      * @param int $requestedQuantity The desired quantity
      * @param string|null $customerNotes Optional notes from customer
-     * @return array The quote request details
+     * @return QuoteRequestResult The quote request details
      */
     public function requestQuoteAtQuantity(
         Quote $quote,
@@ -667,7 +791,9 @@ class InteractiveLiveQuoteService
      * caller must be an authenticated user (admin flow) or the quote must
      * still carry a valid public token (i.e. it was retrieved through
      * getQuoteByToken() on the public route).
-      * @param array<string|int, mixed> $customerInfo
+     *
+     * @param array<string, mixed> $customerInfo
+     * @return QuoteAcceptanceResult
      */
     public function acceptQuote(Quote $quote, int $acceptedQuantity, array $customerInfo, ?string $token = null): array
     {
@@ -882,9 +1008,10 @@ class InteractiveLiveQuoteService
     private function notifyOperations(string $type, string $message, int $entityId, array $data = []): void
     {
         try {
+            /** @var list<\App\Entity\User> $admins */
             $admins = $this->entityManager->createQuery(
                 "SELECT u FROM App\Entity\User u WHERE u.roles LIKE '%ROLE_ADMIN%' AND u.active = true"
-            )?->getResult() ?? [];
+            )->getResult() ?? [];
         } catch (\Throwable) {
             $admins = []; // mocked EM or transient failure — never block the flow
         }
@@ -910,9 +1037,10 @@ class InteractiveLiveQuoteService
     private function queueAcceptanceNotifications(Quote $quote, int $quantity, string $total, ?string $currency): void
     {
         try {
+            /** @var list<\App\Entity\User> $admins */
             $admins = $this->entityManager->createQuery(
                 "SELECT u FROM App\Entity\User u WHERE u.roles LIKE '%ROLE_ADMIN%' AND u.active = true"
-            )?->getResult() ?? [];
+            )->getResult() ?? [];
         } catch (\Throwable) {
             return; // mocked EM or transient failure — never block the flow
         }
@@ -947,7 +1075,7 @@ class InteractiveLiveQuoteService
         // acceptance came through an authenticated session; public-token
         // acceptances are covered by the admin notifications instead.
         $actingUser = $this->security?->getUser();
-        if ($actingUser === null || $company === null) {
+        if (!$actingUser instanceof \App\Entity\User || $company === null) {
             return null;
         }
 
@@ -964,11 +1092,13 @@ class InteractiveLiveQuoteService
 
     /**
      * Get interactive quote statistics for dashboard
+     *
+     * @return InteractiveQuoteStats
      */
     public function getInteractiveQuoteStats(): array
     {
         $qb = $this->entityManager->createQueryBuilder();
-        
+
         // Get quotes with interactive mode enabled
         $activeQuotes = $qb->select('COUNT(q.id)')
             ->from(Quote::class, 'q')
@@ -977,7 +1107,7 @@ class InteractiveLiveQuoteService
             ->setParameter('now', new \DateTime())
             ->getQuery()
             ->getSingleScalarResult();
-        
+
         // Get total views
         $qb = $this->entityManager->createQueryBuilder();
         $totalViews = $qb->select('SUM(q.viewCount)')
@@ -985,9 +1115,10 @@ class InteractiveLiveQuoteService
             ->where('q.interactiveEnabled = true')
             ->getQuery()
             ->getSingleScalarResult() ?? 0;
-        
+
         // Get recently viewed
         $qb = $this->entityManager->createQueryBuilder();
+        /** @var list<Quote> $recentlyViewed */
         $recentlyViewed = $qb->select('q')
             ->from(Quote::class, 'q')
             ->where('q.lastViewedAt IS NOT NULL')
@@ -1021,6 +1152,8 @@ class InteractiveLiveQuoteService
     
     /**
      * Regenerate expired token
+     *
+     * @return InteractiveModeResult
      */
     public function regenerateToken(Quote $quote, int $expirationDays = 30): array
     {

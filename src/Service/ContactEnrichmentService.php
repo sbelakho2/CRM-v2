@@ -19,13 +19,27 @@ use Psr\Log\LoggerInterface;
  *   2. Website scraping  → structured contact extraction (JSON-LD, team pages, vCards)
  *   3. Google Search API → find @domain email patterns
  *   4. Persist valid, deduplicated Contact entities
+ *
+ * @phpstan-type ContactCandidate array{
+ *   first_name: string|null,
+ *   last_name: string|null,
+ *   job_title: string|null,
+ *   email: string|null,
+ *   phone: string|null,
+ *   linkedin_url: string|null,
+ *   _source?: string,
+ *   _score?: int
+ * }
  */
 class ContactEnrichmentService
 {
     /**
      * Target procurement / engineering / executive roles ordered by priority.
+     *
+     * Kept public (not private) as the canonical, priority-ordered role list
+     * for enrichment-related tooling; it is not referenced inside this class.
      */
-    private const TARGET_ROLES = [
+    public const TARGET_ROLES = [
         'Procurement Manager',
         'Purchasing Manager',
         'Procurement Director',
@@ -98,7 +112,9 @@ class ContactEnrichmentService
      */
     public function enrichCompanyContacts(Company $company, int $maxContacts = 10): array
     {
-        $companyName = $company->getName();
+        // getName() is nullable; an unnamed company simply produces weaker
+        // search queries instead of crashing the enrichment run.
+        $companyName = $company->getName() ?? '';
         $domain      = $this->extractDomain($company->getWebsite());
         $sourcesUsed = [];
         $candidates  = []; // array of structured contact arrays
@@ -166,6 +182,9 @@ class ContactEnrichmentService
     //  Source 1 — Google → LinkedIn
     // ──────────────────────────────────────────────────────────────────
 
+    /**
+     * @return list<ContactCandidate>
+     */
     private function searchLinkedInProfiles(string $companyName, ?string $domain): array
     {
         $candidates = [];
@@ -177,8 +196,14 @@ class ContactEnrichmentService
             try {
                 $searchResult = $this->googleSearchService->searchCompanies($query, 10);
                 $items = $searchResult['results'] ?? [];
+                if (!is_array($items)) {
+                    $items = [];
+                }
 
                 foreach ($items as $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
                     $parsed = $this->parseLinkedInSearchResult($item, $companyName);
                     if ($parsed) {
                         $parsed['_source'] = 'linkedin_' . $groupKey;
@@ -201,7 +226,8 @@ class ContactEnrichmentService
             try {
                 $teamQuery = sprintf('site:%s ("our team" OR "leadership" OR "management team" OR "about us")', $domain);
                 $teamResult = $this->googleSearchService->searchCompanies($teamQuery, 5);
-                $teamPages = count($teamResult['results'] ?? []);
+                $teamItems = $teamResult['results'] ?? [];
+                $teamPages = is_array($teamItems) ? count($teamItems) : 0;
                 if ($teamPages > 0) {
                     $this->logger->info('[ContactEnrichment] Found {n} team/leadership pages on {domain}', [
                         'n'      => $teamPages,
@@ -221,13 +247,16 @@ class ContactEnrichmentService
      *
      * Typical title format: "John Smith - Procurement Manager - ACME Corp | LinkedIn"
      * Snippet may contain additional role/company info.
-      * @param array<string|int, mixed> $item
+     * @param array<int|string, mixed> $item
+     * @return ContactCandidate|null
      */
     private function parseLinkedInSearchResult(array $item, string $companyName): ?array
     {
-        $title   = $item['title'] ?? '';
-        $link    = $item['link'] ?? ($item['url'] ?? '');
-        $snippet = $item['snippet'] ?? '';
+        $title   = $this->asStringOrNull($item['title'] ?? null) ?? '';
+        $link    = $this->asStringOrNull($item['link'] ?? null)
+            ?? $this->asStringOrNull($item['url'] ?? null)
+            ?? '';
+        $snippet = $this->asStringOrNull($item['snippet'] ?? null) ?? '';
 
         // Must be a LinkedIn profile URL
         if (!str_contains($link, 'linkedin.com/in/')) {
@@ -235,12 +264,12 @@ class ContactEnrichmentService
         }
 
         // Parse "FirstName LastName - Title - Company | LinkedIn"
-        $titleCleaned = preg_replace('/\s*\|\s*LinkedIn$/i', '', $title);
+        $titleCleaned = preg_replace('/\s*\|\s*LinkedIn$/i', '', $title) ?? $title;
         $parts = array_map('trim', explode(' - ', $titleCleaned));
 
         if (count($parts) < 2) {
             // Try alternative format: "FirstName LastName – Title at Company"
-            $parts = array_map('trim', preg_split('/\s*[–—]\s*/', $titleCleaned));
+            $parts = array_map('trim', preg_split('/\s*[–—]\s*/', $titleCleaned) ?: []);
         }
 
         $fullName = $parts[0] ?? '';
@@ -248,7 +277,7 @@ class ContactEnrichmentService
         $listedCompany = $parts[2] ?? '';
 
         // Remove "| LinkedIn" remnants from company
-        $listedCompany = preg_replace('/\s*\|.*$/', '', $listedCompany);
+        $listedCompany = preg_replace('/\s*\|.*$/', '', $listedCompany) ?? $listedCompany;
 
         // Validate: person must work at the target company (fuzzy match)
         $companyLower = mb_strtolower($companyName);
@@ -284,6 +313,9 @@ class ContactEnrichmentService
     //  Source 2 — Website scraping
     // ──────────────────────────────────────────────────────────────────
 
+    /**
+     * @return list<ContactCandidate>
+     */
     private function scrapeWebsiteContacts(Company $company): array
     {
         $url = $company->getWebsite();
@@ -295,18 +327,22 @@ class ContactEnrichmentService
             $url = 'https://' . $url;
         }
 
+        // The upstream @return shape omits this key, but scrapeWebsite() always
+        // includes it at runtime — widen to avoid relying on a stale PHPDoc.
+        /** @var array<string, mixed> $scrapeResult */
         $scrapeResult = $this->deepScrapingService->scrapeWebsite($url, 5, false);
-        $structured   = $scrapeResult['structured_contacts'] ?? [];
+        $rawContacts  = $scrapeResult['structured_contacts'] ?? [];
+        $structured   = array_values(array_filter(is_array($rawContacts) ? $rawContacts : [], 'is_array'));
 
         // Normalise keys coming from DeepScrapingService
-        return array_map(function (array $c) {
+        return array_map(static function (array $c): array {
             return [
-                'first_name'   => $c['first_name'] ?? null,
-                'last_name'    => $c['last_name'] ?? null,
-                'job_title'    => $c['job_title'] ?? null,
-                'email'        => $c['email'] ?? null,
-                'phone'        => $c['phone'] ?? null,
-                'linkedin_url' => $c['linkedin_url'] ?? null,
+                'first_name'   => self::asStringOrNull($c['first_name'] ?? null),
+                'last_name'    => self::asStringOrNull($c['last_name'] ?? null),
+                'job_title'    => self::asStringOrNull($c['job_title'] ?? null),
+                'email'        => self::asStringOrNull($c['email'] ?? null),
+                'phone'        => self::asStringOrNull($c['phone'] ?? null),
+                'linkedin_url' => self::asStringOrNull($c['linkedin_url'] ?? null),
                 '_source'      => 'website',
             ];
         }, $structured);
@@ -316,6 +352,9 @@ class ContactEnrichmentService
     //  Source 3 — Google → email patterns
     // ──────────────────────────────────────────────────────────────────
 
+    /**
+     * @return list<ContactCandidate>
+     */
     private function searchGoogleForEmails(string $companyName, string $domain): array
     {
         $candidates = [];
@@ -326,9 +365,16 @@ class ContactEnrichmentService
         try {
             $searchResult = $this->googleSearchService->searchCompanies($query, 10);
             $items = $searchResult['results'] ?? [];
+            if (!is_array($items)) {
+                $items = [];
+            }
 
             foreach ($items as $item) {
-                $text = ($item['title'] ?? '') . ' ' . ($item['snippet'] ?? '');
+                if (!is_array($item)) {
+                    continue;
+                }
+                $text = ($this->asStringOrNull($item['title'] ?? null) ?? '')
+                    . ' ' . ($this->asStringOrNull($item['snippet'] ?? null) ?? '');
                 $emails = $this->extractEmailsFromText($text, $domain);
 
                 foreach ($emails as $email) {
@@ -355,6 +401,8 @@ class ContactEnrichmentService
 
     /**
      * Extract emails from text that match the given domain.
+     *
+     * @return list<string>
      */
     private function extractEmailsFromText(string $text, string $domain): array
     {
@@ -379,6 +427,8 @@ class ContactEnrichmentService
     /**
      * Attempt to derive first/last name from an email local part.
      * Handles: john.smith, jsmith, john_smith, john-smith, smithj
+     *
+     * @return array{first: string, last: string}|null
      */
     private function deriveNameFromEmail(string $email): ?array
     {
@@ -416,8 +466,8 @@ class ContactEnrichmentService
     /**
      * Deduplicate, score, and persist contacts.
      *
-     * @return array{created: int, updated: int, skipped: int, contacts: Contact[]}
-      * @param array<string|int, mixed> $candidates
+     * @param list<ContactCandidate> $candidates
+     * @return array{created: int, updated: int, skipped: int, contacts: list<Contact>}
      */
     private function persistValidContacts(array $candidates, Company $company, ?string $domain, int $maxContacts): array
     {
@@ -431,7 +481,7 @@ class ContactEnrichmentService
             $c['_score'] = $score;
             $scored[] = $c;
         }
-        usort($scored, fn($a, $b) => ($b['_score'] ?? 0) <=> ($a['_score'] ?? 0));
+        usort($scored, fn($a, $b) => $b['_score'] <=> $a['_score']);
 
         // Step 3: take top N
         $top = array_slice($scored, 0, $maxContacts);
@@ -441,7 +491,9 @@ class ContactEnrichmentService
             ->getRepository(Contact::class)
             ->findBy(['company' => $company]);
 
+        /** @var array<string, Contact> $existingMap */
         $existingMap = [];
+
         foreach ($existingContacts as $ec) {
             $key = mb_strtolower(trim($ec->getFirstName() . ' ' . $ec->getLastName()));
             $existingMap[$key] = $ec;
@@ -457,7 +509,7 @@ class ContactEnrichmentService
 
         foreach ($top as $c) {
             // Quality gate
-            if (($c['_score'] ?? 0) < 25) {
+            if ($c['_score'] < 25) {
                 $skipped++;
                 continue;
             }
@@ -529,7 +581,7 @@ class ContactEnrichmentService
                 $contact->setPrimaryContact($isDecisionMaker);
                 $contact->setNotes(sprintf(
                     'Auto-enriched | Score: %d | Sources: %s%s',
-                    $c['_score'] ?? 0,
+                    $c['_score'],
                     $c['_source'] ?? 'unknown',
                     $isDecisionMaker ? ' | ★ Decision Maker' : ''
                 ));
@@ -565,7 +617,9 @@ class ContactEnrichmentService
     /**
      * Merge candidate records that refer to the same person.
      * Uses name + email as dedup keys.
-      * @param array<string|int, mixed> $candidates
+     *
+     * @param list<ContactCandidate> $candidates
+     * @return list<ContactCandidate>
      */
     private function deduplicateCandidates(array $candidates): array
     {
@@ -597,12 +651,10 @@ class ContactEnrichmentService
             } else {
                 // New bucket
                 $key = $nameKey ?: ('email:' . $emailKey);
-                if ($key) {
-                    $buckets[$key] = $c;
-                    // Also index by email for cross-source merging
-                    if ($emailKey) {
-                        $buckets['email:' . $emailKey] = &$buckets[$key];
-                    }
+                $buckets[$key] = $c;
+                // Also index by email for cross-source merging
+                if ($emailKey) {
+                    $buckets['email:' . $emailKey] = &$buckets[$key];
                 }
             }
         }
@@ -630,7 +682,8 @@ class ContactEnrichmentService
 
     /**
      * Score a candidate contact 0–100.
-      * @param array<string|int, mixed> $contact
+     *
+     * @param ContactCandidate $contact
      */
     private function scoreContact(array $contact, ?string $companyDomain = null): int
     {
@@ -640,6 +693,15 @@ class ContactEnrichmentService
     // ──────────────────────────────────────────────────────────────────
     //  Helpers
     // ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Coerce a value to string following PHP weak casting semantics for
+     * scalars (string/int/float/bool); any other type becomes null.
+     */
+    private static function asStringOrNull(mixed $value): ?string
+    {
+        return is_scalar($value) ? (string) $value : null;
+    }
 
     private function extractDomain(?string $url): ?string
     {
@@ -721,7 +783,7 @@ class ContactEnrichmentService
         }
 
         // Check if main words of company name appear (skip short words)
-        $words = preg_split('/[\s\-_]+/', $companyLower);
+        $words = preg_split('/[\s\-_]+/', $companyLower) ?: [];
         $significantWords = array_filter($words, fn($w) => strlen($w) > 2
             && !in_array($w, ['inc', 'ltd', 'llc', 'corp', 'co', 'the', 'gmbh', 'ag', 'sa', 'plc', 'group', 'international'], true));
 
@@ -742,6 +804,8 @@ class ContactEnrichmentService
 
     /**
      * Split "John Smith" or "John Michael Smith" into first/last.
+     *
+     * @return array{first: string, last: string}|null
      */
     private function splitName(string $fullName): ?array
     {
@@ -752,16 +816,16 @@ class ContactEnrichmentService
 
         // Strip everything after em-dash/en-dash/double-hyphen (title or company suffix)
         // e.g. "Tobias Harms – ES-Tec GmbH" → "Tobias Harms"
-        $name = preg_replace('/\s*[–—]\s*.+$/', '', $name);
+        $name = preg_replace('/\s*[–—]\s*.+$/', '', $name) ?? $name;
 
         // Strip " - CompanyName" or " - Title" suffix (but not hyphenated names)
         // Only if what comes after " - " looks like a company/title (3+ chars)
-        $name = preg_replace('/\s+\-\s+\S{3,}.*$/', '', $name);
+        $name = preg_replace('/\s+\-\s+\S{3,}.*$/', '', $name) ?? $name;
 
         // Remove common suffixes
-        $name = preg_replace('/\s*,?\s*(Jr\.?|Sr\.?|III|II|IV|PhD|MD|MBA|CPA|PE|PMP)$/i', '', $name);
+        $name = preg_replace('/\s*,?\s*(Jr\.?|Sr\.?|III|II|IV|PhD|MD|MBA|CPA|PE|PMP)$/i', '', $name) ?? $name;
 
-        $parts = preg_split('/\s+/', $name);
+        $parts = preg_split('/\s+/', $name) ?: [];
         if (count($parts) < 2) {
             return null; // Need at least first + last
         }

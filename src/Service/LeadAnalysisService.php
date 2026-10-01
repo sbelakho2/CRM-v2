@@ -12,13 +12,20 @@ class LeadAnalysisService
 {
     public function __construct(
         private LeadRepository $leadRepository,
-        private EntityManagerInterface $em,
+        /**
+         * Kept injected (protected) for subclasses/contracts; not read in
+         * this service today — deletion would change the autowired
+         * constructor signature.
+         */
+        protected EntityManagerInterface $em,
     ) {}
 
     /**
      * Analyze lead quality distribution across score ranges
      * Returns array of ranges: ['0-25' => count, '26-50' => count, '51-75' => count, '76-100' => count]
      * Also includes approval_rate per range
+     *
+     * @return array<string, array{count: int, approved: int, total: int, approval_rate: float|int}>
      */
     public function getLeadQualityDistribution(): array
     {
@@ -32,6 +39,8 @@ class LeadAnalysisService
 
         $results = [];
         foreach ($ranges as $key => $range) {
+            // Aggregate scalars may arrive as int or string depending on driver.
+            /** @var array{cnt: int|string|null, approved_cnt: int|string|null}|null $data */
             $data = $this->leadRepository->createQueryBuilder('l')
                 ->select('COUNT(l.id) AS cnt')
                 ->addSelect('SUM(CASE WHEN l.reviewStatus = :approved THEN 1 ELSE 0 END) AS approved_cnt')
@@ -58,10 +67,13 @@ class LeadAnalysisService
     /**
      * Analyze source effectiveness
      * Returns array of sources with count, avg_score, approval_rate
+     *
+     * @return list<array{source: string, count: int, avg_score: float|int, approved: int, pending: int, denied: int, approval_rate: float|int}>
      */
     public function getSourceEffectiveness(): array
     {
         // Aggregate query — avoids loading all leads into memory
+        /** @var list<array{source_name: string, cnt: int|string, avg_score: string|float|null, approved_cnt: int|string, denied_cnt: int|string, pending_cnt: int|string}> $rows */
         $rows = $this->leadRepository->createQueryBuilder('l')
             ->select('COALESCE(l.source, :unknown) AS source_name')
             ->addSelect('COUNT(l.id) AS cnt')
@@ -86,10 +98,10 @@ class LeadAnalysisService
                 'source'        => $row['source_name'],
                 'count'         => $count,
                 'avg_score'     => $row['avg_score'] !== null ? round((float) $row['avg_score'], 1) : 0,
-                'approved'      => (int) ($row['approved_cnt'] ?? 0),
-                'pending'       => (int) ($row['pending_cnt'] ?? 0),
-                'denied'        => (int) ($row['denied_cnt'] ?? 0),
-                'approval_rate' => $count > 0 ? round(((int) ($row['approved_cnt'] ?? 0) / $count) * 100) : 0,
+                'approved'      => (int) $row['approved_cnt'],
+                'pending'       => (int) $row['pending_cnt'],
+                'denied'        => (int) $row['denied_cnt'],
+                'approval_rate' => $count > 0 ? round(((int) $row['approved_cnt'] / $count) * 100) : 0,
             ];
         }
 
@@ -98,10 +110,13 @@ class LeadAnalysisService
 
     /**
      * Get funnel analytics — counts per nurturing stage
+     *
+     * @return list<array{stage: string, count: int, avg_score: float|int}>
      */
     public function getFunnelAnalytics(): array
     {
         // Aggregate query — avoids loading all leads into memory
+        /** @var list<array{stage: string, cnt: int|string, avg_score: string|float|null}> $rows */
         $rows = $this->leadRepository->createQueryBuilder('l')
             ->select('COALESCE(l.nurturingStage, :defaultStage) AS stage')
             ->addSelect('COUNT(l.id) AS cnt')
@@ -141,10 +156,13 @@ class LeadAnalysisService
 
     /**
      * Get geographic distribution
+     *
+     * @return list<array{region: string, count: int, avg_score: float|int}>
      */
     public function getGeographicDistribution(): array
     {
         // Aggregate query — avoids loading all leads into memory
+        /** @var list<array{region: string, cnt: int|string, avg_score: string|float|null}> $rows */
         $rows = $this->leadRepository->createQueryBuilder('l')
             ->select('COALESCE(l.regionTag, :unknown) AS region')
             ->addSelect('COUNT(l.id) AS cnt')
@@ -170,21 +188,25 @@ class LeadAnalysisService
 
     /**
      * Get sector breakdown
+     *
+     * @return list<array{sector: string, count: int, avg_score: float|int}>
      */
     public function getSectorBreakdown(): array
     {
         $sectors = [];
 
         // Select only needed columns instead of loading full entities
-        $leads = $this->leadRepository->createQueryBuilder('l')
+        /** @var list<array{sectorTags: list<string>|null, leadScore: int|null}> $rows */
+        $rows = $this->leadRepository->createQueryBuilder('l')
             ->select('l.sectorTags', 'l.leadScore')
             ->getQuery()
             ->getResult();
 
-        foreach ($leads as $row) {
+        foreach ($rows as $row) {
             $sectorTags = $row['sectorTags'] ?? null;
             if (is_array($sectorTags)) {
                 foreach ($sectorTags as $tag) {
+                    $tag = (string) $tag;
                     if (!isset($sectors[$tag])) {
                         $sectors[$tag] = [
                             'sector'    => $tag,
@@ -200,25 +222,30 @@ class LeadAnalysisService
         }
 
         foreach ($sectors as &$s) {
-            $s['avg_score'] = $s['count'] > 0 ? round($s['total_score'] / $s['count'], 1) : 0;
+            // count is always >= 1 here (a sector only exists once a lead added it)
+            $s['avg_score'] = round($s['total_score'] / $s['count'], 1);
             unset($s['total_score']);
         }
         unset($s);
 
-        usort($sectors, fn($a, $b) => $b['count'] - $a['count']);
+        usort($sectors, fn (array $a, array $b): int => $b['count'] - $a['count']);
 
         return $sectors;
     }
 
     /**
      * Get lead quality trend over time (last 30 days, grouped by week)
+     *
+     * @return list<array{week: string, count: int, avg_score: float|int, approval_rate: float|int}>
      */
     public function getLeadQualityTrend(): array
     {
         $thirtyDaysAgo = new \DateTimeImmutable('-30 days');
 
-        // Only fetch leads created in the last 30 days — avoids full table scan
-        $leads = $this->leadRepository->createQueryBuilder('l')
+        // Only fetch leads created in the last 30 days — avoids full table scan.
+        // Column type is 'datetime', so Doctrine hydrates \DateTime instances.
+        /** @var list<array{createdAt: \DateTime|null, leadScore: int|null, reviewStatus: string|null}> $rows */
+        $rows = $this->leadRepository->createQueryBuilder('l')
             ->select('l.createdAt', 'l.leadScore', 'l.reviewStatus')
             ->where('l.createdAt >= :since')
             ->setParameter('since', $thirtyDaysAgo)
@@ -226,7 +253,7 @@ class LeadAnalysisService
             ->getResult();
 
         $weeks = [];
-        foreach ($leads as $row) {
+        foreach ($rows as $row) {
             $createdAt = $row['createdAt'];
             if (!$createdAt) continue;
 
@@ -247,8 +274,9 @@ class LeadAnalysisService
         }
 
         foreach ($weeks as &$w) {
-            $w['avg_score'] = $w['count'] > 0 ? round($w['total_score'] / $w['count'], 1) : 0;
-            $w['approval_rate'] = $w['count'] > 0 ? round(($w['approved'] / $w['count']) * 100) : 0;
+            // count is always >= 1 here (a week bucket only exists once a lead added it)
+            $w['avg_score'] = round($w['total_score'] / $w['count'], 1);
+            $w['approval_rate'] = round(($w['approved'] / $w['count']) * 100);
             unset($w['total_score'], $w['approved']);
         }
         unset($w);
@@ -260,6 +288,8 @@ class LeadAnalysisService
     /**
      * Get actionable insights — leads needing attention
      * Returns leads that are high-scoring but still pending, or stale leads
+     *
+     * @return list<array{type: string, lead: Lead, message: string, priority: string, score: int}>
      */
     public function getActionableInsights(): array
     {
@@ -268,6 +298,7 @@ class LeadAnalysisService
         $fourteenDaysAgo = new \DateTimeImmutable('-14 days');
 
         // 1. High-score pending leads (score >= 70, status = pending)
+        /** @var list<Lead> $highValuePending */
         $highValuePending = $this->leadRepository->createQueryBuilder('l')
             ->where('l.leadScore >= 70')
             ->andWhere('l.reviewStatus = :pending')
@@ -288,6 +319,7 @@ class LeadAnalysisService
         }
 
         // 2. Stale leads (created > 14 days, still pending)
+        /** @var list<Lead> $staleLeads */
         $staleLeads = $this->leadRepository->createQueryBuilder('l')
             ->where('l.createdAt <= :staleSince')
             ->andWhere('l.reviewStatus = :pending')
@@ -309,6 +341,7 @@ class LeadAnalysisService
         }
 
         // 3. High-score denied leads (score >= 80, status = denied)
+        /** @var list<Lead> $deniedHighValue */
         $deniedHighValue = $this->leadRepository->createQueryBuilder('l')
             ->where('l.leadScore >= 80')
             ->andWhere('l.reviewStatus = :denied')
@@ -329,7 +362,7 @@ class LeadAnalysisService
         }
 
         // Sort by score descending
-        usort($insights, fn($a, $b) => $b['score'] - $a['score']);
+        usort($insights, fn (array $a, array $b): int => $b['score'] - $a['score']);
 
         return $insights;
     }
@@ -337,6 +370,16 @@ class LeadAnalysisService
     /**
      * Generate ICP (Ideal Customer Profile) comparison for a lead
      * Compares lead attributes against ideal profile defined by top-performing leads
+     *
+     * @return array{
+     *   icp_score: float|int,
+     *   sector_fit: float|int,
+     *   region_fit: float|int,
+     *   top_sectors: array<string, int>,
+     *   top_regions: array<string, int>,
+     *   lead_score: int|null,
+     *   recommendation: string
+     * }
      */
     public function generateIcpComparison(Lead $lead): array
     {
@@ -353,6 +396,9 @@ class LeadAnalysisService
             $tags = $tl->getSectorTags();
             if (is_array($tags)) {
                 foreach ($tags as $tag) {
+                    if (!is_string($tag)) {
+                        continue;
+                    }
                     $icpSectors[$tag] = ($icpSectors[$tag] ?? 0) + 1;
                 }
             }
@@ -366,10 +412,12 @@ class LeadAnalysisService
         $leadSectors = $lead->getSectorTags() ?? [];
         $sectorFit = 0;
         $totalSectors = count($icpSectors);
-        if ($totalSectors > 0 && is_array($leadSectors)) {
+        if ($totalSectors > 0) {
             $matches = 0;
             foreach ($leadSectors as $s) {
-                if (isset($icpSectors[$s])) $matches++;
+                if (is_string($s) && isset($icpSectors[$s])) {
+                    $matches++;
+                }
             }
             $sectorFit = count($leadSectors) > 0
                 ? round(($matches / count($leadSectors)) * 100)

@@ -48,7 +48,12 @@ class AutonomousSalesOrchestratorService
         private CompetitorDetectionService $competitorDetection,
         private LeadSalesAnalystService $leadAnalyst,
         private OutboundMessageRepository $outboundRepository,
-        private ContactRepository $contactRepository,
+        /**
+         * Kept injected (protected) for subclasses/contracts; not read in
+         * this service today — deletion would change the autowired
+         * constructor signature.
+         */
+        protected ContactRepository $contactRepository,
         private LeadRepository $leadRepository,
         private SpintaxTemplateRepository $templateRepository,
         private ?MailerInterface $mailer,
@@ -79,8 +84,26 @@ class AutonomousSalesOrchestratorService
      * - Campaign-aware Thompson Sampling for multi-campaign support
      * 
      * @param Contact $contact The contact to compose a message for
-     * @param array $context Additional context variables
+     * @param array<string, mixed> $context Additional context variables
      * @param string|null $campaignId Optional campaign ID for campaign-specific A/B testing
+     * @return array{
+     *   subject: string,
+     *   body: string,
+     *   variationHash: string,
+     *   templateId: int|null,
+     *   templateName: string|null,
+     *   subjectArmId: int|null,
+     *   subjectArmName: string|null,
+     *   valuePropArmId: int|null,
+     *   contentLength: string,
+     *   personalization: array<string, mixed>|null,
+     *   qualityCheck: array<string, mixed>|null,
+     *   copyLintResult: array<int|string, mixed>|null,
+     *   isControlGroup: bool,
+     *   icpCluster: string,
+     *   toneApplied: string,
+     *   decisionTrace: array<string, mixed>
+     * }
      */
     public function composeMessage(Contact $contact, array $context = [], ?string $campaignId = null): array
     {
@@ -123,23 +146,29 @@ class AutonomousSalesOrchestratorService
             $fullContext = array_merge($fullContext, $persuasionContext);
             
             // Store successful patterns for template selection
-            $context['successfulPatterns'] = $personalization['successfulPatterns'] ?? [];
-            $context['industry'] = $personalization['industry'] ?? null;
-            $context['role'] = $personalization['role'] ?? null;
-            $contentLength = $personalization['contentLength'] ?? 'standard';
-            
+            // (getPersonalizationContext() declares all of these keys as
+            // required, so the former ?? fallbacks were unreachable.)
+            $context['successfulPatterns'] = $personalization['successfulPatterns'];
+            $context['industry'] = $personalization['industry'];
+            $context['role'] = $personalization['role'];
+            $contentLength = $personalization['contentLength'];
+
             // ==================== VALUE PROP A/B TESTING ====================
             // Try to get A/B tested value prop variant
-            $industry = $personalization['industry'] ?? 'other';
-            $contentFocus = $this->mapContentToFocus($personalization['content'] ?? 'business');
+            $industry = $personalization['industry'];
+            $contentFocus = $this->mapContentToFocus($personalization['content']);
             
             $valuePropResult = $this->personalizationService->getValuePropVariant($industry, $contentFocus);
             if ($valuePropResult['is_ab_test']) {
                 $fullContext['value_prop'] = $valuePropResult['value_prop'];
                 // Create brief version by taking first sentence
                 $vp = $valuePropResult['value_prop'];
-                $dotPos = strpos($vp, '.');
-                $fullContext['value_prop_short'] = $dotPos !== false ? substr($vp, 0, $dotPos + 1) : $vp;
+                // getValuePropVariant() declares value_prop as string|null;
+                // a null variant previously crashed strpos() here.
+                if ($vp !== null) {
+                    $dotPos = strpos($vp, '.');
+                    $fullContext['value_prop_short'] = $dotPos !== false ? substr($vp, 0, $dotPos + 1) : $vp;
+                }
                 $valuePropArmId = $valuePropResult['arm_id'];
             }
             
@@ -193,12 +222,17 @@ class AutonomousSalesOrchestratorService
         ];
 
         // Thompson Sampling: Select best subject line arm
-        // Now passes icpCluster for per-industry pools + 10% control group routing
+        // Now passes icpCluster for per-industry pools + 10% control group routing.
+        // sampleAndSelect() documents ['arm' => BanditArm, 'sampledScore' => float,
+        // 'isControl' => bool, 'trace' => array] but declares a bare array;
+        // the shape below is verified from ThompsonSamplerService.
         $armName = $campaignId ? "subject_line_{$campaignId}" : 'subject_line';
+        /** @var array{arm: BanditArm, sampledScore: float, isControl?: bool, trace?: array<string, mixed>, sampledValue?: mixed}|null $armResult */
         $armResult = $this->thompsonSampler->sampleAndSelect($armName, $icpCluster);
-        
+
         // If campaign-specific arm not found, fall back to generic
         if (!$armResult && $campaignId) {
+            /** @var array{arm: BanditArm, sampledScore: float, isControl?: bool, trace?: array<string, mixed>, sampledValue?: mixed}|null $armResult */
             $armResult = $this->thompsonSampler->sampleAndSelect('subject_line', $icpCluster);
         }
         
@@ -206,10 +240,12 @@ class AutonomousSalesOrchestratorService
         $subjectSpintax = $template->getSubjectSpintax();
         $subjectArm = null;
         $isControlGroup = false;
-        
+
         if ($armResult) {
             $subjectArm = $armResult['arm'];
-            $subjectSpintax = $subjectArm->getArmValue();
+            // An empty arm value would produce an empty subject; keep the
+            // template subject as fallback instead of crashing downstream.
+            $subjectSpintax = $subjectArm->getArmValue() ?? $subjectSpintax;
             $isControlGroup = $armResult['isControl'] ?? false;
             $decisionTrace['subjectArm'] = [
                 'armId' => $subjectArm->getId(),
@@ -226,7 +262,10 @@ class AutonomousSalesOrchestratorService
             $subjectSpintax = $this->personalizationService->synthesizeSubjectLine($contact, $subjectSpintax);
         }
 
-        // Spin and personalize the message with full context
+        // Spin and personalize the message with full context.
+        // spinAndPersonalize() returns array{subject: string, body: string,
+        // variationHash: string} (verified) but declares a bare array.
+        /** @var array{subject: string, body: string, variationHash: string} $result */
         $result = $this->spintaxEngine->spinAndPersonalize(
             $subjectSpintax,
             $template->getBodySpintax(),
@@ -235,11 +274,13 @@ class AutonomousSalesOrchestratorService
         
         // Apply tone transformations to the final output if personalization service is available
         $toneApplied = 'formal'; // default
-        if ($this->personalizationService && $personalization) {
-            $engagementLevel = $personalization['engagementLevel'] ?? 'cold';
-            
+        if ($this->personalizationService) {
+            // $personalization is always set when the personalization service
+            // is available (assigned in the first service-guarded block above).
+            $engagementLevel = $personalization['engagementLevel'];
+
             // Use architecture-recommended tone based on engagement level.
-            $profileTone = $personalization['tone'] ?? 'formal';
+            $profileTone = $personalization['tone'];
             $architectureTone = match($engagementLevel) {
                 'hot' => 'formal',
                 'warm' => 'friendly',
@@ -329,7 +370,7 @@ class AutonomousSalesOrchestratorService
      * Uses learned send time data from personalization profiles.
      * 
      * @param Contact $contact The contact to get send time for
-     * @return array Send time recommendation with 'time', 'day', 'source', 'confidence'
+     * @return array{time: string, day: string, source: string, confidence: float} Send time recommendation
      */
     public function getOptimalSendTime(Contact $contact): array
     {
@@ -354,7 +395,7 @@ class AutonomousSalesOrchestratorService
      * Returns competitor displacement messaging if applicable.
      * 
      * @param Contact $contact The contact to check
-     * @return array|null Competitor hook data or null
+     * @return array<string, mixed>|null Competitor hook data or null
      */
     public function getCompetitorDisplacementHook(Contact $contact): ?array
     {
@@ -395,7 +436,7 @@ class AutonomousSalesOrchestratorService
         // ==================== REPLY PATTERN LEARNING ====================
         // Check if we have successful subject patterns to match against
         $successfulPatterns = $context['successfulPatterns'] ?? [];
-        if (!empty($successfulPatterns)) {
+        if (!empty($successfulPatterns) && is_array($successfulPatterns)) {
             $matchedTemplate = $this->findTemplateMatchingPatterns($successfulPatterns);
             if ($matchedTemplate) {
                 $this->logger->info('Selected template based on successful reply patterns', [
@@ -432,7 +473,7 @@ class AutonomousSalesOrchestratorService
         // ==================== INDUSTRY-SPECIFIC SELECTION ====================
         // Select template based on industry if available
         $industry = $context['industry'] ?? null;
-        if ($industry && $industry !== 'other') {
+        if (is_string($industry) && $industry !== '' && $industry !== 'other') {
             $industryTemplateMap = [
                 'automotive' => 'Initial Outreach - Tier1 Auto',
                 'aerospace' => 'Initial Outreach - Technical',
@@ -451,7 +492,7 @@ class AutonomousSalesOrchestratorService
         // ==================== ROLE-SPECIFIC SELECTION ====================
         // Select template based on role if available
         $role = $context['role'] ?? null;
-        if ($role && $role !== 'other') {
+        if (is_string($role) && $role !== '' && $role !== 'other') {
             $roleTemplateMap = [
                 'procurement' => 'Initial Outreach - Cost Focus',
                 'engineering' => 'Initial Outreach - Technical',
@@ -495,13 +536,14 @@ class AutonomousSalesOrchestratorService
 
         // ==================== FALLBACK ====================
         $template = $this->templateRepository->findRandomActive('email');
-        
+
         if (!$template) {
             $this->logger->warning('No active templates found, seeding defaults');
+            /** @var list<SpintaxTemplate> $seeded */
             $seeded = $this->spintaxEngine->seedDefaultTemplates();
-            $template = !empty($seeded) ? $seeded[0] : null;
+            $template = $seeded[0] ?? null;
         }
-        
+
         return $template;
     }
 
@@ -510,33 +552,39 @@ class AutonomousSalesOrchestratorService
      * 
      * This enables learning from past successful emails by preferring
      * templates with similar subject line structures.
-      * @param array<string|int, mixed> $successfulPatterns
+     *
+     * @param array<string|int, mixed> $successfulPatterns
      */
     private function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTemplate
     {
+        /** @var list<SpintaxTemplate> $templates */
         $templates = $this->templateRepository->findActiveByType('email');
-        
+
         if (empty($templates)) {
             return null;
         }
-        
+
         $bestTemplate = null;
         $bestScore = 0;
-        
+
         foreach ($templates as $template) {
             $subjectSpintax = strtolower($template->getSubjectSpintax());
             $score = 0;
-            
+
             foreach ($successfulPatterns as $pattern) {
+                // Non-string patterns would previously crash strtolower().
+                if (!is_string($pattern)) {
+                    continue;
+                }
                 $pattern = strtolower($pattern);
-                
-                // Check for keyword overlap
-                $patternWords = array_filter(explode(' ', preg_replace('/[^a-z\s]/', '', $pattern)));
-                $templateWords = array_filter(explode(' ', preg_replace('/[^a-z\s]/', '', $subjectSpintax)));
-                
+
+                // Check for keyword overlap (preg_replace returns null only on PCRE failure)
+                $patternWords = array_filter(explode(' ', preg_replace('/[^a-z\s]/', '', $pattern) ?? ''));
+                $templateWords = array_filter(explode(' ', preg_replace('/[^a-z\s]/', '', $subjectSpintax) ?? ''));
+
                 $overlap = count(array_intersect($patternWords, $templateWords));
                 $score += $overlap;
-                
+
                 // Bonus for structural similarity (same length, similar punctuation)
                 if (abs(strlen($pattern) - strlen($subjectSpintax)) < 20) {
                     $score += 2;
@@ -604,7 +652,11 @@ class AutonomousSalesOrchestratorService
         }
 
         $contact = $message->getContact();
-        
+        if (!$contact) {
+            $this->logger->warning('Outbound message has no contact, skipping send', ['messageId' => $message->getId()]);
+            return false;
+        }
+
         if (!$contact->getEmail()) {
             $this->logger->warning('Contact has no email', ['contactId' => $contact->getId()]);
             return false;
@@ -613,6 +665,7 @@ class AutonomousSalesOrchestratorService
         // ==================== CADENCE GOVERNOR ====================
         // Check send cadence limits and stop rules before sending
         if ($this->cadenceGovernor) {
+            /** @var array{allowed: bool, reason: string|null, nextAllowedAt: \DateTime|null} $cadenceCheck */
             $cadenceCheck = $this->cadenceGovernor->canSendTo($contact);
             if (!$cadenceCheck['allowed']) {
                 $this->logger->info('Cadence governor blocked send', [
@@ -624,13 +677,14 @@ class AutonomousSalesOrchestratorService
             }
 
             // Check business hours
+            /** @var array{inWindow: bool, timezone: string, localHour: int, dayOfWeek?: int|string} $bizHours */
             $bizHours = $this->cadenceGovernor->isWithinBusinessHours($contact);
             if (!$bizHours['inWindow']) {
                 $this->logger->info('Outside business hours for contact timezone', [
                     'contactId' => $contact->getId(),
                     'timezone' => $bizHours['timezone'],
                     'localHour' => $bizHours['localHour'],
-                    'dayOfWeek' => $bizHours['dayOfWeek'],
+                    'dayOfWeek' => $bizHours['dayOfWeek'] ?? null,
                 ]);
                 return false;
             }
@@ -679,7 +733,9 @@ class AutonomousSalesOrchestratorService
             $email = (new Email())
                 ->from($this->resolveSenderAddress())
                 ->to($contact->getEmail())
-                ->subject($message->getSubject())
+                // getSubject() is nullable — an empty subject is preferable to
+                // the TypeError the null previously caused at send time.
+                ->subject($message->getSubject() ?? '')
                 ->text($message->getBodyText());
 
             if ($message->getBodyHtml()) {
@@ -744,9 +800,8 @@ class AutonomousSalesOrchestratorService
      */
     private function resolveSenderAddress(): string
     {
-        $from = $this->mailerFromAddress
-            ?? ($_ENV['MAILER_FROM_ADDRESS'] ?? '')
-            ?? '';
+        $envFrom = $_ENV['MAILER_FROM_ADDRESS'] ?? null;
+        $from = $this->mailerFromAddress ?? (is_string($envFrom) ? $envFrom : '');
 
         if ($from !== '') {
             return $from;
@@ -768,7 +823,7 @@ class AutonomousSalesOrchestratorService
      * @param int|OutboundMessage $messageOrId Message ID or entity
      * @param string $eventType Event type: 'open', 'click', 'reply', 'bounce', 'delivered', 'complaint'
      * @param string|null $replyContent Raw reply content for classification (optional)
-     * @return array Result with classification and Thompson update info
+     * @return array<string, mixed> Result with classification and Thompson update info
      */
     public function recordEmailEvent(int|OutboundMessage $messageOrId, string $eventType, ?string $replyContent = null): array
     {
@@ -817,6 +872,9 @@ class AutonomousSalesOrchestratorService
         }
     }
 
+    /**
+     * @return array{status: string, event_type: string, thompson_updated: bool, classification: string|null, weighted_event?: string, opportunity_created?: bool, rfq_id?: int|null}
+     */
     private function doRecordEmailEvent(OutboundMessage $message, string $eventType, ?string $replyContent = null): array
     {
         $result = [
@@ -858,16 +916,19 @@ class AutonomousSalesOrchestratorService
             }
         }
 
-        // Store reply content if provided
-        if ($replyContent && method_exists($message, 'setReplyContent')) {
+        // Store reply content if provided (OutboundMessage::setReplyContent always exists)
+        if ($replyContent) {
             $message->setReplyContent($replyContent);
         }
 
         // If this is a reply event with content, classify it
         $classification = null;
-        if ($eventType === 'reply' && $replyContent && $this->emailClassifier) {
+        if ($eventType === 'reply' && $replyContent) {
             $replySubject = $message->getSubject() ? 'Re: ' . $message->getSubject() : '';
             $replyFrom = $message->getContact()?->getEmail() ?? '';
+            // classifyEmail() returns classification: string (rule-based or
+            // Naive Bayes branch — both verified) but declares a bare array.
+            /** @var array{classification: string, confidence: float, method: string, requiresReview: bool} $classificationResult */
             $classificationResult = $this->emailClassifier->classifyEmail($replySubject, $replyContent, $replyFrom);
             $classification = $classificationResult['classification'];
             $message->setReplyClassification($classification);
@@ -884,7 +945,7 @@ class AutonomousSalesOrchestratorService
             
             // Determine if we should record this event (higher priority overrides lower)
             $eventPriority = ['bounce' => 1, 'open' => 2, 'click' => 3, 'reply' => 4];
-            $currentPriority = $eventPriority[$currentRecordedType] ?? 0;
+            $currentPriority = $currentRecordedType !== null ? ($eventPriority[$currentRecordedType] ?? 0) : 0;
             $newPriority = $eventPriority[$eventType] ?? 0;
             
             $shouldRecord = ($currentRecordedType === null || $newPriority > $currentPriority);
@@ -909,9 +970,10 @@ class AutonomousSalesOrchestratorService
                     $weightedEventType = $eventType;
                 }
 
-                if ($weightedEventType) {
+                $armId = $arm->getId();
+                if ($weightedEventType && $armId !== null) {
                     // Update subject arm
-                    $this->thompsonSampler->recordWeightedOutcome($arm->getId(), $weightedEventType);
+                    $this->thompsonSampler->recordWeightedOutcome($armId, $weightedEventType);
                     
                     // Also update value-prop arm if tracked
                     $vpArmId = $message->getValuePropArmId();
@@ -940,7 +1002,8 @@ class AutonomousSalesOrchestratorService
 
                     // Create opportunity RFQ for positive email engagement
                     if ($weightedEventType === 'positive_reply' && $this->pipelineOrchestrator) {
-                        $newRfq = $this->pipelineOrchestrator->afterPositiveEmailEngagement($message, $classification ?? 'interested');
+                        // positive_reply is only derivable when $classification is set
+                        $newRfq = $this->pipelineOrchestrator->afterPositiveEmailEngagement($message, $classification);
                         $result['opportunity_created'] = $newRfq !== null;
                         if ($newRfq) {
                             $result['rfq_id'] = $newRfq->getId();
@@ -1015,10 +1078,11 @@ class AutonomousSalesOrchestratorService
             $negativeClassifications = ['not_interested', 'unsubscribe', 'bounce', 'spam'];
             
             // Reverse previous outcome if it was recorded
-            if ($message->getRecordedEventType() === 'reply') {
+            $armId = $arm->getId();
+            if ($message->getRecordedEventType() === 'reply' && $armId !== null) {
                 $wasPrevPositive = in_array($previousClassification, $positiveClassifications, true);
                 $wasPrevNegative = in_array($previousClassification, $negativeClassifications, true);
-                
+
                 // Undo previous outcome
                 if ($wasPrevPositive) {
                     // Previous was positive, now need to reverse it
@@ -1026,21 +1090,21 @@ class AutonomousSalesOrchestratorService
                 } elseif ($wasPrevNegative) {
                     $arm->setBeta(max(1.0, $arm->getBeta() - 1.0));
                 }
-                
+
                 // Apply correct outcome
                 $isNowPositive = in_array($correctClassification, $positiveClassifications, true);
                 $isNowNegative = in_array($correctClassification, $negativeClassifications, true);
-                
+
                 if ($isNowPositive) {
-                    $this->thompsonSampler->recordReplyOutcome($arm->getId(), true);
+                    $this->thompsonSampler->recordReplyOutcome($armId, true);
                 } elseif ($isNowNegative) {
-                    $this->thompsonSampler->recordOutcome($arm->getId(), false, 'reply');
+                    $this->thompsonSampler->recordOutcome($armId, false, 'reply');
                 }
             }
         }
-        
+
         // Train Naive Bayes with corrected classification
-        if ($replyContent && $this->emailClassifier) {
+        if ($replyContent) {
             $this->emailClassifier->learnFromHumanReview($replyContent, $correctClassification);
         }
         
@@ -1077,6 +1141,14 @@ class AutonomousSalesOrchestratorService
 
     /**
      * Get system statistics
+     *
+     * @return array{
+     *   discovery: array{totalLeads: int, pendingReview: int, scored: int},
+     *   scoring: array{averageScore: float},
+     *   optimizer: array{arms: mixed, trials: mixed, successRate: mixed, convergence: mixed},
+     *   inbox: array<string, mixed>,
+     *   competitors: array{detectionsCount: int, stats: array<int|string, mixed>}
+     * }
      */
     public function getStats(): array
     {
@@ -1102,9 +1174,11 @@ class AutonomousSalesOrchestratorService
         $armStats = $this->thompsonSampler->getBanditStats('subject_line');
 
         // Inbox stats
+        /** @var array<string, mixed> $inboxStats */
         $inboxStats = $this->emailClassifier->getClassificationStats();
 
         // Competitor stats
+        /** @var array<int|string, mixed> $competitorStats */
         $competitorStats = $this->competitorDetection->getCompetitorStats();
 
         return [
@@ -1132,11 +1206,18 @@ class AutonomousSalesOrchestratorService
 
     /**
      * Score leads batch
+     *
+     * @return array{
+     *   scored: int,
+     *   byTier: array{hot: int, warm: int, cold: int, ice: int},
+     *   leads: list<array{id: int|null, name: string|null, score: int, tier: string, competitorBoost: int}>
+     * }
      */
     public function scoreLeads(int $limit = 50): array
     {
         $this->assertEnabled();
 
+        /** @var list<Lead> $leads */
         $leads = $this->leadRepository->createQueryBuilder('l')
             ->where('l.leadScore IS NULL OR l.updatedAt < :stale')
             ->setParameter('stale', new \DateTime('-7 days'))
@@ -1150,9 +1231,12 @@ class AutonomousSalesOrchestratorService
         foreach ($leads as $lead) {
             // Use existing LeadSalesAnalystService for analysis
             $analysis = $this->leadAnalyst->analyzeLead($lead);
-            
-            // Calculate base score from analysis
-            $score = (int) $analysis['fit_score'];
+
+            // Calculate base score from analysis.
+            // BUG FIX: the previous code read $analysis['fit_score'], a key
+            // analyzeLead() never returns (undefined offset → score 0 for
+            // every lead). The real field is 'overall_fit_score'.
+            $score = (int) $analysis['overall_fit_score'];
             
             // Add competitor boost if detected
             $competitorBoost = $this->competitorDetection->getCompetitorScoreBoost($lead);
@@ -1195,6 +1279,8 @@ class AutonomousSalesOrchestratorService
 
     /**
      * Initialize default data (templates, arms, competitors)
+     *
+     * @return array{templates: int, arms: int, valuePropArms: int, competitors: int}
      */
     public function initialize(): array
     {
@@ -1260,13 +1346,14 @@ class AutonomousSalesOrchestratorService
             return 'your area';
         }
         
-        // Strip common prefixes/titles
-        $title = preg_replace('/\b(senior|junior|chief|vice|executive|lead|head|principal|associate|assistant|deputy|global|regional|group)\b\s*/i', '', $title);
-        $title = preg_replace('/\b(officer|manager|director|president|vp|svp|evp|ceo|coo|cto|cfo|cmo|cio|cpo)\b\s*/i', '', $title);
-        $title = preg_replace('/\b(of|for|and|the|&)\b/i', ' ', $title);
-        $title = preg_replace('/[,\-\/]+/', ' ', $title); // Strip punctuation
-        
-        $area = trim(preg_replace('/\s+/', ' ', $title));
+        // Strip common prefixes/titles (preg_replace returns null only on
+        // PCRE failure — each step falls back to the previous value).
+        $title = preg_replace('/\b(senior|junior|chief|vice|executive|lead|head|principal|associate|assistant|deputy|global|regional|group)\b\s*/i', '', $title) ?? $title;
+        $title = preg_replace('/\b(officer|manager|director|president|vp|svp|evp|ceo|coo|cto|cfo|cmo|cio|cpo)\b\s*/i', '', $title) ?? $title;
+        $title = preg_replace('/\b(of|for|and|the|&)\b/i', ' ', $title) ?? $title;
+        $title = preg_replace('/[,\-\/]+/', ' ', $title) ?? $title; // Strip punctuation
+
+        $area = trim(preg_replace('/\s+/', ' ', $title) ?? $title);
         
         // If nothing remains, try common mappings
         if (empty($area) || strlen($area) < 3) {

@@ -10,29 +10,32 @@ use Psr\Log\LoggerInterface;
 
 /**
  * LeadBot Sales Analyst Service
- * 
+ *
  * Analyzes leads to generate intelligent conversation starters for sales reps.
- * 
+ *
  * This service compares:
  * 1. Lead's capabilities (fitSignals) with our company's capabilities
  * 2. Lead's quality certifications with our certifications
  * 3. Lead's sector focus with our target sectors
  * 4. Market signals and hiring patterns to identify pain points
- * 
+ *
  * Outputs:
  * - Fit Score (0-100): How well the lead matches our capabilities
  * - Conversation Starters: Specific talking points based on analysis
  * - Pain Point Predictions: Likely challenges the lead is facing
  * - Competitive Positioning: How to position against competitors
- * 
+ *
  * Example output:
  * "They use AS9100 standards but their careers page shows 5 QA Engineer openings.
  *  They may be struggling with QA bandwidth. Pitch our QA-verified assembly services."
  */
 class LeadSalesAnalystService
 {
-    // Default capabilities (overridable via constructor injection)
-    private const DEFAULT_CAPABILITIES = [
+    // Default capabilities (overridable via constructor injection).
+    // Protected (not private) so subclasses can reference the documented
+    // defaults; the constructor deliberately does NOT apply them (the safe
+    // default before seeding the verified registers is "no claims").
+    protected const DEFAULT_CAPABILITIES = [
         'pcba' => true,
         'smt' => true,
         'through_hole' => true,
@@ -48,9 +51,12 @@ class LeadSalesAnalystService
         'aoi' => true,           // Automated Optical Inspection
         'functional_test' => true,
     ];
-    
-    // Default certifications (overridable via constructor injection)
-    private const DEFAULT_CERTIFICATIONS = [
+
+    // Default certifications (overridable via constructor injection).
+    // Protected (not private) so subclasses can reference the documented
+    // defaults; the constructor deliberately does NOT apply them (the safe
+    // default before seeding the verified registers is "no claims").
+    protected const DEFAULT_CERTIFICATIONS = [
         'ISO 9001',
         'ISO 14001',
         'AS9100',        // Aerospace
@@ -61,7 +67,7 @@ class LeadSalesAnalystService
         'CE',
         'RoHS',
     ];
-    
+
     // Default target sectors (overridable via constructor injection)
     private const DEFAULT_TARGET_SECTORS = [
         'automotive',
@@ -79,7 +85,7 @@ class LeadSalesAnalystService
         'data center',
         'energy storage',
     ];
-    
+
     // Pain point indicators based on signals
     private const PAIN_POINT_INDICATORS = [
         'qa_struggles' => [
@@ -107,11 +113,19 @@ class LeadSalesAnalystService
             'pitch' => 'Full traceability and compliance documentation included',
         ],
     ];
-    
+
+    /** @var array<string, bool|string> */
     private array $ourCapabilities;
+    /** @var list<string> */
     private array $ourCertifications;
+    /** @var list<string> */
     private array $targetSectors;
-    
+
+    /**
+     * @param array<string, bool|string> $ourCapabilities Capability => offered flag (or label)
+     * @param list<string> $ourCertifications
+     * @param list<string> $targetSectors
+     */
     public function __construct(
         private LoggerInterface $logger,
         private ?\App\Repository\VerifiedCapabilityRepository $capabilityRepository = null,
@@ -126,21 +140,58 @@ class LeadSalesAnalystService
         // Constructor arguments remain as an explicit override; the safe
         // default before seeding is "no claims", never guessed ones.
         if ($ourCapabilities === [] && $this->capabilityRepository !== null) {
-            $ourCapabilities = $this->capabilityRepository->findClaimable();
+            // findClaimable() yields capabilityKey => label|null (getLabel() is
+            // nullable); null values behave as "not offered" downstream, so
+            // drop them up front.
+            /** @var array<string, string|null> $claimable */
+            $claimable = $this->capabilityRepository->findClaimable();
+            /** @var array<string, bool|string> $ourCapabilities */
+            $ourCapabilities = array_filter(
+                $claimable,
+                static fn (mixed $label): bool => $label !== null,
+            );
         }
         if ($ourCertifications === [] && $this->certificationRepository !== null) {
-            $ourCertifications = $this->certificationRepository->findClaimableStandards();
+            // findClaimableStandards() may include nulls (getStandard(): ?string);
+            // non-string standards previously crashed strtolower() during matching.
+            /** @var list<string|null> $standardsRaw */
+            $standardsRaw = $this->certificationRepository->findClaimableStandards();
+            /** @var list<string> $ourCertifications */
+            $ourCertifications = array_values(array_filter(
+                $standardsRaw,
+                static fn (mixed $standard): bool => is_string($standard) && $standard !== '',
+            ));
         }
         $this->ourCapabilities = $ourCapabilities;
         $this->ourCertifications = $ourCertifications;
         $this->targetSectors = !empty($targetSectors) ? $targetSectors : self::DEFAULT_TARGET_SECTORS;
     }
-    
+
     /**
      * Analyze a lead and generate sales intelligence
-     * 
+     *
      * @param Lead $lead The lead to analyze
-     * @return array Comprehensive sales analysis
+     * @return array{
+     *   lead_id: int|null,
+     *   company_name: string|null,
+     *   overall_fit_score: float,
+     *   fit_grade: string,
+     *   fit_breakdown: array{
+     *     capability_fit: array{score: float, matched: list<string>, unmatched_needs: list<string>, upsell_opportunities: list<string>},
+     *     certification_fit: array{score: float, matched: list<string>, we_offer_additionally: list<string>, they_require_we_lack: list<string>},
+     *     sector_fit: array{score: float, matched_sectors: list<string>, primary_sector: string}
+     *   },
+     *   pain_points: list<array{type: string, confidence: string, evidence: string, pitch: string}>,
+     *   conversation_starters: list<array{type: string, topic: string, opener: string, follow_up: string, priority: int}>,
+     *   competitive_positioning: list<array{differentiator: string, message: string, vs_competitors: string}>,
+     *   decision_maker_targets: list<array{role: string, why: string, approach: string}>,
+     *   email_opener: string,
+     *   deal_risks: list<array{type: string, severity: string, description: string, mitigation: string}>,
+     *   recommended_approach: string,
+     *   priority_score: int,
+     *   next_steps: list<array{action: string, description: string, timeframe: string}>,
+     *   analyzed_at: string
+     * } Comprehensive sales analysis
      */
     public function analyzeLead(Lead $lead): array
     {
@@ -148,22 +199,22 @@ class LeadSalesAnalystService
         $qualityStack = $lead->getQualityStack() ?? [];
         $sectorTags = $lead->getSectorTags() ?? [];
         $notesAuto = $lead->getNotesAuto() ?? '';
-        
+
         // Calculate fit scores
         $capabilityFit = $this->calculateCapabilityFit($fitSignals);
         $certificationFit = $this->calculateCertificationFit($qualityStack);
         $sectorFit = $this->calculateSectorFit($sectorTags);
-        
+
         // Overall fit score (weighted average)
         $overallFit = (
             ($capabilityFit['score'] * 0.4) +
             ($certificationFit['score'] * 0.35) +
             ($sectorFit['score'] * 0.25)
         );
-        
+
         // Identify pain points from notes and signals
         $painPoints = $this->identifyPainPoints($notesAuto, $fitSignals, $sectorTags);
-        
+
         // Generate conversation starters
         $conversationStarters = $this->generateConversationStarters(
             $lead,
@@ -172,19 +223,19 @@ class LeadSalesAnalystService
             $sectorFit,
             $painPoints
         );
-        
+
         // Generate competitive positioning
         $competitivePositioning = $this->generateCompetitivePositioning($lead, $sectorTags);
-        
+
         // Identify key decision makers to target
         $decisionMakerTargets = $this->identifyDecisionMakerTargets($fitSignals, $sectorTags);
-        
+
         // Generate email opener suggestion
         $emailOpener = $this->generateEmailOpener($lead, $conversationStarters);
-        
+
         // Risk assessment
         $dealRisks = $this->assessDealRisks($lead, $fitSignals, $qualityStack);
-        
+
         $analysis = [
             'lead_id' => $lead->getId(),
             'company_name' => $lead->getCompanyName(),
@@ -213,20 +264,22 @@ class LeadSalesAnalystService
             'fit_score' => $overallFit,
             'pain_points_count' => count($painPoints),
         ]);
-        
+
         return $analysis;
     }
-    
+
     /**
      * Calculate capability fit between lead's needs and our offerings
-      * @param array<string|int, mixed> $fitSignals
+     *
+     * @param array<string|int, mixed> $fitSignals
+     * @return array{score: float, matched: list<string>, unmatched_needs: list<string>, upsell_opportunities: list<string>}
      */
     private function calculateCapabilityFit(array $fitSignals): array
     {
         $matchedCapabilities = [];
         $unmatchedNeeds = [];
         $additionalOfferings = [];
-        
+
         // Normalize input shape: fitSignals may arrive either as a map
         // (capability => bool) or as a plain list of capability strings
         // (['pcba', 'smt', ...]). Handle both.
@@ -235,7 +288,9 @@ class LeadSalesAnalystService
             if (is_int($capability)) {
                 // List form: the value is the capability name and presence
                 // in the list means the prospect needs it.
-                $needs[(string) $hasNeed] = true;
+                if (is_scalar($hasNeed)) {
+                    $needs[(string) $hasNeed] = true;
+                }
             } else {
                 $needs[(string) $capability] = (bool) $hasNeed;
             }
@@ -245,16 +300,16 @@ class LeadSalesAnalystService
             if (!$hasNeed) {
                 continue;
             }
-            
+
             $normalizedCapability = $this->normalizeCapabilityName($capability);
-            
+
             if (isset($this->ourCapabilities[$normalizedCapability]) && $this->ourCapabilities[$normalizedCapability]) {
                 $matchedCapabilities[] = $capability;
             } else {
                 $unmatchedNeeds[] = $capability;
             }
         }
-        
+
         // Find capabilities we offer that they didn't mention (upsell opportunities)
         foreach ($this->ourCapabilities as $capability => $offered) {
             if ($offered) {
@@ -270,12 +325,12 @@ class LeadSalesAnalystService
                 }
             }
         }
-        
+
         $totalNeeds = count(array_filter($needs));
-        $score = $totalNeeds > 0 
-            ? (count($matchedCapabilities) / $totalNeeds) * 100 
+        $score = $totalNeeds > 0
+            ? (count($matchedCapabilities) / $totalNeeds) * 100
             : 50; // Default if no needs identified
-        
+
         return [
             'score' => round($score, 1),
             'matched' => $matchedCapabilities,
@@ -283,21 +338,27 @@ class LeadSalesAnalystService
             'upsell_opportunities' => array_slice($additionalOfferings, 0, 5),
         ];
     }
-    
+
     /**
      * Calculate certification alignment
-      * @param array<string|int, mixed> $qualityStack
+     *
+     * @param array<string|int, mixed> $qualityStack
+     * @return array{score: float, matched: list<string>, we_offer_additionally: list<string>, they_require_we_lack: list<string>}
      */
     private function calculateCertificationFit(array $qualityStack): array
     {
         $matchedCerts = [];
         $additionalCerts = [];
         $missingCerts = [];
-        
+
         foreach ($qualityStack as $cert) {
+            // Non-string entries would previously crash strtolower() below
+            if (!is_string($cert)) {
+                continue;
+            }
             $normalizedCert = $this->normalizeCertification($cert);
             $matched = false;
-            
+
             foreach ($this->ourCertifications as $ourCert) {
                 if (str_contains(strtolower($ourCert), strtolower($normalizedCert)) ||
                     str_contains(strtolower($normalizedCert), strtolower($ourCert))) {
@@ -306,16 +367,19 @@ class LeadSalesAnalystService
                     break;
                 }
             }
-            
+
             if (!$matched) {
                 $missingCerts[] = $cert;
             }
         }
-        
+
         // Certifications we have that they may value
         foreach ($this->ourCertifications as $ourCert) {
             $found = false;
             foreach ($qualityStack as $theirCert) {
+                if (!is_string($theirCert)) {
+                    continue;
+                }
                 if (str_contains(strtolower($ourCert), strtolower($theirCert)) ||
                     str_contains(strtolower($theirCert), strtolower($ourCert))) {
                     $found = true;
@@ -326,14 +390,14 @@ class LeadSalesAnalystService
                 $additionalCerts[] = $ourCert;
             }
         }
-        
+
         $totalCerts = count($qualityStack);
         // Neutral score when no certification data exists: do not assume
         // alignment we have not verified.
-        $score = $totalCerts > 0 
-            ? (count($matchedCerts) / $totalCerts) * 100 
+        $score = $totalCerts > 0
+            ? (count($matchedCerts) / $totalCerts) * 100
             : 50;
-        
+
         return [
             'score' => round($score, 1),
             'matched' => $matchedCerts,
@@ -341,21 +405,27 @@ class LeadSalesAnalystService
             'they_require_we_lack' => $missingCerts,
         ];
     }
-    
+
     /**
      * Calculate sector alignment
-      * @param array<string|int, mixed> $sectorTags
+     *
+     * @param array<string|int, mixed> $sectorTags
+     * @return array{score: float, matched_sectors: list<string>, primary_sector: string}
      */
     private function calculateSectorFit(array $sectorTags): array
     {
         $matchedSectors = [];
-        
+
         foreach ($sectorTags as $sector) {
+            // Non-string tags would previously crash str_replace() below
+            if (!is_string($sector)) {
+                continue;
+            }
             $normalizedSector = strtolower(str_replace([' ', '-', '_'], '', $sector));
-            
+
             foreach ($this->targetSectors as $targetSector) {
                 $normalizedTarget = strtolower(str_replace([' ', '-', '_'], '', $targetSector));
-                
+
                 if (str_contains($normalizedSector, $normalizedTarget) ||
                     str_contains($normalizedTarget, $normalizedSector)) {
                     $matchedSectors[] = $sector;
@@ -363,15 +433,18 @@ class LeadSalesAnalystService
                 }
             }
         }
-        
+
         $totalSectors = count($sectorTags);
-        $score = $totalSectors > 0 
-            ? (count($matchedSectors) / $totalSectors) * 100 
+        $score = $totalSectors > 0
+            ? (count($matchedSectors) / $totalSectors) * 100
             : 50;
-        
+
         // Boost score if they're in our prime sectors
         $primeSectors = ['aerospace', 'automotive', 'defense'];
         foreach ($sectorTags as $sector) {
+            if (!is_string($sector)) {
+                continue;
+            }
             foreach ($primeSectors as $prime) {
                 if (str_contains(strtolower($sector), $prime)) {
                     $score = min(100, $score + 15);
@@ -379,26 +452,28 @@ class LeadSalesAnalystService
                 }
             }
         }
-        
+
         return [
             'score' => round($score, 1),
             'matched_sectors' => $matchedSectors,
-            'primary_sector' => $sectorTags[0] ?? 'Unknown',
+            'primary_sector' => \is_string($sectorTags[0] ?? null) ? $sectorTags[0] : 'Unknown',
         ];
     }
-    
+
     /**
      * Identify likely pain points from signals and notes
-      * @param array<string|int, mixed> $fitSignals
- * @param array<string|int, mixed> $sectorTags
+     *
+     * @param array<string|int, mixed> $fitSignals
+     * @param array<string|int, mixed> $sectorTags
+     * @return list<array{type: string, confidence: string, evidence: string, pitch: string}>
      */
     private function identifyPainPoints(string $notesAuto, array $fitSignals, array $sectorTags): array
     {
         $painPoints = [];
         $notesLower = strtolower($notesAuto);
-        
+
         // Check for QA struggles
-        if (str_contains($notesLower, 'quality') || 
+        if (str_contains($notesLower, 'quality') ||
             str_contains($notesLower, 'qa engineer') ||
             str_contains($notesLower, 'inspection') ||
             str_contains($notesLower, 'recall')) {
@@ -409,7 +484,7 @@ class LeadSalesAnalystService
                 'pitch' => self::PAIN_POINT_INDICATORS['qa_struggles']['pitch'],
             ];
         }
-        
+
         // Check for capacity constraints
         if (str_contains($notesLower, 'hiring') ||
             str_contains($notesLower, 'growing') ||
@@ -421,7 +496,7 @@ class LeadSalesAnalystService
                 'pitch' => self::PAIN_POINT_INDICATORS['capacity_constraints']['pitch'],
             ];
         }
-        
+
         // Check for supply chain concerns
         if (str_contains($notesLower, 'supply chain') ||
             str_contains($notesLower, 'sourcing') ||
@@ -435,9 +510,13 @@ class LeadSalesAnalystService
                 'pitch' => self::PAIN_POINT_INDICATORS['supply_chain_risk']['pitch'],
             ];
         }
-        
+
         // Check for time-to-market pressure (common in certain sectors)
-        if (in_array('startup', array_map('strtolower', $sectorTags)) ||
+        $sectorTagsLower = array_map(
+            static fn (mixed $s): string => is_string($s) ? strtolower($s) : '',
+            $sectorTags,
+        );
+        if (in_array('startup', $sectorTagsLower) ||
             str_contains($notesLower, 'prototype') ||
             str_contains($notesLower, 'fast') ||
             str_contains($notesLower, 'rapid')) {
@@ -448,11 +527,14 @@ class LeadSalesAnalystService
                 'pitch' => self::PAIN_POINT_INDICATORS['time_to_market']['pitch'],
             ];
         }
-        
+
         // Sector-specific pain points
         foreach ($sectorTags as $sector) {
+            if (!is_string($sector)) {
+                continue;
+            }
             $sectorLower = strtolower($sector);
-            
+
             if (str_contains($sectorLower, 'medical')) {
                 $painPoints[] = [
                     'type' => 'compliance_complexity',
@@ -461,7 +543,7 @@ class LeadSalesAnalystService
                     'pitch' => 'ISO 13485 certified production with full traceability and DHR documentation',
                 ];
             }
-            
+
             if (str_contains($sectorLower, 'defense') || str_contains($sectorLower, 'aerospace')) {
                 $painPoints[] = [
                     'type' => 'compliance_complexity',
@@ -471,26 +553,28 @@ class LeadSalesAnalystService
                 ];
             }
         }
-        
+
         // Deduplicate by type
         $seen = [];
         $uniquePainPoints = [];
         foreach ($painPoints as $pp) {
-            if (!in_array($pp['type'], $seen)) {
+            if (!in_array($pp['type'], $seen, true)) {
                 $seen[] = $pp['type'];
                 $uniquePainPoints[] = $pp;
             }
         }
-        
+
         return $uniquePainPoints;
     }
-    
+
     /**
      * Generate conversation starters based on analysis
-      * @param array<string|int, mixed> $capabilityFit
- * @param array<string|int, mixed> $certificationFit
- * @param array<string|int, mixed> $sectorFit
- * @param array<string|int, mixed> $painPoints
+     *
+     * @param array{score: float, matched: list<string>, unmatched_needs: list<string>, upsell_opportunities: list<string>} $capabilityFit
+     * @param array{score: float, matched: list<string>, we_offer_additionally: list<string>, they_require_we_lack: list<string>} $certificationFit
+     * @param array{score: float, matched_sectors: list<string>, primary_sector: string} $sectorFit
+     * @param list<array{type: string, confidence: string, evidence: string, pitch: string}> $painPoints
+     * @return list<array{type: string, topic: string, opener: string, follow_up: string, priority: int}>
      */
     private function generateConversationStarters(
         Lead $lead,
@@ -500,7 +584,7 @@ class LeadSalesAnalystService
         array $painPoints
     ): array {
         $starters = [];
-        
+
         // Pain point based starters
         foreach ($painPoints as $painPoint) {
             $starters[] = [
@@ -511,7 +595,7 @@ class LeadSalesAnalystService
                 'priority' => $painPoint['confidence'] === 'high' ? 1 : 2,
             ];
         }
-        
+
         // Capability match starters
         if (!empty($capabilityFit['matched'])) {
             $capabilities = implode(', ', array_slice($capabilityFit['matched'], 0, 3));
@@ -523,7 +607,7 @@ class LeadSalesAnalystService
                 'priority' => 2,
             ];
         }
-        
+
         // Certification alignment starters
         if (!empty($certificationFit['matched'])) {
             $certs = implode(', ', array_slice($certificationFit['matched'], 0, 2));
@@ -535,7 +619,7 @@ class LeadSalesAnalystService
                 'priority' => 3,
             ];
         }
-        
+
         // Upsell opportunity starters
         if (!empty($capabilityFit['upsell_opportunities'])) {
             $upsell = $capabilityFit['upsell_opportunities'][0];
@@ -547,7 +631,7 @@ class LeadSalesAnalystService
                 'priority' => 4,
             ];
         }
-        
+
         // Geographic presence angle — region-aware
         $regionTag = $lead->getRegionTag();
         if ($lead->getMoroccoSignal() || $regionTag === 'MA') {
@@ -599,16 +683,17 @@ class LeadSalesAnalystService
                 'priority' => 2,
             ];
         }
-        
+
         // Sort by priority
-        usort($starters, fn($a, $b) => $a['priority'] <=> $b['priority']);
-        
+        usort($starters, fn (array $a, array $b): int => $a['priority'] <=> $b['priority']);
+
         return $starters;
     }
-    
+
     /**
      * Generate pain point specific opener
-      * @param array<string|int, mixed> $painPoint
+     *
+     * @param array{type: string, confidence: string, evidence: string, pitch: string} $painPoint
      */
     private function generatePainPointOpener(array $painPoint): string
     {
@@ -622,15 +707,17 @@ class LeadSalesAnalystService
             default => "I noticed an area where we might be able to help. Can we discuss your current challenges?",
         };
     }
-    
+
     /**
      * Generate competitive positioning advice
-      * @param array<string|int, mixed> $sectorTags
+     *
+     * @param array<string|int, mixed> $sectorTags
+     * @return list<array{differentiator: string, message: string, vs_competitors: string}>
      */
     private function generateCompetitivePositioning(Lead $lead, array $sectorTags): array
     {
         $positioning = [];
-        
+
         // Region-specific advantage
         $regionTag = $lead->getRegionTag();
         switch ($regionTag) {
@@ -692,18 +779,21 @@ class LeadSalesAnalystService
                 ];
                 break;
         }
-        
+
         // Technology advantage
         $positioning[] = [
             'differentiator' => 'Quote Technology',
             'message' => 'Real-time BOM pricing with multi-distributor comparison',
             'vs_competitors' => 'Get accurate quotes in hours, not days',
         ];
-        
+
         // Sector-specific positioning
         foreach ($sectorTags as $sector) {
+            if (!is_string($sector)) {
+                continue;
+            }
             $sectorLower = strtolower($sector);
-            
+
             if (str_contains($sectorLower, 'auto')) {
                 $positioning[] = [
                     'differentiator' => 'Automotive Excellence',
@@ -712,7 +802,7 @@ class LeadSalesAnalystService
                 ];
                 break;
             }
-            
+
             if (str_contains($sectorLower, 'aero') || str_contains($sectorLower, 'defense')) {
                 $positioning[] = [
                     'differentiator' => 'Aerospace Compliance',
@@ -722,34 +812,39 @@ class LeadSalesAnalystService
                 break;
             }
         }
-        
+
         return $positioning;
     }
-    
+
     /**
      * Identify decision maker targets
-      * @param array<string|int, mixed> $fitSignals
- * @param array<string|int, mixed> $sectorTags
+     *
+     * @param array<string|int, mixed> $fitSignals
+     * @param array<string|int, mixed> $sectorTags
+     * @return list<array{role: string, why: string, approach: string}>
      */
     private function identifyDecisionMakerTargets(array $fitSignals, array $sectorTags): array
     {
         $targets = [];
-        
+
         // Default targets
         $targets[] = [
             'role' => 'VP of Supply Chain',
             'why' => 'Key decision maker for contract manufacturing',
             'approach' => 'Lead with cost and risk reduction',
         ];
-        
+
         $targets[] = [
             'role' => 'Director of Engineering',
             'why' => 'Influences supplier selection for new products',
             'approach' => 'Lead with technical capabilities and NPI support',
         ];
-        
+
         // Sector-specific targets
         foreach ($sectorTags as $sector) {
+            if (!is_string($sector)) {
+                continue;
+            }
             if (str_contains(strtolower($sector), 'medical')) {
                 $targets[] = [
                     'role' => 'VP of Quality/Regulatory',
@@ -759,22 +854,23 @@ class LeadSalesAnalystService
                 break;
             }
         }
-        
+
         return array_slice($targets, 0, 3);
     }
-    
+
     /**
      * Generate email opener suggestion
-      * @param array<string|int, mixed> $conversationStarters
+     *
+     * @param list<array{type: string, topic: string, opener: string, follow_up: string, priority: int}> $conversationStarters
      */
     private function generateEmailOpener(Lead $lead, array $conversationStarters): string
     {
         $companyName = $lead->getCompanyName();
-        
+
         if (!empty($conversationStarters)) {
             $topStarter = $conversationStarters[0];
             $opener = $topStarter['opener'];
-            
+
             return "Subject: Supporting {$companyName}'s Manufacturing Goals\n\n" .
                    "Hi [Name],\n\n" .
                    "{$opener}\n\n" .
@@ -782,7 +878,7 @@ class LeadSalesAnalystService
                    "Would you have 15 minutes this week to explore if there's a fit?\n\n" .
                    "Best regards";
         }
-        
+
         return "Subject: Partnership Opportunity with {$companyName}\n\n" .
                "Hi [Name],\n\n" .
                "I came across {$companyName} and was impressed by your work in electronics manufacturing.\n\n" .
@@ -790,22 +886,28 @@ class LeadSalesAnalystService
                "Would you be open to a brief call to see if we might be able to support your growth?\n\n" .
                "Best regards";
     }
-    
+
     /**
      * Assess potential deal risks
-      * @param array<string|int, mixed> $fitSignals
- * @param array<string|int, mixed> $qualityStack
+     *
+     * @param array<string|int, mixed> $fitSignals
+     * @param array<string|int, mixed> $qualityStack
+     * @return list<array{type: string, severity: string, description: string, mitigation: string}>
      */
     private function assessDealRisks(Lead $lead, array $fitSignals, array $qualityStack): array
     {
         $risks = [];
-        
+
         // Certification gaps
         $missingCritical = [];
         foreach ($qualityStack as $cert) {
+            // Non-string entries would previously crash strtolower() below
+            if (!is_string($cert)) {
+                continue;
+            }
             $normalized = strtolower($cert);
             $weHave = false;
-            
+
             foreach ($this->ourCertifications as $ourCert) {
                 if (str_contains(strtolower($ourCert), $normalized) ||
                     str_contains($normalized, strtolower($ourCert))) {
@@ -813,12 +915,12 @@ class LeadSalesAnalystService
                     break;
                 }
             }
-            
+
             if (!$weHave && (str_contains($normalized, 'nadcap') || str_contains($normalized, 'itar'))) {
                 $missingCritical[] = $cert;
             }
         }
-        
+
         if (!empty($missingCritical)) {
             $risks[] = [
                 'type' => 'certification_gap',
@@ -827,7 +929,7 @@ class LeadSalesAnalystService
                 'mitigation' => 'Verify if these are hard requirements or preferences',
             ];
         }
-        
+
         // Competition risk
         if ($lead->getReviewStatus() === 'pending' && $lead->getLeadScore() && $lead->getLeadScore() > 80) {
             $risks[] = [
@@ -837,7 +939,7 @@ class LeadSalesAnalystService
                 'mitigation' => 'Act quickly and differentiate on response time',
             ];
         }
-        
+
         // Defense sector risk
         if ($lead->getDefenseFlag()) {
             $risks[] = [
@@ -847,47 +949,49 @@ class LeadSalesAnalystService
                 'mitigation' => 'Clarify export control requirements early',
             ];
         }
-        
+
         return $risks;
     }
-    
+
     /**
      * Determine recommended sales approach
-      * @param array<string|int, mixed> $painPoints
+     *
+     * @param list<array{type: string, confidence: string, evidence: string, pitch: string}> $painPoints
      */
     private function determineApproach(float $fitScore, array $painPoints): string
     {
         if ($fitScore >= 80 && !empty($painPoints)) {
             return 'AGGRESSIVE: High fit with identified pain points. Prioritize immediate outreach.';
         }
-        
+
         if ($fitScore >= 70) {
             return 'STANDARD: Good fit. Follow normal sales cadence with personalized messaging.';
         }
-        
+
         if ($fitScore >= 50) {
             return 'NURTURE: Moderate fit. Add to nurture campaign and monitor for trigger events.';
         }
-        
+
         return 'LOW PRIORITY: Limited fit. Consider only if capacity allows.';
     }
-    
+
     /**
      * Calculate priority score for lead ranking
-      * @param array<string|int, mixed> $painPoints
+     *
+     * @param list<array{type: string, confidence: string, evidence: string, pitch: string}> $painPoints
      */
     private function calculatePriorityScore(Lead $lead, float $fitScore, array $painPoints): int
     {
         $priority = (int) $fitScore;
-        
+
         // Boost for identified pain points
         $priority += count($painPoints) * 5;
-        
+
         // Boost for high lead score
         if ($lead->getLeadScore() && $lead->getLeadScore() > 70) {
             $priority += 10;
         }
-        
+
         // Boost for regional signal — any known region presence is valuable
         $regionTag = $lead->getRegionTag();
         if ($lead->getMoroccoSignal()) {
@@ -895,42 +999,44 @@ class LeadSalesAnalystService
         } elseif ($regionTag && $regionTag !== 'unknown') {
             $priority += 10; // Known target region
         }
-        
+
         // Boost for defense (high-value)
         if ($lead->getDefenseFlag()) {
             $priority += 10;
         }
-        
+
         // Boost for contact information availability
         if ($lead->hasContactInfo()) {
             $priority += 5;
         }
-        
+
         return min(100, $priority);
     }
-    
+
     /**
      * Generate recommended next steps
-      * @param array<string|int, mixed> $painPoints
+     *
+     * @param list<array{type: string, confidence: string, evidence: string, pitch: string}> $painPoints
+     * @return list<array{action: string, description: string, timeframe: string}>
      */
     private function generateNextSteps(Lead $lead, float $fitScore, array $painPoints): array
     {
         $steps = [];
-        
+
         if ($fitScore >= 70) {
             $steps[] = [
                 'action' => 'research',
                 'description' => 'Research key contacts via company website',
                 'timeframe' => 'Today',
             ];
-            
+
             $steps[] = [
                 'action' => 'outreach',
                 'description' => 'Send personalized email to VP Supply Chain',
                 'timeframe' => 'Within 24 hours',
             ];
         }
-        
+
         if (!empty($painPoints)) {
             $steps[] = [
                 'action' => 'prepare',
@@ -938,7 +1044,7 @@ class LeadSalesAnalystService
                 'timeframe' => 'Before first call',
             ];
         }
-        
+
         if ($lead->getWebsiteRoot()) {
             $steps[] = [
                 'action' => 'monitor',
@@ -946,16 +1052,16 @@ class LeadSalesAnalystService
                 'timeframe' => 'Ongoing',
             ];
         }
-        
+
         $steps[] = [
             'action' => 'crm',
             'description' => 'Update lead status and notes in CRM',
             'timeframe' => 'After each interaction',
         ];
-        
+
         return $steps;
     }
-    
+
     /**
      * Convert score to letter grade
      */
@@ -967,7 +1073,7 @@ class LeadSalesAnalystService
         if ($score >= 60) return 'D';
         return 'F';
     }
-    
+
     /**
      * Normalize capability name for matching
      */
@@ -984,35 +1090,58 @@ class LeadSalesAnalystService
             'ict' => 'testing',
             'functional_testing' => 'functional_test',
         ];
-        
+
         $normalized = strtolower(str_replace([' ', '-'], '_', $capability));
-        
+
         return $mapping[$normalized] ?? $normalized;
     }
-    
+
     /**
      * Normalize certification name for matching
      */
     private function normalizeCertification(string $cert): string
     {
-        return trim(preg_replace('/[:\-\s]+/', ' ', $cert));
+        // preg_replace returns null only on PCRE failure — keep the input.
+        return trim(preg_replace('/[:\-\s]+/', ' ', $cert) ?? $cert);
     }
-    
+
     /**
      * Batch analyze multiple leads
-      * @param array<string|int, mixed> $leads
+     *
+     * @param list<Lead> $leads
+     * @return list<array{
+     *   lead_id: int|null,
+     *   company_name: string|null,
+     *   overall_fit_score: float,
+     *   fit_grade: string,
+     *   fit_breakdown: array{
+     *     capability_fit: array{score: float, matched: list<string>, unmatched_needs: list<string>, upsell_opportunities: list<string>},
+     *     certification_fit: array{score: float, matched: list<string>, we_offer_additionally: list<string>, they_require_we_lack: list<string>},
+     *     sector_fit: array{score: float, matched_sectors: list<string>, primary_sector: string}
+     *   },
+     *   pain_points: list<array{type: string, confidence: string, evidence: string, pitch: string}>,
+     *   conversation_starters: list<array{type: string, topic: string, opener: string, follow_up: string, priority: int}>,
+     *   competitive_positioning: list<array{differentiator: string, message: string, vs_competitors: string}>,
+     *   decision_maker_targets: list<array{role: string, why: string, approach: string}>,
+     *   email_opener: string,
+     *   deal_risks: list<array{type: string, severity: string, description: string, mitigation: string}>,
+     *   recommended_approach: string,
+     *   priority_score: int,
+     *   next_steps: list<array{action: string, description: string, timeframe: string}>,
+     *   analyzed_at: string
+     * }>
      */
     public function analyzeMultipleLeads(array $leads): array
     {
         $results = [];
-        
+
         foreach ($leads as $lead) {
             $results[] = $this->analyzeLead($lead);
         }
-        
+
         // Sort by priority score descending
-        usort($results, fn($a, $b) => $b['priority_score'] <=> $a['priority_score']);
-        
+        usort($results, fn (array $a, array $b): int => $b['priority_score'] <=> $a['priority_score']);
+
         return $results;
     }
 }

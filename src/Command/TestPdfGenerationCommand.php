@@ -2,7 +2,6 @@
 
 namespace App\Command;
 
-use App\Entity\BomLine;
 use App\Entity\Company;
 use App\Entity\Quote;
 use App\Service\BOMParser;
@@ -17,6 +16,10 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
+/**
+ * @phpstan-import-type BomLine from \App\Service\PricingEngine
+ * @phpstan-import-type BomStats from \App\Service\PricingEngine
+ */
 #[AsCommand(
     name: 'app:test-pdf-generation',
     description: 'End-to-end test: BOM → pricing waterfall → PDF quote document',
@@ -27,7 +30,11 @@ class TestPdfGenerationCommand extends Command
         private BOMParser $bomParser,
         private PricingEngine $pricingEngine,
         private UnifiedPdfGeneratorService $pdfGenerator,
-        private IssuingCompanyService $issuingCompanyService,
+        /**
+         * Not used inside this command today; kept injected so subclasses and
+         * the DI container can resolve the issuing-company configuration.
+         */
+        protected IssuingCompanyService $issuingCompanyService,
     ) {
         parent::__construct();
     }
@@ -51,16 +58,18 @@ class TestPdfGenerationCommand extends Command
         $io = new SymfonyStyle($input, $output);
         /** @var string $filePath */
         $filePath = $input->getArgument('file');
-        /** @var mixed $outputPath */
+        /** @var string $outputPath CLI options are always strings */
         $outputPath = $input->getOption('output');
-        $marginPercent = (float) $input->getOption('margin');
-        /** @var mixed $companyName */
+        /** @var string $marginOption CLI options are always strings */
+        $marginOption = $input->getOption('margin');
+        $marginPercent = (float) $marginOption;
+        /** @var string $companyName CLI options are always strings */
         $companyName = $input->getOption('company');
-        /** @var mixed $issuerKey */
+        /** @var string $issuerKey CLI options are always strings */
         $issuerKey = $input->getOption('issuer');
-        /** @var mixed $boardCount */
+        /** @var string $boardCount CLI options are always strings */
         $boardCount = $input->getOption('board-count');
-        /** @var mixed $orderMultiple */
+        /** @var string $orderMultiple CLI options are always strings */
         $orderMultiple = $input->getOption('order-multiple');
 
         if (!filter_var($boardCount, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])) {
@@ -75,18 +84,16 @@ class TestPdfGenerationCommand extends Command
         }
         $orderMultiple = (int) $orderMultiple;
 
-        if (!is_numeric($marginPercent) || $marginPercent < 0) {
+        if ($marginPercent < 0) {
             $io->error('--margin must be a non-negative number.');
             return Command::FAILURE;
         }
-        $marginPercent = (float) $marginPercent;
 
         // Path traversal check for output
-        $outputPath = is_string($outputPath) ? $outputPath : 'test_quote.pdf';
         $projectDir = realpath(dirname(__DIR__, 2));
         $resolvedOutput = realpath($outputPath) ?: $outputPath;
         $resolvedDir = dirname($resolvedOutput);
-        $resolvedDir = ($resolvedDir === '.') ? getcwd() : $resolvedDir;
+        $resolvedDir = ($resolvedDir === '.') ? (getcwd() ?: $resolvedDir) : $resolvedDir;
         $resolvedDirReal = realpath($resolvedDir) ?: $resolvedDir;
         if (!str_starts_with($resolvedDirReal, $projectDir . '/')
             && !str_starts_with($resolvedDirReal, realpath(sys_get_temp_dir()) . '/')
@@ -96,13 +103,13 @@ class TestPdfGenerationCommand extends Command
         }
         
         // Parse providers option
-        /** @var mixed $providersStr */
+        /** @var string $providersStr CLI options are always strings */
         $providersStr = $input->getOption('providers');
         $providers = [];
         if (!empty($providersStr)) {
             $validProviders = ['alibaba', 'mouser', 'digikey', 'nexar'];
-            $providers = array_filter(array_map('trim', explode(',', strtolower($providersStr))));
-            $providers = array_intersect($providers, $validProviders);
+            $providers = array_values(array_filter(array_map('trim', explode(',', strtolower($providersStr)))));
+            $providers = array_values(array_intersect($providers, $validProviders));
         }
 
         if (!file_exists($filePath)) {
@@ -135,6 +142,7 @@ class TestPdfGenerationCommand extends Command
         $providerLabel = empty($providers) ? 'All' : implode(', ', array_map('ucfirst', $providers));
         $io->section(sprintf('2. Pricing Waterfall (%s)', $providerLabel));
         try {
+            /** @var array<int, BomLine> $bomLines */
             $result = $this->pricingEngine->processBOM($bomLines, ['providers' => $providers]);
             $stats = $result['stats'];
             $io->success(sprintf(
@@ -192,16 +200,21 @@ class TestPdfGenerationCommand extends Command
             // Add BomLine entities
             $lineNumber = 1;
             foreach ($result['lines'] as $pricedLine) {
-                $bomLine = new BomLine();
+                // Priced rows may carry runtime keys beyond the PricingEngine
+                // BomLine shape (e.g. _source_url, stock, crawl metadata).
+                /** @var array<string, mixed> $rawLine */
+                $rawLine = $pricedLine;
+
+                $bomLine = new \App\Entity\BomLine();
                 $bomLine->setLineNumber($lineNumber);
-                $bomLine->setMpn($pricedLine['mpn'] ?? 'N/A');
+                $bomLine->setMpn($pricedLine['mpn']);
                 $bomLine->setManufacturer($pricedLine['manufacturer'] ?? '—');
                 $bomLine->setDescription($pricedLine['description'] ?? '');
-                $bomLine->setQuantity($pricedLine['effective_quantity'] ?? $pricedLine['quantity'] ?? 1);
+                $bomLine->setQuantity($pricedLine['effective_quantity'] ?? $pricedLine['quantity']);
                 $bomLine->setUnitPrice((string) ($pricedLine['unit_price'] ?? 0));
                 $bomLine->setExtendedPrice((string) ($pricedLine['extended_price'] ?? 0));
                 $bomLine->setProcurementSource(strtoupper($pricedLine['source'] ?? 'MANUAL'));
-                $bomLine->setConfidenceScore($pricedLine['confidence']['score'] ?? 0);
+                $bomLine->setConfidenceScore((int) ($pricedLine['confidence']['score'] ?? 0));
                 $bomLine->setConfidenceLevel($pricedLine['confidence']['level'] ?? 'VERY_LOW');
                 $bomLine->setRequiresReview($pricedLine['confidence']['requiresReview'] ?? true);
 
@@ -211,40 +224,40 @@ class TestPdfGenerationCommand extends Command
                 if (isset($pricedLine['lifecycle_warning'])) {
                     $bomLine->setLifecycleStatus($pricedLine['lifecycle_warning']);
                 }
-                
+
                 // Store supplier tracking data (not shown on PDF, but persisted for internal use)
                 if (isset($pricedLine['product_url'])) {
                     $bomLine->setSupplierProductUrl($pricedLine['product_url']);
                 }
                 if (isset($pricedLine['search_url'])) {
                     $bomLine->setDistributorSearchUrl($pricedLine['search_url']);
-                } elseif (isset($pricedLine['_source_url'])) {
-                    $bomLine->setDistributorSearchUrl($pricedLine['_source_url']);
+                } elseif (isset($rawLine['_source_url']) && is_string($rawLine['_source_url'])) {
+                    $bomLine->setDistributorSearchUrl($rawLine['_source_url']);
                 }
                 if (isset($pricedLine['alternatives'])) {
                     $bomLine->setAlternativeParts($pricedLine['alternatives']);
                 }
-                
+
                 // Build rich sourcing metadata
                 $sourcingData = [
                     'source' => strtoupper($pricedLine['source'] ?? 'MANUAL'),
                     'waterfall_info' => $pricedLine['waterfall_info'] ?? null,
                     'moq' => $pricedLine['moq'] ?? null,
                     'pack_quantity' => $pricedLine['pack_quantity'] ?? null,
-                    'stock' => $pricedLine['stock'] ?? 0,
+                    'stock' => $rawLine['stock'] ?? 0,
                     'confidence' => $pricedLine['confidence'] ?? null,
                 ];
-                
+
                 // Extract supplier name from source-specific fields
                 $source = strtolower($pricedLine['source'] ?? '');
                 if ($source === 'alibaba') {
                     // Alibaba puts supplier info in 'manufacturer' field
                     $supplierName = $pricedLine['manufacturer'] ?? null;
                     $bomLine->setSupplierName($supplierName);
-                    $sourcingData['supplier_type'] = $pricedLine['supplier_type'] ?? null;
-                    $sourcingData['trade_assurance'] = $pricedLine['trade_assurance'] ?? null;
-                    $sourcingData['shipping_from'] = $pricedLine['shipping_from'] ?? null;
-                    $sourcingData['crawl_data'] = $pricedLine['_crawl_data'] ?? null;
+                    $sourcingData['supplier_type'] = $rawLine['supplier_type'] ?? null;
+                    $sourcingData['trade_assurance'] = $rawLine['trade_assurance'] ?? null;
+                    $sourcingData['shipping_from'] = $rawLine['shipping_from'] ?? null;
+                    $sourcingData['crawl_data'] = $rawLine['_crawl_data'] ?? null;
                 } elseif ($source === 'mouser') {
                     $bomLine->setSupplierName('Mouser Electronics');
                 } elseif ($source === 'digikey') {

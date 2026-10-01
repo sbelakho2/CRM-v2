@@ -17,6 +17,35 @@ use Psr\Log\LoggerInterface;
  * 
  * Alibaba and DigiKey are available but disabled by default.
  * Pass ['providers' => ['alibaba','mouser','digikey']] to enable them.
+ *
+ * @phpstan-type DistributorResult array{
+ *   mpn?: string,
+ *   manufacturer?: string,
+ *   description?: string,
+ *   confidence?: array{score: int, ...},
+ *   pricing?: list<array{quantity: int, price: float|int, ...}>,
+ *   stock?: int,
+ *   lifecycle?: string,
+ *   alternatives?: list<array<string, mixed>>,
+ *   _source: string,
+ *   _source_url?: string,
+ *   _fallback_method?: string,
+ *   _original_mpn?: string,
+ *   _fallback_mpn?: string,
+ *   _fallback_keyword?: string,
+ *   _stock_estimated?: bool,
+ *   ...
+ * }
+ * @phpstan-type KeywordRow array{mpn?: string, manufacturer?: string, description?: string, ...}
+ * @phpstan-type SourcingCandidate array{source: string, part: DistributorResult, score: int, lowest_price: float|null}
+ * @phpstan-type SearchResult array{
+ *   selected: DistributorResult|null,
+ *   source: string|null,
+ *   alternatives: list<array<string, mixed>>,
+ *   all_sources: array<string, DistributorResult>,
+ *   waterfall_triggered: bool,
+ *   waterfall_reason: string|null
+ * }
  */
 class MultiDistributorSourcingService
 {
@@ -39,20 +68,13 @@ class MultiDistributorSourcingService
     
     /**
      * Search for a part across multiple distributors using waterfall logic
-     * 
+     *
      * @param string $partNumber The MPN to search for
      * @param string|null $manufacturer Optional manufacturer name
      * @param string|null $description Optional description
-     * @param array $options Options: ['skip_waterfall' => false, 'force_all' => false, 'providers' => ['alibaba','mouser','digikey','nexar']]
-     * 
-     * @return array{
-     *   selected: array|null,
-     *   source: string|null,
-     *   alternatives: array,
-     *   all_sources: array,
-     *   waterfall_triggered: bool,
-     *   waterfall_reason: string|null
-     * }
+     * @param array{skip_waterfall?: bool, force_all?: bool, providers?: list<string>} $options Options: ['skip_waterfall' => false, 'force_all' => false, 'providers' => ['alibaba','mouser','digikey','nexar']]
+     *
+     * @return SearchResult
      */
     public function searchPart(
         string $partNumber,
@@ -174,17 +196,20 @@ class MultiDistributorSourcingService
     
     /**
      * Try Alibaba API (factory-direct pricing)
+     *
+     * @return DistributorResult|null
      */
     private function tryAlibaba(string $partNumber, ?string $manufacturer, ?string $description): ?array
     {
         try {
+            /** @var DistributorResult|null $result Alibaba returns the standard distributor result format */
             $result = $this->alibabaClient->searchByPartNumber($partNumber, $manufacturer, $description);
-            
+
             if ($result) {
                 $result['_source'] = self::SOURCE_ALIBABA;
                 $result['_source_url'] = $this->alibabaClient->buildSearchUrl($partNumber);
             }
-            
+
             return $result;
         } catch (\Exception $e) {
             $this->logger->warning('Alibaba search failed', [
@@ -194,20 +219,23 @@ class MultiDistributorSourcingService
             return null;
         }
     }
-    
+
     /**
      * Try Mouser API
+     *
+     * @return DistributorResult|null
      */
     private function tryMouser(string $partNumber, ?string $manufacturer, ?string $description): ?array
     {
         try {
+            /** @var DistributorResult|null $result Mouser returns the standard distributor result format */
             $result = $this->mouserClient->searchByPartNumber($partNumber, $manufacturer, $description);
-            
+
             if ($result) {
                 $result['_source'] = self::SOURCE_MOUSER;
                 $result['_source_url'] = $this->mouserClient->buildSearchUrl($partNumber);
             }
-            
+
             return $result;
         } catch (\Exception $e) {
             $this->logger->warning('Mouser search failed', [
@@ -217,15 +245,18 @@ class MultiDistributorSourcingService
             return null;
         }
     }
-    
+
     /**
      * Try DigiKey API
+     *
+     * @return DistributorResult|null
      */
     private function tryDigiKey(string $partNumber, ?string $manufacturer, ?string $description): ?array
     {
         try {
+            /** @var DistributorResult|null $result DigiKey returns the standard distributor result format */
             $result = $this->digiKeyClient->searchByPartNumber($partNumber);
-            
+
             if ($result) {
                 // Add confidence scoring (DigiKey client doesn't have it built-in)
                 $result['confidence'] = $this->confidenceCalculator->calculateConfidence(
@@ -237,7 +268,7 @@ class MultiDistributorSourcingService
                 $result['_source'] = self::SOURCE_DIGIKEY;
                 $result['_source_url'] = $this->buildDigiKeySearchUrl($partNumber);
             }
-            
+
             return $result;
         } catch (\Exception $e) {
             $this->logger->warning('DigiKey search failed', [
@@ -261,6 +292,8 @@ class MultiDistributorSourcingService
      * Every hit is validated through confidence scoring.  Only results above the
      * MIN_CONFIDENCE_FLOOR (40) are returned.  The result is annotated with
      * `_fallback_method` so downstream code can label it as a suggested equivalent.
+     *
+     * @return DistributorResult|null
      */
     private function smartFallbackSearch(
         string $partNumber,
@@ -339,6 +372,8 @@ class MultiDistributorSourcingService
     /**
      * Try a fallback MPN through the normal distributor search path.
      * Only returns results above confidence floor.
+     *
+     * @return DistributorResult|null
      */
     private function tryFallbackMpn(
         string $mpn,
@@ -368,6 +403,8 @@ class MultiDistributorSourcingService
 
     /**
      * Try Mouser keyword search and validate the best result through confidence scoring.
+     *
+     * @return DistributorResult|null
      */
     private function tryMouserKeywordFallback(
         string $keyword,
@@ -375,6 +412,7 @@ class MultiDistributorSourcingService
         ?string $description
     ): ?array {
         try {
+            /** @var list<KeywordRow> $keywords */
             $keywords = $this->mouserClient->searchByKeyword($keyword, 15);
             if (empty($keywords)) {
                 return null;
@@ -408,7 +446,7 @@ class MultiDistributorSourcingService
 
                 // Bonus: description terms overlap
                 if ($description && isset($kw['description'])) {
-                    $descTerms = array_filter(preg_split('/[\s,;]+/', strtolower($description)), fn($t) => strlen($t) > 2);
+                    $descTerms = array_filter(preg_split('/[\s,;]+/', strtolower($description)) ?: [], fn($t) => strlen($t) > 2);
                     $kwDesc = strtolower($kw['description']);
                     $hits = 0;
                     foreach ($descTerms as $term) {
@@ -428,8 +466,9 @@ class MultiDistributorSourcingService
             $tried = 0;
             foreach ($scored as $candidate) {
                 if ($tried >= 3) break;
-                $candidateMpn = $candidate['kw']['mpn'];
+                $candidateMpn = $candidate['kw']['mpn'] ?? '';
 
+                /** @var DistributorResult|null $result */
                 $result = $this->mouserClient->searchByPartNumber($candidateMpn, $manufacturer, $description);
                 if ($result && ($result['confidence']['score'] ?? 0) >= self::MIN_CONFIDENCE_FLOOR) {
                     $result['_source'] = self::SOURCE_MOUSER;
@@ -457,13 +496,13 @@ class MultiDistributorSourcingService
         $cleaned = trim($mpn, " \t\n\r\0\x0B\"'");
 
         // Remove catalogue artefacts: parenthesised suffixes like "(PB-Free)"
-        $cleaned = preg_replace('/\s*\(.*?\)\s*/', '', $cleaned);
+        $cleaned = preg_replace('/\s*\(.*?\)\s*/', '', $cleaned) ?? $cleaned;
 
         // Remove leading hash/asterisk markers
         $cleaned = ltrim($cleaned, '#*');
 
         // Collapse multiple spaces/dashes
-        $cleaned = preg_replace('/[\s]+/', ' ', $cleaned);
+        $cleaned = preg_replace('/[\s]+/', ' ', $cleaned) ?? $cleaned;
         $cleaned = trim($cleaned);
 
         return $cleaned ?: $mpn;
@@ -554,18 +593,19 @@ class MultiDistributorSourcingService
     
     /**
      * Select the best overall result from all sources
-     * 
-     * @return array{part: array|null, source: string|null}
-      * @param array<string|int, mixed> $allSources
+     *
+     * @param array<string, DistributorResult> $allSources
+     * @return array{part: DistributorResult|null, source: string|null}
      */
     private function selectBestOverall(array $allSources, string $requestedMpn): array
     {
         if (empty($allSources)) {
             return ['part' => null, 'source' => null];
         }
-        
+
+        /** @var list<SourcingCandidate> $candidates */
         $candidates = [];
-        
+
         foreach ($allSources as $source => $result) {
             // Reject results with unacceptably low confidence (garbage matches)
             $confidence = $result['confidence']['score'] ?? 0;
@@ -590,19 +630,19 @@ class MultiDistributorSourcingService
         if (empty($candidates)) {
             return ['part' => null, 'source' => null];
         }
-        
+
         // Price-aware selection: when multiple candidates have comparable scores,
         // the cheapest one wins. This prevents Alibaba from winning at $0.88
         // when DigiKey has the same part at $0.09.
         if (count($candidates) > 1) {
             $candidates = $this->applyPriceCompetitiveness($candidates);
         }
-        
+
         // Sort by score descending
         usort($candidates, fn($a, $b) => $b['score'] <=> $a['score']);
-        
+
         $best = $candidates[0];
-        
+
         $this->logger->debug('Best overall selected', [
             'mpn' => $requestedMpn,
             'source' => $best['source'],
@@ -614,16 +654,17 @@ class MultiDistributorSourcingService
                 'price' => $c['lowest_price'],
             ], $candidates),
         ]);
-        
+
         return [
             'part' => $best['part'],
             'source' => $best['source'],
         ];
     }
-    
+
     /**
      * Get the lowest unit price from a result's pricing breaks
-      * @param array<string|int, mixed> $result
+     *
+     * @param DistributorResult $result
      */
     private function getLowestUnitPrice(array $result): ?float
     {
@@ -633,24 +674,26 @@ class MultiDistributorSourcingService
         }
         $lowest = PHP_FLOAT_MAX;
         foreach ($pricing as $break) {
-            $p = $break['price'] ?? PHP_FLOAT_MAX;
+            $p = $break['price'];
             if ($p > 0 && $p < $lowest) {
                 $lowest = $p;
             }
         }
         return $lowest < PHP_FLOAT_MAX ? $lowest : null;
     }
-    
+
     /**
      * Apply price competitiveness adjustments to candidate scores.
-     * 
+     *
      * When two sources both match the same MPN with reasonable confidence,
      * the cheaper one should win. This gives a bonus to the cheapest candidate
      * and penalizes expensive ones proportionally.
-     * 
+     *
      * Example: Alibaba at $0.88 vs DigiKey at $0.09 for the same part —
      * DigiKey should get a huge bonus because it's 10x cheaper.
-      * @param array<string|int, mixed> $candidates
+     *
+     * @param list<SourcingCandidate> $candidates
+     * @return list<SourcingCandidate>
      */
     private function applyPriceCompetitiveness(array $candidates): array
     {
@@ -693,11 +736,12 @@ class MultiDistributorSourcingService
     
     /**
      * Calculate overall score for a part result
-     * 
+     *
      * Scoring aims for best VALUE: price × confidence × availability.
      * Alibaba gets a source preference bonus because it provides factory-direct
      * pricing with better bulk rates.
-      * @param array<string|int, mixed> $result
+     *
+     * @param DistributorResult $result
      */
     private function calculateOverallScore(array $result, string $requestedMpn): int
     {
@@ -708,7 +752,7 @@ class MultiDistributorSourcingService
         $score += $confidence;
         
         // Source preference: Alibaba first (factory-direct = best bulk pricing)
-        $source = $result['_source'] ?? '';
+        $source = $result['_source'];
         if ($source === self::SOURCE_ALIBABA) {
             $score += 15; // Strong preference for factory-direct pricing
         }
@@ -741,7 +785,7 @@ class MultiDistributorSourcingService
             // Extra bonus for very low unit prices (bulk pricing advantage)
             $lowestPrice = PHP_FLOAT_MAX;
             foreach ($pricing as $break) {
-                $lowestPrice = min($lowestPrice, $break['price'] ?? PHP_FLOAT_MAX);
+                $lowestPrice = min($lowestPrice, $break['price']);
             }
             if ($lowestPrice < 1.0) {
                 $score += 5; // Sub-$1 parts are well-priced
@@ -752,8 +796,7 @@ class MultiDistributorSourcingService
         }
         
         // Lifecycle penalty
-        $lifecycleRaw = $result['lifecycle'] ?? '';
-        $lifecycle = strtolower(is_string($lifecycleRaw) ? $lifecycleRaw : '');
+        $lifecycle = strtolower($result['lifecycle'] ?? '');
         foreach (MouserApiClient::LIFECYCLE_CRITICAL as $term) {
             if (str_contains($lifecycle, $term)) {
                 $score -= 30;
@@ -772,13 +815,15 @@ class MultiDistributorSourcingService
     
     /**
      * Build alternatives list from all sources
-      * @param array<string|int, mixed> $allSources
- * @param array<string|int, mixed> $selected
+     *
+     * @param array<string, DistributorResult> $allSources
+     * @param DistributorResult|null $selected
+     * @return list<array<string, mixed>>
      */
     private function buildAlternativesList(array $allSources, ?array $selected, ?string $selectedSource): array
     {
         $alternatives = [];
-        
+
         foreach ($allSources as $source => $result) {
             // Skip the selected result
             if ($source === $selectedSource && $result === $selected) {
@@ -791,11 +836,11 @@ class MultiDistributorSourcingService
                 }
                 continue;
             }
-            
+
             // Add this source as an alternative
             $result['_source'] = $source;
             $alternatives[] = $result;
-            
+
             // Add its internal alternatives too
             if (isset($result['alternatives'])) {
                 foreach ($result['alternatives'] as $alt) {
@@ -804,14 +849,18 @@ class MultiDistributorSourcingService
                 }
             }
         }
-        
+
         // Sort by confidence score
-        usort($alternatives, function($a, $b) {
-            $aScore = $a['confidence']['score'] ?? 0;
-            $bScore = $b['confidence']['score'] ?? 0;
+        usort($alternatives, function (array $a, array $b): int {
+            $aConfidence = $a['confidence'] ?? null;
+            $bConfidence = $b['confidence'] ?? null;
+            $aScore = is_array($aConfidence) && is_numeric($aConfidence['score'] ?? null)
+                ? (int) $aConfidence['score'] : 0;
+            $bScore = is_array($bConfidence) && is_numeric($bConfidence['score'] ?? null)
+                ? (int) $bConfidence['score'] : 0;
             return $bScore <=> $aScore;
         });
-        
+
         // Limit to top 5 alternatives
         return array_slice($alternatives, 0, 5);
     }

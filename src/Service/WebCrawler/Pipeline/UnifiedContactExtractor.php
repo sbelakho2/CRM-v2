@@ -11,6 +11,8 @@ namespace App\Service\WebCrawler\Pipeline;
  *
  * Deduplicates by email, scores each contact for quality, and returns
  * contacts sorted by quality descending.
+ *
+ * @phpstan-type ContactArray array{first_name: string|null, last_name: string|null, job_title: string|null, email: string|null, phone: string|null, linkedin_url: string|null}
  */
 final class UnifiedContactExtractor
 {
@@ -157,26 +159,33 @@ final class UnifiedContactExtractor
     //  Extraction sources
     // ──────────────────────────────────────────────────────────────────
 
+    /**
+     * @param array<int, array<string, mixed>> $structuredData
+     * @return list<ContactArray>
+     */
     private function extractFromJsonLd(array $structuredData): array
     {
         $contacts = [];
 
         foreach ($structuredData as $item) {
-            $type = $item['@type'] ?? '';
+            $typeRaw = $item['@type'] ?? '';
+            $type = \is_scalar($typeRaw) ? (string) $typeRaw : '';
 
             // Person type
             if ($type === 'Person') {
+                $emailRaw = $item['email'] ?? null;
                 $c = [
-                    'first_name' => $item['givenName'] ?? null,
-                    'last_name' => $item['familyName'] ?? null,
-                    'job_title' => $item['jobTitle'] ?? null,
-                    'email' => isset($item['email']) ? $this->normalizeEmail($item['email']) : null,
-                    'phone' => $item['telephone'] ?? null,
+                    'first_name' => \is_scalar($item['givenName'] ?? null) ? (string) $item['givenName'] : null,
+                    'last_name' => \is_scalar($item['familyName'] ?? null) ? (string) $item['familyName'] : null,
+                    'job_title' => \is_scalar($item['jobTitle'] ?? null) ? (string) $item['jobTitle'] : null,
+                    'email' => \is_string($emailRaw) ? $this->normalizeEmail($emailRaw) : null,
+                    'phone' => \is_scalar($item['telephone'] ?? null) ? (string) $item['telephone'] : null,
                     'linkedin_url' => null,
                 ];
                 // Try name if givenName/familyName not set
-                if (!$c['first_name'] && !$c['last_name'] && isset($item['name'])) {
-                    [$c['first_name'], $c['last_name']] = $this->splitName($item['name']);
+                $nameRaw = $item['name'] ?? null;
+                if (!$c['first_name'] && !$c['last_name'] && \is_string($nameRaw)) {
+                    [$c['first_name'], $c['last_name']] = $this->splitName($nameRaw);
                 }
                 if ($c['first_name'] || $c['email']) {
                     $contacts[] = $c;
@@ -195,13 +204,16 @@ final class UnifiedContactExtractor
                     if (!\is_array($point)) {
                         continue;
                     }
-                    $email = isset($point['email']) ? $this->normalizeEmail($point['email']) : null;
-                    $phone = $point['telephone'] ?? null;
+                    $emailRaw = $point['email'] ?? null;
+                    $email = \is_string($emailRaw) ? $this->normalizeEmail($emailRaw) : null;
+                    $phoneRaw = $point['telephone'] ?? null;
+                    $phone = \is_scalar($phoneRaw) ? (string) $phoneRaw : null;
                     if ($email || $phone) {
+                        $contactTypeRaw = $point['contactType'] ?? null;
                         $contacts[] = [
                             'first_name' => null,
                             'last_name' => null,
-                            'job_title' => $point['contactType'] ?? null,
+                            'job_title' => \is_scalar($contactTypeRaw) ? (string) $contactTypeRaw : null,
                             'email' => $email,
                             'phone' => $phone,
                             'linkedin_url' => null,
@@ -214,6 +226,9 @@ final class UnifiedContactExtractor
         return $contacts;
     }
 
+    /**
+     * @return list<ContactArray>
+     */
     private function extractFromTeamCards(string $html): array
     {
         $contacts = [];
@@ -278,6 +293,9 @@ final class UnifiedContactExtractor
         return $contacts;
     }
 
+    /**
+     * @return list<ContactArray>
+     */
     private function extractFromMailto(string $html): array
     {
         $contacts = [];
@@ -301,6 +319,9 @@ final class UnifiedContactExtractor
         return $contacts;
     }
 
+    /**
+     * @return list<ContactArray>
+     */
     private function extractFromTel(string $html): array
     {
         $contacts = [];
@@ -324,6 +345,9 @@ final class UnifiedContactExtractor
         return $contacts;
     }
 
+    /**
+     * @return list<ContactArray>
+     */
     private function extractFromLinkedIn(string $html): array
     {
         $contacts = [];
@@ -432,10 +456,11 @@ final class UnifiedContactExtractor
         if (preg_match('~linkedin\.com/in/([^/?#]+)~i', $url, $m)) {
             $slug = $m[1];
             // Remove trailing identifiers (e.g., -123abc, -a123b4)
-            $slug = preg_replace('/-[a-z0-9]{5,}$/i', '', $slug);
-            $slug = preg_replace('/-\d+$/', '', $slug);
+            // preg_replace returns null only on PCRE failure — keep the slug.
+            $slug = preg_replace('/-[a-z0-9]{5,}$/i', '', $slug) ?? $slug;
+            $slug = preg_replace('/-\d+$/', '', $slug) ?? $slug;
             // Split on hyphens and underscores
-            $parts = preg_split('/[-_]+/', $slug);
+            $parts = preg_split('/[-_]+/', $slug) ?: [];
             if (\count($parts) >= 2) {
                 $firstName = $this->normalizeNamePart($parts[0]);
                 $lastName = $this->normalizeNamePart(implode('-', \array_slice($parts, 1)));
@@ -447,6 +472,9 @@ final class UnifiedContactExtractor
         return [null, null];
     }
 
+    /**
+     * @return list<ContactArray>
+     */
     private function extractFromVisibleEmails(string $html): array
     {
         $contacts = [];
@@ -486,6 +514,8 @@ final class UnifiedContactExtractor
      *   name ät domain döt com
      *   name [@] domain [.] com
      *   name (at) domain (dot) com
+     *
+     * @return list<ContactArray>
      */
     private function extractFromObfuscatedEmails(string $html): array
     {
@@ -568,6 +598,9 @@ final class UnifiedContactExtractor
     //  Team card parser
     // ──────────────────────────────────────────────────────────────────
 
+    /**
+     * @return ContactArray|null
+     */
     private function parseTeamCard(string $cardHtml): ?array
     {
         // Extract name from heading
@@ -590,7 +623,7 @@ final class UnifiedContactExtractor
             return null;
         }
 
-        $nameParts = preg_split('/\s+/', $name);
+        $nameParts = preg_split('/\s+/', $name) ?: [];
         if (\count($nameParts) < 2 || \count($nameParts) > 5) {
             return null;
         }
@@ -661,6 +694,10 @@ final class UnifiedContactExtractor
     //  Deduplication
     // ──────────────────────────────────────────────────────────────────
 
+    /**
+     * @param list<ContactArray> $rawContacts
+     * @return list<ContactArray>
+     */
     private function deduplicate(array $rawContacts): array
     {
         $seen = [];
@@ -696,11 +733,17 @@ final class UnifiedContactExtractor
             }
         }
 
-        return array_values($deduped);
+        // Keys are assigned sequentially ($idx = count($deduped)), so the
+        // result is already a 0-indexed list — no reindexing needed.
+        return $deduped;
     }
 
     /**
      * Merge additional data from $b into $a, preferring non-null values.
+     *
+     * @param ContactArray $a
+     * @param ContactArray $b
+     * @return ContactArray
      */
     private function mergeContact(array $a, array $b): array
     {
@@ -716,6 +759,9 @@ final class UnifiedContactExtractor
     //  Quality scoring
     // ──────────────────────────────────────────────────────────────────
 
+    /**
+     * @param ContactArray $raw
+     */
     private function scoreContact(array $raw, string $domainName): int
     {
         $score = 0;
@@ -748,6 +794,10 @@ final class UnifiedContactExtractor
     //  Helpers
     // ──────────────────────────────────────────────────────────────────
 
+    /**
+     * @param ContactArray $raw
+     * @return ContactArray|null
+     */
     private function prepareContact(array $raw, string $domainName): ?array
     {
         $raw['email'] = isset($raw['email']) ? $this->normalizeEmail($raw['email']) : null;
@@ -802,7 +852,7 @@ final class UnifiedContactExtractor
 
     private function isGenericEmail(string $email): bool
     {
-        $localPart = explode('@', $email, 2)[0] ?? '';
+        $localPart = explode('@', $email, 2)[0];
         return in_array($localPart, self::GENERIC_EMAIL_PREFIXES, true);
     }
 
@@ -811,7 +861,7 @@ final class UnifiedContactExtractor
      */
     private function deriveNameFromEmail(string $email): array
     {
-        $localPart = explode('@', $email, 2)[0] ?? '';
+        $localPart = explode('@', $email, 2)[0];
         $localPart = explode('+', $localPart, 2)[0];
         $tokens = preg_split('/[._-]+/', $localPart) ?: [];
         $tokens = array_values(array_filter($tokens, function (string $token): bool {
@@ -837,7 +887,7 @@ final class UnifiedContactExtractor
         }
 
         $value = preg_replace('/\s+/', ' ', $value);
-        if ($value === null || $value === '') {
+        if ($value === null) {
             return null;
         }
 
@@ -868,7 +918,7 @@ final class UnifiedContactExtractor
      */
     private function splitName(string $fullName): array
     {
-        $parts = preg_split('/\s+/', trim($fullName));
+        $parts = preg_split('/\s+/', trim($fullName)) ?: [];
         if (\count($parts) < 2) {
             return [$fullName, null];
         }
