@@ -700,6 +700,21 @@ class EmailPersonalizationService
     ) {}
 
     /**
+     * Resolve the persisted contact id. Contacts reaching this service come
+     * from the database; a null id would previously crash the repository
+     * call with a TypeError, so fail explicitly instead.
+     */
+    private function requireContactId(Contact $contact): int
+    {
+        $contactId = $contact->getId();
+        if ($contactId === null) {
+            throw new \RuntimeException('Contact must be persisted before personalization (id is null).');
+        }
+
+        return $contactId;
+    }
+
+    /**
      * Get personalization context for a contact without applying to a template
      *
      * This is used by the orchestrator to get all personalization variables
@@ -1099,9 +1114,9 @@ class EmailPersonalizationService
                 'style_phrase' => $toneConfig['style'],
                 
                 // Content focus emphasis words
-                'emphasis_1' => $contentConfig['emphasis'][0] ?? '',
-                'emphasis_2' => $contentConfig['emphasis'][1] ?? '',
-                'emphasis_3' => $contentConfig['emphasis'][2] ?? '',
+                'emphasis_1' => $contentConfig['emphasis'][0],
+                'emphasis_2' => $contentConfig['emphasis'][1],
+                'emphasis_3' => $contentConfig['emphasis'][2],
                 'emphasis_4' => $contentConfig['emphasis'][3] ?? '',
                 
                 // NEW: Dynamic content blocks
@@ -1215,21 +1230,26 @@ class EmailPersonalizationService
 
     /**
      * Apply personalization to template text
-      * @param array<string|int, mixed> $variables
- * @param array<string|int, mixed> $context
+     *
+     * @param array<string, mixed> $variables
+     * @param PersonalizationContext $context
      */
     private function applyPersonalization(string $template, array $variables, array $context): string
     {
         $text = $template;
-        
+
         // Replace {{variable}} placeholders
         foreach ($variables as $key => $value) {
-            $text = str_replace('{{' . $key . '}}', $value, $text);
+            // Non-scalar values previously crashed str_replace; skip them instead
+            if (!is_scalar($value)) {
+                continue;
+            }
+            $text = str_replace('{{' . $key . '}}', (string) $value, $text);
         }
-        
+
         // Apply tone-specific transformations
         $text = $this->applyToneTransformations($text, $context['tone']);
-        
+
         return $text;
     }
 
@@ -1265,13 +1285,13 @@ class EmailPersonalizationService
                 // preg_replace_callback inserts the return value literally,
                 // so backreferences like $1 are not expanded — safe as-is.
                 return $replacement;
-            }, $text);
+            }, $text) ?? $text;
         }
-        
+
         // Clean up any artifacts (double spaces, leading spaces on lines)
-        $text = preg_replace('/  +/', ' ', $text);
-        $text = preg_replace('/\n +/', "\n", $text);
-        $text = preg_replace('/ +\n/', "\n", $text);
+        $text = preg_replace('/  +/', ' ', $text) ?? $text;
+        $text = preg_replace('/\n +/', "\n", $text) ?? $text;
+        $text = preg_replace('/ +\n/', "\n", $text) ?? $text;
 
         $result = trim($text);
 
@@ -1304,7 +1324,8 @@ class EmailPersonalizationService
 
     /**
      * Record email interaction for learning
-      * @param array<string|int, mixed> $metadata
+     *
+     * @param array<string|int, mixed> $metadata
      */
     public function recordInteraction(
         Contact $contact,
@@ -1312,7 +1333,7 @@ class EmailPersonalizationService
         ?OutboundMessage $message = null,
         array $metadata = []
     ): PersonalizationProfile {
-        $profile = $this->profileRepository->findOrCreateForContact($contact->getId());
+        $profile = $this->profileRepository->findOrCreateForContact($this->requireContactId($contact));
         
         switch ($eventType) {
             case 'opened':
@@ -1354,32 +1375,33 @@ class EmailPersonalizationService
      */
     private function updateBestSendTime(PersonalizationProfile $profile): void
     {
+        /** @var list<array{type: string, timestamp: int, ...}> $interactions */
         $interactions = $profile->getInteractionHistory();
         $successfulInteractions = array_filter($interactions, fn($i) => in_array($i['type'], ['opened', 'replied', 'clicked']));
-        
+
         if (count($successfulInteractions) < 3) {
             return; // Not enough data
         }
-        
+
         $hourCounts = [];
         $dayCounts = [];
-        
+
         foreach ($successfulInteractions as $interaction) {
             $timestamp = $interaction['timestamp'];
             $hour = (int)date('H', $timestamp);
             $day = date('l', $timestamp);
-            
+
             $hourCounts[$hour] = ($hourCounts[$hour] ?? 0) + 1;
             $dayCounts[$day] = ($dayCounts[$day] ?? 0) + 1;
         }
-        
-        if (!empty($hourCounts)) {
+
+        if ($hourCounts !== []) {
             arsort($hourCounts);
             $bestHour = array_key_first($hourCounts);
             $profile->setBestSendTime(sprintf('%02d:00', $bestHour));
         }
-        
-        if (!empty($dayCounts)) {
+
+        if ($dayCounts !== []) {
             arsort($dayCounts);
             $profile->setBestSendDay(array_key_first($dayCounts));
         }
@@ -1391,39 +1413,47 @@ class EmailPersonalizationService
     private function extractSubjectPattern(string $subject): string
     {
         // Remove specific company/person names to get pattern
-        $pattern = preg_replace('/[A-Z][a-z]+(\s+[A-Z][a-z]+)?/', '{name}', $subject);
-        return $pattern;
+        return preg_replace('/[A-Z][a-z]+(\s+[A-Z][a-z]+)?/', '{name}', $subject) ?? $subject;
     }
 
     /**
      * Calculate cosine similarity between two vectors
-      * @param array<string|int, mixed> $a
- * @param array<string|int, mixed> $b
+     *
+     * @param array<string|int, mixed> $a
+     * @param array<string|int, mixed> $b
      */
     private function cosineSimilarity(array $a, array $b): float
     {
         $dotProduct = 0.0;
         $normA = 0.0;
         $normB = 0.0;
-        
+
         $length = min(count($a), count($b));
-        
+
         for ($i = 0; $i < $length; $i++) {
-            $dotProduct += $a[$i] * $b[$i];
-            $normA += $a[$i] * $a[$i];
-            $normB += $b[$i] * $b[$i];
+            // Non-numeric components (corrupt embeddings) contribute 0 instead
+            // of previously crashing the arithmetic below.
+            $aRaw = $a[$i] ?? null;
+            $bRaw = $b[$i] ?? null;
+            $aValue = is_numeric($aRaw) ? (float) $aRaw : 0.0;
+            $bValue = is_numeric($bRaw) ? (float) $bRaw : 0.0;
+            $dotProduct += $aValue * $bValue;
+            $normA += $aValue * $aValue;
+            $normB += $bValue * $bValue;
         }
-        
+
         if ($normA == 0 || $normB == 0) {
             return 0.0;
         }
-        
+
         return $dotProduct / (sqrt($normA) * sqrt($normB));
     }
 
     /**
      * Normalize a vector to unit length
-      * @param array<string|int, mixed> $vector
+     *
+     * @param list<float> $vector
+     * @return list<float>
      */
     private function normalizeVector(array $vector): array
     {
@@ -1432,12 +1462,12 @@ class EmailPersonalizationService
             $norm += $v * $v;
         }
         $norm = sqrt($norm);
-        
+
         if ($norm == 0) {
             return $vector;
         }
-        
-        return array_map(fn($v) => $v / $norm, $vector);
+
+        return array_map(static fn (float $v) => $v / $norm, $vector);
     }
 
     /**
@@ -1497,6 +1527,8 @@ class EmailPersonalizationService
 
     /**
      * Extract geographic features from contact
+     *
+     * @return list<float>
      */
     private function extractGeographicFeatures(Contact $contact): array
     {
@@ -1532,11 +1564,14 @@ class EmailPersonalizationService
 
     /**
      * Extract behavioral features from profile history
+     *
+     * @return list<float>
      */
     private function extractBehavioralFeatures(PersonalizationProfile $profile): array
     {
         $features = array_fill(0, 16, 0.5);
-        
+
+        /** @var list<array{type: string, timestamp: int, ...}> $history */
         $history = $profile->getInteractionHistory();
         if (empty($history)) {
             return $features;
@@ -1568,6 +1603,8 @@ class EmailPersonalizationService
 
     /**
      * Extract text features using simple TF-IDF style approach
+     *
+     * @return list<float>
      */
     private function extractTextFeatures(Contact $contact): array
     {

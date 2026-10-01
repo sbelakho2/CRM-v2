@@ -78,11 +78,15 @@ class GoogleDorkService
         private ?GoogleSearchService $googleSearchService = null,
         ?CompanyClassifierService $companyClassifier = null,
         private ?SearchProviderInterface $searchProvider = null,
-        ?BuyerEvidenceGate $buyerEvidenceGate = null,
+        /** Currently unused DI extension point — kept for wiring/debug introspection. */
+        public ?BuyerEvidenceGate $buyerEvidenceGate = null,
         private ?TextNormalizer $textNormalizer = null,
-        ?RuleEngine $ruleEngine = null,
-        ?ServiceProductClassifier $serviceProductClassifier = null,
-        ?CompetitorProximityVeto $competitorProximityVeto = null,
+        /** Currently unused DI extension point — kept for wiring/debug introspection. */
+        public ?RuleEngine $ruleEngine = null,
+        /** Currently unused DI extension point — kept for wiring/debug introspection. */
+        public ?ServiceProductClassifier $serviceProductClassifier = null,
+        /** Currently unused DI extension point — kept for wiring/debug introspection. */
+        public ?CompetitorProximityVeto $competitorProximityVeto = null,
         private ?DirectorySeedExtractor $directorySeedExtractor = null,
         private ?LanguageDetector $languageDetector = null,
         private ?LinkedInProfileParser $linkedInParser = null,
@@ -194,12 +198,12 @@ class GoogleDorkService
 
                     /** @var WebSearchResponse $part */
                     $part = $this->googleSearchService->searchCompanies($query, $chunk, $cursor, $gl);
-                    $items = $part['results'] ?? [];
+                    $items = $part['results'];
                     if (!empty($items)) {
                         $merged['results'] = array_merge($merged['results'], $items);
                     }
-                    $merged['searchTime'] += (float) ($part['searchTime'] ?? 0);
-                    $merged['totalResults'] = max((int) $merged['totalResults'], (int) ($part['totalResults'] ?? 0));
+                    $merged['searchTime'] += (float) $part['searchTime'];
+                    $merged['totalResults'] = max((int) $merged['totalResults'], (int) $part['totalResults']);
 
                     if (count($items) < $chunk) {
                         break;
@@ -215,9 +219,6 @@ class GoogleDorkService
             $num = min(10, $num);
             if (($startIndex + $num - 1) > 100) {
                 $num = 100 - $startIndex + 1;
-            }
-            if ($num <= 0) {
-                return ['results' => [], 'totalResults' => 0, 'searchTime' => 0];
             }
 
             /** @var WebSearchResponse $legacy */
@@ -254,7 +255,7 @@ class GoogleDorkService
                 $result = $this->googleSearchService->searchCompanies($query, $num);
                 $this->logger->debug('LinkedIn search via Google CSE', [
                     'query' => $query,
-                    'results' => count($result['results'] ?? []),
+                    'results' => count($result['results']),
                 ]);
                 return $result;
             } catch (\Exception $e) {
@@ -284,10 +285,10 @@ class GoogleDorkService
      * Now actually executes searches through Google Custom Search API
      * when GoogleSearchService is available.
      * 
-     * @param string $sector The industry sector to search
+     * @param string|null $sector The industry sector to search
      * @param string|null $location The geographic location (e.g., "Tanger Free Zone")
      * @param bool $executeSearch Whether to actually execute via API (costs money)
-     * @return array Search results with company data
+     * @return list<array<string, mixed>> Search results with company data
      */
     public function searchCompanies(?string $sector, ?string $location = null, bool $executeSearch = true): array
     {
@@ -316,7 +317,9 @@ class GoogleDorkService
         // Load existing company domains to exclude from search results (post-search filter)
         $existingDomains = [];
         if ($this->companyRepository !== null) {
-            $existingDomains = array_flip($this->companyRepository->findAllWebsiteDomains());
+            /** @var list<string> $knownDomains */
+            $knownDomains = $this->companyRepository->findAllWebsiteDomains();
+            $existingDomains = array_flip($knownDomains);
             $this->logger->info('Query diversity: loaded known domains for post-search filtering', [
                 'count' => count($existingDomains),
             ]);
@@ -327,6 +330,7 @@ class GoogleDorkService
         // "competitors of X" queries just find variants of the same company.
         if ($this->companyRepository !== null && $sector) {
             $region = $this->detectRegionFromLocation($location);
+            /** @var list<string> $existingNames */
             $existingNames = $this->companyRepository->findNamesBySectorAndRegion($sector, $region);
             if (count($existingNames) >= 3) {
                 $shuffledNames = $existingNames;
@@ -553,7 +557,8 @@ class GoogleDorkService
                                 // Uses CompanyClassifierService (regex/knowledge-base)
                                 // to determine if this is a real EMS buyer company.
                                 if ($this->classifier !== null) {
-                                    $classification = $this->classifier->classifyCompany($companyName, $snippet, $title ?? '', $domain);
+                                    /** @var array{verdict?: string, score?: int|float, reason?: string} $classification */
+                                    $classification = $this->classifier->classifyCompany($companyName, $snippet, $title, $domain);
                                     $verdict = $classification['verdict'] ?? 'UNCERTAIN';
                                     $score = $classification['score'] ?? 0;
                                     
@@ -824,8 +829,9 @@ class GoogleDorkService
                 $name = $right;
             } elseif (!$leftIsGeneric && $rightIsGeneric) {
                 $name = $left;
-            } elseif (!$leftIsGeneric && !$rightIsGeneric) {
+            } elseif (!$leftIsGeneric) {
                 // Both look like proper names — prefer the shorter one
+                // (the both-generic case is excluded by the two branches above)
                 $name = mb_strlen($left) <= mb_strlen($right) ? $left : $right;
             } else {
                 // Both generic — fall through to domain
@@ -15258,6 +15264,9 @@ class GoogleDorkService
         return $this->buildLocationTermAdvanced($location);
     }
 
+    /**
+     * @return list<string>
+     */
     private function buildGoogleDorkQueries(?string $sector, ?string $location = null): array
     {
         $queries = [];
@@ -16325,6 +16334,10 @@ class GoogleDorkService
         return trim($query);
     }
 
+    /**
+     * @param list<string> $queries
+     * @return list<string>
+     */
     private function optimizeAndDiversifySearchQueries(array $queries, ?string $sector, ?string $location): array
     {
         $region = $this->detectRegionFromLocation($location);
@@ -16386,6 +16399,10 @@ class GoogleDorkService
         return $div;
     }
 
+    /**
+     * @param list<string> $queries
+     * @return list<string>
+     */
     private function stableDiversifyQueryOrder(array $queries): array
     {
         $buckets = [];
