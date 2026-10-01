@@ -64,7 +64,7 @@ use Psr\Log\LoggerInterface;
  *     location?: string|null,
  *     location_validated?: bool,
  *     language?: array{language: string, confidence: float, method: string, region_relevant: bool, relevance_score: float}|string|null,
- *     all_emails?: mixed,
+ *     all_emails?: list<string>,
  *     employee_hint?: mixed,
  *     contacts?: list<ContactInfo>,
  *     phone?: string|null,
@@ -94,7 +94,7 @@ use Psr\Log\LoggerInterface;
  *     location?: string|null,
  *     location_validated?: bool,
  *     language?: array{language: string, confidence: float, method: string, region_relevant: bool, relevance_score: float}|string|null,
- *     all_emails?: mixed,
+ *     all_emails?: list<string>,
  *     employee_hint?: mixed,
  *     contacts?: list<ContactInfo>,
  *     phone?: string|null,
@@ -10618,7 +10618,7 @@ class GoogleDorkService
         // with branded domains are real companies regardless of homepage content.
         // The BuyerEvidenceGate later in the pipeline handles buyer filtering.
         foreach ($needsLinkedIn as $domain => $data) {
-            $name = (string) $data['name'];
+            $name = $data['name'];
 
             // ── Entity-Type Pre-Filter (v19) for Phase 2 ──────────
             // Catch obvious non-targets before BOTD/LinkedIn verification
@@ -10643,7 +10643,7 @@ class GoogleDorkService
                 !preg_match('/^(info|shop|store|buy|deal|free|best|top|my|the|get|go|web|net|online)$/i', $baseName)
             );
 
-            $botdRiskText = strtolower(($data['name'] ?? '') . ' ' . ($data['title'] ?? '') . ' ' . ($data['snippet'] ?? '') . ' ' . $domain);
+            $botdRiskText = strtolower($data['name'] . ' ' . ($data['title'] ?? '') . ' ' . ($data['snippet'] ?? '') . ' ' . $domain);
             // Also include homepage text for non-English content detection
             if (!empty($data['_homepage_text'])) {
                 $botdRiskText .= ' ' . strtolower($data['_homepage_text']);
@@ -10918,7 +10918,7 @@ class GoogleDorkService
                 if ($domain !== '' && $this->isNameDomainMismatch($newName, $domain)) {
                     // The new name doesn't match the domain — keep the original name
                     $this->logger->debug('LinkedIn name override rejected (name-domain mismatch)', [
-                        'original' => $data['name'] !== '' ? $data['name'] : '?',
+                        'original' => $data['name'],
                         'rejected' => $newName,
                         'domain' => $domain,
                     ]);
@@ -10936,13 +10936,10 @@ class GoogleDorkService
         }
 
         // Merge all_emails array (accumulate from all extraction phases)
-        if (!empty($enrichment['all_emails']) && is_array($enrichment['all_emails'])) {
-            /** @var list<string> $existingEmails */
+        if (!empty($enrichment['all_emails'])) {
             $existingEmails = $data['all_emails'] ?? [];
-            /** @var list<string> $incomingEmails */
-            $incomingEmails = $enrichment['all_emails'];
             $data['all_emails'] = array_values(array_unique(
-                array_merge($existingEmails, $incomingEmails)
+                array_merge($existingEmails, $enrichment['all_emails'])
             ));
         }
 
@@ -11197,9 +11194,72 @@ class GoogleDorkService
         $preserved = '';
 
         // 1. Schema.org JSON-LD (always in <head>, small, structured data)
-        // Schema.org JSON-LD values are free-form JSON: every field must be
-        // narrowed before it can be used as a string (a malformed payload
-        // would previously fatal on a strict-types string parameter).
+        if (preg_match_all('/<script[^>]*type=["\']application\/ld\+json["\'][^>]*>[\s\S]{1,15000}?<\/script>/i', $html, $m)) {
+            $preserved .= implode("\n", $m[0]);
+        }
+
+        // 2. Footer section (phone, email, "founded by", addresses)
+        if (preg_match('/<footer[\s>][\s\S]{1,50000}?<\/footer>/i', $html, $m)) {
+            $preserved .= "\n" . $m[0];
+        }
+
+        // 3. About/team/management sections by ID or class
+        if (preg_match_all('/<(?:section|div|article)[^>]*(?:id|class)=["\'][^"\']*(?:about|team|management|leadership|founder|director|president|chairman|governance|equipe|directoire)[^"\']*["\'][^>]*>[\s\S]{1,30000}?<\/(?:section|div|article)>/i', $html, $m)) {
+            foreach ($m[0] as $section) {
+                $preserved .= "\n" . $section;
+            }
+        }
+
+        // Take the first $maxBytes of original HTML (head + hero + nav + body start)
+        $mainChunk = substr($html, 0, $maxBytes);
+
+        // Append preserved sections if they weren't already in the main chunk
+        if (!empty($preserved)) {
+            // Check that we're not double-including content
+            $preservedLen = strlen($preserved);
+            // Only append if it would fit in a reasonable total size
+            if ($preservedLen < 100000) {
+                $mainChunk .= "\n<!-- smartTruncate preserved sections -->\n" . $preserved;
+            }
+        }
+
+        return $mainChunk;
+    }
+
+    /**
+     * First string of a free-form JSON-LD value (the value itself when it
+     * is a string, otherwise the first string element when it is a list).
+     */
+    private function jsonLdStringValue(mixed $value): ?string
+    {
+        if (is_string($value)) {
+            return $value;
+        }
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                if (is_string($item)) {
+                    return $item;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract phone/email/address/contacts from raw homepage HTML.
+     *
+     * @return array{phone: string|null, email: string|null, address: string|null, contacts: list<ContactInfo>, all_emails?: list<string>}
+     */
+    private function extractContactInfoFromHtml(string $html): array
+    {
+        $info = ['phone' => null, 'email' => null, 'address' => null, 'contacts' => []];
+
+        // ── 1. Schema.org JSON-LD (highest quality) ──────────────
+        // Many corporate sites embed structured data like:
+        // {"@type":"Organization","telephone":"+1-555-123-4567","address":{...}}
+        // JSON-LD values are free-form JSON: every field is narrowed before
+        // use (a malformed payload would previously fatal on strict types).
         if (preg_match_all('/<script[^>]*type=["\']application\/ld\+json["\'][^>]*>([\s\S]{1,10000}?)<\/script>/i', $html, $jsonMatches)) {
             foreach ($jsonMatches[1] as $jsonStr) {
                 $jsonData = @json_decode($jsonStr, true);
@@ -11310,7 +11370,6 @@ class GoogleDorkService
                             $persons = isset($entity[$personKey]['@type'])
                                 ? [$entity[$personKey]]
                                 : $entity[$personKey];
-                            if (!is_array($persons)) continue;
                             foreach ($persons as $p) {
                                 if (!is_array($p)) continue;
                                 $extracted = $this->extractPersonFromSchemaOrg($p);
@@ -11324,13 +11383,12 @@ class GoogleDorkService
             }
         }
 
-
         // ── 2. tel: links (explicit phone number markup) ─────────
         if (!$info['phone']) {
             // Match tel: links, excluding fax numbers
             if (preg_match_all('/href=["\']tel:([+\d\s().-]{7,20})["\'][^>]*>(.*?)<\/a>/si', $html, $telMatches, PREG_SET_ORDER)) {
                 foreach ($telMatches as $telMatch) {
-                    $context = strtolower($telMatch[2] ?? '');
+                    $context = strtolower($telMatch[2]);
                     // Skip fax numbers
                     if (preg_match('/fax|facsimile/i', $context)) continue;
                     $info['phone'] = $this->cleanPhoneNumber($telMatch[1]);
@@ -11377,7 +11435,9 @@ class GoogleDorkService
         // Merge with any JSON-LD contacts and dedup later.
         $htmlContacts = $this->extractNamedContactsFromHtml($html);
         if (!empty($htmlContacts)) {
-            $info['contacts'] = array_merge($info['contacts'], $htmlContacts);
+            /** @var list<ContactInfo> $mergedContacts */
+            $mergedContacts = array_merge($info['contacts'], $htmlContacts);
+            $info['contacts'] = $mergedContacts;
             // Dedup by first+last name
             $seen = [];
             $unique = [];
@@ -11403,7 +11463,7 @@ class GoogleDorkService
             $footerHtml = substr($cleanHtml, (int)(strlen($cleanHtml) * 0.65));
             $footerText = strip_tags($footerHtml);
             // Normalize whitespace (strip excessive newlines/tabs)
-            $footerText = preg_replace('/\s+/', ' ', $footerText);
+            $footerText = preg_replace('/\s+/', ' ', $footerText) ?? $footerText;
 
             // US-style: 123 Street Name, City, ST 12345
             if (preg_match('/(\d{1,5}\s+[A-Z][a-zA-Z\s]{3,30},\s*[A-Z][a-zA-Z\s]{2,20},?\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?)/u', $footerText, $addrMatch)) {
@@ -11482,8 +11542,309 @@ class GoogleDorkService
     }
 
     /**
+     * Verify the fetched homepage actually belongs to $expectedName and
+     * extract contact enrichment from it.
+     *
+     * Returns an enrichment array (name, contacts, phone, email, address)
+     * when the page identity matches, or null when it does not.
+     *
+     * @return Enrichment|null
+     */
+    private function processHomepageHtml(string $html, string $expectedName): ?array
+    {
+        // ── Identity verification ────────────────────────────
+        $confirmedName = null;
+
+        // Priority 1: og:site_name
+        if (preg_match('/property=["\']og:site_name["\'][^>]*content=["\']([^"\']+)/i', $html, $m)
+            || preg_match('/content=["\']([^"\']+)["\'][^>]*property=["\']og:site_name/i', $html, $m)) {
+            $siteName = html_entity_decode(trim($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            // Strip TLD suffixes early (og:site_name sometimes returns "Phinia.com")
+            $siteName = preg_replace('/\.(com|net|org|io|co|biz|info|us|eu|fr|de|be|ma|in|uk)$/i', '', $siteName);
+            $siteName = trim($siteName);
+            if (mb_strlen($siteName) >= 2 && mb_strlen($siteName) <= 60
+                && !$this->isJunkCompanyName($siteName)) {
+                $confirmedName = $siteName;
+            }
+        }
+
+        // Priority 2: <title> tag
+        if ($confirmedName === null && preg_match('/<title[^>]*>([^<]+)<\/title>/i', $html, $m)) {
+            $pageTitle = html_entity_decode(trim($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            if (stripos($pageTitle, $expectedName) !== false) {
+                $confirmedName = $expectedName;
+            } else {
+                $extracted = $this->extractCompanyName($pageTitle, '');
+                if (!$this->isJunkCompanyName($extracted)
+                    && mb_strlen($extracted) >= 2 && mb_strlen($extracted) <= 50) {
+                    $confirmedName = $extracted;
+                }
+            }
+        }
+
+        // Priority 3: application-name meta
+        if ($confirmedName === null && preg_match('/name=["\']application-name["\'][^>]*content=["\']([^"\']+)/i', $html, $m)) {
+            $appName = html_entity_decode(trim($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            if (mb_strlen($appName) >= 2 && mb_strlen($appName) <= 50
+                && !$this->isJunkCompanyName($appName)) {
+                $confirmedName = $appName;
+            }
+        }
+
+        if ($confirmedName === null) {
+            return null; // Can't verify identity
+        }
+
+        // ── Clean confirmed name ─────────────────────────────
+        // Strip TLD suffixes (og:site_name sometimes returns "Phinia.com")
+        $confirmedName = preg_replace('/\.(com|net|org|io|co|biz|info|us|eu)$/i', '', $confirmedName);
+        // Strip trademark symbols
+        $confirmedName = preg_replace('/[®™©]/u', '', $confirmedName);
+        // Strip trailing legal suffixes that crept in
+        $confirmedName = preg_replace('/\s*[-–—,]\s*(Ltd|LLC|Inc|Corp|GmbH|SA|SAS|BV|NV|AG|Plc|Co|Pty|Srl|SpA)\.?\s*$/i', '', $confirmedName);
+        // Strip trailing dash + descriptive phrase
+        $confirmedName = preg_replace('/\s*[-–—]\s*(Electrifying|Driving|Powering|Leading|Global|The).*$/i', '', $confirmedName);
+        $confirmedName = preg_replace('/\s*[-–—]\s*$/', '', $confirmedName);
+        $confirmedName = trim($confirmedName);
+
+        if (mb_strlen($confirmedName) < 2 || $this->isJunkCompanyName($confirmedName)) {
+            return null;
+        }
+
+        // ── Enrichment extraction ────────────────────────────
+        $enrichment = ['name' => $confirmedName];
+
+        // Extract og:description for company description
+        if (preg_match('/property=["\']og:description["\'][^>]*content=["\']([^"\']+)/i', $html, $m)
+            || preg_match('/content=["\']([^"\']+)["\'][^>]*property=["\']og:description/i', $html, $m)
+            || preg_match('/name=["\']description["\'][^>]*content=["\']([^"\']+)/i', $html, $m)) {
+            $desc = html_entity_decode(trim($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            // Fix encoding issues
+            $desc = str_replace('�', "'", $desc);
+            $desc = preg_replace('/\x{FFFD}/u', '', $desc);
+            // Remove raw URLs from descriptions
+            $desc = preg_replace('|https?://\S+|', '', $desc);
+            $desc = trim($desc, " .\t\n\r");
+            // Only keep non-boilerplate descriptions
+            if (mb_strlen($desc) >= 30 && mb_strlen($desc) <= 500
+                && !preg_match('/cookie|privacy|javascript|browser|enabled/i', $desc)) {
+                $enrichment['description'] = $desc;
+            }
+        }
+
+        // Extract contact info from HTML
+        $contactInfo = $this->extractContactInfoFromHtml($html);
+        if (!empty($contactInfo['phone'])) {
+            $enrichment['phone'] = $contactInfo['phone'];
+        }
+        if (!empty($contactInfo['address'])) {
+            $enrichment['address'] = $contactInfo['address'];
+        }
+        if (!empty($contactInfo['email'])) {
+            $enrichment['email'] = $contactInfo['email'];
+        }
+        if (!empty($contactInfo['contacts'])) {
+            $enrichment['contacts'] = $contactInfo['contacts'];
+        }
+
+        // Also try team page extraction patterns on homepage
+        // (some sites embed leadership info directly on homepage)
+        $teamContacts = $this->extractTeamPageContacts($html);
+        if (!empty($teamContacts)) {
+            $enrichment['contacts'] = array_merge(
+                    $enrichment['contacts'] ?? [],
+                    $teamContacts
+            );
+        }
+
+        // Extract LinkedIn URL from page links
+        if (preg_match('/href=["\']?(https?:\/\/(?:www\.)?linkedin\.com\/company\/[a-zA-Z0-9_-]+)\/?["\'\s>]/i', $html, $liMatch)) {
+            $enrichment['linkedin_url'] = rtrim($liMatch[1], '/');
+        }
+
+        return $enrichment;
+    }
+
+    /**
+     * Dynamically discover internal contact-ish links (contact / about / team /
+     * impressum) from the homepage HTML, follow a small budget of them and
+     * merge the contact enrichment found there.
+     *
+     * @return Enrichment|null
+     */
+    private function discoverAndScrapeContactLinks(string $html, string $website, string $companyName): ?array
+    {
+        if (empty($website) || empty($html)) {
+            return null;
+        }
+
+        $base = rtrim($website, '/');
+        $parsedBase = parse_url($base);
+        $baseHost = $parsedBase['host'] ?? '';
+
+        // Patterns that indicate a link leads to a page with people/contacts
+        $linkPatterns = [
+            // English
+            'about[\-_/]?us', 'who[\-_/]we[\-_/]are', 'our[\-_/]team',
+            'our[\-_/]people', 'management', 'leadership', 'executive',
+            'board[\-_/](?:of[\-_/])?directors?', 'governance',
+            'company[\-_/]profile', 'our[\-_/]company', 'our[\-_/]management',
+            'meet[\-_/]the[\-_/]team', 'our[\-_/]leadership',
+            'chairman', 'ceo[\-_/]message', 'president[\-_/]message',
+            'founder', 'management[\-_/]team',
+            // French (common in MA/TN)
+            'a[\-_/]propos', 'qui[\-_/]sommes', 'notre[\-_/]equipe',
+            'equipe[\-_/]dirigeante', 'mot[\-_/]du[\-_/]president',
+            'mot[\-_/]du[\-_/]directeur', 'direction[\-_/]generale',
+            'directoire', 'conseil[\-_/]administration', 'gouvernance',
+            'notre[\-_/]societe', 'notre[\-_/]entreprise',
+            // Arabic-ish transliterated patterns
+            'manajem', 'idara',
+        ];
+        $linkRegex = '#(' . implode('|', $linkPatterns) . ')#i';
+
+        // Find all <a> tags with href containing relevant keywords
+        $discoveredUrls = [];
+        if (preg_match_all('/<a[^>]+href=["\']([^"\']{5,200})["\'][^>]*>/i', $html, $matches)) {
+            foreach ($matches[1] as $href) {
+                // Check if the href or its visible text matches our patterns
+                if (!preg_match($linkRegex, $href)) {
+                    continue;
+                }
+
+                // Resolve relative URLs
+                if (str_starts_with($href, 'http://') || str_starts_with($href, 'https://')) {
+                    $url = $href;
+                    // Must be same domain
+                    $parsedHref = parse_url($url);
+                    if (($parsedHref['host'] ?? '') !== $baseHost) {
+                        continue;
+                    }
+                } elseif (str_starts_with($href, '/')) {
+                    $scheme = $parsedBase['scheme'] ?? 'https';
+                    $url = $scheme . '://' . $baseHost . $href;
+                } else {
+                    $url = $base . '/' . $href;
+                }
+
+                // Avoid duplicates and non-HTML resources
+                if (preg_match('/\.(pdf|jpg|jpeg|png|gif|svg|css|js|zip|doc)$/i', $url)) {
+                    continue;
+                }
+
+                $discoveredUrls[$url] = true;
+            }
+        }
+
+        // Also check anchor text for pattern matches even if href is opaque
+        if (preg_match_all('/<a[^>]+href=["\']([^"\']{5,200})["\'][^>]*>([\s\S]{1,200}?)<\/a>/i', $html, $matches, PREG_SET_ORDER)) {
+            $anchorKeywords = '/\b(about\s+us|who\s+we\s+are|our\s+team|management|leadership|board|governance|chairman|directoire|notre\s+(?:é|e)quipe|mot\s+du\s+pr(?:é|e)sident|direction|à\s+propos|company\s+profile)\b/iu';
+            foreach ($matches as $match) {
+                $href = $match[1];
+                $anchorText = strip_tags($match[2]);
+                if (!preg_match($anchorKeywords, $anchorText)) {
+                    continue;
+                }
+                // Resolve URL
+                if (str_starts_with($href, 'http://') || str_starts_with($href, 'https://')) {
+                    $url = $href;
+                    $parsedHref = parse_url($url);
+                    if (($parsedHref['host'] ?? '') !== $baseHost) continue;
+                } elseif (str_starts_with($href, '/')) {
+                    $scheme = $parsedBase['scheme'] ?? 'https';
+                    $url = $scheme . '://' . $baseHost . $href;
+                } elseif (str_starts_with($href, '#') || str_starts_with($href, 'mailto:') || str_starts_with($href, 'tel:')) {
+                    continue;
+                } else {
+                    $url = $base . '/' . $href;
+                }
+                if (preg_match('/\.(pdf|jpg|jpeg|png|gif|svg|css|js|zip|doc)$/i', $url)) continue;
+                $discoveredUrls[$url] = true;
+            }
+        }
+
+        if (empty($discoveredUrls)) {
+            return null;
+        }
+
+        // Limit to 8 URLs to avoid excessive requests
+        $urls = array_slice(array_keys($discoveredUrls), 0, 8);
+
+        $this->logger->debug('Dynamic link discovery found contact pages', [
+            'company' => $companyName,
+            'urls' => $urls,
+        ]);
+
+        // Fire concurrent requests
+        $responses = [];
+        foreach ($urls as $url) {
+            try {
+                $responses[$url] = $this->httpClient->request('GET', $url, [
+                    'timeout' => 5,
+                    'max_redirects' => 2,
+                    'headers' => [
+                        'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept' => 'text/html,application/xhtml+xml',
+                        'Accept-Language' => 'en-US,en;q=0.9',
+                    ],
+                ]);
+            } catch (\Exception $e) {
+                // skip
+            }
+        }
+        $enrichment = ['contacts' => []];
+        foreach ($responses as $url => $response) {
+            try {
+                if ($response->getStatusCode() >= 400) continue;
+                $subHtml = $this->smartTruncateHtml($response->getContent(false), 200000);
+                if (empty($subHtml)) continue;
+
+                // Extract contacts
+                $contactInfo = $this->extractContactInfoFromHtml($subHtml);
+                if (!empty($contactInfo['contacts'])) {
+                    $enrichment['contacts'] = array_merge($enrichment['contacts'], $contactInfo['contacts']);
+                }
+                if (empty($enrichment['phone']) && !empty($contactInfo['phone'])) {
+                    $enrichment['phone'] = $contactInfo['phone'];
+                }
+                if (empty($enrichment['email']) && !empty($contactInfo['email'])) {
+                    $enrichment['email'] = $contactInfo['email'];
+                }
+                if (empty($enrichment['address']) && !empty($contactInfo['address'])) {
+                    $enrichment['address'] = $contactInfo['address'];
+                }
+
+                // Also try team page extraction
+                $teamContacts = $this->extractTeamPageContacts($subHtml);
+                if (!empty($teamContacts)) {
+                    $enrichment['contacts'] = array_merge($enrichment['contacts'], $teamContacts);
+                }
+            } catch (\Exception $e) {
+                // skip
+            }
+        }
+
+        // Deduplicate
+        if (!empty($enrichment['contacts'])) {
+            $seen = [];
+            $unique = [];
+            foreach ($enrichment['contacts'] as $c) {
+                $key = strtolower(($c['first_name'] ?? '') . '|' . ($c['last_name'] ?? ''));
+                if ($key === '|' || isset($seen[$key])) continue;
+                $seen[$key] = true;
+                $unique[] = $c;
+            }
+            $enrichment['contacts'] = array_slice($unique, 0, 5);
+        }
+
+        return empty($enrichment['contacts']) && empty($enrichment['phone'] ?? null) ? null : $enrichment;
+    }
+
+    /**
      * Extract a person record from Schema.org Person entity.
-      * @param array<string|int, mixed> $entity
+     *
+     * @param array<int|string, mixed> $entity
+     * @return ContactInfo|null
      */
     private function extractPersonFromSchemaOrg(array $entity): ?array
     {
@@ -11495,37 +11856,41 @@ class GoogleDorkService
         $person = [];
 
         // Name
-        $name = $entity['name'] ?? '';
-        if (!empty($name)) {
+        $name = $this->jsonLdStringValue($entity['name'] ?? null);
+        if ($name !== null && $name !== '') {
             $parts = $this->splitPersonName($name);
             if ($parts) {
                 $person = $parts;
             }
         } else {
             // Try givenName/familyName
-            if (!empty($entity['givenName'])) {
-                $person['first_name'] = trim($entity['givenName']);
+            $givenName = $this->jsonLdStringValue($entity['givenName'] ?? null);
+            if ($givenName !== null && $givenName !== '') {
+                $person['first_name'] = trim($givenName);
             }
-            if (!empty($entity['familyName'])) {
-                $person['last_name'] = trim($entity['familyName']);
+            $familyName = $this->jsonLdStringValue($entity['familyName'] ?? null);
+            if ($familyName !== null && $familyName !== '') {
+                $person['last_name'] = trim($familyName);
             }
         }
 
         // Job title
-        if (!empty($entity['jobTitle'])) {
-            $person['job_title'] = trim(is_array($entity['jobTitle']) ? $entity['jobTitle'][0] : $entity['jobTitle']);
+        $jobTitle = $this->jsonLdStringValue($entity['jobTitle'] ?? null);
+        if ($jobTitle !== null && $jobTitle !== '') {
+            $person['job_title'] = trim($jobTitle);
         }
         // Email
-        if (!empty($entity['email'])) {
-            $email = str_replace('mailto:', '', is_array($entity['email']) ? $entity['email'][0] : $entity['email']);
+        $emailRaw = $this->jsonLdStringValue($entity['email'] ?? null);
+        if ($emailRaw !== null && $emailRaw !== '') {
+            $email = str_replace('mailto:', '', $emailRaw);
             if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $person['email'] = $email;
             }
         }
         // Phone
-        if (!empty($entity['telephone'])) {
-            $phone = is_array($entity['telephone']) ? $entity['telephone'][0] : $entity['telephone'];
-            $person['phone'] = $this->cleanPhoneNumber($phone);
+        $phoneRaw = $this->jsonLdStringValue($entity['telephone'] ?? null);
+        if ($phoneRaw !== null && $phoneRaw !== '') {
+            $person['phone'] = $this->cleanPhoneNumber($phoneRaw);
         }
         // LinkedIn
         if (!empty($entity['sameAs'])) {
@@ -11584,7 +11949,7 @@ class GoogleDorkService
                 return $result;
             },
             $text
-        );
+        ) ?? $text;
 
         // Handle "MR.NAME" or "MRS.NAME" (no space after period) → "Mr. Name"
         $text = preg_replace_callback(
@@ -11595,11 +11960,14 @@ class GoogleDorkService
                 return $prefix . '. ' . $name;
             },
             $text
-        );
+        ) ?? $text;
 
         return $text;
     }
 
+    /**
+     * @return array{first_name: string, last_name: string, middle_name?: string}|null
+     */
     private function splitPersonName(string $fullName): ?array
     {
         $name = trim($fullName);
@@ -11614,7 +11982,7 @@ class GoogleDorkService
         if (mb_strlen($name) < 4) return null;
         if (mb_strlen($name) > 50) return null; // Too long for a person name
 
-        $parts = preg_split('/\s+/', $name);
+        $parts = preg_split('/\s+/', $name) ?: [];
         if (count($parts) < 2) return null;
         if (count($parts) > 5) return null; // Too many words for a person name
 
@@ -12207,39 +12575,41 @@ class GoogleDorkService
      */
     /**
      * Clean HTML entities and whitespace artifacts from contact fields.
-      * @param array<string|int, mixed> $contact
+     *
+     * @param ContactInfo $contact
+     * @return ContactInfo
      */
     private function cleanContactFields(array $contact): array
     {
         foreach (['first_name', 'last_name', 'job_title'] as $field) {
-            if (!empty($contact[$field])) {
+            if (is_string($contact[$field] ?? null) && $contact[$field] !== '') {
                 $v = $contact[$field];
                 $v = html_entity_decode($v, ENT_QUOTES | ENT_HTML5, 'UTF-8');
                 $v = str_replace(["\xC2\xA0", "\u{00A0}"], ' ', $v);   // &nbsp; as UTF-8
-                $v = preg_replace('/&#\d+;/', '', $v);                  // numeric entities like &#8211;
+                $v = preg_replace('/&#\d+;/', '', $v) ?? $v;             // numeric entities like &#8211;
                 $v = strip_tags($v);
                 // Remove © ® ™ symbols
                 $v = str_replace(['©', '®', '™'], '', $v);
                 // For name fields: strip non-Latin characters (Korean 님, Chinese, Japanese, etc.)
                 if ($field !== 'job_title') {
-                    $v = preg_replace('/[^\p{Latin}\s\-\'.]/u', '', $v);
+                    $v = preg_replace('/[^\p{Latin}\s\-\'.]/u', '', $v) ?? $v;
                 }
-                $v = preg_replace('/\s+/', ' ', trim($v));
+                $v = preg_replace('/\s+/', ' ', trim($v)) ?? trim($v);
                 $contact[$field] = $v;
             }
         }
 
         // Strip degree suffixes from last name ("Oglesbee, MS" → "Oglesbee")
-        if (!empty($contact['last_name'])) {
+        if (is_string($contact['last_name'] ?? null) && $contact['last_name'] !== '') {
             // Strip comma + any all-caps certification/degree suffix
-            $contact['last_name'] = preg_replace('/,\s*[A-Z][A-Z®\.]{1,20}$/', '', $contact['last_name']);
+            $contact['last_name'] = preg_replace('/,\s*[A-Z][A-Z®\.]{1,20}$/', '', $contact['last_name']) ?? $contact['last_name'];
             $contact['last_name'] = trim($contact['last_name']);
         }
 
         // iter16: Strip company name acronyms stuck to last name ("Boutwell BTS" → "Boutwell")
         // Pattern: name followed by space + 2-5 uppercase letters (company acronym)
-        if (!empty($contact['last_name'])) {
-            $contact['last_name'] = preg_replace('/\s+[A-Z]{2,5}$/', '', $contact['last_name']);
+        if (is_string($contact['last_name'] ?? null) && $contact['last_name'] !== '') {
+            $contact['last_name'] = preg_replace('/\s+[A-Z]{2,5}$/', '', $contact['last_name']) ?? $contact['last_name'];
             $contact['last_name'] = trim($contact['last_name']);
         }
 
@@ -12247,7 +12617,7 @@ class GoogleDorkService
         // e.g. "Quartaro Geschäftsführer" → "Quartaro"
         $titleSuffixes = ['Geschäftsführer', 'Geschäftsführerin', 'Vorstandsvorsitzender', 'Vorstand', 'Inhaber', 'Inhaberin', 'Prokurist', 'Betriebsleiter'];
         foreach (['first_name', 'last_name'] as $field) {
-            if (!empty($contact[$field])) {
+            if (is_string($contact[$field] ?? null) && $contact[$field] !== '') {
                 foreach ($titleSuffixes as $suffix) {
                     if (str_contains($contact[$field], $suffix)) {
                         $contact[$field] = trim(str_ireplace($suffix, '', $contact[$field]));
@@ -12306,6 +12676,9 @@ class GoogleDorkService
         return $contact;
     }
 
+    /**
+     * @param ContactInfo $contact
+     */
     private function isValidPersonContact(array $contact): bool
     {
         $firstName = $contact['first_name'] ?? '';
@@ -12816,7 +13189,7 @@ class GoogleDorkService
             return false;
         }
         // Also check individual words within multi-word names (e.g. "Brandon Managing")
-        $nameWords = preg_split('/\s+/', $fullLower);
+        $nameWords = preg_split('/\s+/', $fullLower) ?: [];
         foreach ($nameWords as $nw) {
             if (in_array($nw, $nonPersonWords, true)) {
                 return false;
@@ -12891,6 +13264,9 @@ class GoogleDorkService
      * - Email mailto links with nearby person names
      * - LinkedIn slug → name derivation (john-smith → John Smith)
      */
+    /**
+     * @return list<ContactInfo>
+     */
     private function extractNamedContactsFromHtml(string $html): array
     {
         // ── CRITICAL: Strip cookie banners BEFORE contact extraction ──
@@ -12909,6 +13285,7 @@ class GoogleDorkService
         // ── vCard / hCard microformat ────────────────────────────
         if (preg_match_all('/<[^>]*class="[^"]*\bvcard\b[^"]*"[^>]*>([\s\S]{1,2000}?)<\/\w+>/i', $html, $vcardMatches)) {
             foreach ($vcardMatches[1] as $vcardHtml) {
+                /** @var ContactInfo $person */
                 $person = [];
                 if (preg_match('/class="[^"]*\bfn\b[^"]*"[^>]*>([^<]+)/i', $vcardHtml, $fnMatch)) {
                     $parts = $this->splitPersonName(html_entity_decode(trim($fnMatch[1])));
@@ -12982,7 +13359,7 @@ class GoogleDorkService
         // Look in the full page for "Name, Title" where Title is a decision-maker role
         $textContent = $this->normalizeAllCapsNames(strip_tags($html));
         // Fix strip_tags concatenation: "SayadChairman" → "Sayad Chairman"
-        $textContent = preg_replace('/([a-zà-ÿ])(Chairman|President|CEO|CTO|CFO|COO|Director|Founder|Manager|Directeur|Président|Gérant)/u', '$1 $2', $textContent);
+        $textContent = preg_replace('/([a-zà-ÿ])(Chairman|President|CEO|CTO|CFO|COO|Director|Founder|Manager|Directeur|Président|Gérant)/u', '$1 $2', $textContent) ?? $textContent;
         if (preg_match_all('/([A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)\s*[-–—,|:\s]\s*((?:CEO|CTO|CFO|COO|VP|President|Director|Managing Director|Founder|Co-?Founder|General Manager|Owner|Chairman|Purchasing Manager|Procurement|Sales Manager|Business Development|Directeur|Gérant|Président|Président\s+du\s+Directoire|PDG|DG|Geschäftsführer|مدير)[^,.;\n]{0,60})/iu', $textContent, $nameRoleMatches, PREG_SET_ORDER)) {
             foreach ($nameRoleMatches as $nrm) {
                 $parts = $this->splitPersonName(trim($nrm[1]));
@@ -13065,12 +13442,15 @@ class GoogleDorkService
      * "john-smith-12345" → ['first_name' => 'John', 'last_name' => 'Smith']
      * "jean-marie-dupont" → ['first_name' => 'Jean-Marie', 'last_name' => 'Dupont']
      */
+    /**
+     * @return array{first_name: string, last_name: string}|null
+     */
     private function extractNameFromLinkedInSlug(string $slug): ?array
     {
         // Remove trailing numeric ID (john-smith-12345ab → john-smith)
-        $slug = preg_replace('/-[0-9a-f]{5,}$/i', '', $slug);
+        $slug = preg_replace('/-[0-9a-f]{5,}$/i', '', $slug) ?? $slug;
         // Remove trailing digits (john-smith-123 → john-smith)
-        $slug = preg_replace('/-\d+$/', '', $slug);
+        $slug = preg_replace('/-\d+$/', '', $slug) ?? $slug;
 
         $parts = explode('-', $slug);
         if (count($parts) < 2) return null;
@@ -13129,7 +13509,8 @@ class GoogleDorkService
         $sitemapPaths = [];
         if ($this->sitemapDiscovery !== null) {
             try {
-                $domain = parse_url($base, PHP_URL_HOST) ?? '';
+                $host = parse_url($base, PHP_URL_HOST);
+                $domain = is_string($host) ? $host : '';
                 $sitemapPages = $this->sitemapDiscovery->discoverPages($domain);
                 foreach ($sitemapPages as $page) {
                     $path = parse_url($page['url'], PHP_URL_PATH);
@@ -13220,10 +13601,12 @@ class GoogleDorkService
             $subpages = array_values(array_unique(array_merge($sitemapPaths, $subpages)));
         }
 
+        /** @var Enrichment $enrichment */
         $enrichment = ['contacts' => []];
 
         // ── Polite crawl governor ──
-        $crawlDomain = parse_url($base, PHP_URL_HOST) ?? '';
+        $crawlHost = parse_url($base, PHP_URL_HOST);
+        $crawlDomain = is_string($crawlHost) ? $crawlHost : '';
 
         // Fire concurrent requests for all subpages
         // Prioritize /en/ paths for multilingual EU sites
@@ -13295,7 +13678,7 @@ class GoogleDorkService
                 // Merge contacts
                 if (!empty($contactInfo['contacts'])) {
                     $enrichment['contacts'] = array_merge(
-                        $enrichment['contacts'],
+                        $enrichment['contacts'] ?? [],
                         $contactInfo['contacts']
                     );
                 }
@@ -13311,7 +13694,7 @@ class GoogleDorkService
                 $teamContacts = $this->extractTeamPageContacts($html);
                 if (!empty($teamContacts)) {
                     $enrichment['contacts'] = array_merge(
-                        $enrichment['contacts'],
+                        $enrichment['contacts'] ?? [],
                         $teamContacts
                     );
                 }
@@ -13364,6 +13747,9 @@ class GoogleDorkService
      * - data-name attributes
      * - Schema.org Person microdata
      * - WordPress/CMS team plugin markup
+     */
+    /**
+     * @return list<ContactInfo>
      */
     private function extractTeamPageContacts(string $html): array
     {
@@ -13462,6 +13848,7 @@ class GoogleDorkService
         // <div itemtype="https://schema.org/Person"><span itemprop="name">...</span>
         if (preg_match_all('/<[^>]*itemtype=["\']https?:\/\/schema\.org\/Person["\'][^>]*>([\s\S]{10,2000}?)<\/(?:div|span|li|article)>/i', $html, $sdMatches)) {
             foreach ($sdMatches[1] as $sdHtml) {
+                /** @var ContactInfo $person */
                 $person = [];
                 if (preg_match('/itemprop=["\']name["\'][^>]*>([^<]+)/i', $sdHtml, $nm)) {
                     $parts = $this->splitPersonName(html_entity_decode(trim($nm[1])));
@@ -13542,7 +13929,7 @@ class GoogleDorkService
         // Common on minimalist about pages: "Founded by John Smith, CEO."
         $textContent = $this->normalizeAllCapsNames(strip_tags($html));
         // Fix strip_tags concatenation: "SayadChairman" → "Sayad Chairman"
-        $textContent = preg_replace('/([a-zà-ÿ])(Chairman|President|CEO|CTO|CFO|COO|Director|Founder|Manager|Directeur|Président|Gérant)/u', '$1 $2', $textContent);
+        $textContent = preg_replace('/([a-zà-ÿ])(Chairman|President|CEO|CTO|CFO|COO|Director|Founder|Manager|Directeur|Président|Gérant)/u', '$1 $2', $textContent) ?? $textContent;
         if (preg_match_all('/(?:^|\.\s+|;\s+)([A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)\s*,\s*((?:CEO|CTO|CFO|COO|VP|President|Director|Managing Director|Founder|Co-?Founder|General Manager|Owner|Chairman|Geschäftsführer|Directeur|Gérant|Responsable|Président|Président\s+du\s+Directoire|PDG|DG|مدير)[^,.;]{0,50})/iu', $textContent, $plainMatches, PREG_SET_ORDER)) {
             foreach ($plainMatches as $pm) {
                 $parts = $this->splitPersonName(trim($pm[1]));
@@ -13622,6 +14009,9 @@ class GoogleDorkService
      *   <span class="name">Name</span><span class="role">Title</span>
      *   <strong>Name</strong> - Title
      */
+    /**
+     * @return ContactInfo|null
+     */
     private function extractPersonFromCardHtml(string $cardHtml, string $titlePattern): ?array
     {
         // Normalize ALL-CAPS text within card (small fragment, safe to process)
@@ -13700,7 +14090,7 @@ class GoogleDorkService
             return false; // No email — don't reject the contact entirely
         }
 
-        $emailDomain = strtolower(explode('@', $email)[1] ?? '');
+        $emailDomain = strtolower(explode('@', $email)[1]);
         if (empty($emailDomain)) {
             return false;
         }
@@ -13715,7 +14105,7 @@ class GoogleDorkService
         }
 
         // ── 2. Domain mismatch: email from completely different org ──
-        if ($companyDomain && $emailDomain) {
+        if ($companyDomain) {
             $companyRoot = implode('.', array_slice(explode('.', $companyDomain), -2));
             $emailRoot = implode('.', array_slice(explode('.', $emailDomain), -2));
             if ($companyRoot !== $emailRoot) {
@@ -13750,7 +14140,7 @@ class GoogleDorkService
         if (!$host) {
             return null;
         }
-        return strtolower(preg_replace('/^www\./', '', $host));
+        return strtolower(preg_replace('/^www\./', '', $host) ?? $host);
     }
 
     /**
@@ -13777,7 +14167,7 @@ class GoogleDorkService
             $emails[] = $data['email'];
         }
         // Include ALL emails found during HTML extraction (mailto: links)
-        if (!empty($data['all_emails']) && is_array($data['all_emails'])) {
+        if (!empty($data['all_emails'])) {
             $emails = array_merge($emails, $data['all_emails']);
         }
         // Also try to find emails in the snippet/description
@@ -13810,8 +14200,8 @@ class GoogleDorkService
         ];
 
         foreach ($emails as $email) {
-            $local = strtolower(explode('@', $email)[0] ?? '');
-            $emailDomain = strtolower(explode('@', $email)[1] ?? '');
+            $local = strtolower(explode('@', $email)[0]);
+            $emailDomain = strtolower(explode('@', $email)[1]);
 
             // ── Reject emails from known non-company / mismatched domains ──
             if ($this->isRejectContactEmail($email, $companyDomain)) {
@@ -13884,9 +14274,11 @@ class GoogleDorkService
     /**
      * @deprecated No longer used — we require REAL person contacts only.
      * Kept as stub to prevent method-not-found errors.
-      * @param array<string|int, mixed> $data
+     *
+     * @param CompanyCandidate $data
+     * @return array<string, mixed>|null
      */
-    private function createFallbackContact(array $data): ?array
+    public function createFallbackContact(array $data): ?array
     {
         return null; // Never create fake "General Contact" entries
     }
@@ -13916,7 +14308,7 @@ class GoogleDorkService
         }
 
         // Clean company name: strip common suffixes for better matching
-        $searchName = preg_replace('/\s*(GmbH|LLC|Inc\.?|Ltd\.?|Corp\.?|S\.?A\.?|S\.?A\.?R\.?L\.?|AG|SE|SAS|SARL|Co\.?|Pty|PLC)\s*$/i', '', $companyName);
+        $searchName = preg_replace('/\s*(GmbH|LLC|Inc\.?|Ltd\.?|Corp\.?|S\.?A\.?|S\.?A\.?R\.?L\.?|AG|SE|SAS|SARL|Co\.?|Pty|PLC)\s*$/i', '', $companyName) ?? $companyName;
         $searchName = trim($searchName, " \t\n\r\0\x0B,.-;");
         if (mb_strlen($searchName) < 2) {
             $searchName = $companyName;
@@ -13947,7 +14339,7 @@ class GoogleDorkService
         // Strategy D: If the name has multiple words, try just the first
         // distinctive word (helps with companies like "Gulf Instruments",
         // "Battfix", etc. where the full name returns no results)
-        $firstWord = preg_split('/\s+/', $searchName)[0] ?? '';
+        $firstWord = (preg_split('/\s+/', $searchName) ?: [''])[0];
         if (mb_strlen($firstWord) >= 5 && mb_strtolower($firstWord) !== mb_strtolower($searchName)) {
             $queries[] = sprintf(
                 'site:linkedin.com/in/ "%s" Director OR Manager OR Engineer',
@@ -13978,11 +14370,11 @@ class GoogleDorkService
                 // Most scraped engines can't handle LinkedIn site-restricted
                 // searches, so burning 28 engines is futile.
                 $results = $this->executeLinkedInSearch($query, 10);
-                $items = $results['results'] ?? [];
+                $items = $results['results'];
 
                 foreach ($items as $item) {
                     $title = $item['title'] ?? '';
-                    $link = $item['link'] ?? ($item['url'] ?? '');
+                    $link = $item['link'] ?? '';
                     $snippet = $item['snippet'] ?? '';
 
                     // Must be a LinkedIn /in/ profile URL
@@ -14009,6 +14401,7 @@ class GoogleDorkService
 
                     // ── Try parsing the title format ─────────────
                     // Use new LinkedInProfileParser first (Improvement 5A)
+                    /** @var ContactInfo|null $contact */
                     $contact = $this->linkedIn()->parseProfile($link, $title, $snippet);
 
                     // Fallback to legacy parser if new one returns null
@@ -14097,7 +14490,7 @@ class GoogleDorkService
                                 $origLower = strtolower($companyName);
                                 // If the mentioned company doesn't match well enough
                                 // to the target company, it's probably wrong
-                                $targetWords = preg_split('/[\s\-&,;.]+/', $targetLower);
+                                $targetWords = preg_split('/[\s\-&,;.]+/', $targetLower) ?: [];
                                 $targetWords = array_filter($targetWords, fn($w) => mb_strlen($w) >= 4);
                                 $targetWords = array_values($targetWords);
                                 $matchCount = 0;
@@ -14129,7 +14522,7 @@ class GoogleDorkService
                         // an actual job title, and doesn't match target
                         if (!$isWrongCompany && !empty($jobT)) {
                             if (preg_match('/\b(llc|inc|corp|ltd|gmbh|s\.a\.|sarl|sas)\b/i', $jobT)) {
-                                $targetWords = preg_split('/[\s\-&]+/', strtolower($searchName));
+                                $targetWords = preg_split('/[\s\-&]+/', strtolower($searchName)) ?: [];
                                 $targetWords = array_filter($targetWords, fn($w) => mb_strlen($w) >= 4);
                                 $targetWords = array_values($targetWords);
                                 $matchCount = 0;
@@ -14174,12 +14567,12 @@ class GoogleDorkService
             foreach ($webQueries as $wq) {
                 try {
                     $webResults = $this->executeProviderSearch($wq, 5);
-                    $webItems = $webResults['results'] ?? [];
+                    $webItems = $webResults['results'];
 
                     foreach ($webItems as $wi) {
                         $wTitle = $wi['title'] ?? '';
                         $wSnippet = $wi['snippet'] ?? '';
-                        $wLink = $wi['link'] ?? ($wi['url'] ?? '');
+                        $wLink = $wi['link'] ?? '';
 
                         // Skip LinkedIn URLs (already tried), social media, Wikipedia
                         if (preg_match('/linkedin\.com|facebook\.com|twitter\.com|wikipedia\.org|youtube\.com/i', $wLink)) {
@@ -14191,7 +14584,7 @@ class GoogleDorkService
                         // Verify the result mentions the target company
                         if (mb_stripos($combined, $searchName) === false && mb_stripos($combined, $companyName) === false) {
                             // Token-based fallback check
-                            $nameWords = preg_split('/[\s\-&,;.]+/', mb_strtolower($searchName));
+                            $nameWords = preg_split('/[\s\-&,;.]+/', mb_strtolower($searchName)) ?: [];
                             $nameWords = array_filter($nameWords, fn($w) => mb_strlen($w) >= 3);
                             $combinedLower = mb_strtolower($combined);
                             $found = 0;
@@ -14289,7 +14682,7 @@ class GoogleDorkService
         }
 
         // Token-based match: at least 60% of the company name words appear
-        $nameWords = preg_split('/[\s\-&,;.]+/', mb_strtolower($searchName));
+        $nameWords = preg_split('/[\s\-&,;.]+/', mb_strtolower($searchName)) ?: [];
         $nameWords = array_filter($nameWords, fn($w) => mb_strlen($w) >= 3);
         $nameWords = array_values($nameWords);
         if (empty($nameWords)) return false;
@@ -14424,28 +14817,31 @@ class GoogleDorkService
      * Parse a LinkedIn title like "John Smith - Procurement Manager - ACME Corp | LinkedIn"
      * into a contact array.
      */
+    /**
+     * @return ContactInfo|null
+     */
     private function parseLinkedInProfileTitle(string $title, string $link): ?array
     {
         // Strip "| LinkedIn" suffix
-        $titleCleaned = preg_replace('/\s*[|·]\s*LinkedIn$/i', '', $title);
+        $titleCleaned = preg_replace('/\s*[|·]\s*LinkedIn$/i', '', $title) ?? $title;
 
         // Split on dash/en-dash/em-dash
-        $parts = array_map('trim', preg_split('/\s*[-–—]\s*/', $titleCleaned, 4));
+        $parts = array_map('trim', preg_split('/\s*[-–—]\s*/', $titleCleaned, 4) ?: []);
 
         if (count($parts) < 2) {
             return null;
         }
 
         $fullName = $parts[0];
-        $jobTitle = $parts[1] ?? '';
+        $jobTitle = $parts[1];
 
         // Strip certifications/credentials from name portion
         // e.g. "Ramzi Bejaoui, PMP®, PMI-RMP®" → "Ramzi Bejaoui"
-        $fullName = preg_replace('/,\s*(PMP|PMI|CPA|CFA|MBA|PhD|PE|MS|MSc|BSc|BS|BA|MA|MEng|BEng|MPhil|CPIM|CSCP|CPSM|PgMP|ACP|CAPM|CSM|ITIL|PRINCE2|CSSBB|CISA|CISSP|CEH|LEED|SHRM|SPHR|PHR|Six Sigma|Scrum|RMP|PSM|PSPO|SAFe|CSP|PSP|ASP|CHMM|CQE|CRE|CMQ|CQA|FACS|FRCS|MRCS|MD|DO|DDS|DMD|RN|BSN|MSN|FNP|CMA|RMA|CPC|COC|RHIT|RHIA|CCTM|CSSO|CSSM|LSSGB|LSSBB|CEM|CEP|CMVP|CBAP|TOGAF|MELSSMBB)[®™]?[\s,]*/i', '', $fullName);
+        $fullName = preg_replace('/,\s*(PMP|PMI|CPA|CFA|MBA|PhD|PE|MS|MSc|BSc|BS|BA|MA|MEng|BEng|MPhil|CPIM|CSCP|CPSM|PgMP|ACP|CAPM|CSM|ITIL|PRINCE2|CSSBB|CISA|CISSP|CEH|LEED|SHRM|SPHR|PHR|Six Sigma|Scrum|RMP|PSM|PSPO|SAFe|CSP|PSP|ASP|CHMM|CQE|CRE|CMQ|CQA|FACS|FRCS|MRCS|MD|DO|DDS|DMD|RN|BSN|MSN|FNP|CMA|RMA|CPC|COC|RHIT|RHIA|CCTM|CSSO|CSSM|LSSGB|LSSBB|CEM|CEP|CMVP|CBAP|TOGAF|MELSSMBB)[®™]?[\s,]*/i', '', $fullName) ?? $fullName;
         // Also strip standalone cert abbreviations at end: "Name CERT"
-        $fullName = preg_replace('/\s+(?:PMP|MBA|PhD|PE|MS|MSc|BSc|CPIM|CSCP|LEED|ITIL|PRINCE2|MELSSMBB)[®™]*$/i', '', $fullName);
+        $fullName = preg_replace('/\s+(?:PMP|MBA|PhD|PE|MS|MSc|BSc|CPIM|CSCP|LEED|ITIL|PRINCE2|MELSSMBB)[®™]*$/i', '', $fullName) ?? $fullName;
         // Catch-all: strip comma + any remaining all-caps suffix (generic credential pattern)
-        $fullName = preg_replace('/,\s*[A-Z][A-Z®™\.]{1,20}$/', '', $fullName);
+        $fullName = preg_replace('/,\s*[A-Z][A-Z®™\.]{1,20}$/', '', $fullName) ?? $fullName;
         $fullName = trim($fullName, " \t,");
 
         // Validate full name
@@ -14483,6 +14879,9 @@ class GoogleDorkService
      * Slug format: linkedin.com/in/john-smith-12345
      * Snippet may contain "John Smith — CEO at ACME Corp"
      */
+    /**
+     * @return ContactInfo|null
+     */
     private function extractContactFromLinkedInUrl(string $url, string $snippet): ?array
     {
         // Extract name from URL slug
@@ -14499,7 +14898,7 @@ class GoogleDorkService
 
         // Validate the derived name
         $validated = $this->splitPersonName(
-            ($nameParts['first_name'] ?? '') . ' ' . ($nameParts['last_name'] ?? '')
+            $nameParts['first_name'] . ' ' . $nameParts['last_name']
         );
         if (!$validated) {
             return null;
@@ -14522,9 +14921,9 @@ class GoogleDorkService
     private function cleanPhoneNumber(string $phone): ?string
     {
         // Remove whitespace, dashes, dots, parens — keep + and digits
-        $cleaned = preg_replace('/[^+\d]/', '', $phone);
+        $cleaned = preg_replace('/[^+\d]/', '', $phone) ?? $phone;
         // Must be at least 7 digits
-        if (strlen(preg_replace('/[^\d]/', '', $cleaned)) < 7) {
+        if (strlen(preg_replace('/[^\d]/', '', $cleaned) ?? $cleaned) < 7) {
             return null;
         }
         // Format: keep the + prefix if present
@@ -14580,6 +14979,9 @@ class GoogleDorkService
     /**
      * Find procurement/purchasing contact emails using Google Dorks
      */
+    /**
+     * @return list<string>
+     */
     public function findContactEmails(string $companyName, ?string $domain = null): array
     {
         $emails = [];
@@ -14619,7 +15021,7 @@ class GoogleDorkService
      * Each entry is a Google site: dork pointing at a real directory
      * that lists OEMs or equipment manufacturers \u2014 NOT news sites.
      */
-    private const REGION_DIRECTORIES = [
+    public const REGION_DIRECTORIES = [
         'MA' => [
             'site:kerix.net',                   // Moroccan industrial directory
             'site:cfcim.org',                    // French-Moroccan chamber of commerce
@@ -15351,7 +15753,7 @@ class GoogleDorkService
         // ── 16. GOVERNMENT INVESTMENT & FDI REFERENCES ─────────────
         // Government FDI reports often list manufacturers in a region
         if ($sector && in_array($region, ['MA', 'EG', 'TN'], true)) {
-            $countryFull = match($region) { 'MA' => 'Morocco', 'EG' => 'Egypt', 'TN' => 'Tunisia', default => '' };
+            $countryFull = match($region) { 'MA' => 'Morocco', 'EG' => 'Egypt', 'TN' => 'Tunisia' };
             $queries[] = "\"{$sector}\" \"invest in {$countryFull}\" OR \"FDI\" {$mfgAlt} list" . $exclude;
             $queries[] = "\"{$sector}\" \"{$countryFull}\" \"new factory\" OR \"new plant\" OR \"expansion\"{$freshness}" . $exclude;
         }
@@ -15413,7 +15815,7 @@ class GoogleDorkService
         // Explicitly exclude non-manufacturer noise (dealer, rental, news)
         // to surface real factories hidden behind generic search results.
         if ($sector && in_array($region, ['MA', 'EG', 'TN'], true)) {
-            $countryFull = match($region) { 'MA' => 'Morocco', 'EG' => 'Egypt', 'TN' => 'Tunisia', default => '' };
+            $countryFull = match($region) { 'MA' => 'Morocco', 'EG' => 'Egypt', 'TN' => 'Tunisia' };
             $pTag = ($region === 'TN') ? '<<P>>' : '';
             $queries[] = "{$pTag}\"{$sector}\" \"{$countryFull}\" \"factory\" OR \"manufacturing plant\" OR \"production line\" -dealer -showroom -news -blog" . $exclude;
             $queries[] = "{$pTag}\"{$sector}\" \"{$countryFull}\" \"our factory\" OR \"our plant\" OR \"our production\"" . $exclude;
@@ -15425,8 +15827,8 @@ class GoogleDorkService
         // molding, stamping, machining) rather than by SECTOR name. These
         // queries surface real factories the sector-centric queries miss.
         if ($sector === 'Automotive' && in_array($region, ['EG', 'MA', 'TN'], true)) {
-            $countryFull = match ($region) { 'MA' => 'Morocco', 'EG' => 'Egypt', 'TN' => 'Tunisia', default => '' };
-            $ccTld = match ($region) { 'MA' => '.ma', 'EG' => '.com.eg', 'TN' => '.tn', default => '' };
+            $countryFull = match ($region) { 'MA' => 'Morocco', 'EG' => 'Egypt', 'TN' => 'Tunisia' };
+            $ccTld = match ($region) { 'MA' => '.ma', 'EG' => '.com.eg', 'TN' => '.tn' };
             $pTag19 = ($region === 'TN') ? '<<P>>' : '';
 
             // Day-rotating groups of process queries (2 per day)
@@ -15622,7 +16024,7 @@ class GoogleDorkService
             }
 
             // ── French business directories ──
-            $directorySector = $sector ?? 'electronics';
+            $directorySector = $sector;
             $queries[] = "site:societe.com \"{$directorySector}\" fabricant OR manufacturer";
             $queries[] = "site:annuaire-entreprises.data.gouv.fr \"{$directorySector}\"";
             $queries[] = "site:usinenouvelle.com \"{$directorySector}\" usine OR fabricant France";
@@ -15817,7 +16219,6 @@ class GoogleDorkService
      */
     private const REGION_TLDS = [
         'MA' => ['.ma', '.com'],
-        'EG' => ['.com.eg', '.eg', '.com'],
         'TN' => ['.tn', '.com.tn', '.com'],
         'US' => ['.com', '.us', '.net'],
         'GB' => ['.co.uk', '.com', '.uk'],
@@ -15846,6 +16247,8 @@ class GoogleDorkService
 
     /**
      * Guess company domain from name, with optional region hint for TLD ordering.
+     *
+     * @return string
      */
     private function guessCompanyDomain(string $companyName, ?string $location = null): ?string
     {
@@ -15856,6 +16259,7 @@ class GoogleDorkService
         $region = $this->detectRegionFromLocation($location);
         $tlds = self::REGION_TLDS[$region] ?? ['.com', '.net', '.io'];
 
+        /** @var array<int, string> $possibleDomains */
         $possibleDomains = [];
         foreach ($tlds as $tld) {
             $possibleDomains[] = $clean . $tld;
@@ -15867,6 +16271,9 @@ class GoogleDorkService
 
     /**
      * Search for company certifications (ISO, IATF, AS9100, etc.)
+     */
+    /**
+     * @return list<string>
      */
     public function findCertifications(string $companyName): array
     {
@@ -15899,7 +16306,7 @@ class GoogleDorkService
      * Delegates to searchCompanies() with the custom query inserted as-is.
      *
      * @param string $query Custom Google search query string
-     * @return array Array of company results
+     * @return list<array<string, mixed>> Array of company results
      */
     public function customSearch(string $query): array
     {
@@ -16034,11 +16441,11 @@ class GoogleDorkService
         $tail2 = implode('.', array_slice($parts, -2));
         $tail3 = implode('.', array_slice($parts, -3));
 
-        if (in_array($tail2, $twoLevelPublicSuffixes, true) && count($parts) >= 3) {
+        if (in_array($tail2, $twoLevelPublicSuffixes, true)) {
             return $tail3;
         }
 
-        if (count($parts) >= 3 && in_array($parts[0], ['en','fr','de','es','it','pt','pl','nl','ar','global','corp','corporate','www2','www3'], true)) {
+        if (in_array($parts[0], ['en','fr','de','es','it','pt','pl','nl','ar','global','corp','corporate','www2','www3'], true)) {
             return implode('.', array_slice($parts, -2));
         }
 
@@ -16054,7 +16461,7 @@ class GoogleDorkService
         // words (e.g. site:kerix.net "automotive" returns 0 results, but
         // site:kerix.net automotive returns real companies). This is harmless
         // for all search engines since "word" ≡ word.
-        $query = preg_replace('/"(\w+)"/u', '$1', $query);
+        $query = preg_replace('/"(\w+)"/u', '$1', $query) ?? $query;
 
         preg_match_all('/-site:[^\s]+/u', $query, $m);
         if (!empty($m[0])) {
@@ -16097,10 +16504,6 @@ class GoogleDorkService
         $scored = [];
 
         foreach ($queries as $raw) {
-            if (!is_string($raw)) {
-                continue;
-            }
-
             $isPriority = str_starts_with($raw, '<<P>>');
             $q = $isPriority ? substr($raw, 5) : $raw;
             $q = trim($q);
@@ -16306,6 +16709,9 @@ class GoogleDorkService
         return $query;
     }
 
+    /**
+     * @return list<string>
+     */
     private function buildAdaptiveDiscoveryQueries(?string $sector, ?string $location, string $region): array
     {
         $queries = [];
@@ -16510,7 +16916,7 @@ class GoogleDorkService
         }
 
         // Collapse multiple whitespace/newlines to single space
-        $address = preg_replace('/\s+/', ' ', $address);
+        $address = preg_replace('/\s+/', ' ', $address) ?? $address;
 
         // Strip leading/trailing punctuation noise
         $address = trim($address, " \t\n\r\0\x0B,.;:-|/\\");
@@ -16521,7 +16927,7 @@ class GoogleDorkService
         }
 
         // Reject if mostly non-printable or control characters
-        $printable = preg_replace('/[^\x20-\x7E\xA0-\xFF]/u', '', $address);
+        $printable = preg_replace('/[^\x20-\x7E\xA0-\xFF]/u', '', $address) ?? $address;
         if (mb_strlen($printable) < mb_strlen($address) * 0.5) {
             return '';
         }

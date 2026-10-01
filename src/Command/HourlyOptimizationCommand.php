@@ -27,6 +27,28 @@ use Psr\Log\LoggerInterface;
  *
  * Cron:
  *   0 * * * * cd /path/to/project && php bin/console app:hourly-optimize --limit=50
+ *
+ * Report shapes below mirror the documented stage returns of
+ * HourlyOptimizationService::runHourlyCycle() (see the @phpstan-type and
+ * per-stage @return annotations there). Keys rendered "optional" are absent
+ * in some cycle modes (safe-mode skips, dry-run variants, early errors).
+ *
+ * @phpstan-type ArmSnapshotShape array{armId: int|null, armName: string|null, alpha: float, beta: float, expectedRate: float, empiricalRate: float, totalTrials: int, totalSuccesses: int, icpCluster: string, quarantined: bool, isControl: bool, recentNegRate: float, daysSinceLastUse: int}
+ * @phpstan-type SnapshotShape array{timestamp: string, armTypes: array<string, list<ArmSnapshotShape>>, globalStats: array{totalArms: int, totalTrials: int, totalSuccesses: int, quarantinedCount: int, globalExpectedRate?: float}}
+ * @phpstan-type ArmEvaluationShape array{armId: int|null, armName: string|null, expectedRate: float, relativePerformance: float, totalTrials: int, recentNegRate: float, verdict: string}
+ * @phpstan-type TypeEvaluationShape array{error?: string, baselineArmId?: int|null, baselineRate?: float, arms?: list<ArmEvaluationShape>}
+ * @phpstan-type GateResultsShape array{passed: int, lintBlocked: int, cadenceBlocked: int, errors: int}
+ * @phpstan-type Stage0Result array{armTypes: array<string, array{controlArmId: int|null, controlArmName: string|null, controlExpectedRate: float|null, totalArms: int}>}
+ * @phpstan-type Stage2Result array{skipped?: string, exploitation?: array<string, list<ArmSnapshotShape>>, exploration?: array<string, list<ArmSnapshotShape>>, explorationFloor?: float, minTrialsForEval?: int}
+ * @phpstan-type Stage3Result array{skipped?: string, dryRun?: bool, wouldComposeUpTo?: int, gateResults?: GateResultsShape, composed?: list<array<string, mixed>>, totalEligible?: int}
+ * @phpstan-type Stage4Result array{skipped?: string, dryRun?: bool, sent?: int, failed?: int, total?: int}
+ * @phpstan-type Stage5Result array<string, TypeEvaluationShape>
+ * @phpstan-type Stage6Result array{instantKills: list<array{armId: int|null, armName: string|null, recentNegRate: float}>, underperformers: list<array{armId: int|null, armName: string|null, relativePerformance: float, armRate: float, baselineRate: float}>, systemNegRate: float, safeModeActive: bool, safeModeTriggerThreshold: float}
+ * @phpstan-type Stage7Result array{pruned: list<ArmEvaluationShape>, promoted: list<ArmEvaluationShape>, pruneCount: int, promoteCount: int}
+ * @phpstan-type Stage8Result array{decayedCount: int, reseededCount: int}
+ * @phpstan-type Stage9Result array{assertions: array<string, bool>, allPassed: bool}
+ * @phpstan-type Stage10Result array{outcome: string, reason: string, promoteCount: int, pruneCount: int, systemNegRate: float}
+ * @phpstan-type CycleReport array{cycleId: string, startedAt: string, dryRun: bool, duration: float, finishedAt: string, error?: string, stages: array{0?: Stage0Result, 1?: SnapshotShape, 2?: Stage2Result, 3?: Stage3Result, 4?: Stage4Result, 5?: Stage5Result, 6?: Stage6Result, '6_precheck'?: Stage6Result, 7?: Stage7Result, 8?: Stage8Result, 9?: Stage9Result, 10?: Stage10Result}}
  */
 #[AsCommand(
     name: 'app:hourly-optimize',
@@ -63,7 +85,9 @@ class HourlyOptimizationCommand extends Command
         }
 
         $dryRun = (bool) $input->getOption('dry-run');
-        $limit = (int) $input->getOption('limit');
+        /** @var string|int|null $limitOption Value comes from CLI (string) or the configure() default (int) */
+        $limitOption = $input->getOption('limit');
+        $limit = (int) $limitOption;
         $reportOnly = (bool) $input->getOption('report');
 
         if ($dryRun || $reportOnly) {
@@ -78,11 +102,13 @@ class HourlyOptimizationCommand extends Command
         }
 
         try {
+            /** @var CycleReport $report Shape documented on HourlyOptimizationService::runHourlyCycle() and its stage methods */
             $report = $this->hourlyOptimizer->runHourlyCycle($dryRun || $reportOnly, $limit);
             $this->renderReport($io, $report);
 
             $hasErrors = false;
-            foreach ($report['stages'] ?? [] as $stageIndex => $stage) {
+            /** @var array<string, mixed> $stage A stage result: an array keyed by string, values mixed */
+            foreach ($report['stages'] as $stage) {
                 if (!empty($stage['error']) || !empty($stage['errors'])) {
                     $hasErrors = true;
                     break;
@@ -101,7 +127,8 @@ class HourlyOptimizationCommand extends Command
 
     /**
      * Render the full cycle report to the console.
-      * @param array<string|int, mixed> $report
+     *
+     * @param CycleReport $report
      */
     private function renderReport(SymfonyStyle $io, array $report): void
     {
@@ -109,7 +136,7 @@ class HourlyOptimizationCommand extends Command
         $io->definitionList(
             ['Cycle ID' => $report['cycleId']],
             ['Started' => $report['startedAt']],
-            ['Duration' => ($report['duration'] ?? 0) . 's'],
+            ['Duration' => $report['duration'] . 's'],
             ['Dry Run' => $report['dryRun'] ? 'Yes' : 'No'],
         );
 
@@ -120,7 +147,7 @@ class HourlyOptimizationCommand extends Command
         // Stage 0 - Baseline
         if (isset($report['stages'][0])) {
             $io->section('Stage 0 - Baseline Arms');
-            foreach ($report['stages'][0]['armTypes'] ?? [] as $type => $info) {
+            foreach ($report['stages'][0]['armTypes'] as $type => $info) {
                 $io->text(sprintf(
                     '  [%s] Control: %s (rate: %.2f%%) | Total arms: %d',
                     $type,
@@ -204,8 +231,8 @@ class HourlyOptimizationCommand extends Command
                 foreach ($typeEval['arms'] ?? [] as $armEval) {
                     $rows[] = [
                         $armEval['armName'],
-                        sprintf('%.2f%%', ($armEval['expectedRate'] ?? 0) * 100),
-                        sprintf('%.2fx', $armEval['relativePerformance'] ?? 0),
+                        sprintf('%.2f%%', $armEval['expectedRate'] * 100),
+                        sprintf('%.2fx', $armEval['relativePerformance']),
                         $armEval['totalTrials'],
                         strtoupper($armEval['verdict']),
                     ];
@@ -223,14 +250,14 @@ class HourlyOptimizationCommand extends Command
             $io->section('Stage 6 - Safety Enforcement');
             $io->text(sprintf(
                 '  System neg rate: %.2f%% | Safe mode: %s',
-                ($s6['systemNegRate'] ?? 0) * 100,
-                ($s6['safeModeActive'] ?? false) ? 'ACTIVE' : 'inactive'
+                $s6['systemNegRate'] * 100,
+                $s6['safeModeActive'] ? 'ACTIVE' : 'inactive'
             ));
 
             if (!empty($s6['instantKills'])) {
                 $io->warning(sprintf('%d arm(s) instant-killed:', count($s6['instantKills'])));
                 foreach ($s6['instantKills'] as $kill) {
-                    $io->text(sprintf('    - %s (neg rate: %.1f%%)', $kill['armName'], ($kill['recentNegRate'] ?? 0) * 100));
+                    $io->text(sprintf('    - %s (neg rate: %.1f%%)', $kill['armName'], $kill['recentNegRate'] * 100));
                 }
             }
             if (!empty($s6['underperformers'])) {
@@ -242,13 +269,13 @@ class HourlyOptimizationCommand extends Command
         if (isset($report['stages'][7])) {
             $s7 = $report['stages'][7];
             $io->section('Stage 7 - Pruning & Promotion');
-            $io->text(sprintf('  Pruned: %d | Promoted: %d', $s7['pruneCount'] ?? 0, $s7['promoteCount'] ?? 0));
+            $io->text(sprintf('  Pruned: %d | Promoted: %d', $s7['pruneCount'], $s7['promoteCount']));
 
-            foreach ($s7['promoted'] ?? [] as $p) {
-                $io->text(sprintf('    + PROMOTED: %s (%.2fx baseline)', $p['armName'], $p['relativePerformance'] ?? 0));
+            foreach ($s7['promoted'] as $p) {
+                $io->text(sprintf('    + PROMOTED: %s (%.2fx baseline)', $p['armName'], $p['relativePerformance']));
             }
-            foreach ($s7['pruned'] ?? [] as $p) {
-                $io->text(sprintf('    - PRUNED:   %s (%.2fx baseline)', $p['armName'], $p['relativePerformance'] ?? 0));
+            foreach ($s7['pruned'] as $p) {
+                $io->text(sprintf('    - PRUNED:   %s (%.2fx baseline)', $p['armName'], $p['relativePerformance']));
             }
         }
 
@@ -256,19 +283,19 @@ class HourlyOptimizationCommand extends Command
         if (isset($report['stages'][8])) {
             $s8 = $report['stages'][8];
             $io->section('Stage 8 - Adaptive Refresh');
-            $io->text(sprintf('  Decayed: %d | Re-seeded: %d', $s8['decayedCount'] ?? 0, $s8['reseededCount'] ?? 0));
+            $io->text(sprintf('  Decayed: %d | Re-seeded: %d', $s8['decayedCount'], $s8['reseededCount']));
         }
 
         // Stage 9 - Assertions
         if (isset($report['stages'][9])) {
             $s9 = $report['stages'][9];
             $io->section('Stage 9 - Assertions');
-            $allPassed = $s9['allPassed'] ?? false;
+            $allPassed = $s9['allPassed'];
             if ($allPassed) {
                 $io->text('  All invariant assertions PASSED.');
             } else {
                 $io->warning('Some assertions FAILED:');
-                foreach ($s9['assertions'] ?? [] as $name => $passed) {
+                foreach ($s9['assertions'] as $name => $passed) {
                     if (!$passed) {
                         $io->text("    FAIL: {$name}");
                     }
@@ -281,20 +308,20 @@ class HourlyOptimizationCommand extends Command
             $s10 = $report['stages'][10];
             $io->newLine();
 
-            $outcomeEmoji = match ($s10['outcome'] ?? 'hold') {
+            $outcomeEmoji = match ($s10['outcome']) {
                 'improve' => '[IMPROVE]',
                 'rollback' => '[ROLLBACK]',
                 default => '[HOLD]',
             };
 
             $io->section("Stage 10 - Guaranteed Outcome: {$outcomeEmoji}");
-            $io->text('  ' . ($s10['reason'] ?? 'No reason provided.'));
+            $io->text('  ' . $s10['reason']);
         }
 
         $io->newLine();
         $io->success(sprintf(
             'Hourly optimization cycle completed in %.2fs.',
-            $report['duration'] ?? 0
+            $report['duration']
         ));
     }
 }

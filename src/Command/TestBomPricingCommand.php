@@ -18,6 +18,77 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
+/**
+ * Test BOM parsing and pricing waterfall.
+ *
+ * Line/stat shapes mirror PricingEngine::BomLine / PricingEngine::BomStats
+ * (duplicated locally — cross-class @phpstan-type references are not resolved
+ * by this toolchain).
+ *
+ * @phpstan-type ConfidenceShape array{score?: int|float, level?: string, requiresReview?: bool, reasons?: list<string>, warnings?: list<string>}
+ * @phpstan-type PriceBreakShape array{quantity: int, price?: int|float, currency?: string, unit_price?: int|float, unitPrice?: int|float}
+ * @phpstan-type BomLineShape array{
+ *     lineNumber?: int,
+ *     designator?: string,
+ *     mpn: string,
+ *     manufacturer?: string|null,
+ *     description?: string|null,
+ *     quantity: int,
+ *     value?: string,
+ *     package?: string,
+ *     supplier?: string,
+ *     supplier_pn?: string,
+ *     category?: string,
+ *     remark?: string|null,
+ *     stock_quantity?: int,
+ *     firm_quantity?: bool|int,
+ *     total_price?: int|float,
+ *     unit_price?: int|float|null,
+ *     leadtime_days?: int,
+ *     status?: string,
+ *     extended_price?: int|float|null,
+ *     source?: string|null,
+ *     confidence?: ConfidenceShape,
+ *     alternatives?: list<array<string, mixed>>,
+ *     lifecycle_warning?: string|null,
+ *     search_url?: string|null,
+ *     product_url?: string|null,
+ *     currency?: string|null,
+ *     pricing?: list<PriceBreakShape>,
+ *     moq?: int,
+ *     pack_quantity?: int|null,
+ *     multiple_quantity?: int|null,
+ *     requested_quantity?: int,
+ *     effective_quantity?: int,
+ *     quantity_adjusted?: bool,
+ *     quantity_adjustment_reason?: string|null,
+ *     bom_price_capped?: bool,
+ *     risk_analysis?: mixed,
+ *     alt_mpn_used?: string|null,
+ *     alt_mpn_savings_pct?: int|float,
+ *     manual_notes?: string|null,
+ *     alibaba_supplier?: string,
+ *     alibaba_raw_description?: string,
+ *     waterfall_info?: array{triggered: bool, reason?: string|null, sources_checked?: list<int|string>}
+ * }
+ * @phpstan-type BomStatsShape array{
+ *     total_lines: int,
+ *     sourced: int,
+ *     unsourced: int,
+ *     total_cost: int|float,
+ *     sources: array<string, int>,
+ *     confidence_breakdown?: array<string, int>,
+ *     requires_review_count: int,
+ *     lifecycle_warnings?: array{critical: int, warning: int},
+ *     waterfall_triggered_count?: int,
+ *     with_alternatives_count?: int,
+ *     quantity_adjusted_count?: int,
+ *     coverage_percent: int|float,
+ *     high_confidence_percent?: int|float,
+ *     lifecycle_health_percent?: int|float
+ * }
+ * @phpstan-type ProcessBomResult array{lines: list<BomLineShape>, stats: BomStatsShape, reviewRequired: bool}
+ */
 #[AsCommand(
     name: 'app:test-bom-pricing',
     description: 'Test BOM parsing and pricing waterfall',
@@ -59,40 +130,41 @@ class TestBomPricingCommand extends Command
             return Command::FAILURE;
         }
 
-        $boards = max(1, (int) $input->getOption('boards'));
-        
+        /** @var string|int $boardsOption CLI passes a string; configure() default is int 1 */
+        $boardsOption = $input->getOption('boards');
+        $boards = max(1, (int) $boardsOption);
+
         $io->title('BOM Pricing Test');
 
         // Parse BOM
         $io->section('1. Parsing BOM');
         try {
-            /** @var list<array<string, mixed>> $bomLines */
             $bomLines = $this->bomParser->parse($filePath);
-            /** @var list<array<string, mixed>> $bomLines */
+            /** @var array<int, BomLineShape> $bomLines Consolidated lines keep BOMParser::parse()'s mpn/quantity contract */
             $bomLines = $this->bomParser->consolidate($bomLines);
-            
+
             // Apply board count multiplier
             if ($boards > 1) {
                 $io->note(sprintf('Board count: %d — multiplying all quantities by %d', $boards, $boards));
                 foreach ($bomLines as &$bl) {
-                    $perBoard = (int) ($bl['quantity'] ?? 1);
+                    $perBoard = (int) $bl['quantity'];
                     $bl['stock_quantity'] = $perBoard * $boards;   // total order qty
                     $bl['firm_quantity']  = true;                   // don't inflate to vendor MOQ
                 }
                 unset($bl);
             }
-            
+
             $io->success(sprintf('Parsed %d unique part numbers', count($bomLines)));
-            
+
             // Show first few lines
             if (count($bomLines) > 0) {
                 $sample = array_slice($bomLines, 0, 3);
                 $io->table(
                     ['Designator', 'MPN', 'Manufacturer', 'Qty/Board', 'Total Qty'],
                     array_map(fn($line) => [
-                        $line['designator'],
+                        $line['designator'] ?? '',
                         $line['mpn'],
-                        $line['manufacturer'],
+                        $line['manufacturer'] ?? '',
                         $line['quantity'],
                         $line['stock_quantity'] ?? $line['quantity'],
                     ], $sample)
@@ -155,9 +227,13 @@ class TestBomPricingCommand extends Command
             $comparisonRows = [];
             
             foreach ($allLines as $line) {
-                $mpn = $line['mpn'] ?? 'N/A';
-                $qty = $line['effective_quantity'] ?? $line['stock_quantity'] ?? $line['quantity'] ?? 0;
-                $bomUnit = $line['bom_unit_price'] ?? $line['unit_price_original'] ?? null;
+                $mpn = $line['mpn'];
+                $qty = $line['effective_quantity'] ?? $line['stock_quantity'] ?? $line['quantity'];
+                // Legacy keys 'bom_unit_price'/'unit_price_original' never exist on
+                // PricingEngine lines — this lookup was always null (dead code kept
+                // for shape stability; the real embedded price is derived from
+                // $bomLines below).
+                $bomUnit = null;
                 $apiUnit = $line['unit_price'] ?? 0;
                 $apiExt = $line['extended_price'] ?? 0;
                 $source = strtoupper($line['source'] ?? 'N/A');
@@ -165,12 +241,12 @@ class TestBomPricingCommand extends Command
                     $source .= '+CAP';
                 }
                 $altMpn = $line['alt_mpn_used'] ?? '';
-                
+
                 // Try to get BOM embedded price from the original line data
                 $bomEmbed = null;
                 foreach ($bomLines as $bl) {
-                    if (($bl['mpn'] ?? '') === $mpn && !empty($bl['unit_price'])) {
-                        $bomEmbed = (float)$bl['unit_price'];
+                    if ($bl['mpn'] === $mpn && !empty($bl['unit_price'])) {
+                        $bomEmbed = (float) $bl['unit_price'];
                         break;
                     }
                 }
@@ -207,8 +283,8 @@ class TestBomPricingCommand extends Command
             ));
             
             // Show sample pricing
-            $sourcedLines = array_filter($result['lines'], fn($line) => $line['status'] === 'sourced');
-            
+            $sourcedLines = array_filter($result['lines'], fn($line) => ($line['status'] ?? null) === 'sourced');
+
             if (!empty($sourcedLines)) {
                 $io->section('Sample Pricing (first 5 sourced)');
                 $sample = array_slice($sourcedLines, 0, 5);
@@ -218,9 +294,9 @@ class TestBomPricingCommand extends Command
                         $line['mpn'],
                         strtoupper($line['source'] ?? 'N/A'),
                         '$' . number_format($line['unit_price'] ?? 0, 4),
-                        $line['effective_quantity'] ?? $line['quantity'] ?? 0,
+                        $line['effective_quantity'] ?? $line['quantity'],
                         '$' . number_format($line['extended_price'] ?? 0, 2),
-                        $line['stock'] ?? 'N/A'
+                        $line['stock_quantity'] ?? 'N/A'
                     ], $sample)
                 );
             }
@@ -271,8 +347,9 @@ class TestBomPricingCommand extends Command
      *
      * Columns: Line#, MPN, Alt MPN, Source, Qty, BOM Unit$, API Unit$,
      *          BOM Ext$, API Ext$, Ratio, Stock, Confidence, Listing Link
-      * @param array<string|int, mixed> $result
- * @param array<string|int, mixed> $bomLines
+     *
+     * @param ProcessBomResult $result
+     * @param array<int, BomLineShape> $bomLines
      */
     private function exportToExcel(array $result, array $bomLines, string $inputFile): string
     {
@@ -316,21 +393,21 @@ class TestBomPricingCommand extends Command
         $apiTotal = 0;
         
         foreach ($result['lines'] as $idx => $line) {
-            $mpn        = $line['mpn'] ?? '';
+            $mpn        = $line['mpn'];
             $altMpn     = $line['alt_mpn_used'] ?? '';
             $source     = strtoupper($line['source'] ?? 'N/A');
             if (!empty($line['bom_price_capped'])) $source .= '+CAP';
-            $qty        = $line['effective_quantity'] ?? $line['stock_quantity'] ?? $line['quantity'] ?? 0;
+            $qty        = $line['effective_quantity'] ?? $line['stock_quantity'] ?? $line['quantity'];
             $apiUnit    = $line['unit_price'] ?? 0;
             $apiExt     = $line['extended_price'] ?? 0;
-            $stock      = $line['stock'] ?? 'N/A';
+            $stock      = $line['stock_quantity'] ?? 'N/A';
             $confidence = $line['confidence']['level'] ?? 'N/A';
             $productUrl = $line['product_url'] ?? $line['search_url'] ?? null;
-            
+
             // Find BOM embedded price
             $bomUnit = null;
             foreach ($bomLines as $bl) {
-                if (($bl['mpn'] ?? '') === $mpn && !empty($bl['unit_price'])) {
+                if ($bl['mpn'] === $mpn && !empty($bl['unit_price'])) {
                     $bomUnit = (float) $bl['unit_price'];
                     break;
                 }

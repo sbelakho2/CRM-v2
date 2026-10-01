@@ -306,16 +306,26 @@ HELP
     {
         $countries = self::TEST_COUNTRIES;
         $sectors = self::TEST_SECTORS;
-        $requiredPasses = (int) $input->getOption('passes');
-        $companyThreshold = (float) $input->getOption('threshold');
-        $contactThreshold = (float) $input->getOption('contact-threshold');
-        $competitorThreshold = (float) $input->getOption('competitor-threshold');
-        $maxPerCombo = (int) $input->getOption('max-per-combo');
+        /** @var string|null $passesOption CLI values are strings; configure() defaults are strings */
+        $passesOption = $input->getOption('passes');
+        $requiredPasses = (int) $passesOption;
+        /** @var string|null $thresholdOption */
+        $thresholdOption = $input->getOption('threshold');
+        $companyThreshold = (float) $thresholdOption;
+        /** @var string|null $contactThresholdOption */
+        $contactThresholdOption = $input->getOption('contact-threshold');
+        $contactThreshold = (float) $contactThresholdOption;
+        /** @var string|null $competitorThresholdOption */
+        $competitorThresholdOption = $input->getOption('competitor-threshold');
+        $competitorThreshold = (float) $competitorThresholdOption;
+        /** @var string|null $maxPerComboOption */
+        $maxPerComboOption = $input->getOption('max-per-combo');
+        $maxPerCombo = (int) $maxPerComboOption;
         // Persistence is opt-in: only --persist (and not --no-persist) saves data.
         $persist = $input->getOption('persist') && !$input->getOption('no-persist');
 
         // Filter to specific country if requested
-        /** @var mixed $countryFilter */
+        /** @var string|null $countryFilter InputOption::VALUE_OPTIONAL yields string|null */
         $countryFilter = $input->getOption('country');
         if ($countryFilter) {
             $code = strtoupper($countryFilter);
@@ -327,7 +337,7 @@ HELP
         }
 
         // Filter to specific sector if requested
-        /** @var mixed $sectorFilter */
+        /** @var string|null $sectorFilter InputOption::VALUE_OPTIONAL yields string|null */
         $sectorFilter = $input->getOption('sector');
         if ($sectorFilter) {
             $found = false;
@@ -424,11 +434,12 @@ HELP
                     $comboCompetitors = 0;
 
                     foreach ($results as $result) {
-                        $name = $result['name'] ?? '';
-                        $domain = $result['displayLink'] ?? '';
-                        $snippet = $result['snippet'] ?? '';
-                        $title = $result['title'] ?? '';
-                        $contacts = $result['contacts'] ?? [];
+                        $name = self::strValue($result['name'] ?? null);
+                        $domain = self::strValue($result['displayLink'] ?? null);
+                        $snippet = self::strValue($result['snippet'] ?? null);
+                        $title = self::strValue($result['title'] ?? null);
+                        $contactsRaw = $result['contacts'] ?? null;
+                        $contacts = is_array($contactsRaw) ? $contactsRaw : [];
 
                         // ── Gate 1: Company quality ─────────────────
                         $companyIssues = $this->validateCompanyName($name, $domain, $snippet, $title, $result);
@@ -481,9 +492,12 @@ HELP
                         // Show contacts if any
                         if ($contactCount > 0) {
                             foreach ($contacts as $c) {
-                                $cName = trim(($c['first_name'] ?? '') . ' ' . ($c['last_name'] ?? ''));
-                                $cTitle = $c['job_title'] ?? '';
-                                $cEmail = $c['email'] ?? '';
+                                if (!is_array($c)) {
+                                    continue;
+                                }
+                                $cName = trim(self::strValue($c['first_name'] ?? null) . ' ' . self::strValue($c['last_name'] ?? null));
+                                $cTitle = self::strValue($c['job_title'] ?? null);
+                                $cEmail = self::strValue($c['email'] ?? null);
                                 $io->text("      👤 {$cName}" . ($cTitle ? " ({$cTitle})" : '') . ($cEmail ? " <{$cEmail}>" : ''));
                             }
                         }
@@ -499,9 +513,9 @@ HELP
                     }
 
                     // Per-combo summary line
-                    $comboPct = $total > 0 ? round(($comboGood / $total) * 100) : 100;
-                    $comboContactPct = $total > 0 ? round(($comboContacts / $total) * 100) : 100;
-                    $comboNonCompPct = $total > 0 ? round((($total - $comboCompetitors) / $total) * 100) : 100;
+                    $comboPct = round(($comboGood / $total) * 100);
+                    $comboContactPct = round(($comboContacts / $total) * 100);
+                    $comboNonCompPct = round((($total - $comboCompetitors) / $total) * 100);
                     $io->text(sprintf(
                         "    → %d results | Quality:%d%% Contact:%d%% NonComp:%d%%",
                         $total, $comboPct, $comboContactPct, $comboNonCompPct
@@ -624,6 +638,16 @@ HELP
     }
 
     /**
+     * Coerce untrusted mixed data (Google result fields, scraped contact fields)
+     * to string. Mirrors PHP weak-mode scalar casts; non-scalar values degrade
+     * to '' instead of raising a TypeError mid-run.
+     */
+    private static function strValue(mixed $value): string
+    {
+        return is_scalar($value) ? (string) $value : '';
+    }
+
+    /**
      * Clean a company name: strip platform suffixes (" - LinkedIn", " | Site"),
      * trim whitespace, and reject obviously-bad names.
      * Returns the cleaned name, or null if the name is junk.
@@ -631,12 +655,12 @@ HELP
     private function cleanCompanyName(string $raw): ?string
     {
         // Strip common platform suffixes (" - LinkedIn", " | LinkedIn", etc.)
-        $name = preg_replace('/\s*[-–—|·]\s*(LinkedIn|Facebook|Twitter|Indeed|Glassdoor|Crunchbase|Bloomberg|ZoomInfo|YouTube|Xing|Viadeo)(\s.*)?$/i', '', $raw);
+        $name = preg_replace('/\s*[-–—|·]\s*(LinkedIn|Facebook|Twitter|Indeed|Glassdoor|Crunchbase|Bloomberg|ZoomInfo|YouTube|Xing|Viadeo)(\s.*)?$/i', '', $raw) ?? '';
         // Strip trailing " - Page" / " ... | Something"
-        $name = preg_replace('/\s*\|\s*[^|]+$/', '', $name);
+        $name = preg_replace('/\s*\|\s*[^|]+$/', '', $name) ?? '';
         // Strip HTML artifacts like "<", ">", "&amp;", "&lt;"
-        $name = preg_replace('/\s*<\s*$/', '', $name);
-        $name = preg_replace('/^\s*<\s*/', '', $name);
+        $name = preg_replace('/\s*<\s*$/', '', $name) ?? '';
+        $name = preg_replace('/^\s*<\s*/', '', $name) ?? '';
         // Decode HTML entities (&amp; → &, etc.)
         $name = html_entity_decode($name, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $name = trim($name, " \t\n\r\0\x0B.,;:-–");
@@ -648,7 +672,7 @@ HELP
         // Reject if name STILL contains "LinkedIn" (e.g. from middle of string)
         if (preg_match('/\blinkedin\b/i', $name)) {
             // Try stripping it
-            $name = preg_replace('/\s*[-–—|·]?\s*LinkedIn\s*/i', '', $name);
+            $name = preg_replace('/\s*[-–—|·]?\s*LinkedIn\s*/i', '', $name) ?? '';
             $name = trim($name, " \t\n\r\0\x0B.,;:-–");
             if ($name === '' || preg_match('/\blinkedin\b/i', $name)) {
                 return null;
@@ -796,8 +820,9 @@ HELP
         }
 
         // ── Normalise website URL for dedup ────────────────────────
-        $website = $result['website'] ?? ('https://' . $domain);
-        $websiteNorm = preg_replace('#^https?://(www\.)?#i', '', rtrim($website, '/'));
+        $websiteRaw = $result['website'] ?? null;
+        $website = $websiteRaw === null ? ('https://' . $domain) : self::strValue($websiteRaw);
+        $websiteNorm = preg_replace('#^https?://(www\.)?#i', '', rtrim($website, '/')) ?? '';
 
         // Check for existing company by website domain (use DQL for robustness)
         $existingCompany = null;
@@ -811,8 +836,11 @@ HELP
             $iterableResult = $qb->getQuery()->toIterable();
 
             foreach ($iterableResult as $row) {
-                $c = is_array($row) ? $row[0] : $row;
-                $cWebsite = preg_replace('#^https?://(www\.)?#i', '', rtrim($c->getWebsite() ?? '', '/'));
+                $c = is_array($row) ? ($row[0] ?? null) : $row;
+                if (!$c instanceof Company) {
+                    continue;
+                }
+                $cWebsite = preg_replace('#^https?://(www\.)?#i', '', rtrim($c->getWebsite() ?? '', '/')) ?? '';
                 if ($cWebsite !== '' && strcasecmp($cWebsite, $websiteNorm) === 0) {
                     $existingCompany = $this->entityManager->getRepository(Company::class)->find($c->getId());
                     break;
@@ -850,8 +878,8 @@ HELP
             $company->setSourceNotes("Webcrawler lead-quality test — {$countryCode} {$sector}");
 
             // LinkedIn company URL if available
-            $linkedinUrl = $result['linkedin_company_url'] ?? $result['linkedinCompanyUrl'] ?? null;
-            if ($linkedinUrl) {
+            $linkedinUrl = self::strValue($result['linkedin_company_url'] ?? $result['linkedinCompanyUrl'] ?? null);
+            if ($linkedinUrl !== '' && $linkedinUrl !== '0') {
                 $company->setLinkedinCompanyUrl($linkedinUrl);
             }
 
@@ -871,27 +899,30 @@ HELP
         }
 
         foreach ($contacts as $c) {
-            $firstName = trim($c['first_name'] ?? '');
-            $lastName = trim($c['last_name'] ?? '');
+            if (!is_array($c)) {
+                continue;
+            }
+            $firstName = trim(self::strValue($c['first_name'] ?? null));
+            $lastName = trim(self::strValue($c['last_name'] ?? null));
             if (empty($firstName) || empty($lastName)) {
                 continue;
             }
 
             // ── Contact-level junk filter ──────────────────────────
             $fullName = mb_strtolower("{$firstName} {$lastName}");
-            $jobTitle = mb_strtolower($c['job_title'] ?? '');
+            $jobTitle = mb_strtolower(self::strValue($c['job_title'] ?? null));
 
             // ── Layer 1: Clean HTML entities in fields before evaluation ──
             if (!empty($c['job_title'])) {
-                $c['job_title'] = html_entity_decode($c['job_title'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
-                $jobTitle = mb_strtolower($c['job_title']);
+                $c['job_title'] = html_entity_decode(self::strValue($c['job_title']), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $jobTitle = mb_strtolower(self::strValue($c['job_title']));
             }
             $lastName = html_entity_decode($lastName, ENT_QUOTES | ENT_HTML5, 'UTF-8');
             $firstName = html_entity_decode($firstName, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
             // ── Layer 1b: Strip junk prefix words from first name ──
             // e.g. "Emphasizes Peter" → "Peter", "Highlights Maria" → "Maria"
-            $firstName = preg_replace('/^(Emphasizes|Highlights|Features|Showcases|Presents|Introduces)\s+/i', '', $firstName);
+            $firstName = preg_replace('/^(Emphasizes|Highlights|Features|Showcases|Presents|Introduces)\s+/i', '', $firstName) ?? '';
             $firstName = trim($firstName);
             if (empty($firstName)) {
                 continue;
@@ -899,7 +930,7 @@ HELP
 
             // ── Layer 2: Strip credential/designation suffixes from last name ──
             // e.g. "Borri MCIOB AMICE" → "Borri", "Aquilas AVI" → "Aquilas"
-            $lastName = preg_replace('/\s+(?:[A-Z]{2,6}\s*)+$/', '', $lastName);
+            $lastName = preg_replace('/\s+(?:[A-Z]{2,6}\s*)+$/', '', $lastName) ?? '';
             $lastName = trim($lastName);
             if (empty($lastName)) {
                 continue;
@@ -918,7 +949,7 @@ HELP
             ];
             foreach ($garbageSuffixes as $gs) {
                 if (preg_match('/\s+' . preg_quote($gs, '/') . '$/i', $lastName)) {
-                    $lastName = preg_replace('/\s+' . preg_quote($gs, '/') . '$/i', '', $lastName);
+                    $lastName = preg_replace('/\s+' . preg_quote($gs, '/') . '$/i', '', $lastName) ?? '';
                     $lastName = trim($lastName);
                     break;
                 }
@@ -1199,8 +1230,8 @@ HELP
                 }
 
                 // Clean trailing HTML entities / truncation artifacts from job title
-                $c['job_title'] = preg_replace('/\s*&amp;?\s*$/', '', $c['job_title'] ?? '');
-                $c['job_title'] = preg_replace('/\s*\.\.\.\s*$/', '', $c['job_title'] ?? '');
+                $c['job_title'] = preg_replace('/\s*&amp;?\s*$/', '', self::strValue($c['job_title'] ?? null)) ?? '';
+                $c['job_title'] = preg_replace('/\s*\.\.\.\s*$/', '', self::strValue($c['job_title'])) ?? '';
             }
 
             // ── Layer 10: Reject if last name has spaces + looks like compound junk ──
@@ -1256,16 +1287,16 @@ HELP
             $contact->setSource('Webcrawler');
 
             if (!empty($c['job_title'])) {
-                $contact->setJobTitle(mb_substr($c['job_title'], 0, 100));
+                $contact->setJobTitle(mb_substr(self::strValue($c['job_title']), 0, 100));
             }
             if (!empty($c['email'])) {
-                $contact->setEmail($c['email']);
+                $contact->setEmail(self::strValue($c['email']));
             }
             if (!empty($c['phone'])) {
-                $contact->setPhone($c['phone']);
+                $contact->setPhone(self::strValue($c['phone']));
             }
             if (!empty($c['linkedin_url'])) {
-                $contact->setLinkedInUrl($c['linkedin_url']);
+                $contact->setLinkedInUrl(self::strValue($c['linkedin_url']));
             }
 
             $this->entityManager->persist($contact);
@@ -1422,6 +1453,7 @@ HELP
         }
 
         // Comprehensive junk words — names that are clearly not people
+        /** @var list<string> $junkWords */
         static $junkWords = [
             // Form labels
             'first', 'last', 'name', 'email', 'phone', 'work', 'fax', 'mobile',
@@ -1525,6 +1557,7 @@ HELP
         ];
 
         // Junk full-name phrases
+        /** @var list<string> $junkPhrases */
         static $junkPhrases = [
             'first name', 'last name', 'full name', 'work email', 'work phone',
             'custom text', 'custom showcase', 'action call', 'speech tests',
@@ -1572,8 +1605,11 @@ HELP
         ];
 
         foreach ($contacts as $contact) {
-            $firstName = trim($contact['first_name'] ?? '');
-            $lastName = trim($contact['last_name'] ?? '');
+            if (!is_array($contact)) {
+                continue;
+            }
+            $firstName = trim(self::strValue($contact['first_name'] ?? null));
+            $lastName = trim(self::strValue($contact['last_name'] ?? null));
 
             // Both parts must be present
             if (empty($firstName) || empty($lastName)) {
@@ -1593,14 +1629,14 @@ HELP
 
             // ── Smart cleanup: strip credential suffixes from last name ──
             // e.g. "Borri MCIOB AMICE" → "Borri"
-            $lastName = preg_replace('/\s+(?:[A-Z]{2,6}\s*)+$/', '', $lastName);
+            $lastName = preg_replace('/\s+(?:[A-Z]{2,6}\s*)+$/', '', $lastName) ?? '';
             $lastName = trim($lastName);
             if (empty($lastName)) {
                 continue;
             }
 
             // ── Smart cleanup: strip garbage suffix words ──
-            $lastName = preg_replace('/\s+(emphasized|highlighted|underlined|selected|verified|updated|promoted|featured|sponsored|recommended|endorsed|approved|certified|became|proposed|announced|explained|stated|reported|described|mentioned|noted|added)$/i', '', $lastName);
+            $lastName = preg_replace('/\s+(emphasized|highlighted|underlined|selected|verified|updated|promoted|featured|sponsored|recommended|endorsed|approved|certified|became|proposed|announced|explained|stated|reported|described|mentioned|noted|added)$/i', '', $lastName) ?? '';
             $lastName = trim($lastName);
             if (empty($lastName)) {
                 continue;
@@ -1611,6 +1647,7 @@ HELP
             $fullLower = mb_strtolower("{$firstName} {$lastName}");
 
             // ── Skip place/country names as first or last name ──
+            /** @var list<string> $placeNamesGate */
             static $placeNamesGate = [
                 'morocco', 'maroc', 'marokko', 'africa', 'afrika', 'america',
                 'americas', 'world', 'global', 'international', 'turkey',
@@ -1634,6 +1671,7 @@ HELP
             }
 
             // ── Skip German/foreign job titles parsed as first name ──
+            /** @var list<string> $jobTitleAsNameGate */
             static $jobTitleAsNameGate = [
                 'werksleiter', 'geschäftsführer', 'geschaeftsfuehrer',
                 'betriebsleiter', 'abteilungsleiter', 'projektleiter',
@@ -1651,6 +1689,7 @@ HELP
             }
 
             // ── Skip organization names parsed as person names ──
+            /** @var list<string> $orgNameWordsGate */
             static $orgNameWordsGate = [
                 'trade', 'centre', 'center', 'association', 'federation',
                 'foundation', 'institute', 'chamber', 'council', 'commission',
@@ -1703,6 +1742,7 @@ HELP
             }
 
             // ── Skip marketing/technical adjective first names ──
+            /** @var list<string> $marketingFirstNamesGate */
             static $marketingFirstNamesGate = [
                 'inspired', 'beyond', 'traditional', 'indirect', 'direct',
                 'nuclear', 'advanced', 'innovative', 'premium', 'superior',
@@ -1721,6 +1761,7 @@ HELP
             }
 
             // ── Skip month names as contact names ──
+            /** @var list<string> $monthNamesGate */
             static $monthNamesGate = ['january', 'february', 'march', 'april',
                 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
             if (in_array($firstLower, $monthNamesGate, true)
@@ -1745,6 +1786,7 @@ HELP
             }
 
             // Skip Arabic honorifics parsed as first name
+            /** @var list<string> $arabicHonorificsGate */
             static $arabicHonorificsGate = [
                 'sheikh', 'shaikh', 'cheikh', 'hajj', 'hajji', 'haji',
                 'sayyid', 'sayyed', 'sayed', 'ustaz', 'ustadh', 'mudir',
@@ -1857,13 +1899,13 @@ HELP
      * Validate a single contact for quality.
      *
      * @return string[] List of quality issues (empty = clean)
-      * @param array<string|int, mixed> $contact
+     * @param array<string, mixed> $contact
      */
-    private function validateContact(array $contact): array
+    protected function validateContact(array $contact): array
     {
         $issues = [];
-        $firstName = $contact['first_name'] ?? '';
-        $lastName = $contact['last_name'] ?? '';
+        $firstName = self::strValue($contact['first_name'] ?? null);
+        $lastName = self::strValue($contact['last_name'] ?? null);
         $fullName = trim("$firstName $lastName");
 
         if (empty($firstName) && empty($lastName)) {
@@ -1905,7 +1947,7 @@ HELP
      *
      * @return string[] List of quality issues (empty = clean)
      */
-    private function validateAddress(string $address): array
+    protected function validateAddress(string $address): array
     {
         $issues = [];
         $addrLower = mb_strtolower($address);

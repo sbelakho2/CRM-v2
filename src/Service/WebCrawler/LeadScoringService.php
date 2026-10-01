@@ -19,14 +19,21 @@ use Psr\Log\LoggerInterface;
  * 
  * Supports multi-region scoring: Morocco, US (East Coast + Texas),
  * EU (Core, Nordics, CEE), UK, Egypt, and GCC — each with config-driven weights.
- * 
+ *
  * Target: Precision @ top-50 ≥ 75%
+ *
+ * @phpstan-type ScoreBreakdownEntry array{score: int, weight: int, signals: mixed}
+ * @phpstan-type ScoreResult array{score: int, breakdown: array<string, ScoreBreakdownEntry>, recommendation: string, reason: string, fallback_scored?: bool}
  */
 class LeadScoringService
 {
+    /** @var array<string, mixed> */
     private array $config;
+    /** @var array<string, int> */
     private array $weights;
+    /** @var array<string, list<string>> */
     private array $keywords;
+    /** @var array<string, list<string>> */
     private array $zones;
 
     public function __construct(
@@ -46,22 +53,54 @@ class LeadScoringService
             throw new \RuntimeException("Config file not found: {$path}");
         }
 
-        $this->config = Yaml::parseFile($path);
-        $this->weights = $this->config['weights'] ?? [];
-        $this->keywords = $this->config['keywords'] ?? [];
-        $this->zones = $this->config['zones'] ?? [];
+        $parsed = Yaml::parseFile($path);
+        if (!is_array($parsed)) {
+            throw new \RuntimeException("Invalid crawler config, expected a YAML map: {$path}");
+        }
+        /** @var array<string, mixed> $parsed */
+        $this->config = $parsed;
+
+        $weights = $this->config['weights'] ?? null;
+        if (!is_array($weights)) {
+            $weights = [];
+        }
+        /** @var array<string, int> $weights */
+        $this->weights = $weights;
+
+        $keywords = $this->config['keywords'] ?? null;
+        if (!is_array($keywords)) {
+            $keywords = [];
+        }
+        /** @var array<string, list<string>> $keywords */
+        $this->keywords = $keywords;
+
+        $zones = $this->config['zones'] ?? null;
+        if (!is_array($zones)) {
+            $zones = [];
+        }
+        /** @var array<string, list<string>> $zones */
+        $this->zones = $zones;
+    }
+
+    /**
+     * Coerce untrusted crawler-extracted values to string.
+     * Mirrors PHP weak-mode scalar casts; non-scalars degrade to ''.
+     */
+    private static function strValue(mixed $value): string
+    {
+        return is_scalar($value) ? (string) $value : '';
     }
 
     /**
      * Score a lead based on extracted features
-     * 
-     * @param array $lead Lead data with extracted features
-     * @return array ['score' => int, 'breakdown' => array, 'recommendation' => string]
+     *
+     * @param array<string, mixed> $lead Lead data with extracted features
+     * @return ScoreResult
      */
     public function scoreLead(array $lead): array
     {
         // Check if we have enough content to score
-        $pageContent = $lead['page_content'] ?? '';
+        $pageContent = self::strValue($lead['page_content'] ?? null);
         $hasMinimalContent = strlen(trim($pageContent)) >= 100;
         
         // Use fallback scoring if content is empty or minimal
@@ -93,7 +132,7 @@ class LeadScoringService
         $mfgScore = $this->scoreManufacturingFit($lead);
         $breakdown['manufacturing'] = [
             'score' => $mfgScore,
-            'weight' => $this->weights['mfg_fit'],
+            'weight' => $this->weights['mfg_fit'] ?? 20,
             'signals' => $lead['mfg_signals'] ?? []
         ];
         $totalScore += $mfgScore;
@@ -102,7 +141,7 @@ class LeadScoringService
         $procurementScore = $this->scoreProcurement($lead);
         $breakdown['procurement'] = [
             'score' => $procurementScore,
-            'weight' => $this->weights['procurement'],
+            'weight' => $this->weights['procurement'] ?? 18,
             'signals' => $lead['procurement_signals'] ?? []
         ];
         $totalScore += $procurementScore;
@@ -129,7 +168,7 @@ class LeadScoringService
         $contactScore = $this->scoreContactability($lead);
         $breakdown['contactability'] = [
             'score' => $contactScore,
-            'weight' => $this->weights['contactability'],
+            'weight' => $this->weights['contactability'] ?? 8,
             'signals' => $lead['contact_signals'] ?? []
         ];
         $totalScore += $contactScore;
@@ -138,7 +177,7 @@ class LeadScoringService
         $freshnessScore = $this->scoreFreshness($lead);
         $breakdown['freshness'] = [
             'score' => $freshnessScore,
-            'weight' => $this->weights['freshness'],
+            'weight' => $this->weights['freshness'] ?? 7,
             'signals' => $lead['freshness_signals'] ?? []
         ];
         $totalScore += $freshnessScore;
@@ -168,19 +207,22 @@ class LeadScoringService
      *   UK                          → geo_uk weight (default 12)
      *   Egypt zones / cities / TLDs → geo_egypt weight (default 14)
      *   GCC free zones / cities / TLDs → geo_gcc weight (default 14)
-      * @param array<string|int, mixed> $lead
+     *
+     * @param array<string, mixed> $lead
      */
     private function scoreGeo(array $lead): int
     {
-        $pageContent = strtolower($lead['page_content'] ?? '');
-        $address = strtolower($lead['address'] ?? '');
-        $regionTag = strtolower($lead['region_tag'] ?? '');
-        $siteLocation = strtolower($lead['site_location'] ?? '');
+        $pageContent = strtolower(self::strValue($lead['page_content'] ?? null));
+        $address = strtolower(self::strValue($lead['address'] ?? null));
+        $regionTag = strtolower(self::strValue($lead['region_tag'] ?? null));
+        $siteLocation = strtolower(self::strValue($lead['site_location'] ?? null));
         $combined = $pageContent . ' ' . $address . ' ' . $regionTag . ' ' . $siteLocation;
-        $url = strtolower($lead['website_root'] ?? $lead['lead_url'] ?? '');
+        $url = strtolower(self::strValue($lead['website_root'] ?? $lead['lead_url'] ?? null));
 
         $bestScore = 0;
-        $regions = $this->config['regions'] ?? [];
+        $regionsCfg = $this->config['regions'] ?? null;
+        /** @var array<string, array<string, list<string>>> $regions */
+        $regions = is_array($regionsCfg) ? $regionsCfg : [];
 
         // 1. Morocco free zones + cities
         $moroccoWeight = $this->weights['geo_morocco'] ?? $this->weights['geo'] ?? 20;
@@ -322,11 +364,12 @@ class LeadScoringService
 
     /**
      * Score manufacturing fit (0-20)
-      * @param array<string|int, mixed> $lead
+     *
+     * @param array<string, mixed> $lead
      */
     private function scoreManufacturingFit(array $lead): int
     {
-        $pageContent = strtolower($lead['page_content'] ?? '');
+        $pageContent = strtolower(self::strValue($lead['page_content'] ?? null));
         $uniqueTerms = [];
 
         foreach ($this->keywords['manufacturing'] ?? [] as $keyword) {
@@ -341,11 +384,12 @@ class LeadScoringService
 
     /**
      * Score procurement readiness (0-18)
-      * @param array<string|int, mixed> $lead
+     *
+     * @param array<string, mixed> $lead
      */
     private function scoreProcurement(array $lead): int
     {
-        $pageContent = strtolower($lead['page_content'] ?? '');
+        $pageContent = strtolower(self::strValue($lead['page_content'] ?? null));
         $markers = 0;
 
         foreach ($this->keywords['procurement'] ?? [] as $keyword) {
@@ -360,11 +404,12 @@ class LeadScoringService
 
     /**
      * Score sector alignment (0-12)
-      * @param array<string|int, mixed> $lead
+     *
+     * @param array<string, mixed> $lead
      */
     private function scoreSector(array $lead): int
     {
-        $pageContent = strtolower($lead['page_content'] ?? '');
+        $pageContent = strtolower(self::strValue($lead['page_content'] ?? null));
         $uniqueTerms = [];
 
         foreach ($this->keywords['sectors'] ?? [] as $sector) {
@@ -386,7 +431,8 @@ class LeadScoringService
      *   Press releases / news about the region (+3)
      * 
      * Accepts both legacy morocco_* fields and generic *_evidence fields.
-      * @param array<string|int, mixed> $lead
+     *
+     * @param array<string, mixed> $lead
      */
     private function scoreRegionEvidence(array $lead): int
     {
@@ -412,7 +458,8 @@ class LeadScoringService
 
     /**
      * Score contactability (0-8)
-      * @param array<string|int, mixed> $lead
+     *
+     * @param array<string, mixed> $lead
      */
     private function scoreContactability(array $lead): int
     {
@@ -438,13 +485,14 @@ class LeadScoringService
 
     /**
      * Score content freshness (0-7)
-      * @param array<string|int, mixed> $lead
+     *
+     * @param array<string, mixed> $lead
      */
     private function scoreFreshness(array $lead): int
     {
         $lastModified = $lead['content_last_modified'] ?? null;
 
-        if (!$lastModified) {
+        if (!is_string($lastModified) || $lastModified === '') {
             return 0;
         }
 
@@ -471,8 +519,11 @@ class LeadScoringService
      */
     private function getRecommendation(int $score): string
     {
-        $recommendThreshold = $this->config['thresholds']['recommend'] ?? 55;
-        $dropThreshold = $this->config['thresholds']['drop'] ?? 30;
+        $thresholdsCfg = $this->config['thresholds'] ?? null;
+        /** @var array<string, int> $thresholds */
+        $thresholds = is_array($thresholdsCfg) ? $thresholdsCfg : [];
+        $recommendThreshold = $thresholds['recommend'] ?? 55;
+        $dropThreshold = $thresholds['drop'] ?? 30;
 
         if ($score >= $recommendThreshold) {
             return 'approve';
@@ -485,7 +536,8 @@ class LeadScoringService
 
     /**
      * Generate human-readable reason
-      * @param array<string|int, mixed> $breakdown
+     *
+     * @param array<string, ScoreBreakdownEntry> $breakdown
      */
     private function generateReason(array $breakdown, int $totalScore): string
     {
@@ -506,7 +558,9 @@ class LeadScoringService
 
     /**
      * Batch score multiple leads
-      * @param array<string|int, mixed> $leads
+     *
+     * @param list<array<string, mixed>> $leads
+     * @return list<array<string, mixed>>
      */
     public function scoreLeads(array $leads): array
     {
@@ -530,8 +584,9 @@ class LeadScoringService
 
     /**
      * Calculate precision @ top-N
-      * @param array<string|int, mixed> $scoredLeads
- * @param array<string|int, mixed> $approvedLeadIds
+     *
+     * @param list<array<string, mixed>> $scoredLeads
+     * @param list<mixed> $approvedLeadIds
      */
     public function calculatePrecision(array $scoredLeads, array $approvedLeadIds, int $topN = 50): float
     {
@@ -557,8 +612,8 @@ class LeadScoringService
      * - Sector tags
      * - Quality certifications
      * 
-     * @param array $lead Lead data with minimal content
-     * @return array Score data with fallback indicators
+     * @param array<string, mixed> $lead Lead data with minimal content
+     * @return ScoreResult Score data with fallback indicators
      */
     private function scoreLeadWithFallback(array $lead): array
     {
@@ -641,11 +696,12 @@ class LeadScoringService
     
     /**
      * Score based on company name patterns
-      * @param array<string|int, mixed> $lead
+     *
+     * @param array<string, mixed> $lead
      */
     private function scoreCompanyNameFallback(array $lead): int
     {
-        $companyName = strtolower($lead['company_name'] ?? '');
+        $companyName = strtolower(self::strValue($lead['company_name'] ?? null));
         if (empty($companyName)) {
             return 0;
         }
@@ -667,7 +723,8 @@ class LeadScoringService
     
     /**
      * Score based on pre-extracted metadata
-      * @param array<string|int, mixed> $lead
+     *
+     * @param array<string, mixed> $lead
      */
     private function scoreMetadataFallback(array $lead): int
     {
@@ -699,7 +756,8 @@ class LeadScoringService
     
     /**
      * Score based on pre-extracted sector tags
-      * @param array<string|int, mixed> $lead
+     *
+     * @param array<string, mixed> $lead
      */
     private function scoreSectorTagsFallback(array $lead): int
     {
@@ -714,7 +772,7 @@ class LeadScoringService
         
         $matches = 0;
         foreach ($sectorTags as $tag) {
-            $tag = strtolower($tag);
+            $tag = strtolower(self::strValue($tag));
             foreach ($targetSectors as $target) {
                 if (str_contains($tag, $target)) {
                     $matches++;
@@ -728,7 +786,8 @@ class LeadScoringService
     
     /**
      * Score based on quality certifications
-      * @param array<string|int, mixed> $lead
+     *
+     * @param array<string, mixed> $lead
      */
     private function scoreQualityStackFallback(array $lead): int
     {
@@ -741,7 +800,7 @@ class LeadScoringService
         
         $matches = 0;
         foreach ($qualityStack as $cert) {
-            $cert = strtolower($cert);
+            $cert = strtolower(self::strValue($cert));
             foreach ($valuableCerts as $valuable) {
                 if (str_contains($cert, $valuable)) {
                     $matches++;
@@ -755,12 +814,13 @@ class LeadScoringService
     
     /**
      * Score based on region — all target regions scored equally
-      * @param array<string|int, mixed> $lead
+     *
+     * @param array<string, mixed> $lead
      */
     private function scoreRegionFallback(array $lead): int
     {
-        $regionTag = strtolower($lead['region_tag'] ?? '');
-        $siteLocation = strtolower($lead['site_location'] ?? '');
+        $regionTag = strtolower(self::strValue($lead['region_tag'] ?? null));
+        $siteLocation = strtolower(self::strValue($lead['site_location'] ?? null));
         $combined = $regionTag . ' ' . $siteLocation;
         
         // All target regions get the same bonus

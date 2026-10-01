@@ -228,26 +228,20 @@ class ReportBuilderSchemaTest extends WebTestCase
 
     public function testCsvExportNeutralizesFormulaInjection(): void
     {
-        // One archived-free company row with a formula-leading name.
-        $company = new \App\Entity\Company();
-        $company->setName('=HYPERLINK("http://evil","click")');
-        $company->setAccountTier('C');
-        $this->em->persist($company);
-        $this->em->flush();
-
+        // No DB entities: exportToCsv takes row arrays directly, so a
+        // fabricated row exercises the sanitizer without FK/rollback
+        // interplay (the earlier entity-based version flaked under random
+        // seeds when the '='-named company collided with other suites).
         $report = new ReportDefinition();
         $report->setDataSource('company');
         $report->setReportType(ReportDefinition::TYPE_TABLE);
         $report->setColumns([['field' => 'name', 'alias' => 'name']]);
 
-        $results = $this->service->executeReport($report);
-        $csv = $this->service->exportToCsv($results['data'], $report);
+        $rows = [['name' => '=HYPERLINK("http://evil","click")', 'sector' => '-Lead Scraping']];
+        $csv = $this->service->exportToCsv($rows, $report);
 
         $this->assertStringContainsString("\t=HYPERLINK", $csv, 'formula-leading cell must be tab-prefixed');
-
-        // cleanup
-        $this->em->remove($company);
-        $this->em->flush();
+        $this->assertStringContainsString("\t-Lead Scraping", $csv, 'dash-leading cell must also be neutralized');
     }
 
     public function testCanonicalSourceCheckRejectsUnknownSources(): void
