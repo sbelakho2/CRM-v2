@@ -119,6 +119,7 @@ class AuditLogListener
      * built with real data in the current flush. Entities persisted inside
      * lifecycle events are otherwise inserted with an empty change set,
      * which produces an unparameterised INSERT and a MySQL syntax error.
+      * @param array<string|int, mixed> $changeSet
      */
     private function scheduleAuditLog(UnitOfWork $uow, string $action, object $entity, array $changeSet = []): void
     {

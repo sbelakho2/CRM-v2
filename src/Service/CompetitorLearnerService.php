@@ -402,6 +402,7 @@ class CompetitorLearnerService
 
     /**
      * Learn from Google Dork search results
+      * @param array<string|int, mixed> $searchResults
      */
     public function learnFromGoogleResults(array $searchResults): array
     {

@@ -381,6 +381,8 @@ class QualityAuditCommand extends Command
      * Process a batch of companies for the quality audit.
      * Pre-loads all contacts in one query to avoid N+1.
      * Metrics are passed by reference and updated in-place.
+      * @param array<string|int, mixed> $batchCompanies
+ * @param array<string|int, mixed> $batchIds
      */
     private function processCompanyBatch(
         array $batchCompanies,

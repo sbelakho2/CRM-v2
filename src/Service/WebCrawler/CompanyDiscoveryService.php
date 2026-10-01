@@ -384,6 +384,7 @@ class CompanyDiscoveryService
      * Deduplication is now performed on the website domain (primary)
      * AND the company name (case-insensitive fallback).  Country,
      * city and region are populated from the search location.
+      * @param array<string|int, mixed> $discoveredData
      */
     private function saveDiscoveredCompanies(array $discoveredData, ?string $sector, ?string $location): array
     {
@@ -891,6 +892,7 @@ class CompanyDiscoveryService
     /**
      * Learn competitors from discovery results
      * Called automatically during company discovery
+      * @param array<string|int, mixed> $results
      */
     private function learnCompetitorsFromResults(array $results): void
     {

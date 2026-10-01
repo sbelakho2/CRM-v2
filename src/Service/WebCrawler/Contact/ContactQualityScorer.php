@@ -59,6 +59,7 @@ final class ContactQualityScorer
      * Score a single contact.
      *
      * @return int Quality score (higher = better)
+      * @param array<string|int, mixed> $contact
      */
     public function score(array $contact): int
     {
@@ -188,6 +189,7 @@ final class ContactQualityScorer
      * Get deduplication keys for a contact.
      *
      * @return list<string>
+      * @param array<string|int, mixed> $c
      */
     private function getDedupeKeys(array $c): array
     {
@@ -219,6 +221,8 @@ final class ContactQualityScorer
 
     /**
      * Merge two contact records, keeping the richer data from each.
+      * @param array<string|int, mixed> $existing
+ * @param array<string|int, mixed> $new
      */
     private function mergeContacts(array $existing, array $new): array
     {

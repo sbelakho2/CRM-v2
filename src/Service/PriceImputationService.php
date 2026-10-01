@@ -93,6 +93,7 @@ class PriceImputationService
      * Batch impute prices for multiple components.
      *
      * @return array Array of imputation results keyed by index
+      * @param array<string|int, mixed> $components
      */
     public function batchImputePrices(array $components): array
     {
@@ -129,6 +130,7 @@ class PriceImputationService
 
     /**
      * Run ONNX model inference to predict price.
+      * @param array<string|int, mixed> $data
      */
     private function imputeWithOnnx(array $data): array
     {
@@ -327,6 +329,7 @@ class PriceImputationService
     /**
      * Detect component category from MPN and description using pattern matching.
      * Maps to the model's 25 trained categories.
+      * @param array<string|int, mixed> $data
      */
     private function detectCategory(array $data): string
     {
@@ -450,6 +453,7 @@ class PriceImputationService
 
     /**
      * Detect likely supplier context. Defaults to DigiKey (most common reference pricing).
+      * @param array<string|int, mixed> $data
      */
     private function detectSupplier(array $data): string
     {
@@ -534,6 +538,7 @@ class PriceImputationService
 
     /**
      * Calculate confidence score based on input data quality.
+      * @param array<string|int, mixed> $data
      */
     private function calculateConfidence(array $data, string $category): float
     {
@@ -579,6 +584,7 @@ class PriceImputationService
 
     /**
      * Simple heuristic fallback when ONNX is not available.
+      * @param array<string|int, mixed> $data
      */
     private function imputeWithHeuristic(array $data): array
     {
@@ -619,6 +625,7 @@ class PriceImputationService
 
     /**
      * Simplified category detection for heuristic fallback (no encoder dependency).
+      * @param array<string|int, mixed> $data
      */
     private function detectCategoryHeuristic(array $data): string
     {

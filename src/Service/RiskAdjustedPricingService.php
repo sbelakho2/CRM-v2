@@ -434,6 +434,7 @@ class RiskAdjustedPricingService
     
     /**
      * Extract unit price for given quantity from price breaks
+      * @param array<string|int, mixed> $result
      */
     private function extractUnitPrice(array $result, int $quantity): float
     {
@@ -461,6 +462,7 @@ class RiskAdjustedPricingService
     
     /**
      * Extract lead time in days from distributor result
+      * @param array<string|int, mixed> $result
      */
     private function extractLeadTimeDays(array $result): int
     {
@@ -588,6 +590,8 @@ class RiskAdjustedPricingService
     
     /**
      * Explain why a particular option was selected
+      * @param array<string|int, mixed> $selected
+ * @param array<string|int, mixed> $allOptions
      */
     private function explainSelection(array $selected, array $allOptions): string
     {

@@ -367,6 +367,7 @@ class DiscoveryPipelineController extends AbstractController
 
     /**
      * Import a search result as a Lead
+      * @param array<string|int, mixed> $result
      */
     private function importAsLead(array $result, string $sector, ?string $location, array &$dupeIndex): array
     {

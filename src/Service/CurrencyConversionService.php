@@ -310,6 +310,7 @@ class CurrencyConversionService
 
     /**
      * Check if all required currencies have fresh rates
+      * @param array<string|int, mixed> $currencies
      */
     public function validateRateFreshness(array $currencies): array
     {

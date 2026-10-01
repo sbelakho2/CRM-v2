@@ -49,6 +49,7 @@ class EmailWebhookController extends AbstractController
     /**
      * Process a webhook event for a given EmailSend entity.
      * Handles retry tracking, error logging, and updates send status.
+      * @param array<string|int, mixed> $context
      */
     private function processWebhookEvent(
         EmailSend $send,
@@ -164,6 +165,7 @@ class EmailWebhookController extends AbstractController
 
     /**
      * Handle unsubscribe event with deduplication.
+      * @param array<string|int, mixed> $context
      */
     private function handleUnsubscribe(EmailSend $send, array $context): void
     {

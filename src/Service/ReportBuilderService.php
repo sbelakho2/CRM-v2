@@ -159,6 +159,7 @@ class ReportBuilderService
     
     /**
      * Execute a report and return results
+      * @param array<string|int, mixed> $runtimeFilters
      */
     public function executeReport(ReportDefinition $report, array $runtimeFilters = []): array
     {
@@ -497,6 +498,7 @@ class ReportBuilderService
 
     /**
      * Apply filters to query
+      * @param array<string|int, mixed> $filters
      */
     private function applyFilters(QueryBuilder $qb, array $filters, string $dataSource): void
     {
@@ -729,6 +731,7 @@ class ReportBuilderService
     
     /**
      * Format data for chart display
+      * @param array<string|int, mixed> $results
      */
     public function formatForChart(array $results, ReportDefinition $report): array
     {
@@ -801,6 +804,7 @@ class ReportBuilderService
     
     /**
      * Export report to CSV
+      * @param array<string|int, mixed> $results
      */
     public function exportToCsv(array $results, ReportDefinition $report): string
     {

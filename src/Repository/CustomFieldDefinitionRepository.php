@@ -157,6 +157,7 @@ class CustomFieldDefinitionRepository extends ServiceEntityRepository
 
     /**
      * Update sort orders
+      * @param array<string|int, mixed> $orderedIds
      */
     public function updateSortOrders(array $orderedIds): void
     {

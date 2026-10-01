@@ -556,6 +556,7 @@ class MultiDistributorSourcingService
      * Select the best overall result from all sources
      * 
      * @return array{part: array|null, source: string|null}
+      * @param array<string|int, mixed> $allSources
      */
     private function selectBestOverall(array $allSources, string $requestedMpn): array
     {
@@ -622,6 +623,7 @@ class MultiDistributorSourcingService
     
     /**
      * Get the lowest unit price from a result's pricing breaks
+      * @param array<string|int, mixed> $result
      */
     private function getLowestUnitPrice(array $result): ?float
     {
@@ -648,6 +650,7 @@ class MultiDistributorSourcingService
      * 
      * Example: Alibaba at $0.88 vs DigiKey at $0.09 for the same part —
      * DigiKey should get a huge bonus because it's 10x cheaper.
+      * @param array<string|int, mixed> $candidates
      */
     private function applyPriceCompetitiveness(array $candidates): array
     {
@@ -694,6 +697,7 @@ class MultiDistributorSourcingService
      * Scoring aims for best VALUE: price × confidence × availability.
      * Alibaba gets a source preference bonus because it provides factory-direct
      * pricing with better bulk rates.
+      * @param array<string|int, mixed> $result
      */
     private function calculateOverallScore(array $result, string $requestedMpn): int
     {
@@ -768,6 +772,8 @@ class MultiDistributorSourcingService
     
     /**
      * Build alternatives list from all sources
+      * @param array<string|int, mixed> $allSources
+ * @param array<string|int, mixed> $selected
      */
     private function buildAlternativesList(array $allSources, ?array $selected, ?string $selectedSource): array
     {

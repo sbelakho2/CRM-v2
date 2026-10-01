@@ -66,6 +66,7 @@ class InteractiveLiveQuoteService
      * defaults rather than poisoning the stored quote configuration.
      *
      * @return list<int>
+      * @param array<string|int, mixed> $quantityTiers
      */
     private function normalizeQuantityTiers(?array $quantityTiers): array
     {
@@ -294,6 +295,7 @@ class InteractiveLiveQuoteService
      * converted into the SAME processed-line shape the copilot pipeline
      * produces (extended_price per line) and priced by the one canonical
      * engine — same cost components, same margin rules, same currency.
+      * @param array<string|int, mixed> $bomData
      */
     private function calculatePricingForQuantity(array $bomData, int $quantity, ?string $currency = null): array
     {
@@ -397,6 +399,7 @@ class InteractiveLiveQuoteService
 
     /**
      * Get unit price based on price breaks
+      * @param array<string|int, mixed> $priceBreaks
      */
     private function getUnitPriceForQuantity(array $priceBreaks, int $quantity): float
     {
@@ -419,6 +422,8 @@ class InteractiveLiveQuoteService
     
     /**
      * Calculate savings compared to minimum quantity tier
+      * @param array<string|int, mixed> $existingTiers
+ * @param array<string|int, mixed> $currentResult
      */
     private function calculateSavings(array $existingTiers, array $currentResult): array
     {
@@ -448,6 +453,7 @@ class InteractiveLiveQuoteService
     
     /**
      * Estimate lead time based on quantity and stock levels
+      * @param array<string|int, mixed> $bomData
      */
     private function estimateLeadTime(int $quantity, array $bomData): array
     {
@@ -661,6 +667,7 @@ class InteractiveLiveQuoteService
      * caller must be an authenticated user (admin flow) or the quote must
      * still carry a valid public token (i.e. it was retrieved through
      * getQuoteByToken() on the public route).
+      * @param array<string|int, mixed> $customerInfo
      */
     public function acceptQuote(Quote $quote, int $acceptedQuantity, array $customerInfo, ?string $token = null): array
     {
@@ -870,6 +877,7 @@ class InteractiveLiveQuoteService
      * Notify the operations/admin queue in the CRM notification center.
      * (The data model has no per-quote sales owner — quotes and companies
      * only carry archivedBy — so the admin group IS the follow-up queue.)
+      * @param array<string|int, mixed> $data
      */
     private function notifyOperations(string $type, string $message, int $entityId, array $data = []): void
     {

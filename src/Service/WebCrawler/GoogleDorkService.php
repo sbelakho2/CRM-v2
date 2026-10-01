@@ -7982,6 +7982,7 @@ class GoogleDorkService
      *
      * This improves recall for real companies that had sparse SERP snippets,
      * while avoiding expensive retries for obviously bad candidates.
+      * @param array<string|int, mixed> $result
      */
     private function shouldAttemptEvidenceHomepageRescue(
         BuyerEvidenceResult $evidenceResult,
@@ -8282,6 +8283,7 @@ class GoogleDorkService
 
     /**
      * Recursively flatten JSON array/object to concatenated text for term matching.
+      * @param array<string|int, mixed> $data
      */
     private function flattenJsonToText(array $data): string
     {
@@ -10191,6 +10193,7 @@ class GoogleDorkService
 
     /**
      * Extract clean website URL from search result
+      * @param array<string|int, mixed> $result
      */
     private function extractWebsiteFromResult(array $result): ?string
     {
@@ -10215,6 +10218,7 @@ class GoogleDorkService
      *
      * This eliminates news articles, forums, product pages, and other
      * non-company results that slip through pattern-based filters.
+      * @param array<string|int, mixed> $candidates
      */
     private function verifyCompanies(array $candidates): array
     {
@@ -10756,6 +10760,8 @@ class GoogleDorkService
      * Enrichment keys (phone, description, address, linkedin_url, etc.)
      * are only applied if non-empty and the candidate doesn't already have
      * a value for that key.
+      * @param array<string|int, mixed> $data
+ * @param array<string|int, mixed> $enrichment
      */
     private function mergeEnrichment(array $data, array $enrichment): array
     {
@@ -11674,6 +11680,7 @@ class GoogleDorkService
 
     /**
      * Extract a person record from Schema.org Person entity.
+      * @param array<string|int, mixed> $entity
      */
     private function extractPersonFromSchemaOrg(array $entity): ?array
     {
@@ -12397,6 +12404,7 @@ class GoogleDorkService
      */
     /**
      * Clean HTML entities and whitespace artifacts from contact fields.
+      * @param array<string|int, mixed> $contact
      */
     private function cleanContactFields(array $contact): array
     {
@@ -13944,6 +13952,7 @@ class GoogleDorkService
      *
      * "john.smith@company.com" → first_name=John, last_name=Smith
      * "j.doe@company.com" → skip (first name too short)
+      * @param array<string|int, mixed> $data
      */
     private function extractContactsFromEmails(array $data): array
     {
@@ -14065,6 +14074,7 @@ class GoogleDorkService
     /**
      * @deprecated No longer used — we require REAL person contacts only.
      * Kept as stub to prevent method-not-found errors.
+      * @param array<string|int, mixed> $data
      */
     private function createFallbackContact(array $data): ?array
     {

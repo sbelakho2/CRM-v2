@@ -27,6 +27,7 @@ class ExportService
 
     /**
      * Export companies to file
+      * @param array<string|int, mixed> $companies
      */
     public function exportCompanies(array $companies, string $format = 'csv'): string
     {
@@ -64,6 +65,7 @@ class ExportService
 
     /**
      * Export discovered companies with enrichment data (contacts, addresses, LinkedIn)
+      * @param array<string|int, mixed> $companies
      */
     public function exportDiscoveredCompanies(array $companies, string $format = 'xlsx'): string
     {
@@ -137,6 +139,7 @@ class ExportService
 
     /**
      * Export contacts to file
+      * @param array<string|int, mixed> $contacts
      */
     public function exportContacts(array $contacts, string $format = 'csv'): string
     {
@@ -172,6 +175,7 @@ class ExportService
 
     /**
      * Export leads to file
+      * @param array<string|int, mixed> $leads
      */
     public function exportLeads(array $leads, string $format = 'csv'): string
     {
@@ -208,6 +212,7 @@ class ExportService
 
     /**
      * Export activities to file
+      * @param array<string|int, mixed> $activities
      */
     public function exportActivities(array $activities, string $format = 'csv'): string
     {
@@ -293,6 +298,7 @@ class ExportService
      *  - entityClass must be a known App\Entity class
      *  - getters must be real methods matching the ^get[A-Z] pattern
      * (callers currently: none in-repo — kept as a safe generic helper)
+      * @param array<string|int, mixed> $fields
      */
     public function exportGeneric(string $entityClass, array $fields, string $filename, string $format = 'csv'): string
     {

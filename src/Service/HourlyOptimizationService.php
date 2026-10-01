@@ -295,6 +295,7 @@ class HourlyOptimizationService
      * Select candidates for this cycle:
      * - Top-K arms by Thompson sampling score
      * - Exploration floor: at least 15% of sends go to under-tested arms
+      * @param array<string|int, mixed> $snapshot
      */
     private function stage2_candidateSelection(array $snapshot): array
     {
@@ -331,6 +332,7 @@ class HourlyOptimizationService
     /**
      * Compose messages for eligible contacts.
      * Each message passes through copy-lint and cadence governor.
+      * @param array<string|int, mixed> $candidates
      */
     private function stage3_personalizeAndGate(array $candidates, int $limit, bool $dryRun): array
     {
@@ -410,6 +412,7 @@ class HourlyOptimizationService
 
     /**
      * Send the composed batch, recording each as an OutboundMessage.
+      * @param array<string|int, mixed> $stage3Result
      */
     private function stage4_executionWindow(array $stage3Result, bool $dryRun): array
     {
@@ -488,6 +491,7 @@ class HourlyOptimizationService
     /**
      * Evaluate each arm's performance vs baseline over the recent window.
      * Uses messages from the last hour (or last 24h for broader context).
+      * @param array<string|int, mixed> $snapshot
      */
     private function stage5_hourlyEvaluation(array $snapshot): array
     {
@@ -564,6 +568,7 @@ class HourlyOptimizationService
      * 1. Instant kill — quarantine arms with neg rate >= 50%
      * 2. Underperformance check — flag arms performing < 70% of baseline
      * 3. System-wide safe mode — halt non-control sends if overall neg rate >= 35%
+      * @param array<string|int, mixed> $snapshot
      */
     private function stage6_safetyEnforcement(array $snapshot): array
     {
@@ -661,6 +666,8 @@ class HourlyOptimizationService
      * Prune the worst arms, promote the best:
      * - Prune: deactivate arms with verdict 'prune_candidate' or 'instant_kill'
      * - Promote: freeze promoted arms (lock alpha/beta), mark as proven winners
+      * @param array<string|int, mixed> $snapshot
+ * @param array<string|int, mixed> $evaluation
      */
     private function stage7_pruneAndPromote(array $snapshot, array $evaluation, bool $dryRun): array
     {
@@ -854,6 +861,7 @@ class HourlyOptimizationService
     /**
      * Invariant checks that must hold at the end of every cycle.
      * Failures are logged as CRITICAL but do not crash the cycle.
+      * @param array<string|int, mixed> $report
      */
     private function stage9_assertions(array $report): array
     {
@@ -930,6 +938,9 @@ class HourlyOptimizationService
      * - improve:  At least one arm was promoted (beating baseline by >= 15%)
      * - hold:     No significant change; system is stable
      * - rollback: Arms were pruned or instant-killed; system fell back to safer state
+      * @param array<string|int, mixed> $snapshot
+ * @param array<string|int, mixed> $evaluation
+ * @param array<string|int, mixed> $prunePromote
      */
     private function stage10_guaranteedOutcome(array $snapshot, array $evaluation, array $prunePromote): array
     {

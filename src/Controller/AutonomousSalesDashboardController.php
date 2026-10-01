@@ -422,6 +422,8 @@ class AutonomousSalesDashboardController extends AbstractController
 
     /**
      * System health: simple traffic-light status for the whole system.
+      * @param array<string|int, mixed> $rawArms
+ * @param array<string|int, mixed> $systemStats
      */
     private function buildHealthStatus(array $rawArms, array $systemStats, bool $enabled): array
     {
@@ -490,6 +492,8 @@ class AutonomousSalesDashboardController extends AbstractController
 
     /**
      * Performance: translate raw stats into meaningful business numbers.
+      * @param array<string|int, mixed> $rawStats
+ * @param array<string|int, mixed> $systemStats
      */
     private function buildPerformanceOverview(array $rawStats, array $systemStats): array
     {
@@ -518,6 +522,8 @@ class AutonomousSalesDashboardController extends AbstractController
 
     /**
      * Variations: translate each "bandit arm" into a human-readable variation card.
+      * @param array<string|int, mixed> $rawArms
+ * @param array<string|int, mixed> $armTypes
      */
     private function buildVariationsList(array $rawArms, array $armTypes): array
     {
@@ -618,6 +624,8 @@ class AutonomousSalesDashboardController extends AbstractController
 
     /**
      * Automation status: what the system is doing and what actions are available.
+      * @param array<string|int, mixed> $health
+ * @param array<string|int, mixed> $performance
      */
     private function buildAutomationStatus(array $health, array $performance, bool $enabled): array
     {
@@ -676,6 +684,8 @@ class AutonomousSalesDashboardController extends AbstractController
 
     /**
      * Setup checklist: clear steps for getting started.
+      * @param array<string|int, mixed> $rawArms
+ * @param array<string|int, mixed> $systemStats
      */
     private function buildSetupChecklist(array $rawArms, array $systemStats, bool $enabled): array
     {
@@ -737,6 +747,9 @@ class AutonomousSalesDashboardController extends AbstractController
      *
      * Returns a translation key that the template will pass through |trans.
      * The controller also passes parameters for interpolation.
+      * @param array<string|int, mixed> $setup
+ * @param array<string|int, mixed> $performance
+ * @param array<string|int, mixed> $health
      */
     private function buildDynamicSubtitle(bool $enabled, array $setup, array $performance, array $health): array
     {

@@ -400,6 +400,7 @@ class QuoteWinPredictorService
 
     /**
      * Calculate model confidence based on data completeness
+      * @param array<string|int, mixed> $factors
      */
     private function calculateConfidence(Quote $quote, array $factors): float
     {
@@ -454,6 +455,7 @@ class QuoteWinPredictorService
 
     /**
      * Generate actionable recommendation based on analysis
+      * @param array<string|int, mixed> $factors
      */
     private function generateRecommendation(float $probability, array $factors): string
     {
@@ -487,6 +489,7 @@ class QuoteWinPredictorService
 
     /**
      * Generate detailed insights for sales team
+      * @param array<string|int, mixed> $factors
      */
     private function generateInsights(array $factors, float $probability): array
     {

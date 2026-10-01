@@ -388,6 +388,7 @@ class MouserApiClient
     
     /**
      * Format a part result into standard structure
+      * @param array<string|int, mixed> $part
      */
     private function formatPartResult(array $part, string $requestedMpn, int $totalCount): array
     {
@@ -438,6 +439,7 @@ class MouserApiClient
      * Score and sort all parts by quality criteria
      * 
      * @return array<int, array{score: int, part: array}>
+      * @param array<string|int, mixed> $parts
      */
     private function scoreAndSortParts(array $parts, string $requestedMpn): array
     {
@@ -457,6 +459,7 @@ class MouserApiClient
     
     /**
      * Calculate score for a single part
+      * @param array<string|int, mixed> $part
      */
     private function calculatePartScore(array $part, string $normalizedRequested): int
     {
@@ -610,6 +613,7 @@ class MouserApiClient
      * Pack/Multiple quantity is inferred from the quantity increments.
      * 
      * @return array{breaks: array, moq: int, pack_quantity: int|null, multiple_quantity: int|null}
+      * @param array<string|int, mixed> $priceBreaks
      */
     private function parsePricing(array $priceBreaks): array
     {

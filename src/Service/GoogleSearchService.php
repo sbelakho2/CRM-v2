@@ -193,6 +193,7 @@ class GoogleSearchService
 
     /**
      * Parse search results into structured format
+      * @param array<string|int, mixed> $items
      */
     private function parseResults(array $items): array
     {
@@ -281,6 +282,7 @@ class GoogleSearchService
 
     /**
      * Extract company website from search result
+      * @param array<string|int, mixed> $searchResult
      */
     public function extractWebsite(array $searchResult): ?string
     {
@@ -294,6 +296,7 @@ class GoogleSearchService
 
     /**
      * Build advanced search query
+      * @param array<string|int, mixed> $criteria
      */
     public function buildAdvancedQuery(array $criteria): string
     {

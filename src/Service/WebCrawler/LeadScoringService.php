@@ -168,6 +168,7 @@ class LeadScoringService
      *   UK                          → geo_uk weight (default 12)
      *   Egypt zones / cities / TLDs → geo_egypt weight (default 14)
      *   GCC free zones / cities / TLDs → geo_gcc weight (default 14)
+      * @param array<string|int, mixed> $lead
      */
     private function scoreGeo(array $lead): int
     {
@@ -321,6 +322,7 @@ class LeadScoringService
 
     /**
      * Score manufacturing fit (0-20)
+      * @param array<string|int, mixed> $lead
      */
     private function scoreManufacturingFit(array $lead): int
     {
@@ -339,6 +341,7 @@ class LeadScoringService
 
     /**
      * Score procurement readiness (0-18)
+      * @param array<string|int, mixed> $lead
      */
     private function scoreProcurement(array $lead): int
     {
@@ -357,6 +360,7 @@ class LeadScoringService
 
     /**
      * Score sector alignment (0-12)
+      * @param array<string|int, mixed> $lead
      */
     private function scoreSector(array $lead): int
     {
@@ -382,6 +386,7 @@ class LeadScoringService
      *   Press releases / news about the region (+3)
      * 
      * Accepts both legacy morocco_* fields and generic *_evidence fields.
+      * @param array<string|int, mixed> $lead
      */
     private function scoreRegionEvidence(array $lead): int
     {
@@ -407,6 +412,7 @@ class LeadScoringService
 
     /**
      * Score contactability (0-8)
+      * @param array<string|int, mixed> $lead
      */
     private function scoreContactability(array $lead): int
     {
@@ -432,6 +438,7 @@ class LeadScoringService
 
     /**
      * Score content freshness (0-7)
+      * @param array<string|int, mixed> $lead
      */
     private function scoreFreshness(array $lead): int
     {
@@ -478,6 +485,7 @@ class LeadScoringService
 
     /**
      * Generate human-readable reason
+      * @param array<string|int, mixed> $breakdown
      */
     private function generateReason(array $breakdown, int $totalScore): string
     {
@@ -498,6 +506,7 @@ class LeadScoringService
 
     /**
      * Batch score multiple leads
+      * @param array<string|int, mixed> $leads
      */
     public function scoreLeads(array $leads): array
     {
@@ -521,6 +530,8 @@ class LeadScoringService
 
     /**
      * Calculate precision @ top-N
+      * @param array<string|int, mixed> $scoredLeads
+ * @param array<string|int, mixed> $approvedLeadIds
      */
     public function calculatePrecision(array $scoredLeads, array $approvedLeadIds, int $topN = 50): float
     {
@@ -630,6 +641,7 @@ class LeadScoringService
     
     /**
      * Score based on company name patterns
+      * @param array<string|int, mixed> $lead
      */
     private function scoreCompanyNameFallback(array $lead): int
     {
@@ -655,6 +667,7 @@ class LeadScoringService
     
     /**
      * Score based on pre-extracted metadata
+      * @param array<string|int, mixed> $lead
      */
     private function scoreMetadataFallback(array $lead): int
     {
@@ -686,6 +699,7 @@ class LeadScoringService
     
     /**
      * Score based on pre-extracted sector tags
+      * @param array<string|int, mixed> $lead
      */
     private function scoreSectorTagsFallback(array $lead): int
     {
@@ -714,6 +728,7 @@ class LeadScoringService
     
     /**
      * Score based on quality certifications
+      * @param array<string|int, mixed> $lead
      */
     private function scoreQualityStackFallback(array $lead): int
     {
@@ -740,6 +755,7 @@ class LeadScoringService
     
     /**
      * Score based on region — all target regions scored equally
+      * @param array<string|int, mixed> $lead
      */
     private function scoreRegionFallback(array $lead): int
     {

@@ -365,6 +365,7 @@ TEMPLATE,
     
     /**
      * Render a template with data
+      * @param array<string|int, mixed> $data
      */
     public function renderTemplate(string $templateId, array $data): ?array
     {
@@ -385,6 +386,7 @@ TEMPLATE,
     
     /**
      * Render template with Company and Contact context
+      * @param array<string|int, mixed> $additionalData
      */
     public function renderForCompany(
         string $templateId,
@@ -421,6 +423,7 @@ TEMPLATE,
     
     /**
      * Create an Activity entity from a template
+      * @param array<string|int, mixed> $additionalData
      */
     public function createActivityFromTemplate(
         string $templateId,

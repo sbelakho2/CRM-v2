@@ -241,6 +241,7 @@ class QuoteCoPilotService
      *
      * Used when the BOM lists per-board quantities and the user wants to order
      * multiple boards (e.g., BOM qty=2, board_count=10 → final qty=20).
+      * @param array<string|int, mixed> $bomData
      */
     public function applyBoardCount(array $bomData, int $boardCount): array
     {

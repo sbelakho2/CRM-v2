@@ -180,6 +180,7 @@ class RfqVersioningService
     
     /**
      * Add a line item to an RFQ
+      * @param array<string|int, mixed> $data
      */
     public function addLineItem(RFQ $rfq, array $data): RfqLineItem
     {
@@ -225,6 +226,7 @@ class RfqVersioningService
     
     /**
      * Update a line item
+      * @param array<string|int, mixed> $data
      */
     public function updateLineItem(RfqLineItem $lineItem, array $data): void
     {

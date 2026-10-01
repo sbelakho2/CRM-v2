@@ -170,6 +170,7 @@ final class PipelineMetricsCollector
 
     /**
      * Record a warning (e.g. rate-limited, timeout, unexpected state).
+      * @param array<string|int, mixed> $context
      */
     public function recordWarning(string $message, array $context = []): void
     {

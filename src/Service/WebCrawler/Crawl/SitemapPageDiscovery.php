@@ -215,6 +215,7 @@ final class SitemapPageDiscovery
 
     /**
      * Follow a sitemap index (recurse into sub-sitemaps, max 5).
+      * @param array<string|int, mixed> $sitemapLocs
      */
     private function parseSitemapIndex(array $sitemapLocs, string $baseUrl): array
     {

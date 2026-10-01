@@ -330,6 +330,7 @@ class PartMatchConfidenceCalculator
     
     /**
      * Score data quality indicators (0-10 points)
+      * @param array<string|int, mixed> $apiResult
      */
     private function scoreDataQuality(array $apiResult): array
     {
@@ -460,6 +461,8 @@ class PartMatchConfidenceCalculator
     
     /**
      * Check if manual review is required
+      * @param array<string|int, mixed> $warnings
+ * @param array<string|int, mixed> $apiResult
      */
     private function requiresManualReview(string $level, array $warnings, array $apiResult): bool
     {

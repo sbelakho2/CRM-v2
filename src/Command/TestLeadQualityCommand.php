@@ -748,6 +748,8 @@ HELP
      * Persist a discovered company and its contacts to the database.
      * Deduplicates by website domain — if a company with the same website
      * already exists, updates it (adds new contacts, refreshes sector).
+      * @param array<string|int, mixed> $result
+ * @param array<string|int, mixed> $contacts
      */
     private function persistCompanyWithContacts(
         string $name,
@@ -773,6 +775,8 @@ HELP
 
     /**
      * Internal: actually persist a company and its contacts.
+      * @param array<string|int, mixed> $result
+ * @param array<string|int, mixed> $contacts
      */
     private function doPersistCompanyWithContacts(
         string $name,
@@ -1282,6 +1286,7 @@ HELP
      * Checks ONLY company-level issues, NOT contacts or competitors.
      *
      * @return string[] List of quality issues (empty = clean)
+      * @param array<string|int, mixed> $fullResult
      */
     private function validateCompanyName(string $name, string $domain, string $snippet, string $title, array $fullResult = []): array
     {
@@ -1406,6 +1411,7 @@ HELP
      * A "real" contact has both a first_name and last_name that look like
      * actual human names (2+ alpha chars each, not junk words, not product/
      * marketing text, not form labels, not German phrases).
+      * @param array<string|int, mixed> $contacts
      */
     private function hasRealPersonContact(array $contacts): bool
     {
@@ -1849,6 +1855,7 @@ HELP
      * Validate a single contact for quality.
      *
      * @return string[] List of quality issues (empty = clean)
+      * @param array<string|int, mixed> $contact
      */
     private function validateContact(array $contact): array
     {

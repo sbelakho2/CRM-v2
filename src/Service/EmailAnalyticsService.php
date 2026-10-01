@@ -204,6 +204,7 @@ class EmailAnalyticsService
 
     /**
      * Calculate statistical significance using Chi-square test
+      * @param array<string|int, mixed> $variants
      */
     private function calculateStatisticalSignificance(array $variants): array
     {
@@ -289,6 +290,7 @@ class EmailAnalyticsService
 
     /**
      * Compare multiple campaigns
+      * @param array<string|int, mixed> $campaignIds
      */
     public function compareCampaigns(array $campaignIds): array
     {

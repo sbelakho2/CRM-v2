@@ -92,6 +92,7 @@ class ExcelImportService
 
     /**
      * Map column headers to field names
+      * @param array<string|int, mixed> $headers
      */
     private function mapColumns(array $headers): array
     {
@@ -125,6 +126,7 @@ class ExcelImportService
 
     /**
      * Extract row data based on column map
+      * @param array<string|int, mixed> $columnMap
      */
     private function extractRowData($row, array $columnMap): array
     {
@@ -146,6 +148,7 @@ class ExcelImportService
 
     /**
      * Import or update company
+      * @param array<string|int, mixed> $data
      */
     private function importCompany(array $data): Company
     {
@@ -197,6 +200,7 @@ class ExcelImportService
      * Deduplicates by (email + company): re-importing the same Tracker file
      * updates the existing contact instead of creating a duplicate row.
      * Only non-empty fields are written, so existing data is preserved.
+      * @param array<string|int, mixed> $data
      */
     private function importContact(Company $company, array $data): ?Contact
     {
@@ -236,6 +240,7 @@ class ExcelImportService
 
     /**
      * Import supplier portal status
+      * @param array<string|int, mixed> $data
      */
     private function importSupplierPortal(Company $company, array $data): void
     {

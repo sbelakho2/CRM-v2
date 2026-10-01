@@ -616,6 +616,7 @@ class BomLine
     
     /**
      * Add a single alternative part
+      * @param array<string|int, mixed> $alternative
      */
     public function addAlternativePart(array $alternative): self
     {

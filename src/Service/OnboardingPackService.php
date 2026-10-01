@@ -581,6 +581,7 @@ class OnboardingPackService
      * cookie's own Domain scope against the submit host. Cookies whose
      * scope does not cover the submit host are NOT relayed (cookie-jar
      * semantics without a jar dependency).
+      * @param array<string|int, mixed> $setCookieHeaders
      */
     private function scopedCookieHeader(array $setCookieHeaders, string $submitHost, string $loginHost): string
     {

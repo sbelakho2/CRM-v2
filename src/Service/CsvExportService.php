@@ -264,6 +264,7 @@ class CsvExportService
 
     /**
      * Export part sourcing report (multi-quote comparison)
+      * @param array<string|int, mixed> $quoteIds
      */
     public function exportSourcingReport(array $quoteIds): StreamedResponse
     {
@@ -316,6 +317,7 @@ class CsvExportService
 
     /**
      * Convert Lead entity to CSV row array
+      * @param array<string|int, mixed> $fields
      */
     private function leadToRow(Lead $lead, array $fields): array
     {
@@ -379,6 +381,7 @@ class CsvExportService
 
     /**
      * Format JSON field for CSV
+      * @param array<string|int, mixed> $data
      */
     private function formatJsonField(?array $data): string
     {

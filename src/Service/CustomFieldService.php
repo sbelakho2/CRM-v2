@@ -92,6 +92,7 @@ class CustomFieldService
      * whose field key is NOT present in the payload (fields removed from the
      * form / deactivated definitions leave orphan rows otherwise). Only values
      * belonging to this entity are touched.
+      * @param array<string|int, mixed> $data
      */
     public function saveValues(string $entityType, int $entityId, array $data): void
     {
@@ -306,6 +307,7 @@ class CustomFieldService
 
     /**
      * Search entities by custom field values
+      * @param array<string|int, mixed> $searchCriteria
      */
     public function searchByCustomFields(string $entityType, array $searchCriteria): array
     {

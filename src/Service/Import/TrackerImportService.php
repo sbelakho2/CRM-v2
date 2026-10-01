@@ -115,6 +115,7 @@ class TrackerImportService
 
     /**
      * Import a single company row from CSV
+      * @param array<string|int, mixed> $row
      */
     private function importCompanyRow(array $row): string
     {
@@ -200,6 +201,7 @@ class TrackerImportService
 
     /**
      * Import or update supplier portal information
+      * @param array<string|int, mixed> $row
      */
     private function importPortalInfo(Company $company, string $portalUrl, array $row): void
     {

@@ -583,6 +583,7 @@ class EmailAbTestService
 
     /**
      * Find the index of a specific test config inside the campaign's list.
+      * @param array<string|int, mixed> $testConfig
      */
     private function findTestIndex(EmailCampaign $campaign, array $testConfig): ?int
     {

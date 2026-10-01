@@ -30,6 +30,7 @@ class EmailSegmentService
 
     /**
      * Create a new segment
+      * @param array<string|int, mixed> $filterRules
      */
     public function createSegment(
         string $name,
@@ -58,6 +59,7 @@ class EmailSegmentService
 
     /**
      * Update segment
+      * @param array<string|int, mixed> $filterRules
      */
     public function updateSegment(
         EmailSegment $segment,
@@ -141,6 +143,7 @@ class EmailSegmentService
 
     /**
      * Calculate contact count for filter rules (SQL COUNT, never loads rows).
+      * @param array<string|int, mixed> $filterRules
      */
     private function calculateContactCount(array $filterRules): int
     {
@@ -200,6 +203,7 @@ class EmailSegmentService
     /**
      * True when every rule references a whitelisted field/operator, so the
      * whole filter set can compile to a single DQL query.
+      * @param array<string|int, mixed> $filterRules
      */
     private function isCompilableToDql(array $filterRules): bool
     {
@@ -232,6 +236,7 @@ class EmailSegmentService
     /**
      * Build a QueryBuilder implementing the filter rules against Contact,
      * joined with Company when any rule uses dot notation.
+      * @param array<string|int, mixed> $filterRules
      */
     private function buildFilterQueryBuilder(array $filterRules): \Doctrine\ORM\QueryBuilder
     {
@@ -307,6 +312,7 @@ class EmailSegmentService
      * Whitelisted fields compile to a DB-side query with real LIMIT/OFFSET
      * and never load the contact table into PHP memory. Only non-whitelisted
      * legacy fields fall back to the (bounded, but in-memory) legacy path.
+      * @param array<string|int, mixed> $filterRules
      */
     private function getContactsByFilters(array $filterRules, ?int $limit = null, int $offset = 0): array
     {
@@ -362,6 +368,7 @@ class EmailSegmentService
      * Bounded in-memory evaluation for machinery-failure degradation ONLY
      * (deprecated fields throw before reaching here). Cap is a safety
      * valve, not a product limit.
+      * @param array<string|int, mixed> $filterRules
      */
     private function evaluateInMemory(array $filterRules, ?int $limit, int $offset): array
     {
@@ -382,6 +389,7 @@ class EmailSegmentService
 
     /**
      * Evaluate if a contact matches filter rules
+      * @param array<string|int, mixed> $filterRules
      */
     private function evaluateFilters(Contact $contact, array $filterRules): bool
     {
@@ -407,6 +415,7 @@ class EmailSegmentService
 
     /**
      * Evaluate a single filter rule
+      * @param array<string|int, mixed> $rule
      */
     private function evaluateRule(Contact $contact, array $rule): bool
     {
@@ -487,6 +496,7 @@ class EmailSegmentService
 
     /**
      * Validate filter rules structure
+      * @param array<string|int, mixed> $filterRules
      */
     public function validateFilterRules(array $filterRules): array
     {

@@ -637,6 +637,7 @@ class LiveFxRateFetcher
      * This auto-seeds the DB so that the system becomes self-sustaining:
      * first request hits the API, all subsequent requests use the DB cache.
      * Failures are silently logged (non-critical — the rate is still returned).
+      * @param array<string|int, mixed> $rateResult
      */
     private function persistLiveRate(string $from, string $to, array $rateResult): void
     {

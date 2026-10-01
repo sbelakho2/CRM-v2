@@ -34,6 +34,7 @@ class EmailTemplateService
 
     /**
      * Create a new email template
+      * @param array<string|int, mixed> $personalizationTokens
      */
     public function createTemplate(
         string $name,
@@ -65,6 +66,7 @@ class EmailTemplateService
 
     /**
      * Update an existing template
+      * @param array<string|int, mixed> $personalizationTokens
      */
     public function updateTemplate(
         EmailTemplate $template,

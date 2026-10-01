@@ -404,6 +404,7 @@ class EmailClassifierService
 
     /**
      * Process incoming email and create InboxMessage
+      * @param array<string|int, mixed> $metadata
      */
     public function processIncomingEmail(
         string $fromEmail,

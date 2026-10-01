@@ -221,6 +221,7 @@ class ContactEnrichmentService
      *
      * Typical title format: "John Smith - Procurement Manager - ACME Corp | LinkedIn"
      * Snippet may contain additional role/company info.
+      * @param array<string|int, mixed> $item
      */
     private function parseLinkedInSearchResult(array $item, string $companyName): ?array
     {
@@ -416,6 +417,7 @@ class ContactEnrichmentService
      * Deduplicate, score, and persist contacts.
      *
      * @return array{created: int, updated: int, skipped: int, contacts: Contact[]}
+      * @param array<string|int, mixed> $candidates
      */
     private function persistValidContacts(array $candidates, Company $company, ?string $domain, int $maxContacts): array
     {
@@ -563,6 +565,7 @@ class ContactEnrichmentService
     /**
      * Merge candidate records that refer to the same person.
      * Uses name + email as dedup keys.
+      * @param array<string|int, mixed> $candidates
      */
     private function deduplicateCandidates(array $candidates): array
     {
@@ -627,6 +630,7 @@ class ContactEnrichmentService
 
     /**
      * Score a candidate contact 0–100.
+      * @param array<string|int, mixed> $contact
      */
     private function scoreContact(array $contact, ?string $companyDomain = null): int
     {

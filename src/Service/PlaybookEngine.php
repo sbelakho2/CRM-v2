@@ -598,6 +598,7 @@ class PlaybookEngine
     
     /**
      * Build template context from context and event objects
+      * @param array<string|int, mixed> $actionData
      */
     private function buildEmailTemplateContext($context, $event, array $actionData, ?string $recipient = null): array
     {
@@ -711,6 +712,7 @@ class PlaybookEngine
 
     /**
      * Render email template, with fallback for missing templates
+      * @param array<string|int, mixed> $context
      */
     private function renderEmailTemplate(string $templatePath, array $context): string
     {
@@ -733,6 +735,7 @@ class PlaybookEngine
     
     /**
      * Generate fallback email HTML when Twig is unavailable or template missing
+      * @param array<string|int, mixed> $context
      */
     private function generateFallbackEmailHtml(array $context): string
     {

@@ -86,6 +86,7 @@ class SpintaxEngineService
 
     /**
      * Personalize content by replacing {{variable}} placeholders
+      * @param array<string|int, mixed> $context
      */
     public function personalize(string $content, array $context): string
     {
@@ -97,6 +98,7 @@ class SpintaxEngineService
 
     /**
      * Spin and personalize template content
+      * @param array<string|int, mixed> $context
      */
     public function spinAndPersonalize(
         string $subjectSpintax,
@@ -133,6 +135,8 @@ class SpintaxEngineService
      * 
      * Attempts to generate a unique variation with sufficient Levenshtein distance
      * from previous variations.
+      * @param array<string|int, mixed> $context
+ * @param array<string|int, mixed> $previousVariations
      */
     public function generateUnique(
         string $subjectSpintax,
@@ -164,6 +168,7 @@ class SpintaxEngineService
 
     /**
      * Check if content is unique compared to previous variations
+      * @param array<string|int, mixed> $previousVariations
      */
     public function isUnique(string $content, array $previousVariations): bool
     {
@@ -277,6 +282,7 @@ class SpintaxEngineService
 
     /**
      * Preview multiple variations of a template
+      * @param array<string|int, mixed> $context
      */
     public function previewVariations(
         string $subjectSpintax,
@@ -303,6 +309,7 @@ class SpintaxEngineService
 
     /**
      * Get active template and spin content
+      * @param array<string|int, mixed> $context
      */
     public function composeFromTemplate(
         SpintaxTemplate $template,

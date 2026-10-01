@@ -385,6 +385,7 @@ class AutonomousSalesOrchestratorService
      * 
      * Now includes reply pattern learning to prefer templates that
      * match patterns from previously successful emails.
+      * @param array<string|int, mixed> $context
      */
     private function selectTemplate(Contact $contact, array $context = []): ?SpintaxTemplate
     {
@@ -509,6 +510,7 @@ class AutonomousSalesOrchestratorService
      * 
      * This enables learning from past successful emails by preferring
      * templates with similar subject line structures.
+      * @param array<string|int, mixed> $successfulPatterns
      */
     private function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTemplate
     {

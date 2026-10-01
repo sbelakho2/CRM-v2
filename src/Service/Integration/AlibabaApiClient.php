@@ -661,6 +661,7 @@ class AlibabaApiClient
 
     /**
      * Parse a single offer object from _PAGE_DATA_ JSON
+      * @param array<string|int, mixed> $offer
      */
     private function parseOfferJson(array $offer): ?array
     {
@@ -1318,6 +1319,7 @@ class AlibabaApiClient
      *   Very high MOQ:      -5 (> 1000)
      * 
      * @return array[] Sorted descending by score
+      * @param array<string|int, mixed> $products
      */
     private function scoreAndRankProducts(array $products, string $partNumber, ?string $manufacturer): array
     {
@@ -1440,6 +1442,7 @@ class AlibabaApiClient
      *
      * This is NOT real stock — it's a confidence-weighted estimate that the
      * supplier CAN deliver. The value is flagged via '_stock_estimated'.
+      * @param array<string|int, mixed> $product
      */
     private function estimateSupplierStock(array $product): int
     {
@@ -1494,6 +1497,7 @@ class AlibabaApiClient
      * - image_url, product_url
      * - confidence (added by caller)
      * - alternatives[] (added by caller)
+      * @param array<string|int, mixed> $product
      */
     private function formatCrawledProduct(array $product, string $requestedMpn): array
     {

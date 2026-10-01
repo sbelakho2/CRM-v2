@@ -66,6 +66,7 @@ class PipelineForecastingService
     
     /**
      * Set custom stage probabilities based on historical data
+      * @param array<string|int, mixed> $probabilities
      */
     public function setCustomProbabilities(array $probabilities): void
     {

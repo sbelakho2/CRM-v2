@@ -232,6 +232,7 @@ final class VendorPortalApiService
 
     /**
      * @return array{success: bool, vendor: string, response: null, errorMessage: string, external_id: null}
+      * @param array<string|int, mixed> $envVars
      */
     private function configRequired(string $vendor, array $envVars): array
     {

@@ -663,6 +663,7 @@ class QuoteReviewController extends AbstractController
     
     /**
      * Helper to calculate unit price from price breaks
+      * @param array<string|int, mixed> $priceBreaks
      */
     private function calculateUnitPriceFromPricing(array $priceBreaks, int $quantity): float
     {
@@ -686,6 +687,7 @@ class QuoteReviewController extends AbstractController
 
     /**
      * Calculate review statistics for a set of BOM lines
+      * @param array<string|int, mixed> $bomLines
      */
     private function calculateReviewStats(array $bomLines): array
     {

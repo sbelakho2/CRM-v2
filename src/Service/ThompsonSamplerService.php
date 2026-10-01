@@ -246,6 +246,7 @@ class ThompsonSamplerService
      * Thompson-sample within a set of arms, optionally applying decay-toward-prior.
      *
      * @return array|null ['arm' => BanditArm, 'sampledScore' => float, 'allSamples' => array]
+      * @param array<string|int, mixed> $arms
      */
     private function thompsonSelectFrom(array $arms, bool $applyDecay): ?array
     {
@@ -303,6 +304,7 @@ class ThompsonSamplerService
 
     /**
      * Find the control-group arm for a type, or promote first arm if none marked.
+      * @param array<string|int, mixed> $arms
      */
     private function findControlArm(array $arms, string $armType): ?BanditArm
     {

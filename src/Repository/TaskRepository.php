@@ -331,6 +331,7 @@ class TaskRepository extends ServiceEntityRepository
 
     /**
      * Update task sort orders for kanban drag-drop
+      * @param array<string|int, mixed> $taskOrders
      */
     public function updateSortOrders(array $taskOrders): void
     {

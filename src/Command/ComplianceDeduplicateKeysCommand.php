@@ -169,6 +169,7 @@ class ComplianceDeduplicateKeysCommand extends Command
     /**
      * Deterministic, data-preserving priority: the row that carries the
      * most real compliance evidence wins.
+      * @param array<string|int, mixed> $rows
      */
     private function pickWinner(array $rows): ComplianceDocument
     {

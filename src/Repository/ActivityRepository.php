@@ -39,6 +39,7 @@ class ActivityRepository extends ServiceEntityRepository
      * Optimized for dashboard weekly metrics - eliminates 4 separate queries.
      * 
      * @return array<string, int> Map of type => count
+      * @param array<string|int, mixed> $types
      */
     public function countByTypesBetween(array $types, \DateTime $start, \DateTime $end): array
     {

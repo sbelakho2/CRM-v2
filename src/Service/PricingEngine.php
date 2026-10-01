@@ -94,6 +94,7 @@ class PricingEngine
 
     /**
      * Build a memo key covering every input that can affect the pricing result.
+      * @param array<string|int, mixed> $inputs
      */
     private function priceMemoKey(array $inputs): string
     {
@@ -104,6 +105,7 @@ class PricingEngine
      * @return array|null ['mpn', 'manufacturer', 'description', 'pricing', 'stock', 'source',
      *                     'confidence', 'alternatives', 'lifecycle_warning', 'search_url',
      *                     'waterfall_info']
+      * @param array<string|int, mixed> $options
      */
     private function resolvePricing(string $mpn, ?string $manufacturer = null, ?string $description = null, array $options = []): ?array
     {
@@ -811,6 +813,8 @@ class PricingEngine
      * We fix both by:
      *   1. Pulling real manufacturer + description from alternative DigiKey/Mouser results
      *   2. If no alternative data exists, attempt to clean the Alibaba description
+      * @param array<string|int, mixed> $processedLine
+ * @param array<string|int, mixed> $originalBomLine
      */
     private function enrichAlibabaPresentation(array $processedLine, array $originalBomLine): array
     {
@@ -1200,6 +1204,7 @@ class PricingEngine
     
     /**
      * Recalculate totals after manual overrides
+      * @param array<string|int, mixed> $processedLines
      */
     public function recalculateStats(array $processedLines): array
     {
@@ -1253,6 +1258,7 @@ class PricingEngine
      *   - Qty 5 gets $10 (meets 1 break)
      *   - Qty 15 gets $8 (meets 10 break)
      *   - Qty 200 gets $5 (meets 100 break)
+      * @param array<string|int, mixed> $priceBreaks
      */
     private function calculateUnitPrice(array $priceBreaks, int $quantity): float
     {
@@ -1502,6 +1508,7 @@ class PricingEngine
      * Example: ordering 95 units at $1.00 each vs 100 units at $0.80 each
      * - Cost at 95: $95.00
      * - Cost at 100: $80.00 (SAVE $15 by ordering 5 more!)
+      * @param array<string|int, mixed> $priceBreaks
      */
     public function getPriceBreakRecommendation(array $priceBreaks, int $quantity): ?array
     {
@@ -1575,6 +1582,7 @@ class PricingEngine
 
     /**
      * Calculate quote totals with margins
+      * @param array<string|int, mixed> $processedLines
      */
     public function calculateQuoteTotals(array $processedLines, float $marginPercent = 25.0, ?string $currency = null): array
     {
@@ -1638,6 +1646,8 @@ class PricingEngine
 
     /**
      * Check if quote meets auto-publish criteria
+      * @param array<string|int, mixed> $stats
+ * @param array<string|int, mixed> $processedLines
      */
     public function canAutoPublish(array $stats, array $processedLines): array
     {

@@ -427,6 +427,7 @@ final class LinkedInProfileParser
 
     /**
      * Enrich a parsed contact with additional data from the Google snippet.
+      * @param array<string|int, mixed> $contact
      */
     private function enrichFromSnippet(array $contact, string $snippet): array
     {

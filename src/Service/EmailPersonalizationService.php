@@ -747,6 +747,7 @@ class EmailPersonalizationService
 
     /**
      * Generate personalized email content for a contact
+      * @param array<string|int, mixed> $additionalVariables
      */
     public function personalizeEmail(
         Contact $contact,
@@ -971,6 +972,7 @@ class EmailPersonalizationService
 
     /**
      * Determine optimal personalization settings
+      * @param array<string|int, mixed> $similarProfiles
      */
     private function determineOptimalSettings(PersonalizationProfile $profile, array $similarProfiles): array
     {
@@ -1023,6 +1025,7 @@ class EmailPersonalizationService
      * - Role-specific pain points
      * - Social proof appropriate to segment
      * - Engagement-adaptive content length
+      * @param array<string|int, mixed> $settings
      */
     private function buildPersonalizationContext(
         Contact $contact,
@@ -1201,6 +1204,8 @@ class EmailPersonalizationService
 
     /**
      * Apply personalization to template text
+      * @param array<string|int, mixed> $variables
+ * @param array<string|int, mixed> $context
      */
     private function applyPersonalization(string $template, array $variables, array $context): string
     {
@@ -1288,6 +1293,7 @@ class EmailPersonalizationService
 
     /**
      * Record email interaction for learning
+      * @param array<string|int, mixed> $metadata
      */
     public function recordInteraction(
         Contact $contact,
@@ -1380,6 +1386,8 @@ class EmailPersonalizationService
 
     /**
      * Calculate cosine similarity between two vectors
+      * @param array<string|int, mixed> $a
+ * @param array<string|int, mixed> $b
      */
     private function cosineSimilarity(array $a, array $b): float
     {
@@ -1404,6 +1412,7 @@ class EmailPersonalizationService
 
     /**
      * Normalize a vector to unit length
+      * @param array<string|int, mixed> $vector
      */
     private function normalizeVector(array $vector): array
     {
@@ -1810,6 +1819,7 @@ class EmailPersonalizationService
 
     /**
      * Analyze subject patterns for common elements
+      * @param array<string|int, mixed> $patterns
      */
     private function analyzeSubjectPatterns(array $patterns): array
     {

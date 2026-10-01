@@ -109,6 +109,7 @@ final class GoldenDatasetRunner
      *   category: string,
      *   gates: array<string, array{passed: bool, detail: string}>,
      * }
+      * @param array<string|int, mixed> $entry
      */
     public function evaluateSingle(array $entry): array
     {
