@@ -417,4 +417,57 @@ class RouteSelectionFreightTest extends WebTestCase
         $this->assertSame(90.0, $this->service->getFreightCost('CMN-JFK', 'LCL', 500.0, 2.0)['cost']);
         $this->assertSame(1500.0, $this->service->getFreightCost('CMN-JFK', 'FCL', 5000.0, 10.0)['cost']);
     }
+
+    // ──────────────────────────────────────────────────
+    // Direct mode/threshold/lane-code unit expectations
+    // ──────────────────────────────────────────────────
+
+    public function testModeThresholdsAreExact(): void
+    {
+        // 10 kg, 0.1 m³ → volumetric 16.7 < 50 → AIR
+        $this->assertSame('AIR', $this->service->evaluateModeByWeight(10.0, 0.1));
+        // 100 kg → LCL
+        $this->assertSame('LCL', $this->service->evaluateModeByWeight(100.0, 0.1));
+        // volumetric pushes over: 1 m³ = 167 kg chargeable → LCL (not > 15000)
+        $this->assertSame('LCL', $this->service->evaluateModeByWeight(10.0, 1.0));
+        // 20,000 kg → FCL
+        $this->assertSame('FCL', $this->service->evaluateModeByWeight(20000.0, 1.0));
+        // volume exceeds a 40' container → forced FCL even at low weight
+        $this->assertSame('FCL', $this->service->evaluateModeByWeight(100.0, 70.0));
+    }
+
+    public function testValidateRouteTreatsThresholdsAsInclusiveUpperBounds(): void
+    {
+        $route = new RoutePreference();
+        $route->setDestinationCountry('US');
+        $route->setLaneCode('CMN-JFK');
+        $route->setRank(1);
+        $route->setMode('OCEAN');
+        $route->setWeightThresholdKg('100.00');
+        $route->setVolumeThresholdM3('2.00');
+
+        $this->assertTrue($this->service->validateRoute($route, 100.0, 2.0), 'exactly AT the threshold is feasible');
+        $this->assertFalse($this->service->validateRoute($route, 100.01, 2.0), 'weight above threshold is infeasible');
+        $this->assertFalse($this->service->validateRoute($route, 50.0, 2.01), 'volume above threshold is infeasible');
+
+        $unbounded = new RoutePreference();
+        $unbounded->setDestinationCountry('US');
+        $unbounded->setLaneCode('CMN-JFK');
+        $unbounded->setRank(2);
+        $unbounded->setMode('OCEAN');
+        $this->assertTrue($this->service->validateRoute($unbounded, 999999.0, 999999.0), 'null thresholds mean no bound');
+    }
+
+    public function testParseLaneCodeHandlesMultiHopLanes(): void
+    {
+        $simple = $this->service->parseLaneCode('CMN-JFK');
+        $this->assertSame('CMN', $simple['origin_port']);
+        $this->assertSame('JFK', $simple['destination_port']);
+        $this->assertSame([], $simple['transit_ports']);
+
+        $multi = $this->service->parseLaneCode('TAN-CDG-ORY');
+        $this->assertSame('TAN', $multi['origin_port']);
+        $this->assertSame('ORY', $multi['destination_port']);
+        $this->assertSame(['CDG'], $multi['transit_ports']);
+    }
 }

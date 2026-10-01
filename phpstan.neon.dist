@@ -1,4 +1,7 @@
 parameters:
+    # Analyze against the REAL runtime language version (PHP 8.5.10) — the
+    # composer platform pin above and this must move together.
+    phpVersion: 80500
     level: 5
     paths:
         - src

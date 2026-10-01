@@ -21,6 +21,7 @@ class WebinarService
         private \Symfony\Component\Mailer\Transport\TransportInterface $mailerTransport,
         private WebinarRepository $webinarRepository,
         private WebinarAttendeeRepository $webinarAttendeeRepository,
+        private \Psr\Log\LoggerInterface $logger,
         private MailerInterface $mailer,
         private string $mailerFromAddress,
         private string $mailerFromName
@@ -165,7 +166,7 @@ class WebinarService
         } catch (\Throwable $e) {
             // Registration stands; the confirmation stays retryable via
             // repeated registration attempts or a future resend worker.
-            error_log('Failed to send webinar confirmation email: ' . $e->getMessage());
+            $this->logger->error('Failed to send webinar confirmation email', ['error' => $e->getMessage()]);
         }
     }
 

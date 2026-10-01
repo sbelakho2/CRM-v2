@@ -3575,7 +3575,10 @@
     "visualization": "العرض البصري",
     "visualization_help": "اختر كيفية عرض البيانات بصرياً.",
     "remove": "إزالة",
-    "confirm_delete": "حذف هذا التقرير؟"
+    "confirm_delete": "حذف هذا التقرير؟",
+    "add_as_column": "عمود",
+    "add_as_filter": "مرشح",
+    "add_as_sort": "ترتيب"
   },
   "rfq": {
     "actions": {
@@ -4263,5 +4266,26 @@
   "emails.meeting_cancellation.body": "نأسف لإعلامك بأنه تم إلغاء الاجتماع التالي:",
   "emails.meeting_cancellation.title": "الاجتماع",
   "emails.meeting_cancellation.date": "التاريخ والوقت",
-  "emails.meeting_cancellation.footer": "شكراً لتفهمك. نحن في خدمتك."
+  "emails.meeting_cancellation.footer": "شكراً لتفهمك. نحن في خدمتك.",
+  "quote_request": {
+    "title": "طلبات عروض الأسعار",
+    "subtitle": "طلبات وقبول العملاء من عروض الأسعار التفاعلية",
+    "open": "مفتوحة",
+    "empty_title": "لا توجد طلبات هنا",
+    "empty_body": "عندما يطلب العميل تغييراً أو سعراً لكمية معينة من رابط عرض سعر تفاعلي، يظهر الطلب هنا للمتابعة.",
+    "empty_filtered": "لا توجد طلبات تطابق هذا الفلتر.",
+    "show_open": "إظهار الطلبات المفتوحة",
+    "received": "تُوصلت في",
+    "quote": "عرض السعر",
+    "type": "النوع",
+    "quantity": "الكمية",
+    "estimated": "التقديري",
+    "status": "الحالة",
+    "customer_notes": "ملاحظات العميل",
+    "action": "إجراء",
+    "start_review": "بدء المراجعة",
+    "mark_handled": "وضع علامة مُعالَج",
+    "resolution": "القرار",
+    "filter_status": "مرشح حالة الطلبات"
+  }
 }

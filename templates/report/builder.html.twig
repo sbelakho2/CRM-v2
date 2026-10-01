@@ -56,11 +56,11 @@
                                 <span class="rams-field-code">{{ field.type }}</span>
                                 <span class="rams-builder-field__actions">
                                     <button type="button" class="rams-btn rams-btn--secondary rams-btn--sm" data-add="column"
-                                            aria-label="Add {{ field.label }} as column">Column</button>
+                                            aria-label="Add {{ field.label }} as column">{{ 'report.add_as_column'|trans }}</button>
                                     <button type="button" class="rams-btn rams-btn--secondary rams-btn--sm" data-add="filter"
-                                            aria-label="Add {{ field.label }} as filter">Filter</button>
+                                            aria-label="Add {{ field.label }} as filter">{{ 'report.add_as_filter'|trans }}</button>
                                     <button type="button" class="rams-btn rams-btn--secondary rams-btn--sm" data-add="sort"
-                                            aria-label="Sort by {{ field.label }}">Sort</button>
+                                            aria-label="Sort by {{ field.label }}">{{ 'report.add_as_sort'|trans }}</button>
                                 </span>
                             </li>
                         {% endfor %}

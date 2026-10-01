@@ -11,7 +11,7 @@
         </div>
     </div>
 
-    <div class="rams-tabs rams-mb-4" role="tablist" aria-label="Request status filter">
+    <div class="rams-tabs rams-mb-4" role="tablist" aria-label="{{ 'quote_request.filter_status'|trans }}">
         <a href="{{ path('app_quote_request_index', {status: 'open'}) }}"
            class="rams-tab {{ current_status == 'open' ? 'rams-tab--active' : '' }}">{{ 'quote_request.open'|trans }}</a>
         {% for key, label in statuses %}

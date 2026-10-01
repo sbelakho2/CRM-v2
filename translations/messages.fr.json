@@ -3575,7 +3575,10 @@
     "visualization": "Visualisation",
     "visualization_help": "Choisissez comment visualiser les données.",
     "remove": "Supprimer",
-    "confirm_delete": "Supprimer ce rapport ?"
+    "confirm_delete": "Supprimer ce rapport ?",
+    "add_as_column": "Colonne",
+    "add_as_filter": "Filtre",
+    "add_as_sort": "Tri"
   },
   "rfq": {
     "actions": {
@@ -4282,6 +4285,7 @@
     "action": "Action",
     "start_review": "Démarrer la revue",
     "mark_handled": "Marquer traitée",
-    "resolution": "Résolution"
+    "resolution": "Résolution",
+    "filter_status": "Filtre de statut des demandes"
   }
 }

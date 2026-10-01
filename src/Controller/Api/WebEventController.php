@@ -20,7 +20,8 @@ class WebEventController extends AbstractController
     public function __construct(
         private EntityManagerInterface $entityManager,
         private AbmResolverService $abmResolver,
-        private RateLimiterFactory $apiGeneralLimiter
+        private RateLimiterFactory $apiGeneralLimiter,
+        private \Psr\Log\LoggerInterface $logger,
     ) {}
 
     /**
@@ -92,7 +93,7 @@ class WebEventController extends AbstractController
                 $this->entityManager->flush();
             } catch (\Exception $e) {
                 // Log error but don't fail the tracking
-                error_log("ABM processing failed: " . $e->getMessage());
+                $this->logger->error('ABM processing failed', ['error' => $e->getMessage()]);
             }
             
             return new JsonResponse([
@@ -101,7 +102,7 @@ class WebEventController extends AbstractController
             ]);
             
         } catch (\Exception $e) {
-            error_log('WebEvent tracking failed: ' . $e->getMessage());
+            $this->logger->error('WebEvent tracking failed', ['error' => $e->getMessage()]);
             return new JsonResponse([
                 'error' => 'Operation failed. Please try again.',
                 'message' => 'An unexpected error occurred.'

@@ -21,6 +21,7 @@ class RegistrationController extends AbstractController
 {
     public function __construct(
         private bool $publicRegistrationEnabled,
+        private \Psr\Log\LoggerInterface $logger,
     ) {}
 
     #[Route('/register', name: 'app_register')]
@@ -100,7 +101,7 @@ class RegistrationController extends AbstractController
                 $mailer->send($emailMessage);
             } catch (\Exception $e) {
                 // Account is created; verification email failure is logged server-side only
-                error_log('Failed to send verification email: ' . $e->getMessage());
+                $this->logger->error('Failed to send verification email', ['error' => $e->getMessage()]);
             }
 
             $this->addFlash('success', $translator->trans('registration.flash.created'));
@@ -187,7 +188,7 @@ class RegistrationController extends AbstractController
 
                     $mailer->send($emailMessage);
                 } catch (\Exception $e) {
-                    error_log('Failed to send verification email (resend): ' . $e->getMessage());
+                    $this->logger->error('Failed to send verification email (resend)', ['error' => $e->getMessage()]);
                 }
             }
         }

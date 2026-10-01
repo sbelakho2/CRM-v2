@@ -22,11 +22,15 @@ class SenseiRamsDesignSystemTest extends TestCase
     private string $cssPath;
     private string $translationsPath;
     
+    /** Reviewed allowlist: template => accepted violation strings. */
+    private array $allowlist;
+
     protected function setUp(): void
     {
         $this->templatesPath = __DIR__ . '/../../../templates';
         $this->cssPath = __DIR__ . '/../../../public/css/sensei-rams.css';
         $this->translationsPath = __DIR__ . '/../../../translations/messages.en.json';
+        $this->allowlist = require __DIR__ . '/design_system_allowlist.php';
     }
     
     // ========================================
@@ -419,15 +423,24 @@ class SenseiRamsDesignSystemTest extends TestCase
             }
         }
         
-        // This is a soft test - just warn, don't fail
-        if (!empty($templatesWithHardcodedText)) {
-            $this->markTestSkipped(
-                "WARNING: Some templates may contain hardcoded text that should be translated:\n" .
-                print_r($templatesWithHardcodedText, true)
-            );
+        // Round-8 policy: a detected violation FAILS. Reviewed, accepted
+        // violations live in design_system_allowlist.php.
+        foreach ($templatesWithHardcodedText as $template => $items) {
+            $allowed = $this->allowlist[$template] ?? [];
+            $templatesWithHardcodedText[$template] = array_values(array_filter(
+                $items,
+                fn (string $item) => !in_array($item, $allowed, true)
+            ));
+            if ($templatesWithHardcodedText[$template] === []) {
+                unset($templatesWithHardcodedText[$template]);
+            }
         }
-        
-        $this->assertTrue(true);
+
+        $this->assertEmpty(
+            $templatesWithHardcodedText,
+            "Templates with hardcoded text that should be translated (fix or review into design_system_allowlist.php):\n" .
+            print_r($templatesWithHardcodedText, true)
+        );
     }
     
     public function testSecurityTemplatesUseTransFilter(): void
@@ -478,15 +491,22 @@ class SenseiRamsDesignSystemTest extends TestCase
             }
         }
         
-        // This is informational - many inputs use Symfony form builder which handles labels
-        if (!empty($violatingTemplates)) {
-            $this->markTestSkipped(
-                "INFO: Some inputs may need explicit labels for accessibility:\n" .
-                print_r($violatingTemplates, true)
-            );
+        foreach ($violatingTemplates as $template => $items) {
+            $allowed = $this->allowlist[$template] ?? [];
+            $violatingTemplates[$template] = array_values(array_filter(
+                $items,
+                fn (string $item) => !in_array($item, $allowed, true)
+            ));
+            if ($violatingTemplates[$template] === []) {
+                unset($violatingTemplates[$template]);
+            }
         }
-        
-        $this->assertTrue(true);
+
+        $this->assertEmpty(
+            $violatingTemplates,
+            "Inputs without explicit labels (fix or review into design_system_allowlist.php):\n" .
+            print_r($violatingTemplates, true)
+        );
     }
     
     public function testButtonsHaveAccessibleNames(): void
@@ -518,15 +538,16 @@ class SenseiRamsDesignSystemTest extends TestCase
             }
         }
         
-        // Informational
-        if (!empty($violatingTemplates)) {
-            $this->markTestSkipped(
-                "INFO: Some icon-only buttons may need aria-label:\n" .
-                implode("\n", array_unique($violatingTemplates))
-            );
-        }
-        
-        $this->assertTrue(true);
+        $violatingTemplates = array_values(array_filter(
+            array_unique($violatingTemplates),
+            fn (string $template) => empty($this->allowlist[$template])
+        ));
+
+        $this->assertEmpty(
+            $violatingTemplates,
+            "Icon-only buttons without aria-label (fix or review into design_system_allowlist.php):\n" .
+            implode("\n", $violatingTemplates)
+        );
     }
     
     public function testLinksAreDistinguishable(): void

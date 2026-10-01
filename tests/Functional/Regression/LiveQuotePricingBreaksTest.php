@@ -358,4 +358,37 @@ class LiveQuotePricingBreaksTest extends WebTestCase
             'a customer request must notify the operations queue'
         );
     }
+
+    public function testRegenerateTokenIssuesFreshTokenAndHonorsExpirationBound(): void
+    {
+        $quote = $this->makeQuoteWithBreaks();
+        $oldToken = $quote->getPublicToken();
+
+        $result = $this->service->regenerateToken($quote, 15);
+
+        $this->assertNotSame($oldToken, $result['token'], 'regeneration must mint a NEW token (the old link must stop working)');
+        $expires = new \DateTime($result['expires_at']);
+        $days = (int) ceil(($expires->getTimestamp() - time()) / 86400);
+        $this->assertSame(15, $days, 'regeneration honors the requested 15-day window');
+        $this->assertContains(99, $result['quantity_tiers'], 'regeneration preserves the configured tiers');
+    }
+
+    public function testInteractiveStatsCountActiveQuotesAndViews(): void
+    {
+        $quote = $this->makeQuoteWithBreaks();
+        // viewCount has no setter by design — mutate through the real API.
+        for ($i = 0; $i < 5; $i++) {
+            $quote->incrementViewCount();
+        }
+        $quote->setLastViewedAt(new \DateTime('-2 hours'));
+        $this->em->flush();
+        $this->em->clear();
+
+        $stats = $this->service->getInteractiveQuoteStats();
+
+        $this->assertSame(1, $stats['active_interactive_quotes'], 'exactly one valid interactive quote seeded');
+        $this->assertSame(5, $stats['total_customer_views']);
+        $this->assertSame(1, $stats['recently_viewed_count']);
+        $this->assertSame('Break Co', $stats['recently_viewed'][0]['company'] ?? null);
+    }
 }

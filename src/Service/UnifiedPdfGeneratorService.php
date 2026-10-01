@@ -103,7 +103,7 @@ class UnifiedPdfGeneratorService
                 'Quote',
                 $quoteId,
                 $this->calculateHash($pdfContent),
-                uniqid('q_', true),
+                bin2hex(random_bytes(12)), // version id: random, not time-enumerable
                 null,
                 strlen($pdfContent),
                 [],
@@ -221,7 +221,7 @@ class UnifiedPdfGeneratorService
                 'Quote',
                 $quoteId,
                 $this->calculateHash($pdfContent),
-                uniqid('dfm_', true),
+                bin2hex(random_bytes(12)), // version id: random, not time-enumerable
                 $filename,
                 strlen($pdfContent)
             );
@@ -704,7 +704,7 @@ class UnifiedPdfGeneratorService
                 $entityType,
                 $entityId,
                 $this->calculateHash($pdfContent),
-                uniqid('at_', true),
+                bin2hex(random_bytes(12)), // version id: random, not time-enumerable
                 $filename,
                 strlen($pdfContent),
                 [],
@@ -891,7 +891,7 @@ class UnifiedPdfGeneratorService
         $document->setDocumentType($documentType);
         $document->setFilePath($filepath);
         $document->setSha256Hash($sha256Hash);
-        $document->setVersionId(uniqid('v_', true));
+        $document->setVersionId(bin2hex(random_bytes(12))); // random, not time-enumerable
         $document->setUploadedAt(new \DateTime());
 
         if (!empty($metadata)) {

@@ -192,7 +192,9 @@ class ComplianceController extends AbstractController
                 throw new \RuntimeException('File too large (max 10 MB)');
             }
 
-            $newFilename = $safeFilename.'-'.uniqid('', true).'.'.$extension;
+            // Compliance documents need unpredictable on-disk names: uniqid() is
+                // time-based and guessable. 16 random bytes hex = 128 bits.
+                $newFilename = $safeFilename.'-'.bin2hex(random_bytes(16)).'.'.$extension;
 
             $file->move($uploadDir, $newFilename);
 

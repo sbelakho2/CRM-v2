@@ -3575,7 +3575,10 @@
     "visualization": "Visualization",
     "visualization_help": "Choose how to visualize the data.",
     "remove": "Remove",
-    "confirm_delete": "Delete this report?"
+    "confirm_delete": "Delete this report?",
+    "add_as_column": "Column",
+    "add_as_filter": "Filter",
+    "add_as_sort": "Sort"
   },
   "rfq": {
     "actions": {
@@ -4282,6 +4285,7 @@
     "action": "Action",
     "start_review": "Start review",
     "mark_handled": "Mark handled",
-    "resolution": "Resolution"
+    "resolution": "Resolution",
+    "filter_status": "Request status filter"
   }
 }

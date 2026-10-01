@@ -55,7 +55,8 @@ steps:
         php -v | head -1
         composer --version
         php -m | grep -E '^(pdo_mysql|intl|mbstring|xml|curl)$' | sort
-        test "$(php -r 'echo PHP_VERSION_ID;')" -ge 80200
+        # The composer platform pins PHP 8.5 — the runner must match or exceed.
+        test "$(php -r 'echo PHP_VERSION_ID;')" -ge 80500  # composer platform.php = 8.5.10
 
   composer-validate:
     image: bash
@@ -126,19 +127,66 @@ steps:
         set -eu
         php -d memory_limit=-1 scripts/ci/check-phpstan-divergence.php
 
-  phpstan-level6-gate:
+  route-authorization-gate:
+    image: bash
+    depends_on: [composer-install]
+    commands:
+      - |
+        set -eu
+        # Every controller must carry an explicit authorization policy
+        # (#[IsGranted]) or a reviewed anonymous reason — the round-8 task
+        # IDOR happened where policy was implicit.
+        php scripts/ci/check-route-authorization.php
+
+  translation-parity-gate:
+    image: bash
+    depends_on: [composer-install]
+    commands:
+      - |
+        set -eu
+        # en/fr/ar key sets must be IDENTICAL: Morocco/Tunisia users read
+        # French and Arabic; a missing key is a raw translation key on
+        # screen. The round-8 queue shipped 18 Arabic keys short.
+        php scripts/ci/check-translations.php
+
+  critical-surface-test-gate:
+    image: bash
+    depends_on: [composer-install]
+    commands:
+      - |
+        set -eu
+        # Every public method on a load-bearing class (pricing, duty, FX,
+        # SSRF armor, archive/preservation, voters) must be NAMED by the
+        # test suite — the round-8 P0 service had ZERO tests executing it
+        # while CI stayed green.
+        php scripts/ci/check-critical-surface-tests.php
+
+  live-data-safety-gate:
+    image: bash
+    depends_on: [composer-install]
+    commands:
+      - |
+        set -eu
+        # PROJECT LAW, statically enforced: every database reference that
+        # ships in CI/scripts/tests must be a throwaway *_test database as
+        # crm_test; application code must be incapable of dropping a
+        # database. Live data is never touched, never deleted.
+        php scripts/ci/check-live-data-safety.php
+
+  phpstan-max-gate:
     image: bash
     depends_on: [composer-install]
     commands:
       - |
         set -eu
         export PATH="/opt/homebrew/bin:$PATH"
-        # Round-8 audit item 26: the NEXT strictness tier — level 6 over a
-        # FROZEN baseline (legacy findings accepted verbatim; reportUnmatched
-        # IgnoredErrors=false so shrinkage is free). Any NEW level-6 finding
-        # fails the build. Shrink phpstan-level6-baseline.neon by fixing
-        # code; never grow it.
-        php -d memory_limit=2G vendor/bin/phpstan analyse -c phpstan-level6.neon.dist --no-progress
+        # MAXIMUM strictness tier: PHPStan level 10 (explicit types and
+        # nullability proven everywhere) over a FROZEN baseline of legacy
+        # findings (reportUnmatchedIgnoredErrors=false — fixes shrink it
+        # silently). Any NEW level-10 finding fails the build. Shrink
+        # phpstan-max-baseline.neon by fixing code; never grow it.
+        # phpstan.neon.dist pins phpVersion 80500 = the composer platform.
+        php -d memory_limit=4G vendor/bin/phpstan analyse -c phpstan-max.neon.dist --no-progress
 
   composer-audit:
     image: bash

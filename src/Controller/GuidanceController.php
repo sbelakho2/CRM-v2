@@ -14,7 +14,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class GuidanceController extends AbstractController
 {
     public function __construct(
-        private GuidanceNotificationService $guidanceService
+        private GuidanceNotificationService $guidanceService,
+        private \Psr\Log\LoggerInterface $logger,
     ) {}
     #[Route('/guidance/dismiss', name: 'guidance_dismiss', methods: ['POST'])]
     public function dismiss(Request $request): JsonResponse
@@ -96,7 +97,7 @@ class GuidanceController extends AbstractController
                     $session->set('guidance_last_generated_' . $user->getId(), $today);
                 } catch (\Exception $e) {
                     // Log error but don't break the page
-                    error_log('Guidance generation error: ' . $e->getMessage());
+                    $this->logger->error('Guidance generation error', ['error' => $e->getMessage()]);
                 }
             }
         }

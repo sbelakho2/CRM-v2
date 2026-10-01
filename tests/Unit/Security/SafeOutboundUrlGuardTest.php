@@ -116,4 +116,52 @@ class SafeOutboundUrlGuardTest extends TestCase
 
         $this->assertFalse(SafeOutboundUrlGuard::isPubliclyRoutableIp('not-an-ip'));
     }
+
+    // ── Critical-surface additions: credential-endpoint gate + resolveHost ──
+
+    public function testCredentialEndpointsRequireHttps(): void
+    {
+        // 1.1.1.1 is a public literal: assertAllowed passes, the HTTPS rule
+        // is what must reject it.
+        try {
+            $this->guard->assertAllowedCredentialEndpoint('http://1.1.1.1/portal/login');
+            $this->fail('credential-bearing requests over http:// must be rejected');
+        } catch (UnsafeOutboundUrlException $e) {
+            self::assertStringContainsString('HTTPS', $e->getMessage());
+        }
+    }
+
+    public function testCredentialEndpointsRejectNonDefaultPorts(): void
+    {
+        try {
+            $this->guard->assertAllowedCredentialEndpoint('https://1.1.1.1:8443/portal/login');
+            $this->fail('credential endpoints must not target non-default ports');
+        } catch (UnsafeOutboundUrlException $e) {
+            self::assertStringContainsString('port', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testCredentialEndpointOnDefaultHttpsPortPasses(): void
+    {
+        self::assertSame('https://1.1.1.1/supplier-portal', $this->guard->assertAllowedCredentialEndpoint('https://1.1.1.1/supplier-portal'));
+    }
+
+    public function testCloudMetadataIpIsExplicitlyBlocked(): void
+    {
+        // The single most valuable SSRF target in any cloud deployment.
+        $this->expectException(UnsafeOutboundUrlException::class);
+        $this->guard->assertAllowed('http://169.254.169.254/latest/meta-data/');
+    }
+
+    public function testResolveHostReturnsLoopbackForLocalhost(): void
+    {
+        $ips = $this->guard->resolveHost('localhost');
+        self::assertNotEmpty($ips, 'localhost must resolve on every runner');
+        self::assertContains('127.0.0.1', $ips);
+    }
+
+    public function testResolveHostOfUnresolvableNameYieldsNothing(): void
+    {
+        self::assertSame([], $this->guard->resolveHost('no-such-host-4f3ae2.invalid-extra'));
+    }
 }

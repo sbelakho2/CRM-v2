@@ -208,7 +208,9 @@ class CustomFieldDefinition
             return $key;
         }
 
-        return 'field_' . uniqid();
+        // 8 random bytes: collision-proof and not enumerable (uniqid() is
+        // microsecond-time based).
+        return 'field_' . bin2hex(random_bytes(8));
     }
 
     // Getters and Setters

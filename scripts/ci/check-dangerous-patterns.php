@@ -90,6 +90,64 @@ foreach ($twigIterator as $file) {
     }
 }
 
+// ── 6b. debug residue in src/ ─────────────────────────────────────────
+// var_dump/dd/dump/rprint debug leftovers ship secrets to responses and
+// noise to logs; the structured PSR-3 logger is the ONLY channel.
+$debugFiles = phpFiles($root . '/src');
+foreach ($debugFiles as $file) {
+    $stripped = stripPhpNoise((string) file_get_contents($file));
+    if (preg_match('/\b(var_dump|dd)\s*\(/', $stripped)) {
+        fail($failures, "{$file}: var_dump()/dd() debug residue — use the PSR-3 logger");
+    }
+    if (preg_match('/\berror_log\s*\(/', $stripped)) {
+        fail($failures, "{$file}: error_log() bypasses the structured logger — inject LoggerInterface");
+    }
+    if (preg_match('/\beval\s*\(/', $stripped)) {
+        fail($failures, "{$file}: eval() — there is no acceptable dynamic-code path in this CRM");
+    }
+    if (preg_match('/\bunserialize\s*\(/', $stripped)) {
+        fail($failures, "{$file}: unserialize() is object-injection bait — use json_decode");
+    }
+}
+
+// ── 6c. weak randomness outside reviewed non-security contexts ────────
+// rand()/mt_rand()/array_rand()/str_shuffle()/uniqid() are NOT
+// cryptographically random. Reviewed users are: the deterministic
+// test-data seeder, and statistical-variety consumers (A/B Thompson
+// sampling, spintax text variation, UA/viewport rotation, crawler delay
+// jitter, weighted proxy pick) — none of which produce security
+// material. Tokens, fingerprints, file ids and secrets use
+// random_bytes/random_int — the three spots that violated this
+// (compliance upload names, custom-field keys, PDF version ids) were
+// CONVERTED, which is what this gate exists to force.
+$weakRandomReviewed = [
+    'Command/GenerateTestDataCommand.php' => 'deterministic-ish fake prospect data, never security material',
+    'Service/ProxyRotationService.php' => 'weighted proxy pick — statistical rotation',
+    'Service/HeadlessBrowserService.php' => 'UA/viewport randomization + human-delay jitter — anti-bot mimicry',
+    'Service/ThompsonSamplerService.php' => 'Thompson sampling math for A/B variant selection — statistical',
+    'Service/SpintaxEngineService.php' => 'spintax text variation — content variety, not security',
+    'Service/EmailPersonalizationService.php' => 'personalization variety picks — content variety',
+    'Service/AutonomousSalesOrchestratorService.php' => 'outreach pattern-type variety — content variety',
+    'Service/DeepScrapingService.php' => 'crawler politeness jitter — timing only',
+    'Service/Integration/AlibabaApiClient.php' => 'UA/Accept-Language rotation — anti-bot mimicry',
+];
+foreach ($debugFiles as $file) {
+    $reviewed = false;
+    foreach ($weakRandomReviewed as $suffix => $reason) {
+        if (str_ends_with($file, $suffix)) {
+            $reviewed = true;
+            break;
+        }
+    }
+    if ($reviewed) {
+        continue;
+    }
+    $stripped = stripPhpNoise((string) file_get_contents($file));
+    if (preg_match('/\b(rand|mt_rand|array_rand|str_shuffle|uniqid)\s*\(/', $stripped)) {
+        fail($failures, "{$file}: weak randomness (rand/mt_rand/array_rand/str_shuffle/uniqid) — use random_bytes/random_int for anything security-adjacent");
+    }
+}
+
 // ── 7. native browser dialogs in templates ───────────────────────────
 // alert()/confirm()/prompt() are visually inconsistent, poor on mobile,
 // and inaccessible. The designated compat components (which DOCUMENT the
