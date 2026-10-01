@@ -96,7 +96,13 @@ class EmailSegment
         return $this->filterRulesJson;
     }
 
-    public function setFilterRulesJson(array $filterRulesJson): self
+    /**
+     * @param array<string|int, mixed> $filterRulesJson
+     */
+    public /**
+ * @param array<string|int, mixed> $filterRulesJson
+ */
+function setFilterRulesJson(array $filterRulesJson): self
     {
         $this->filterRulesJson = $filterRulesJson;
         return $this;

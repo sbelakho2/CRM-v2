@@ -87,7 +87,10 @@ class SpintaxEngineService
     /**
      * Personalize content by replacing {{variable}} placeholders
      */
-    public function personalize(string $content, array $context): string
+    public /**
+ * @param array<string|int, mixed> $context
+ */
+function personalize(string $content, array $context): string
     {
         return preg_replace_callback('/\{\{(\w+)\}\}/', function ($matches) use ($context) {
             $variable = $matches[1];
@@ -98,7 +101,10 @@ class SpintaxEngineService
     /**
      * Spin and personalize template content
      */
-    public function spinAndPersonalize(
+    public /**
+ * @param array<string|int, mixed> $context
+ */
+function spinAndPersonalize(
         string $subjectSpintax,
         string $bodySpintax,
         array $context
@@ -134,7 +140,11 @@ class SpintaxEngineService
      * Attempts to generate a unique variation with sufficient Levenshtein distance
      * from previous variations.
      */
-    public function generateUnique(
+    public /**
+ * @param array<string|int, mixed> $context
+ * @param array<string|int, mixed> $previousVariations
+ */
+function generateUnique(
         string $subjectSpintax,
         string $bodySpintax,
         array $context,
@@ -165,7 +175,10 @@ class SpintaxEngineService
     /**
      * Check if content is unique compared to previous variations
      */
-    public function isUnique(string $content, array $previousVariations): bool
+    public /**
+ * @param array<string|int, mixed> $previousVariations
+ */
+function isUnique(string $content, array $previousVariations): bool
     {
         foreach ($previousVariations as $previous) {
             $distance = $this->levenshteinDistance($content, $previous);
@@ -278,7 +291,10 @@ class SpintaxEngineService
     /**
      * Preview multiple variations of a template
      */
-    public function previewVariations(
+    public /**
+ * @param array<string|int, mixed> $context
+ */
+function previewVariations(
         string $subjectSpintax,
         string $bodySpintax,
         array $context,
@@ -304,7 +320,10 @@ class SpintaxEngineService
     /**
      * Get active template and spin content
      */
-    public function composeFromTemplate(
+    public /**
+ * @param array<string|int, mixed> $context
+ */
+function composeFromTemplate(
         SpintaxTemplate $template,
         array $context
     ): array {

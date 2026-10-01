@@ -26,11 +26,13 @@ class EmailAnalyticsService
 
     /**
      * Get comprehensive campaign metrics
+     *
+     * @return array{total: int, sent: int, opened: int, clicked: int, replied: int, bounced: int, deliveryRate: float|int, openRate: float|int, clickRate: float|int, clickToOpenRate: float|int, replyRate: float|int, bounceRate: float|int}
      */
     public function getCampaignMetrics(EmailCampaign $campaign): array
     {
-        $stats = $this->entityManager->createQuery(
-            'SELECT 
+        $query = $this->entityManager->createQuery(
+            'SELECT
                 COUNT(es.id) as total,
                 SUM(CASE WHEN es.status IN (:delivered) THEN 1 ELSE 0 END) as delivered,
                 SUM(CASE WHEN es.status = :failed THEN 1 ELSE 0 END) as failed,
@@ -39,14 +41,16 @@ class EmailAnalyticsService
                 SUM(CASE WHEN es.clicked = true THEN 1 ELSE 0 END) as clicked,
                 SUM(CASE WHEN es.replied = true THEN 1 ELSE 0 END) as replied,
                 SUM(CASE WHEN es.bounced = true THEN 1 ELSE 0 END) as bounced
-             FROM App\Entity\EmailSend es 
+             FROM App\Entity\EmailSend es
              WHERE es.campaign = :campaign'
         )
         ->setParameter('campaign', $campaign)
         ->setParameter('sent', 'sent')
         ->setParameter('delivered', ['sent', 'bounced'])
-        ->setParameter('failed', 'failed')
-        ->getSingleResult();
+        ->setParameter('failed', 'failed');
+
+        /** @var array<string, int|string|null> $stats */
+        $stats = $query->getSingleResult();
 
         $total = (int) $stats['total'];
         $delivered = (int) ($stats['delivered'] ?? 0);
@@ -77,6 +81,8 @@ class EmailAnalyticsService
 
     /**
      * Get campaign engagement over time
+     *
+     * @return array{opens: list<array{date: string, count: int|string}>, clicks: list<array{date: string, count: int|string}>}
      */
     public function getEngagementTimeline(EmailCampaign $campaign, string $interval = 'day'): array
     {
@@ -84,6 +90,7 @@ class EmailAnalyticsService
         $campaignId = $campaign->getId();
 
         // Get opens over time — using native SQL for DATE()
+        /** @var list<array{date: string, count: int|string}> $opens */
         $opens = $conn->fetchAllAssociative(
             "SELECT DATE(es.opened_at) AS date, COUNT(es.id) AS count
              FROM email_sends es
@@ -95,6 +102,7 @@ class EmailAnalyticsService
         );
 
         // Get clicks over time — using native SQL for DATE()
+        /** @var list<array{date: string, count: int|string}> $clicks */
         $clicks = $conn->fetchAllAssociative(
             "SELECT DATE(es.clicked_at) AS date, COUNT(es.id) AS count
              FROM email_sends es
@@ -119,6 +127,8 @@ class EmailAnalyticsService
      * 'variants' map keyed by variant ID ('A', 'B', ...). EmailSend.variant
      * stores the variant ID. A legacy flat variant list (entries with 'name'
      * but no 'variants' key) is also accepted for backward compatibility.
+     *
+     * @return array{error: string}|array{variants: array<string, array{id: string, name: string, sent: int, opened: int, clicked: int, openRate: float|int, clickRate: float|int}>, winner: string|null, confidence: float|int, isSignificant: bool}
      */
     public function analyzeAbTest(EmailCampaign $campaign): array
     {
@@ -139,25 +149,32 @@ class EmailAnalyticsService
             $testConfig = ['variants' => $abTestVariants];
         }
 
+        /** @var array<string|int, mixed> $variants */
+        $variants = $testConfig['variants'];
+
         $results = [];
-        foreach ($testConfig['variants'] as $variantKey => $variant) {
-            $variantId = is_array($variant) ? (string) ($variant['id'] ?? $variantKey) : (string) $variantKey;
-            $variantName = is_array($variant) ? (string) ($variant['name'] ?? $variantId) : $variantId;
+        foreach ($variants as $variantKey => $variant) {
+            $rawVariantId = is_array($variant) ? ($variant['id'] ?? null) : $variantKey;
+            $variantId = is_scalar($rawVariantId) ? (string) $rawVariantId : (string) $variantKey;
+            $rawVariantName = is_array($variant) ? ($variant['name'] ?? null) : null;
+            $variantName = is_scalar($rawVariantName) ? (string) $rawVariantName : $variantId;
 
             // Query EmailSend records filtered by variant ID (canonical matching key)
-            $stats = $this->entityManager->createQuery(
-                'SELECT 
+            $query = $this->entityManager->createQuery(
+                'SELECT
                     COUNT(es.id) as sent,
                     SUM(CASE WHEN es.status IN (:deliveredStates) THEN 1 ELSE 0 END) as delivered,
                     SUM(CASE WHEN es.opened = true THEN 1 ELSE 0 END) as opened,
                     SUM(CASE WHEN es.clicked = true THEN 1 ELSE 0 END) as clicked
-                 FROM App\Entity\EmailSend es 
+                 FROM App\Entity\EmailSend es
                  WHERE es.campaign = :campaign AND es.variant = :variant'
             )
             ->setParameter('campaign', $campaign)
             ->setParameter('variant', $variantId)
-            ->setParameter('deliveredStates', ['sent', 'bounced'])
-            ->getSingleResult();
+            ->setParameter('deliveredStates', ['sent', 'bounced']);
+
+            /** @var array<string, int|string|null> $stats */
+            $stats = $query->getSingleResult();
 
             $sent = (int) $stats['sent'];
             $delivered = (int) ($stats['delivered'] ?? 0);
@@ -197,15 +214,21 @@ class EmailAnalyticsService
         return [
             'variants' => $results,
             'winner' => $winner,
-            'confidence' => $significance['confidence'] ?? 0,
-            'isSignificant' => $significance['isSignificant'] ?? false,
+            'confidence' => $significance['confidence'],
+            'isSignificant' => $significance['isSignificant'],
         ];
     }
 
     /**
      * Calculate statistical significance using Chi-square test
+     *
+     * @param array<string, array{id: string, name: string, sent: int, opened: int, clicked: int, openRate: float|int, clickRate: float|int}> $variants
+     * @return array{isSignificant: bool, confidence: float|int, chiSquare?: float}
      */
-    private function calculateStatisticalSignificance(array $variants): array
+    private /**
+ * @param array<string|int, mixed> $variants
+ */
+function calculateStatisticalSignificance(array $variants): array
     {
         // Simplified chi-square calculation
         // For production, use a proper statistical library
@@ -289,8 +312,14 @@ class EmailAnalyticsService
 
     /**
      * Compare multiple campaigns
+     *
+     * @param array<int, int|string> $campaignIds
+     * @return array{campaigns: list<array{id: int|null, name: string|null, metrics: array{total: int, sent: int, opened: int, clicked: int, replied: int, bounced: int, deliveryRate: float|int, openRate: float|int, clickRate: float|int, clickToOpenRate: float|int, replyRate: float|int, bounceRate: float|int}}>, averages: array{openRate: float|int, clickRate: float|int, replyRate: float|int}}
      */
-    public function compareCampaigns(array $campaignIds): array
+    public /**
+ * @param array<string|int, mixed> $campaignIds
+ */
+function compareCampaigns(array $campaignIds): array
     {
         $comparison = [];
 
@@ -337,11 +366,14 @@ class EmailAnalyticsService
 
     /**
      * Get best time to send analysis
+     *
+     * @return array{hourly: list<array{hour: int, opens: int, sent: int, openRate: float|int}>, daily: list<array{dayOfWeek: int, dayName: string, opens: int, sent: int, openRate: float|int}>, recommendations: array{bestHour: int|null, bestHourRate: float, bestDay: string|null, bestDayRate: float}}
      */
     public function getBestTimeToSend(): array
     {
         // Native SQL: HOUR()/DAYOFWEEK() are not registered DQL functions —
         // the DQL variant failed at parse time. Delivered population only.
+        /** @var list<array{hour: int|string, opens: int|string, sent: int|string}> $hourlyStats */
         $hourlyStats = $this->entityManager->getConnection()->fetchAllAssociative(
             "SELECT
                 HOUR(opened_at) AS `hour`,
@@ -358,17 +390,20 @@ class EmailAnalyticsService
         $hourlyOpenRates = [];
         foreach ($hourlyStats as $stat) {
             $hour = (int) $stat['hour'];
-            $openRate = $stat['sent'] > 0 ? ($stat['opens'] / $stat['sent']) * 100 : 0;
-            
+            $opensCount = (int) $stat['opens'];
+            $sentCount = (int) $stat['sent'];
+            $openRate = $sentCount > 0 ? ($opensCount / $sentCount) * 100 : 0;
+
             $hourlyOpenRates[$hour] = [
                 'hour' => $hour,
-                'opens' => (int) $stat['opens'],
-                'sent' => (int) $stat['sent'],
+                'opens' => $opensCount,
+                'sent' => $sentCount,
                 'openRate' => round($openRate, 2),
             ];
         }
 
         // Native SQL (same reason as the hourly query above).
+        /** @var list<array{dayOfWeek: int|string, opens: int|string, sent: int|string}> $dailyStats */
         $dailyStats = $this->entityManager->getConnection()->fetchAllAssociative(
             "SELECT
                 DAYOFWEEK(opened_at) AS dayOfWeek,
@@ -384,16 +419,18 @@ class EmailAnalyticsService
 
         $dailyOpenRates = [];
         $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        
+
         foreach ($dailyStats as $stat) {
             $dayOfWeek = (int) $stat['dayOfWeek'];
-            $openRate = $stat['sent'] > 0 ? ($stat['opens'] / $stat['sent']) * 100 : 0;
-            
+            $opensCount = (int) $stat['opens'];
+            $sentCount = (int) $stat['sent'];
+            $openRate = $sentCount > 0 ? ($opensCount / $sentCount) * 100 : 0;
+
             $dailyOpenRates[$dayOfWeek] = [
                 'dayOfWeek' => $dayOfWeek,
                 'dayName' => $dayNames[$dayOfWeek - 1] ?? 'Unknown',
-                'opens' => (int) $stat['opens'],
-                'sent' => (int) $stat['sent'],
+                'opens' => $opensCount,
+                'sent' => $sentCount,
                 'openRate' => round($openRate, 2),
             ];
         }
@@ -432,6 +469,8 @@ class EmailAnalyticsService
 
     /**
      * Get funnel analysis (sent -> opened -> clicked -> replied)
+     *
+     * @return array{funnel: list<array{stage: string, count: int, percentage: int|float}>, dropOff: array{sentToOpened: float, openedToClicked: float, clickedToReplied: float|int}}
      */
     public function getFunnelAnalysis(EmailCampaign $campaign): array
     {
@@ -466,7 +505,7 @@ class EmailAnalyticsService
         
         $csv = "Metric,Value\n";
         foreach ($metrics as $key => $value) {
-            $csv .= ucfirst($key) . "," . $value . "\n";
+            $csv .= ucfirst($key) . "," . (string) $value . "\n";
         }
 
         return $csv;
@@ -474,10 +513,13 @@ class EmailAnalyticsService
 
     /**
      * Get top performing campaigns
+     *
+     * @return list<array{id: int|null, name: string|null, metric: int|float, metrics: array{total: int, sent: int, opened: int, clicked: int, replied: int, bounced: int, deliveryRate: float|int, openRate: float|int, clickRate: float|int, clickToOpenRate: float|int, replyRate: float|int, bounceRate: float|int}}>
      */
     public function getTopPerformingCampaigns(int $limit = 10, string $metric = 'openRate'): array
     {
         // Archived campaigns are retired from rankings.
+        /** @var list<EmailCampaign> $campaigns */
         $campaigns = $this->entityManager->createQuery(
             'SELECT c FROM App\Entity\EmailCampaign c WHERE c.archivedAt IS NULL ORDER BY c.createdAt DESC'
         )
@@ -496,7 +538,7 @@ class EmailAnalyticsService
         }
 
         // Sort by metric
-        usort($performance, function ($a, $b) use ($metric) {
+        usort($performance, function (array $a, array $b): int {
             return $b['metric'] <=> $a['metric'];
         });
 

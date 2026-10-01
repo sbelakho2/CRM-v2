@@ -145,6 +145,7 @@ class CustomFieldController extends AbstractController
     #[Route('/api/reorder', name: 'custom_field_reorder', methods: ['POST'])]
     public function reorder(Request $request): JsonResponse
     {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
 
         if (!$this->isCsrfTokenValid('reorder', $data['_token'] ?? '')) {

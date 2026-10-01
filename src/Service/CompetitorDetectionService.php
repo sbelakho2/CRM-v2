@@ -247,8 +247,12 @@ class CompetitorDetectionService
 
     /**
      * Save competitor detections for a lead
+     * @param array<string|int, mixed> $competitors
      */
-    public function saveCompetitorDetections(Lead $lead, array $competitors): void
+    public /**
+ * @param array<string|int, mixed> $competitors
+ */
+function saveCompetitorDetections(Lead $lead, array $competitors): void
     {
         foreach ($competitors as $competitor) {
             // Check if already exists

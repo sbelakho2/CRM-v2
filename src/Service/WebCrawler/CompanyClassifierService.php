@@ -21,7 +21,27 @@ use Psr\Log\LoggerInterface;
  */
 class CompanyClassifierService
 {
-    private array $kb = [];  // Knowledge base loaded from JSON
+    /**
+     * Knowledge base loaded from JSON.
+     *
+     * @var array{
+     *     buyer_keywords?: list<string>,
+     *     reject_keywords?: list<string>,
+     *     giant_oem_names?: list<string>,
+     *     distributor_indicators?: list<string>,
+     *     name_patterns_reject?: list<string>,
+     *     name_patterns_buyer?: list<string>,
+     *     domain_reject_patterns?: list<string>,
+     *     buyer_business_types?: list<array{type?: string, weight?: int|string}>,
+     *     reject_business_types?: list<array{type?: string, weight?: int|string}>,
+     *     _meta?: array{generated_at?: string},
+     *     _buyer_kw_lower?: list<string>,
+     *     _reject_kw_lower?: list<string>,
+     *     _giant_names_lower?: list<string>,
+     *     _distributor_lower?: list<string>
+     * }
+     */
+    private array $kb = [];
     private bool $loaded = false;
 
     public function __construct(
@@ -42,8 +62,16 @@ class CompanyClassifierService
             return;
         }
 
-        $data = json_decode(file_get_contents($path), true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
+        $json = file_get_contents($path);
+        if ($json === false) {
+            $this->logger->error('CompanyClassifier: unable to read knowledge base at ' . $path);
+            return;
+        }
+
+        /** @var array{buyer_keywords?: list<string>, reject_keywords?: list<string>, giant_oem_names?: list<string>, distributor_indicators?: list<string>, name_patterns_reject?: list<string>, name_patterns_buyer?: list<string>, domain_reject_patterns?: list<string>, buyer_business_types?: list<array{type?: string, weight?: int|string}>, reject_business_types?: list<array{type?: string, weight?: int|string}>, _meta?: array{generated_at?: string}} $data */
+        /** @var array<string, mixed>|null $data */
+        $data = json_decode($json, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
             $this->logger->error('CompanyClassifier: invalid JSON in knowledge base');
             return;
         }

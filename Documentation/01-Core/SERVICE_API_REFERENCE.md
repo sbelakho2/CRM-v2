@@ -3,7 +3,7 @@
 **Version**: 2.0  
 **Last Updated**: February 25, 2026
 
-This document catalogs the major application services within the Starz Morocco CRM codebase. Each entry summarizes responsibility and location.
+This document catalogs the major application services within the StarzCRM codebase. Each entry summarizes responsibility and location.
 
 ---
 

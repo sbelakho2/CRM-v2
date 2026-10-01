@@ -9,6 +9,7 @@ use App\Repository\CompanyRepository;
 use App\Service\ExportService;
 use App\Service\GuidanceNotificationService;
 use App\Service\CountryService;
+use App\Service\Geo\RegionCatalog;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -502,6 +503,21 @@ class CompanyController extends AbstractController
         }
 
         $rawUpper = strtoupper($selected);
+
+        // Round-9: canonical territories match every stored token that means
+        // them (slug, legacy coarse code, spelled-out alias) — legacy rows
+        // surface under the new canonical filter without data rewrites.
+        $territoryTokens = RegionCatalog::filterTokensFor($selected);
+        if ($territoryTokens !== null) {
+            $qb->andWhere('(
+                UPPER(c.region) IN (:territoryTokens)
+                OR UPPER(c.country) IN (:territoryTokens)
+            )')
+               ->setParameter('territoryTokens', $territoryTokens);
+
+            return;
+        }
+
         $normalized = $this->countryService->normalizeRegionCode($selected) ?? $rawUpper;
         $normalizedUpper = strtoupper($normalized);
 
@@ -559,30 +575,22 @@ class CompanyController extends AbstractController
      */
     private function buildCompanyRegionOptions(): array
     {
-        // Start with all country + US subdivision options.
-        $options = $this->countryService->getRegionOptions([
-            'EU' => 'Europe',
-            'EU_REGION' => 'Europe',
-            'GCC' => 'GCC',
-            'GCC_REGION' => 'GCC',
-            // Common standardized region tags used elsewhere in the repo.
-            'eu_west' => 'Europe - West',
-            'eu_central' => 'Europe - Central',
-            'eu_south' => 'Europe - South',
-            'eu_north' => 'Europe - North',
-            'uk' => 'United Kingdom',
-            'us_east' => 'United States - East',
-            'us_west' => 'United States - West',
-            'us_central' => 'United States - Central',
-            'us_south' => 'United States - South',
-            'middle_east' => 'Middle East',
-            'africa_north' => 'Africa - North',
-            'africa_sub' => 'Africa - Sub-Saharan',
-            'southeast_asia' => 'Southeast Asia',
-            'australia_nz' => 'Australia & New Zealand',
-            'eastern_europe' => 'Eastern Europe',
-            'latam_other' => 'Latin America - Other',
-        ]);
+        // Round-9: the filter offers THE canonical territory catalog first —
+        // exactly the same list the company form writes, in the same language.
+        // Country + US-subdivision options follow (per-country granularity),
+        // then any other values found in stored data.
+        $options = [];
+        foreach (RegionCatalog::territories() as $value => $labelKey) {
+            $options[$value] = $this->translator->trans($labelKey);
+        }
+
+        // Per-country and US-subdivision granularity (raw ISO codes keep
+        // matching through the filter's raw-code branch).
+        foreach ($this->countryService->getRegionOptions() as $code => $label) {
+            if (!isset($options[$code])) {
+                $options[$code] = $label;
+            }
+        }
 
         $rows = $this->companyRepository->createQueryBuilder('cr')
             ->select('DISTINCT cr.region AS region, cr.country AS country')

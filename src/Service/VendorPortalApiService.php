@@ -73,6 +73,7 @@ final class VendorPortalApiService
         $body = $response->getContent(false);
 
         if ($status >= 200 && $status < 300) {
+            /** @var array<string, mixed>|null $decoded */
             $decoded = json_decode($body, true);
 
             return [
@@ -124,6 +125,7 @@ final class VendorPortalApiService
         $body = $response->getContent(false);
 
         if ($status >= 200 && $status < 300) {
+            /** @var array<string, mixed>|null $decoded */
             $decoded = json_decode($body, true);
 
             return [
@@ -168,6 +170,7 @@ final class VendorPortalApiService
             ));
         }
 
+        /** @var array<string, mixed>|null $decoded */
         $decoded = json_decode($response->getContent(), true);
         if (!is_array($decoded) || empty($decoded['access_token'])) {
             throw new \RuntimeException('Ariba OAuth response contained no access_token.');
@@ -229,8 +232,12 @@ final class VendorPortalApiService
 
     /**
      * @return array{success: bool, vendor: string, response: null, errorMessage: string, external_id: null}
+     * @param array<string|int, mixed> $envVars
      */
-    private function configRequired(string $vendor, array $envVars): array
+    private /**
+ * @param array<string|int, mixed> $envVars
+ */
+function configRequired(string $vendor, array $envVars): array
     {
         $message = sprintf(
             '%s API credentials not configured. Set %s in the environment (ops secret store) and retry — the integration itself is implemented and ready.',

@@ -251,7 +251,13 @@ GRAPHQL;
         });
     }
 
-    private function parseSpecs(array $specs): array
+    /**
+     * @param array<string|int, mixed> $specs
+     */
+    private /**
+ * @param array<string|int, mixed> $specs
+ */
+function parseSpecs(array $specs): array
     {
         $result = [];
         

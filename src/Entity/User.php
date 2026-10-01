@@ -134,7 +134,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return array_unique($roles);
     }
 
-    public function setRoles(array $roles): self
+    /**
+     * @param array<string|int, mixed> $roles
+     */
+    public /**
+ * @param array<string|int, mixed> $roles
+ */
+function setRoles(array $roles): self
     {
         $this->roles = $roles;
         return $this;
@@ -371,7 +377,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     /**
      * @return Collection<int, Activity>
-     */
+         /** @return Collection<int, App\Entity\Activity> */
     public function getActivities(): Collection
     {
         return $this->activities;

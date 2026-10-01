@@ -122,7 +122,13 @@ class CapacityCalendar
         return $this->bookings ?? [];
     }
 
-    public function setBookings(?array $bookings): self
+    /**
+     * @param array<string|int, mixed> $bookings
+     */
+    public /**
+ * @param array<string|int, mixed> $bookings
+ */
+function setBookings(?array $bookings): self
     {
         $this->bookings = $bookings;
 

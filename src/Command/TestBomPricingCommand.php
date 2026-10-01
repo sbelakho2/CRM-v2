@@ -267,8 +267,14 @@ class TestBomPricingCommand extends Command
      *
      * Columns: Line#, MPN, Alt MPN, Source, Qty, BOM Unit$, API Unit$,
      *          BOM Ext$, API Ext$, Ratio, Stock, Confidence, Listing Link
+     * @param array<string|int, mixed> $result
+     * @param array<string|int, mixed> $bomLines
      */
-    private function exportToExcel(array $result, array $bomLines, string $inputFile): string
+    private /**
+ * @param array<string|int, mixed> $result
+ * @param array<string|int, mixed> $bomLines
+ */
+function exportToExcel(array $result, array $bomLines, string $inputFile): string
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();

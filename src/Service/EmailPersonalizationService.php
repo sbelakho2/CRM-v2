@@ -704,7 +704,10 @@ class EmailPersonalizationService
      * @param array $additionalVariables Additional variables to merge
      * @return array Full personalization context with all variables
      */
-    public function getPersonalizationContext(Contact $contact, array $additionalVariables = []): array
+    public /**
+ * @param array<string|int, mixed> $additionalVariables
+ */
+function getPersonalizationContext(Contact $contact, array $additionalVariables = []): array
     {
         // Get or create personalization profile
         $profile = $this->profileRepository->findOrCreateForContact($contact->getId());
@@ -748,7 +751,10 @@ class EmailPersonalizationService
     /**
      * Generate personalized email content for a contact
      */
-    public function personalizeEmail(
+    public /**
+ * @param array<string|int, mixed> $additionalVariables
+ */
+function personalizeEmail(
         Contact $contact,
         string $templateSubject,
         string $templateBody,
@@ -972,7 +978,10 @@ class EmailPersonalizationService
     /**
      * Determine optimal personalization settings
      */
-    private function determineOptimalSettings(PersonalizationProfile $profile, array $similarProfiles): array
+    private /**
+ * @param array<string|int, mixed> $similarProfiles
+ */
+function determineOptimalSettings(PersonalizationProfile $profile, array $similarProfiles): array
     {
         // Start with profile's own preferences
         $settings = [
@@ -1024,7 +1033,10 @@ class EmailPersonalizationService
      * - Social proof appropriate to segment
      * - Engagement-adaptive content length
      */
-    private function buildPersonalizationContext(
+    private /**
+ * @param array<string|int, mixed> $settings
+ */
+function buildPersonalizationContext(
         Contact $contact,
         PersonalizationProfile $profile,
         array $settings
@@ -1202,7 +1214,11 @@ class EmailPersonalizationService
     /**
      * Apply personalization to template text
      */
-    private function applyPersonalization(string $template, array $variables, array $context): string
+    private /**
+ * @param array<string|int, mixed> $variables
+ * @param array<string|int, mixed> $context
+ */
+function applyPersonalization(string $template, array $variables, array $context): string
     {
         $text = $template;
         
@@ -1289,7 +1305,10 @@ class EmailPersonalizationService
     /**
      * Record email interaction for learning
      */
-    public function recordInteraction(
+    public /**
+ * @param array<string|int, mixed> $metadata
+ */
+function recordInteraction(
         Contact $contact,
         string $eventType,
         ?OutboundMessage $message = null,
@@ -1381,7 +1400,11 @@ class EmailPersonalizationService
     /**
      * Calculate cosine similarity between two vectors
      */
-    private function cosineSimilarity(array $a, array $b): float
+    private /**
+ * @param array<string|int, mixed> $a
+ * @param array<string|int, mixed> $b
+ */
+function cosineSimilarity(array $a, array $b): float
     {
         $dotProduct = 0.0;
         $normA = 0.0;
@@ -1405,7 +1428,10 @@ class EmailPersonalizationService
     /**
      * Normalize a vector to unit length
      */
-    private function normalizeVector(array $vector): array
+    private /**
+ * @param array<string|int, mixed> $vector
+ */
+function normalizeVector(array $vector): array
     {
         $norm = 0.0;
         foreach ($vector as $v) {
@@ -1811,7 +1837,10 @@ class EmailPersonalizationService
     /**
      * Analyze subject patterns for common elements
      */
-    private function analyzeSubjectPatterns(array $patterns): array
+    private /**
+ * @param array<string|int, mixed> $patterns
+ */
+function analyzeSubjectPatterns(array $patterns): array
     {
         $usesCompanyName = 0;
         $isQuestion = 0;
@@ -2697,7 +2726,10 @@ class EmailPersonalizationService
      * @param string $engagementLevel 'cold', 'warm', or 'hot'
      * @return array Filtered principles appropriate for engagement level
      */
-    public function filterPrinciplesForEngagement(array $principles, string $engagementLevel): array
+    public /**
+ * @param array<string|int, mixed> $principles
+ */
+function filterPrinciplesForEngagement(array $principles, string $engagementLevel): array
     {
         $architecture = self::TEMPLATE_ARCHITECTURES[$engagementLevel] ?? self::TEMPLATE_ARCHITECTURES['cold'];
         $allowed = $architecture['allowed_principles'] ?? [];
@@ -3125,7 +3157,10 @@ class EmailPersonalizationService
      * @param array $context The personalization context used
      * @return array Detailed personalization assessment
      */
-    public function calculatePersonalizationDepth(Contact $contact, array $context): array
+    public /**
+ * @param array<string|int, mixed> $context
+ */
+function calculatePersonalizationDepth(Contact $contact, array $context): array
     {
         $dimensions = [
             'industry_specific' => false,
@@ -3437,7 +3472,10 @@ class EmailPersonalizationService
      * @param array $context Additional context variables
      * @return array Complete email preview with metrics
      */
-    public function previewEmailWithMetrics(Contact $contact, array $context = [], ?string $sampleEmailBody = null): array
+    public /**
+ * @param array<string|int, mixed> $context
+ */
+function previewEmailWithMetrics(Contact $contact, array $context = [], ?string $sampleEmailBody = null): array
     {
         // Build persuasion context
         $persuasionContext = $this->buildPersuasionContext($contact);
@@ -3670,7 +3708,10 @@ class EmailPersonalizationService
      * @param int $maxAttempts Maximum generation attempts (default 10)
      * @return array ['success' => bool, 'body' => string|null, 'attempts' => int, 'similarity' => float]
      */
-    public function ensureUniqueVariation(
+    public /**
+ * @param array<string|int, mixed> $recentEmailBodies
+ */
+function ensureUniqueVariation(
         Contact $contact,
         array $recentEmailBodies,
         float $maxSimilarity = 0.6,
@@ -3717,7 +3758,10 @@ class EmailPersonalizationService
      * @param array $context The personalization context used
      * @return array Complete quality assessment with pass/fail
      */
-    public function runFullQualityCheck(string $emailBody, Contact $contact, array $context = []): array
+    public /**
+ * @param array<string|int, mixed> $context
+ */
+function runFullQualityCheck(string $emailBody, Contact $contact, array $context = []): array
     {
         $checks = [];
         $allPassed = true;
@@ -3866,7 +3910,10 @@ class EmailPersonalizationService
      * @param array $recentFingerprints Array of recent fingerprints to compare against
      * @return bool True if fingerprint is found (duplicate), false otherwise
      */
-    public function isDuplicateFingerprint(string $fingerprint, array $recentFingerprints): bool
+    public /**
+ * @param array<string|int, mixed> $recentFingerprints
+ */
+function isDuplicateFingerprint(string $fingerprint, array $recentFingerprints): bool
     {
         return in_array($fingerprint, $recentFingerprints, true);
     }

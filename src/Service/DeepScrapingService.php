@@ -655,7 +655,10 @@ class DeepScrapingService
     /**
      * Parse a Schema.org Person entity into a structured contact
      */
-    private function parseSchemaOrgPerson(array $entity): ?array
+    private /**
+ * @param array<string|int, mixed> $entity
+ */
+function parseSchemaOrgPerson(array $entity): ?array
     {
         $name = $entity['name'] ?? null;
         $firstName = $entity['givenName'] ?? null;
@@ -1124,7 +1127,10 @@ class DeepScrapingService
     /**
      * Check if a contact is a decision-maker (procurement, engineering, C-suite)
      */
-    public function isDecisionMaker(array $contact): bool
+    public /**
+ * @param array<string|int, mixed> $contact
+ */
+function isDecisionMaker(array $contact): bool
     {
         $title = strtolower($contact['job_title'] ?? '');
         if (!$title) {
@@ -1147,7 +1153,10 @@ class DeepScrapingService
      * Score a contact's quality (0-100) for B2B sales relevance.
      * Higher = more likely a real, reachable decision-maker.
      */
-    public function scoreContactQuality(array $contact, ?string $companyDomain = null): int
+    public /**
+ * @param array<string|int, mixed> $contact
+ */
+function scoreContactQuality(array $contact, ?string $companyDomain = null): int
     {
         $score = 0;
 
@@ -1308,7 +1317,10 @@ class DeepScrapingService
     /**
      * Clean and filter emails
      */
-    private function cleanEmails(array $emails): array
+    private /**
+ * @param array<string|int, mixed> $emails
+ */
+function cleanEmails(array $emails): array
     {
         $cleaned = [];
         $seen = [];
@@ -1355,7 +1367,10 @@ class DeepScrapingService
     /**
      * Clean and filter phones
      */
-    private function cleanPhones(array $phones): array
+    private /**
+ * @param array<string|int, mixed> $phones
+ */
+function cleanPhones(array $phones): array
     {
         $cleaned = [];
         $seen = [];
@@ -1384,7 +1399,11 @@ class DeepScrapingService
      * If a contact has no email but we found emails like firstname.lastname@domain
      * or firstinitiallastname@domain, we match them up.
      */
-    private function deduplicateAndEnrichContacts(array $contacts, array $emails, string $baseUrl): array
+    private /**
+ * @param array<string|int, mixed> $contacts
+ * @param array<string|int, mixed> $emails
+ */
+function deduplicateAndEnrichContacts(array $contacts, array $emails, string $baseUrl): array
     {
         $domain = parse_url($baseUrl, PHP_URL_HOST);
         $domain = $domain ? preg_replace('/^www\./', '', strtolower($domain)) : null;
@@ -1458,7 +1477,10 @@ class DeepScrapingService
     /**
      * Deduplicate social links
      */
-    private function deduplicateSocialLinks(array $links): array
+    private /**
+ * @param array<string|int, mixed> $links
+ */
+function deduplicateSocialLinks(array $links): array
     {
         $seen = [];
         $unique = [];

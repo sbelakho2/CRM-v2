@@ -1,4 +1,4 @@
-# Starz Morocco CRM – Production Deployment Guide
+# StarzCRM – Production Deployment Guide
 
 **Audience**: DevOps, SecOps, Release Manager  
 **Revision**: April 14, 2026  
@@ -641,7 +641,7 @@ Create `/etc/systemd/system/starz-messenger.service`:
 
 ```ini
 [Unit]
-Description=Starz CRM Messenger Worker
+Description=StarzCRM Messenger Worker
 After=network.target mysql.service
 
 [Service]
@@ -821,7 +821,7 @@ All documentation is in `/var/www/starzcrm/Documentation/`:
 
 **Deployment Complete!** ✅
 
-The Starz Morocco CRM system is live at https://www.starzcrm.com
+The StarzCRM system is live at https://www.starzcrm.com
 
 **Version**: 2.0  
 **Last Updated**: February 25, 2026  

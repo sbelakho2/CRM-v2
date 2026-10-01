@@ -363,7 +363,13 @@ class Quote
         return $this->apiVersions;
     }
 
-    public function setApiVersions(?array $apiVersions): self
+    /**
+     * @param array<string|int, mixed> $apiVersions
+     */
+    public /**
+ * @param array<string|int, mixed> $apiVersions
+ */
+function setApiVersions(?array $apiVersions): self
     {
         $this->apiVersions = $apiVersions;
         return $this;
@@ -371,10 +377,16 @@ class Quote
 
     public function getMetadata(): ?array
     {
+    /**
+     * @param array<string|int, mixed> $metadata
+     */
         return $this->metadata;
     }
 
-    public function setMetadata(?array $metadata): self
+    public /**
+ * @param array<string|int, mixed> $metadata
+ */
+function setMetadata(?array $metadata): self
     {
         $this->metadata = $metadata;
         return $this;
@@ -448,7 +460,7 @@ class Quote
 
     /**
      * @return Collection<int, QuotePartBreakdown>
-     */
+         /** @return Collection<int, App\Entity\QuotePartBreakdown> */
     public function getPartBreakdowns(): Collection
     {
         return $this->partBreakdowns;
@@ -503,7 +515,7 @@ class Quote
 
     /**
      * @return Collection<int, BomLine>
-     */
+         /** @return Collection<int, App\Entity\BomLine> */
     public function getBomLines(): Collection
     {
         return $this->bomLines;
@@ -583,13 +595,19 @@ class Quote
         $this->interactiveEnabled = $interactiveEnabled;
         return $this;
     }
+    /**
+     * @param array<string|int, mixed> $quantityOptions
+     */
 
     public function getQuantityOptions(): ?array
     {
         return $this->quantityOptions;
     }
 
-    public function setQuantityOptions(?array $quantityOptions): self
+    public /**
+ * @param array<string|int, mixed> $quantityOptions
+ */
+function setQuantityOptions(?array $quantityOptions): self
     {
         $this->quantityOptions = $quantityOptions;
         return $this;

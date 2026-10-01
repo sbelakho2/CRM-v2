@@ -382,7 +382,10 @@ final class QueryTemplateBuilder
      * @param array{terms: string[], certs: string[], extras: string[]} $sectorConfig
      * @return array<int, array{query: string, type: string}>
      */
-    private function buildSectorQueries(array $sectorConfig, ?string $location): array
+    private /**
+ * @param array<string|int, mixed> $sectorConfig
+ */
+function buildSectorQueries(array $sectorConfig, ?string $location): array
     {
         $queries = [];
         $locationClause = $location !== null ? ' ' . $location : '';
@@ -451,7 +454,10 @@ final class QueryTemplateBuilder
      * @param array{terms: string[], certs: string[], extras: string[]}|null $sectorConfig
      * @return array<int, array{query: string, type: string}>
      */
-    private function buildCertificationQueries(?array $sectorConfig, ?string $location): array
+    private /**
+ * @param array<string|int, mixed> $sectorConfig
+ */
+function buildCertificationQueries(?array $sectorConfig, ?string $location): array
     {
         $queries = [];
         $locationClause = $location !== null ? ' ' . $location : '';
@@ -709,7 +715,10 @@ final class QueryTemplateBuilder
      * @param array<int, array{query: string, type: string}> $queries
      * @return array<int, array{query: string, type: string}>
      */
-    private function deduplicateQueries(array $queries): array
+    private /**
+ * @param array<string|int, mixed> $queries
+ */
+function deduplicateQueries(array $queries): array
     {
         $seen = [];
         $unique = [];

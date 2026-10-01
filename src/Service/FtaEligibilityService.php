@@ -65,7 +65,10 @@ class FtaEligibilityService
      *   declaration_template: ?string
      * }
      */
-    public function checkEligibility(
+    public /**
+ * @param array<string|int, mixed> $bomData
+ */
+function checkEligibility(
         string $originCountry,
         string $destinationCountry,
         array $bomData = [],
@@ -219,7 +222,10 @@ class FtaEligibilityService
      * @param array $bomData BOM with hts_code per line item
      * @return array ROO evaluation: ['passes' => bool, 'method' => string, 'details' => string]
      */
-    public function evaluateRoo(FtaRule $ftaRule, array $bomData): array
+    public /**
+ * @param array<string|int, mixed> $bomData
+ */
+function evaluateRoo(FtaRule $ftaRule, array $bomData): array
     {
         // Parse ROO requirement text from the entity's rooRequirement field
         // The text contains the rule (e.g., "CTH", "CTC 4-6", "RVC 60%", "WHOLLY_OBTAINED")
@@ -440,7 +446,10 @@ class FtaEligibilityService
      * @param array $eligibilityResult Result from checkEligibility()
      * @return string Pre-filled declaration text
      */
-    public function generateDeclarationTemplate(
+    public /**
+ * @param array<string|int, mixed> $eligibilityResult
+ */
+function generateDeclarationTemplate(
         string $htsCode,
         string $originCountry,
         string $destinationCountry,
@@ -499,7 +508,10 @@ class FtaEligibilityService
      * 4. Compare to FTA threshold (typically 50-75%)
      * 5. Return calculation breakdown
      */
-    public function calculateRegionalValueContent(
+    public /**
+ * @param array<string|int, mixed> $bomData
+ */
+function calculateRegionalValueContent(
         float $totalValue,
         array $bomData,
         string $ftaRegion,
@@ -585,7 +597,10 @@ class FtaEligibilityService
      *    → (verified_mpns / total_mpns) * 100
      * 5. Return verification summary
      */
-    public function verifyCooDeclarations(array $bomData): array
+    public /**
+ * @param array<string|int, mixed> $bomData
+ */
+function verifyCooDeclarations(array $bomData): array
     {
         if (empty($bomData)) {
             return [
@@ -755,7 +770,10 @@ class FtaEligibilityService
      * - If status = 'ELIGIBLE': watermark = false
      * - Add reason from eligibilityResult.missing_evidence
      */
-    public function shouldWatermark(array $eligibilityResult): array
+    public /**
+ * @param array<string|int, mixed> $eligibilityResult
+ */
+function shouldWatermark(array $eligibilityResult): array
     {
         if ($eligibilityResult['status'] === 'CONDITIONAL') {
             return [

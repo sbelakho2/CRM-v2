@@ -135,7 +135,10 @@ class CountryService
      * @param array<string, string> $extraOptions
      * @return array<string, string>
      */
-    public function getRegionOptions(array $extraOptions = []): array
+    public /**
+ * @param array<string|int, mixed> $extraOptions
+ */
+function getRegionOptions(array $extraOptions = []): array
     {
         $options = $this->getCountryList();
 

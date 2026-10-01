@@ -27,7 +27,13 @@ class UserAdminType extends AbstractType
         $this->authChecker = $authChecker;
     }
 
-    public function buildForm(FormBuilderInterface $builder, array $options): void
+    /**
+     * @param array<string|int, mixed> $options
+     */
+    public /**
+ * @param array<string|int, mixed> $options
+ */
+function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $isNew = $options['is_new'] ?? false;
         

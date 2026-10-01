@@ -594,7 +594,13 @@ class ComplianceDocument
         return $this->metadataJson;
     }
 
-    public function setMetadataJson(?array $metadataJson): self
+    /**
+     * @param array<string|int, mixed> $metadataJson
+     */
+    public /**
+ * @param array<string|int, mixed> $metadataJson
+ */
+function setMetadataJson(?array $metadataJson): self
     {
         $this->metadataJson = $metadataJson;
 

@@ -158,7 +158,13 @@ class RfqVersion
         return $this->lineItemsSnapshot;
     }
     
-    public function setLineItemsSnapshot(?array $lineItemsSnapshot): self
+    /**
+     * @param array<string|int, mixed> $lineItemsSnapshot
+     */
+    public /**
+ * @param array<string|int, mixed> $lineItemsSnapshot
+ */
+function setLineItemsSnapshot(?array $lineItemsSnapshot): self
     {
         $this->lineItemsSnapshot = $lineItemsSnapshot;
         return $this;

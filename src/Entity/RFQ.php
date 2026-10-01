@@ -371,7 +371,7 @@ class RFQ
 
     /**
      * @return Collection<int, RfqLineItem>
-     */
+         /** @return Collection<int, App\Entity\RfqLineItem> */
     public function getLineItems(): Collection
     {
         return $this->lineItems;
@@ -398,7 +398,7 @@ class RFQ
 
     /**
      * @return Collection<int, RfqVersion>
-     */
+         /** @return Collection<int, App\Entity\RfqVersion> */
     public function getVersions(): Collection
     {
         return $this->versions;

@@ -495,7 +495,10 @@ class DatasetImportService
      *
      * @param list<string> $columns
      */
-    private function assertSnapshotColumns(string $table, array $columns): void
+    private /**
+ * @param array<string|int, mixed> $columns
+ */
+function assertSnapshotColumns(string $table, array $columns): void
     {
         $present = $this->entityManager->getConnection()->fetchFirstColumn(
             'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',

@@ -280,7 +280,13 @@ class MeetingSlot
         return $this->meetingCredentials;
     }
     
-    public function setMeetingCredentials(?array $meetingCredentials): static
+    /**
+     * @param array<string|int, mixed> $meetingCredentials
+     */
+    public /**
+ * @param array<string|int, mixed> $meetingCredentials
+ */
+function setMeetingCredentials(?array $meetingCredentials): static
     {
         $this->meetingCredentials = $meetingCredentials;
         return $this;

@@ -1,4 +1,4 @@
-# Starz Morocco CRM v2
+# StarzCRM v2
 
 **Status**: ✅ Live in production (https://www.starzcrm.com)  
 **Last Updated**: August 24, 2026

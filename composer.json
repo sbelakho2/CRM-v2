@@ -1,6 +1,6 @@
 {
     "type": "project",
-    "name": "crm-starz-morocco/crm",
+    "name": "starzcrm/crm",
     "description": "Multi-sector CRM for Morocco supplier outreach",
     "license": "proprietary",
     "minimum-stability": "stable",

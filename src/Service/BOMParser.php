@@ -230,7 +230,10 @@ class BOMParser
      * Consolidate duplicate lines (same MPN / description).
      * Merges designators and sums quantities.
      */
-    public function consolidate(array $lines): array
+    public /**
+ * @param array<string|int, mixed> $lines
+ */
+function consolidate(array $lines): array
     {
         $consolidated = [];
 
@@ -282,7 +285,10 @@ class BOMParser
      * @param int   $orderMultiple  The quantity multiple (e.g. 10, 50, 100). Must be ≥ 1.
      * @return array  Lines with quantities rounded up
      */
-    public function applyOrderMultiple(array $lines, int $orderMultiple): array
+    public /**
+ * @param array<string|int, mixed> $lines
+ */
+function applyOrderMultiple(array $lines, int $orderMultiple): array
     {
         if ($orderMultiple <= 1) {
             return $lines;
@@ -313,7 +319,10 @@ class BOMParser
      * @param int   $boardCount  Number of boards/units to order
      * @return array  Lines with quantities multiplied
      */
-    public function applyBoardCount(array $lines, int $boardCount): array
+    public /**
+ * @param array<string|int, mixed> $lines
+ */
+function applyBoardCount(array $lines, int $boardCount): array
     {
         if ($boardCount <= 1) {
             return $lines;
@@ -336,7 +345,10 @@ class BOMParser
     /**
      * Validate BOM structure and return human-readable warnings.
      */
-    public function validate(array $lines): array
+    public /**
+ * @param array<string|int, mixed> $lines
+ */
+function validate(array $lines): array
     {
         $errors = [];
 
@@ -584,7 +596,10 @@ class BOMParser
      *
      * @return array{0: int, 1: array<string, int>}  [rowIndex, headerMap]
      */
-    private function detectHeaderRow(array $rows): array
+    private /**
+ * @param array<string|int, mixed> $rows
+ */
+function detectHeaderRow(array $rows): array
     {
         $bestScore = 0;
         $bestIndex = 0;
@@ -633,7 +648,10 @@ class BOMParser
      *
      * @return array{0: array<string, int>, 1: int}  [map, score]
      */
-    private function scoreHeaderRow(array $row): array
+    private /**
+ * @param array<string|int, mixed> $row
+ */
+function scoreHeaderRow(array $row): array
     {
         $map   = [];
         $score = 0;
@@ -703,7 +721,10 @@ class BOMParser
      * Simple (legacy) header mapping — direct exact-match only, no scoring.
      * Used as fallback when auto-detection finds nothing.
      */
-    private function mapHeadersSimple(array $headers): array
+    private /**
+ * @param array<string|int, mixed> $headers
+ */
+function mapHeadersSimple(array $headers): array
     {
         $map = [];
 
@@ -755,7 +776,11 @@ class BOMParser
      * Heuristically infer the MPN column by scanning data rows for
      * values that look like part numbers (mixed alphanumeric, ≥ 6 chars or has dash).
      */
-    private function inferMPNFromData(array $rows, int $headerRowIndex, array $map): array
+    private /**
+ * @param array<string|int, mixed> $rows
+ * @param array<string|int, mixed> $map
+ */
+function inferMPNFromData(array $rows, int $headerRowIndex, array $map): array
     {
         $dataStart  = $headerRowIndex + 1;
         $sampleRows = array_slice($rows, $dataStart, min(10, count($rows) - $dataStart));
@@ -823,7 +848,11 @@ class BOMParser
     /**
      * Extract a standardized BOM line from a single data row.
      */
-    private function extractLine(array $row, array $headerMap, int $lineNumber): ?array
+    private /**
+ * @param array<string|int, mixed> $row
+ * @param array<string|int, mixed> $headerMap
+ */
+function extractLine(array $row, array $headerMap, int $lineNumber): ?array
     {
         $mpn         = $this->cleanMPN($this->getField($row, $headerMap, 'mpn'));
         $description = $this->getField($row, $headerMap, 'description');
@@ -948,7 +977,11 @@ class BOMParser
     /**
      * Get a trimmed string value from the row for a mapped field.
      */
-    private function getField(array $row, array $headerMap, string $field): string
+    private /**
+ * @param array<string|int, mixed> $row
+ * @param array<string|int, mixed> $headerMap
+ */
+function getField(array $row, array $headerMap, string $field): string
     {
         if (!isset($headerMap[$field])) return '';
         return trim((string)($row[$headerMap[$field]] ?? ''));
@@ -1069,7 +1102,10 @@ class BOMParser
     /**
      * Check if a row is effectively empty (all cells null or whitespace).
      */
-    private function isEmptyRow(array $row): bool
+    private /**
+ * @param array<string|int, mixed> $row
+ */
+function isEmptyRow(array $row): bool
     {
         foreach ($row as $cell) {
             if ($cell !== null && trim((string)$cell) !== '') {

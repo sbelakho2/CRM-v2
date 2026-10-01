@@ -157,8 +157,12 @@ class CustomFieldDefinitionRepository extends ServiceEntityRepository
 
     /**
      * Update sort orders
+     * @param array<string|int, mixed> $orderedIds
      */
-    public function updateSortOrders(array $orderedIds): void
+    public /**
+ * @param array<string|int, mixed> $orderedIds
+ */
+function updateSortOrders(array $orderedIds): void
     {
         foreach ($orderedIds as $order => $id) {
             $this->createQueryBuilder('f')

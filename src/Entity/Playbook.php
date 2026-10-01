@@ -173,7 +173,7 @@ class Playbook
 
     /**
      * @return Collection<int, PlaybookRun>
-     */
+         /** @return Collection<int, App\Entity\PlaybookRun> */
     public function getPlaybookRuns(): Collection
     {
         return $this->playbookRuns;

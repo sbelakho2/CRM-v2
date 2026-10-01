@@ -13,7 +13,13 @@ use Symfony\Component\Security\Core\Validator\Constraints as SecurityAssert;
 
 class ChangePasswordType extends AbstractType
 {
-    public function buildForm(FormBuilderInterface $builder, array $options): void
+    /**
+     * @param array<string|int, mixed> $options
+     */
+    public /**
+ * @param array<string|int, mixed> $options
+ */
+function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
             ->add('currentPassword', PasswordType::class, [

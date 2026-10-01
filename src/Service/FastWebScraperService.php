@@ -65,7 +65,10 @@ class FastWebScraperService
      * @param string[] $urls Company website URLs
      * @return array<string, array> URL → {baseUrl, pagesScraped, pages: [...]}
      */
-    public function batchScrape(array $urls): array
+    public /**
+ * @param array<string|int, mixed> $urls
+ */
+function batchScrape(array $urls): array
     {
         $urls = array_values(array_unique($urls));
         if (empty($urls)) {
@@ -181,7 +184,10 @@ class FastWebScraperService
      * @param string[] $urls
      * @return array<string, string> URL -> response body (empty string on failure)
      */
-    private function multiGet(array $urls): array
+    private /**
+ * @param array<string|int, mixed> $urls
+ */
+function multiGet(array $urls): array
     {
         if (empty($urls)) {
             return [];
@@ -272,7 +278,10 @@ class FastWebScraperService
      * @param string[] $urls
      * @return array<string, array{body: ?string, redirect: ?string}>
      */
-    private function curlMultiGet(array $urls): array
+    private /**
+ * @param array<string|int, mixed> $urls
+ */
+function curlMultiGet(array $urls): array
     {
         $results = [];
         $chunks = array_chunk($urls, self::CONCURRENCY);
@@ -409,6 +418,7 @@ class FastWebScraperService
         // JSON-LD
         if (preg_match_all('/<script[^>]*type=["\']application\/ld\+json["\'][^>]*>(.*?)<\/script>/si', $html, $jm)) {
             foreach ($jm[1] as $jsonStr) {
+                /** @var array<string, mixed>|null $parsed */
                 $parsed = json_decode(trim($jsonStr), true);
                 if (is_array($parsed)) {
                     $data['jsonLd'][] = $parsed;

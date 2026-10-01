@@ -272,7 +272,10 @@ class PlaybookEngine
      * 
      * @return array - Action result
      */
-    private function executeAction(array $action, $context, $event): array
+    private /**
+ * @param array<string|int, mixed> $action
+ */
+function executeAction(array $action, $context, $event): array
     {
         $actionType = $action['type'] ?? 'unknown';
         $actionData = $action['data'] ?? [];
@@ -413,7 +416,10 @@ class PlaybookEngine
      * 
      * @return PlaybookRun
      */
-    public function logRun(
+    public /**
+ * @param array<string|int, mixed> $results
+ */
+function logRun(
         int $playbookId,
         string $status,
         ?array $results = null,
@@ -488,7 +494,10 @@ class PlaybookEngine
      * 
      * @return array - Execution result
      */
-    private function executeSendEmailAction(array $actionData, $context, $event): array
+    private /**
+ * @param array<string|int, mixed> $actionData
+ */
+function executeSendEmailAction(array $actionData, $context, $event): array
     {
         $templateKey = $actionData['template'] ?? 'default';
         $recipient = $actionData['to'] ?? null;
@@ -597,7 +606,10 @@ class PlaybookEngine
     /**
      * Build template context from context and event objects
      */
-    private function buildEmailTemplateContext($context, $event, array $actionData, ?string $recipient = null): array
+    private /**
+ * @param array<string|int, mixed> $actionData
+ */
+function buildEmailTemplateContext($context, $event, array $actionData, ?string $recipient = null): array
     {
         $templateContext = [
             'action_data' => $actionData,
@@ -710,7 +722,10 @@ class PlaybookEngine
     /**
      * Render email template, with fallback for missing templates
      */
-    private function renderEmailTemplate(string $templatePath, array $context): string
+    private /**
+ * @param array<string|int, mixed> $context
+ */
+function renderEmailTemplate(string $templatePath, array $context): string
     {
         if ($this->twig === null) {
             // Fallback: generate simple HTML without Twig
@@ -732,7 +747,10 @@ class PlaybookEngine
     /**
      * Generate fallback email HTML when Twig is unavailable or template missing
      */
-    private function generateFallbackEmailHtml(array $context): string
+    private /**
+ * @param array<string|int, mixed> $context
+ */
+function generateFallbackEmailHtml(array $context): string
     {
         $accountName = $context['account_name'] ?? $context['company_name'] ?? 'Unknown';
         $score = $context['engagement_score'] ?? 'N/A';

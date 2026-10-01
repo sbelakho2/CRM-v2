@@ -205,7 +205,7 @@ class Webinar
 
     /**
      * @return Collection<int, WebinarAttendee>
-     */
+         /** @return Collection<int, App\Entity\WebinarAttendee> */
     public function getAttendees(): Collection
     {
         return $this->attendees;

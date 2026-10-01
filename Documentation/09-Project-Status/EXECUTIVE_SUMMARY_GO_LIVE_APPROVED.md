@@ -1,7 +1,7 @@
 # EXECUTIVE SUMMARY – CRM Release v1 Go-Live Approval
 
 **Date:** October 30, 2025  
-**Project:** Starz Morocco CRM  
+**Project:** StarzCRM  
 **Release:** V1 Core CRM (Notifications, Mobile Quick Actions, Authentication, Engagement Heat Map, Quote Co-Pilot)  
 **Decision:** ✅ Approved for production launch (pending final API credential confirmation)
 

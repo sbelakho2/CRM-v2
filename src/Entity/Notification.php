@@ -148,7 +148,13 @@ class Notification
         return $this->data;
     }
 
-    public function setData(?array $data): self
+    /**
+     * @param array<string|int, mixed> $data
+     */
+    public /**
+ * @param array<string|int, mixed> $data
+ */
+function setData(?array $data): self
     {
         $this->data = $data;
         return $this;

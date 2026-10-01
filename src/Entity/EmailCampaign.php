@@ -193,7 +193,13 @@ class EmailCampaign
         return $this->touchTemplates;
     }
 
-    public function setTouchTemplates(array $touchTemplates): self
+    /**
+     * @param array<string|int, mixed> $touchTemplates
+     */
+    public /**
+ * @param array<string|int, mixed> $touchTemplates
+ */
+function setTouchTemplates(array $touchTemplates): self
     {
         $this->touchTemplates = $touchTemplates;
         return $this;
@@ -212,7 +218,7 @@ class EmailCampaign
 
     /**
      * @return Collection<int, EmailSend>
-     */
+         /** @return Collection<int, App\Entity\EmailSend> */
     public function getEmailSends(): Collection
     {
         return $this->emailSends;
@@ -241,7 +247,7 @@ class EmailCampaign
 
     /**
      * @return Collection<int, Contact>
-     */
+         /** @return Collection<int, App\Entity\Contact> */
     public function getContacts(): Collection
     {
         return $this->contacts;
@@ -297,10 +303,16 @@ class EmailCampaign
      */
     public function getAbTestVariants(): array
     {
+    /**
+     * @param array<string|int, mixed> $variants
+     */
         return $this->abTestVariants ?? [];
     }
 
-    public function setAbTestVariants(array $variants): self
+    public /**
+ * @param array<string|int, mixed> $variants
+ */
+function setAbTestVariants(array $variants): self
     {
         $this->abTestVariants = $variants;
         return $this;
@@ -385,13 +397,19 @@ class EmailCampaign
         $this->triggerType = $triggerType;
         return $this;
     }
+    /**
+     * @param array<string|int, mixed> $triggerConditions
+     */
 
     public function getTriggerConditions(): ?array
     {
         return $this->triggerConditions;
     }
 
-    public function setTriggerConditions(?array $triggerConditions): self
+    public /**
+ * @param array<string|int, mixed> $triggerConditions
+ */
+function setTriggerConditions(?array $triggerConditions): self
     {
         $this->triggerConditions = $triggerConditions;
         return $this;

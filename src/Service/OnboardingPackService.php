@@ -19,7 +19,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * 
  * Supplier portal onboarding automation service.
  * 
- * Automates the process of registering CRM Starz Morocco on customer supplier portals:
+ * Automates the process of registering StarzCRM on customer supplier portals:
  * 1. Generate onboarding pack PDF (company profile, certifications, bank details, tax IDs)
  * 2. Auto-fill web forms with company data from PortalCandidate
  * 3. Submit registration to portal (HTTP POST or file upload)
@@ -129,6 +129,7 @@ class OnboardingPackService
             return null;
         }
 
+        /** @var array<string, mixed>|null $decoded */
         $decoded = json_decode($value, true);
         if (!is_array($decoded)) {
             return null;
@@ -150,7 +151,10 @@ class OnboardingPackService
      *   fieldsExtracted: array
      * }
      */
-    public function generatePack(int $companyId, string $packType = 'FULL', array $customFields = []): array
+    public /**
+ * @param array<string|int, mixed> $customFields
+ */
+function generatePack(int $companyId, string $packType = 'FULL', array $customFields = []): array
     {
         // 1. Create OnboardingPack against the REAL entity model: a
         //    Company association + createdAt (PrePersist), never phantom
@@ -207,7 +211,10 @@ class OnboardingPackService
      *
      * @param array<string, mixed> $fields
      */
-    private function hasMissingSensitiveFields(array $fields): bool
+    private /**
+ * @param array<string|int, mixed> $fields
+ */
+function hasMissingSensitiveFields(array $fields): bool
     {
         foreach (self::SENSITIVE_FIELDS as $field) {
             $value = $fields[$field] ?? null;
@@ -228,7 +235,10 @@ class OnboardingPackService
      * 
      * @return array - Extracted fields
      */
-    public function autoFillFields(int $companyId, string $packType, array $customFields = []): array
+    public /**
+ * @param array<string|int, mixed> $customFields
+ */
+function autoFillFields(int $companyId, string $packType, array $customFields = []): array
     {
         // 1. Load the Company entity: it is the authoritative source for
         //    profile data (name, address, contacts).
@@ -302,7 +312,10 @@ class OnboardingPackService
      *   errorMessage: string|null
      * }
      */
-    public function submitToPortal(int $packId, int $portalId, array $credentials = []): array
+    public /**
+ * @param array<string|int, mixed> $credentials
+ */
+function submitToPortal(int $packId, int $portalId, array $credentials = []): array
     {
         // 1. Get pack and portal
         $pack = $this->onboardingPackRepository->find($packId);
@@ -404,7 +417,10 @@ class OnboardingPackService
      * 
      * @return array - Submission result
      */
-    private function submitViaWebForm(OnboardingPack $pack, SupplierPortal $portal, array $credentials): array
+    private /**
+ * @param array<string|int, mixed> $credentials
+ */
+function submitViaWebForm(OnboardingPack $pack, SupplierPortal $portal, array $credentials): array
     {
         try {
             // 1. Login to portal
@@ -443,7 +459,9 @@ class OnboardingPackService
             );
             
             // 2. Get form field mappings
+            /** @var array<string, mixed>|null $formFields */
             $formFields = json_decode($portal->getFormFieldsJson() ?? '{}', true);
+            /** @var array<string, mixed>|null $packData */
             $packData = json_decode($pack->getFieldsJson() ?? '{}', true);
             
             // 3. Map pack data to form fields; null/empty pack values are
@@ -578,8 +596,12 @@ class OnboardingPackService
      * cookie's own Domain scope against the submit host. Cookies whose
      * scope does not cover the submit host are NOT relayed (cookie-jar
      * semantics without a jar dependency).
+     * @param array<string|int, mixed> $setCookieHeaders
      */
-    private function scopedCookieHeader(array $setCookieHeaders, string $submitHost, string $loginHost): string
+    private /**
+ * @param array<string|int, mixed> $setCookieHeaders
+ */
+function scopedCookieHeader(array $setCookieHeaders, string $submitHost, string $loginHost): string
     {
         $pairs = [];
         foreach ($setCookieHeaders as $header) {

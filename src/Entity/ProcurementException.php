@@ -116,7 +116,13 @@ class ProcurementException
         return $this->metadata;
     }
 
-    public function setMetadata(?array $metadata): self
+    /**
+     * @param array<string|int, mixed> $metadata
+     */
+    public /**
+ * @param array<string|int, mixed> $metadata
+ */
+function setMetadata(?array $metadata): self
     {
         $this->metadata = $metadata;
         return $this;

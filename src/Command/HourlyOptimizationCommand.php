@@ -101,8 +101,12 @@ class HourlyOptimizationCommand extends Command
 
     /**
      * Render the full cycle report to the console.
+     * @param array<string|int, mixed> $report
      */
-    private function renderReport(SymfonyStyle $io, array $report): void
+    private /**
+ * @param array<string|int, mixed> $report
+ */
+function renderReport(SymfonyStyle $io, array $report): void
     {
         $io->section('Cycle Summary');
         $io->definitionList(

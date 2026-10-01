@@ -467,7 +467,7 @@ class Company
 
     /**
      * @return Collection<int, Contact>
-     */
+         /** @return Collection<int, App\Entity\Contact> */
     public function getContacts(): Collection
     {
         return $this->contacts;
@@ -494,7 +494,7 @@ class Company
 
     /**
      * @return Collection<int, Activity>
-     */
+         /** @return Collection<int, App\Entity\Activity> */
     public function getActivities(): Collection
     {
         return $this->activities;
@@ -502,7 +502,7 @@ class Company
 
     /**
      * @return Collection<int, RFQ>
-     */
+         /** @return Collection<int, App\Entity\RFQ> */
     public function getRfqs(): Collection
     {
         return $this->rfqs;
@@ -515,7 +515,7 @@ class Company
 
     /**
      * @return Collection<int, ComplianceDocument>
-     */
+         /** @return Collection<int, App\Entity\ComplianceDocument> */
     public function getComplianceDocuments(): Collection
     {
         return $this->complianceDocuments;
@@ -542,7 +542,7 @@ class Company
 
     /**
      * @return Collection<int, PortalCandidate>
-     */
+         /** @return Collection<int, App\Entity\PortalCandidate> */
     public function getPortalCandidates(): Collection
     {
         return $this->portalCandidates;
@@ -569,7 +569,7 @@ class Company
 
     /**
      * @return Collection<int, OnboardingPack>
-     */
+         /** @return Collection<int, App\Entity\OnboardingPack> */
     public function getOnboardingPacks(): Collection
     {
         return $this->onboardingPacks;
@@ -596,7 +596,7 @@ class Company
 
     /**
      * @return Collection<int, CompanyCanonical>
-     */
+         /** @return Collection<int, App\Entity\CompanyCanonical> */
     public function getCompanyCanonicals(): Collection
     {
         return $this->companyCanonicals;

@@ -378,8 +378,8 @@
     }
   },
   "app": {
-    "company": "Starz Morocco",
-    "name": "Starz Morocco CRM",
+    "company": "StarzCRM",
+    "name": "StarzCRM",
     "subtitle": "Control Station",
     "version": "3.0.1"
   },
@@ -961,7 +961,8 @@
       "select_sector": "Select sector",
       "select_stage": "Select stage",
       "select_tier": "Select tier",
-      "website_placeholder": "https://example.com"
+      "website_placeholder": "https://example.com",
+      "select_region": "Select region (optional)"
     },
     "google_drive_link": "Google Drive Link",
     "industry": "Industry",
@@ -1996,7 +1997,7 @@
       "best_regards": "Best regards",
       "email_sent_to": "This email was sent to",
       "hello": "Hello",
-      "automated_message": "This is an automated message from Starz Morocco CRM."
+      "automated_message": "This is an automated message from StarzCRM."
     },
     "playbook": {
       "abm_hot_lead": {
@@ -2016,7 +2017,7 @@
         "cta": "View Quote Details",
         "discuss_timeline": "Discuss timeline and next steps",
         "next_steps": "Next Steps",
-        "subject": "Reminder: Your Quote from Starz Morocco",
+        "subject": "Reminder: Your Quote from StarzCRM",
         "title": "Quote Reminder",
         "automated_message": "This is an automated reminder from your CRM system."
       }
@@ -2057,13 +2058,13 @@
       "whats_next": "What's Next?"
     },
     "reset_password": {
-      "automated_message": "This is an automated message from Starz Morocco CRM.",
+      "automated_message": "This is an automated message from StarzCRM.",
       "body": "Click the button below to reset your password.",
       "copy_link": "Or copy and paste this link into your browser",
       "expires": "This link will expire in 1 hour.",
       "greeting": "Password Reset Request",
       "ignore": "If you didn't request this, please ignore this email. Your password will remain unchanged.",
-      "received_request": "We received a request to reset your password for your Starz Morocco CRM account.",
+      "received_request": "We received a request to reset your password for your StarzCRM account.",
       "reset_button": "Reset My Password",
       "security_1": "Never share this link with anyone",
       "security_2": "We will never ask for your password via email",
@@ -4287,5 +4288,50 @@
     "mark_handled": "Mark handled",
     "resolution": "Resolution",
     "filter_status": "Request status filter"
+  },
+  "region": {
+    "territory": {
+      "morocco": "Morocco",
+      "tunisia": "Tunisia",
+      "egypt": "Egypt",
+      "africa_north": "Africa — North",
+      "africa_sub": "Africa — Sub-Saharan",
+      "middle_east": "Middle East",
+      "uk": "United Kingdom",
+      "eu_west": "Europe — West",
+      "eu_central": "Europe — Central",
+      "eu_south": "Europe — South",
+      "eu_north": "Europe — North",
+      "eastern_europe": "Eastern Europe",
+      "us_east": "United States — East",
+      "us_central": "United States — Central",
+      "us_south": "United States — South",
+      "us_west": "United States — West",
+      "canada": "Canada",
+      "mexico": "Mexico",
+      "brazil": "Brazil",
+      "latam_other": "Latin America — Other",
+      "china": "China",
+      "taiwan": "Taiwan",
+      "japan": "Japan",
+      "south_korea": "South Korea",
+      "india": "India",
+      "southeast_asia": "Southeast Asia",
+      "australia_nz": "Australia & New Zealand",
+      "turkey": "Turkey",
+      "other": "Other / Unassigned"
+    },
+    "legacy": {
+      "ma": "Morocco (legacy code MA)",
+      "us": "United States (legacy code US)",
+      "eu": "Europe (legacy code EU)",
+      "gb": "United Kingdom (legacy code GB)",
+      "eg": "Egypt (legacy code EG)",
+      "gcc": "GCC / Gulf (legacy code GCC)"
+    },
+    "group": {
+      "canonical": "All sales territories",
+      "legacy": "Legacy codes"
+    }
   }
 }

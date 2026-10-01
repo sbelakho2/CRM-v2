@@ -385,7 +385,10 @@ class CompanyDiscoveryService
      * AND the company name (case-insensitive fallback).  Country,
      * city and region are populated from the search location.
      */
-    private function saveDiscoveredCompanies(array $discoveredData, ?string $sector, ?string $location): array
+    private /**
+ * @param array<string|int, mixed> $discoveredData
+ */
+function saveDiscoveredCompanies(array $discoveredData, ?string $sector, ?string $location): array
     {
         $savedCompanies = [];
         $this->ensureEntityManagerOpen();
@@ -892,7 +895,10 @@ class CompanyDiscoveryService
      * Learn competitors from discovery results
      * Called automatically during company discovery
      */
-    private function learnCompetitorsFromResults(array $results): void
+    private /**
+ * @param array<string|int, mixed> $results
+ */
+function learnCompetitorsFromResults(array $results): void
     {
         if (!$this->competitorLearner) {
             return;
@@ -1021,7 +1027,10 @@ class CompanyDiscoveryService
      * @param DiscoveryResult[] $results
      * @return array<int, array<string, mixed>>
      */
-    private function convertPipelineResults(array $results, ?string $sector): array
+    private /**
+ * @param array<string|int, mixed> $results
+ */
+function convertPipelineResults(array $results, ?string $sector): array
     {
         $converted = [];
 
@@ -1106,7 +1115,10 @@ class CompanyDiscoveryService
      * @param array<int, array{company: Company, contacts: int}> $batch
      * @param array<int, Company> $savedCompanies
      */
-    private function flushCompanyBatch(array $batch, array &$savedCompanies): void
+    private /**
+ * @param array<string|int, mixed> $batch
+ */
+function flushCompanyBatch(array $batch, array &$savedCompanies): void
     {
         try {
             $this->em->flush();

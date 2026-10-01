@@ -27,7 +27,10 @@ class EmailCampaignRepository extends ServiceEntityRepository
      * @param int[] $campaignIds
      * @return array<int, array{total_sent: int, opened: int, clicked: int, replied: int, bounced: int, open_rate: float, click_rate: float, reply_rate: float, bounce_rate: float}>
      */
-    public function findWithSendCounts(array $campaignIds): array
+    public /**
+ * @param array<string|int, mixed> $campaignIds
+ */
+function findWithSendCounts(array $campaignIds): array
     {
         if (empty($campaignIds)) {
             return [];

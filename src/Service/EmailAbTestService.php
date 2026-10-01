@@ -43,7 +43,10 @@ class EmailAbTestService
      * @param int $testDuration Duration in hours before declaring winner
      * @return array Array of test configuration
      */
-    public function createAbTest(
+    public /**
+ * @param array<string|int, mixed> $variants
+ */
+function createAbTest(
         EmailCampaign $campaign,
         string $testType,
         array $variants,
@@ -113,7 +116,10 @@ class EmailAbTestService
      * @param array $contacts All contacts to send to
      * @return array Distribution map [variant_id => [contact_ids]]
      */
-    public function distributeContactsForTest(EmailCampaign $campaign, array $contacts): array
+    public /**
+ * @param array<string|int, mixed> $contacts
+ */
+function distributeContactsForTest(EmailCampaign $campaign, array $contacts): array
     {
         $abTestConfig = $this->getCurrentAbTest($campaign);
         if (!$abTestConfig) {
@@ -448,7 +454,10 @@ class EmailAbTestService
      * @param string $metricType Metric the test measures (open_rate, click_rate, reply_rate)
      * @return array Statistical analysis
      */
-    private function calculateStatisticalSignificance(array $variants, string $metricType = 'open_rate'): array
+    private /**
+ * @param array<string|int, mixed> $variants
+ */
+function calculateStatisticalSignificance(array $variants, string $metricType = 'open_rate'): array
     {
         if (count($variants) < 2) {
             return ['significant' => false, 'confidence' => 0];
@@ -583,8 +592,12 @@ class EmailAbTestService
 
     /**
      * Find the index of a specific test config inside the campaign's list.
+     * @param array<string|int, mixed> $testConfig
      */
-    private function findTestIndex(EmailCampaign $campaign, array $testConfig): ?int
+    private /**
+ * @param array<string|int, mixed> $testConfig
+ */
+function findTestIndex(EmailCampaign $campaign, array $testConfig): ?int
     {
         $abTestVariants = $campaign->getAbTestVariants();
         foreach ($abTestVariants as $index => $config) {

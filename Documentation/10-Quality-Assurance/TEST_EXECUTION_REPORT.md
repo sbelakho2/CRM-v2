@@ -2,7 +2,7 @@
 
 **Date**: October 29, 2025  
 **Tester**: Automated Testing Framework  
-**System**: Starz Morocco CRM v2.0  
+**System**: StarzCRM v2.0  
 **Status**: 🟢 TESTING IN PROGRESS  
 
 > **Correction (2026-08):** The `Estimate` entity was removed from the codebase; entity listings below have been updated. "45 entities" counts in this file are historical (current: 66).

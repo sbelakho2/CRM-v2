@@ -7983,7 +7983,10 @@ class GoogleDorkService
      * This improves recall for real companies that had sparse SERP snippets,
      * while avoiding expensive retries for obviously bad candidates.
      */
-    private function shouldAttemptEvidenceHomepageRescue(
+    private /**
+ * @param array<string|int, mixed> $result
+ */
+function shouldAttemptEvidenceHomepageRescue(
         BuyerEvidenceResult $evidenceResult,
         array $result,
         string $domain,
@@ -8240,7 +8243,10 @@ class GoogleDorkService
      *
      * @param array{tlds: string[], terms: string[]} $locationVocab
      */
-    private function checkStructuredDataForLocation(string $html, array $locationVocab): bool
+    private /**
+ * @param array<string|int, mixed> $locationVocab
+ */
+function checkStructuredDataForLocation(string $html, array $locationVocab): bool
     {
         // Extract JSON-LD blocks
         if (preg_match_all('/<script[^>]+type=["\']application\/ld\+json["\'][^>]*>(.*?)<\/script>/is', $html, $matches)) {
@@ -8283,7 +8289,10 @@ class GoogleDorkService
     /**
      * Recursively flatten JSON array/object to concatenated text for term matching.
      */
-    private function flattenJsonToText(array $data): string
+    private /**
+ * @param array<string|int, mixed> $data
+ */
+function flattenJsonToText(array $data): string
     {
         $parts = [];
         foreach ($data as $key => $value) {
@@ -8306,7 +8315,10 @@ class GoogleDorkService
      *
      * @param array{tlds: string[], terms: string[]} $locationVocab
      */
-    private function checkPhoneAndPostalForLocation(string $html, array $locationVocab): bool
+    private /**
+ * @param array<string|int, mixed> $locationVocab
+ */
+function checkPhoneAndPostalForLocation(string $html, array $locationVocab): bool
     {
         // Phone country code map (ISO → dialing code regex)
         $phonePatterns = [
@@ -8345,7 +8357,10 @@ class GoogleDorkService
      *
      * @param array{tlds: string[], terms: string[]} $locationVocab
      */
-    private function checkLocationSubpages(string $domain, string $homepageHtml, array $locationVocab): ?string
+    private /**
+ * @param array<string|int, mixed> $locationVocab
+ */
+function checkLocationSubpages(string $domain, string $homepageHtml, array $locationVocab): ?string
     {
         $cleanDomain = preg_replace('#^https?://#i', '', trim($domain));
         $cleanDomain = preg_replace('#/.*$#', '', (string) $cleanDomain);
@@ -10192,7 +10207,10 @@ class GoogleDorkService
     /**
      * Extract clean website URL from search result
      */
-    private function extractWebsiteFromResult(array $result): ?string
+    private /**
+ * @param array<string|int, mixed> $result
+ */
+function extractWebsiteFromResult(array $result): ?string
     {
         if (!empty($result['link'])) {
             $parsed = parse_url($result['link']);
@@ -10216,7 +10234,10 @@ class GoogleDorkService
      * This eliminates news articles, forums, product pages, and other
      * non-company results that slip through pattern-based filters.
      */
-    private function verifyCompanies(array $candidates): array
+    private /**
+ * @param array<string|int, mixed> $candidates
+ */
+function verifyCompanies(array $candidates): array
     {
         if (empty($candidates) || !$this->hasSearchProvider()) {
             return $candidates;
@@ -10757,7 +10778,11 @@ class GoogleDorkService
      * are only applied if non-empty and the candidate doesn't already have
      * a value for that key.
      */
-    private function mergeEnrichment(array $data, array $enrichment): array
+    private /**
+ * @param array<string|int, mixed> $data
+ * @param array<string|int, mixed> $enrichment
+ */
+function mergeEnrichment(array $data, array $enrichment): array
     {
         // Name override (e.g. LinkedIn's canonical name)
         if (!empty($enrichment['name'])) {
@@ -11675,7 +11700,10 @@ class GoogleDorkService
     /**
      * Extract a person record from Schema.org Person entity.
      */
-    private function extractPersonFromSchemaOrg(array $entity): ?array
+    private /**
+ * @param array<string|int, mixed> $entity
+ */
+function extractPersonFromSchemaOrg(array $entity): ?array
     {
         $type = $entity['@type'] ?? '';
         if (is_string($type) && !preg_match('/Person/i', $type)) {
@@ -12398,7 +12426,10 @@ class GoogleDorkService
     /**
      * Clean HTML entities and whitespace artifacts from contact fields.
      */
-    private function cleanContactFields(array $contact): array
+    private /**
+ * @param array<string|int, mixed> $contact
+ */
+function cleanContactFields(array $contact): array
     {
         foreach (['first_name', 'last_name', 'job_title'] as $field) {
             if (!empty($contact[$field])) {
@@ -12495,7 +12526,10 @@ class GoogleDorkService
         return $contact;
     }
 
-    private function isValidPersonContact(array $contact): bool
+    private /**
+ * @param array<string|int, mixed> $contact
+ */
+function isValidPersonContact(array $contact): bool
     {
         $firstName = $contact['first_name'] ?? '';
         $lastName = $contact['last_name'] ?? '';
@@ -13945,7 +13979,10 @@ class GoogleDorkService
      * "john.smith@company.com" → first_name=John, last_name=Smith
      * "j.doe@company.com" → skip (first name too short)
      */
-    private function extractContactsFromEmails(array $data): array
+    private /**
+ * @param array<string|int, mixed> $data
+ */
+function extractContactsFromEmails(array $data): array
     {
         $contacts = [];
 
@@ -14066,7 +14103,10 @@ class GoogleDorkService
      * @deprecated No longer used — we require REAL person contacts only.
      * Kept as stub to prevent method-not-found errors.
      */
-    private function createFallbackContact(array $data): ?array
+    private /**
+ * @param array<string|int, mixed> $data
+ */
+function createFallbackContact(array $data): ?array
     {
         return null; // Never create fake "General Contact" entries
     }
@@ -16258,7 +16298,10 @@ class GoogleDorkService
         return trim($query);
     }
 
-    private function optimizeAndDiversifySearchQueries(array $queries, ?string $sector, ?string $location): array
+    private /**
+ * @param array<string|int, mixed> $queries
+ */
+function optimizeAndDiversifySearchQueries(array $queries, ?string $sector, ?string $location): array
     {
         $region = $this->detectRegionFromLocation($location);
         $queries = array_merge($queries, $this->buildAdaptiveDiscoveryQueries($sector, $location, $region));
@@ -16319,7 +16362,10 @@ class GoogleDorkService
         return $div;
     }
 
-    private function stableDiversifyQueryOrder(array $queries): array
+    private /**
+ * @param array<string|int, mixed> $queries
+ */
+function stableDiversifyQueryOrder(array $queries): array
     {
         $buckets = [];
         foreach ($queries as $q) {

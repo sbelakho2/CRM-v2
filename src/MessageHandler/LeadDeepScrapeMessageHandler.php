@@ -83,7 +83,13 @@ class LeadDeepScrapeMessageHandler
         }
     }
 
-    private function createContactEntities(Lead $lead, array $scrapeResult): int
+    /**
+     * @param array<string|int, mixed> $scrapeResult
+     */
+    private /**
+ * @param array<string|int, mixed> $scrapeResult
+ */
+function createContactEntities(Lead $lead, array $scrapeResult): int
     {
         $structuredContacts = $scrapeResult['structured_contacts'] ?? [];
         if (empty($structuredContacts)) {
@@ -241,10 +247,16 @@ class LeadDeepScrapeMessageHandler
             ]);
         }
 
+    /**
+     * @param array<string|int, mixed> $result
+     */
         return $created;
     }
 
-    private function updateLeadFromScrapeResult(Lead $lead, array $result): void
+    private /**
+ * @param array<string|int, mixed> $result
+ */
+function updateLeadFromScrapeResult(Lead $lead, array $result): void
     {
         if (!empty($result['emails'])) {
             $existingEmails = $lead->getContactEmailsPublic() ?? [];

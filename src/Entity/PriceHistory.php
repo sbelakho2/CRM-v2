@@ -167,7 +167,13 @@ class PriceHistory
         return $this->priceBreaks;
     }
 
-    public function setPriceBreaks(array $priceBreaks): self
+    /**
+     * @param array<string|int, mixed> $priceBreaks
+     */
+    public /**
+ * @param array<string|int, mixed> $priceBreaks
+ */
+function setPriceBreaks(array $priceBreaks): self
     {
         $this->priceBreaks = $priceBreaks;
         return $this;
@@ -307,10 +313,16 @@ class PriceHistory
 
     public function getRawApiResponse(): ?array
     {
+    /**
+     * @param array<string|int, mixed> $rawApiResponse
+     */
         return $this->rawApiResponse;
     }
 
-    public function setRawApiResponse(?array $rawApiResponse): self
+    public /**
+ * @param array<string|int, mixed> $rawApiResponse
+ */
+function setRawApiResponse(?array $rawApiResponse): self
     {
         $this->rawApiResponse = $rawApiResponse;
         return $this;

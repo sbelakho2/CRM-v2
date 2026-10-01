@@ -379,7 +379,7 @@
   },
   "app": {
     "company": "Starz Maroc",
-    "name": "CRM Starz Maroc",
+    "name": "StarzCRM",
     "subtitle": "Poste de contrôle",
     "version": "3.0.1"
   },
@@ -961,7 +961,8 @@
       "select_sector": "Sélectionner un secteur",
       "select_stage": "Sélectionner une étape",
       "select_tier": "Sélectionner un niveau",
-      "website_placeholder": "https://exemple.com"
+      "website_placeholder": "https://exemple.com",
+      "select_region": "Choisir une région (optionnel)"
     },
     "google_drive_link": "Lien Google Drive",
     "industry": "Secteur d'activité",
@@ -1996,7 +1997,7 @@
       "best_regards": "Cordialement",
       "email_sent_to": "Cet e-mail a été envoyé à",
       "hello": "Bonjour",
-      "automated_message": "Ceci est un message automatisé de Starz Morocco CRM."
+      "automated_message": "Ceci est un message automatisé de StarzCRM."
     },
     "playbook": {
       "abm_hot_lead": {
@@ -2016,7 +2017,7 @@
         "cta": "Voir les détails du devis",
         "discuss_timeline": "Discuter du calendrier et des prochaines étapes",
         "next_steps": "Prochaines étapes",
-        "subject": "Rappel : ton devis de Starz Morocco",
+        "subject": "Rappel : ton devis de StarzCRM",
         "title": "Rappel de devis",
         "automated_message": "Ceci est un rappel automatisé de votre système CRM."
       }
@@ -4287,5 +4288,50 @@
     "mark_handled": "Marquer traitée",
     "resolution": "Résolution",
     "filter_status": "Filtre de statut des demandes"
+  },
+  "region": {
+    "territory": {
+      "morocco": "Maroc",
+      "tunisia": "Tunisie",
+      "egypt": "Égypte",
+      "africa_north": "Afrique — Nord",
+      "africa_sub": "Afrique — Subsaharienne",
+      "middle_east": "Moyen-Orient",
+      "uk": "Royaume-Uni",
+      "eu_west": "Europe — Ouest",
+      "eu_central": "Europe — Centre",
+      "eu_south": "Europe — Sud",
+      "eu_north": "Europe — Nord",
+      "eastern_europe": "Europe de l'Est",
+      "us_east": "États-Unis — Est",
+      "us_central": "États-Unis — Centre",
+      "us_south": "États-Unis — Sud",
+      "us_west": "États-Unis — Ouest",
+      "canada": "Canada",
+      "mexico": "Mexique",
+      "brazil": "Brésil",
+      "latam_other": "Amérique latine — Autres",
+      "china": "Chine",
+      "taiwan": "Taïwan",
+      "japan": "Japon",
+      "south_korea": "Corée du Sud",
+      "india": "Inde",
+      "southeast_asia": "Asie du Sud-Est",
+      "australia_nz": "Australie et Nouvelle-Zélande",
+      "turkey": "Turquie",
+      "other": "Autre / Non assigné"
+    },
+    "legacy": {
+      "ma": "Maroc (ancien code MA)",
+      "us": "États-Unis (ancien code US)",
+      "eu": "Europe (ancien code EU)",
+      "gb": "Royaume-Uni (ancien code GB)",
+      "eg": "Égypte (ancien code EG)",
+      "gcc": "CCG / Golfe (ancien code GCC)"
+    },
+    "group": {
+      "canonical": "Tous les territoires de vente",
+      "legacy": "Anciens codes"
+    }
   }
 }

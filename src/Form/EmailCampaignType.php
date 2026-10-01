@@ -20,7 +20,13 @@ class EmailCampaignType extends AbstractType
         private \Doctrine\ORM\EntityManagerInterface $entityManager,
     ) {}
 
-    public function buildForm(FormBuilderInterface $builder, array $options): void
+    /**
+     * @param array<string|int, mixed> $options
+     */
+    public /**
+ * @param array<string|int, mixed> $options
+ */
+function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
             ->add('name', TextType::class, [
@@ -104,6 +110,7 @@ class EmailCampaignType extends AbstractType
                     if ($json === null || trim($json) === '') {
                         return [];
                     }
+                    /** @var array<string, mixed>|null $decoded */
                     $decoded = json_decode($json, true);
 
                     return is_array($decoded) ? $decoded : [];
@@ -133,6 +140,7 @@ class EmailCampaignType extends AbstractType
             if (trim($value) === '') {
                 return;
             }
+            /** @var array<string, mixed>|null $decoded */
             $decoded = json_decode($value, true);
             if (!is_array($decoded)) {
                 $context->buildViolation('Touch templates must be valid JSON.')->addViolation();

@@ -131,7 +131,13 @@ class AuditLog
         return $this->oldValues;
     }
 
-    public function setOldValues(?array $oldValues): static
+    /**
+     * @param array<string|int, mixed> $oldValues
+     */
+    public /**
+ * @param array<string|int, mixed> $oldValues
+ */
+function setOldValues(?array $oldValues): static
     {
         $this->oldValues = $oldValues;
         return $this;
@@ -139,21 +145,33 @@ class AuditLog
 
     public function getNewValues(): ?array
     {
+    /**
+     * @param array<string|int, mixed> $newValues
+     */
         return $this->newValues;
     }
 
-    public function setNewValues(?array $newValues): static
+    public /**
+ * @param array<string|int, mixed> $newValues
+ */
+function setNewValues(?array $newValues): static
     {
         $this->newValues = $newValues;
         return $this;
     }
+    /**
+     * @param array<string|int, mixed> $changedFields
+     */
 
     public function getChangedFields(): ?array
     {
         return $this->changedFields;
     }
 
-    public function setChangedFields(?array $changedFields): static
+    public /**
+ * @param array<string|int, mixed> $changedFields
+ */
+function setChangedFields(?array $changedFields): static
     {
         $this->changedFields = $changedFields;
         return $this;

@@ -466,7 +466,13 @@ class OutboundMessage
     public function setIsControlGroup(bool $isControl): self { $this->isControlGroup = $isControl; return $this; }
 
     public function getDecisionTrace(): ?array { return $this->decisionTrace; }
-    public function setDecisionTrace(?array $trace): self { $this->decisionTrace = $trace; return $this; }
+    /**
+     * @param array<string|int, mixed> $trace
+     */
+    public /**
+ * @param array<string|int, mixed> $trace
+ */
+function setDecisionTrace(?array $trace): self { $this->decisionTrace = $trace; return $this; }
 
     // ==================== FUNNEL TRACKING GETTERS/SETTERS ====================
 

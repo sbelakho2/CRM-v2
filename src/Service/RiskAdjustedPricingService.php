@@ -228,7 +228,10 @@ class RiskAdjustedPricingService
      * @param int $requiredQuantity Quantity needed
      * @return array{selected: array|null, alternatives: array, analysis: array}
      */
-    public function selectBestOption(array $options, int $requiredQuantity): array
+    public /**
+ * @param array<string|int, mixed> $options
+ */
+function selectBestOption(array $options, int $requiredQuantity): array
     {
         if (empty($options)) {
             return [
@@ -435,7 +438,10 @@ class RiskAdjustedPricingService
     /**
      * Extract unit price for given quantity from price breaks
      */
-    private function extractUnitPrice(array $result, int $quantity): float
+    private /**
+ * @param array<string|int, mixed> $result
+ */
+function extractUnitPrice(array $result, int $quantity): float
     {
         $pricing = $result['pricing'] ?? [];
         
@@ -462,7 +468,10 @@ class RiskAdjustedPricingService
     /**
      * Extract lead time in days from distributor result
      */
-    private function extractLeadTimeDays(array $result): int
+    private /**
+ * @param array<string|int, mixed> $result
+ */
+function extractLeadTimeDays(array $result): int
     {
         // Check for explicit lead time field
         if (isset($result['leadtime_days'])) {
@@ -589,7 +598,11 @@ class RiskAdjustedPricingService
     /**
      * Explain why a particular option was selected
      */
-    private function explainSelection(array $selected, array $allOptions): string
+    private /**
+ * @param array<string|int, mixed> $selected
+ * @param array<string|int, mixed> $allOptions
+ */
+function explainSelection(array $selected, array $allOptions): string
     {
         $selectedRisk = $selected['risk_analysis'];
         

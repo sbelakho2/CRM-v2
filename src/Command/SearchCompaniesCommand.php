@@ -165,7 +165,13 @@ HELP
         }
     }
 
-    private function importLeads(array $results, string $source, ?string $location, ?string $sector, SymfonyStyle $io): int
+    /**
+     * @param array<string|int, mixed> $results
+     */
+    private /**
+ * @param array<string|int, mixed> $results
+ */
+function importLeads(array $results, string $source, ?string $location, ?string $sector, SymfonyStyle $io): int
     {
         $imported = 0;
         $skipped = 0;

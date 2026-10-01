@@ -169,8 +169,12 @@ class ComplianceDeduplicateKeysCommand extends Command
     /**
      * Deterministic, data-preserving priority: the row that carries the
      * most real compliance evidence wins.
+     * @param array<string|int, mixed> $rows
      */
-    private function pickWinner(array $rows): ComplianceDocument
+    private /**
+ * @param array<string|int, mixed> $rows
+ */
+function pickWinner(array $rows): ComplianceDocument
     {
         usort($rows, function (ComplianceDocument $a, ComplianceDocument $b): int {
             return $this->score($b) <=> $this->score($a) ?: $a->getId() <=> $b->getId();

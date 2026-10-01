@@ -112,7 +112,12 @@ class LeadSalesAnalystService
     private array $ourCertifications;
     private array $targetSectors;
     
-    public function __construct(
+    public /**
+ * @param array<string|int, mixed> $ourCapabilities
+ * @param array<string|int, mixed> $ourCertifications
+ * @param array<string|int, mixed> $targetSectors
+ */
+function __construct(
         private LoggerInterface $logger,
         private ?\App\Repository\VerifiedCapabilityRepository $capabilityRepository = null,
         private ?\App\Repository\VerifiedCertificationRepository $certificationRepository = null,
@@ -220,7 +225,10 @@ class LeadSalesAnalystService
     /**
      * Calculate capability fit between lead's needs and our offerings
      */
-    private function calculateCapabilityFit(array $fitSignals): array
+    private /**
+ * @param array<string|int, mixed> $fitSignals
+ */
+function calculateCapabilityFit(array $fitSignals): array
     {
         $matchedCapabilities = [];
         $unmatchedNeeds = [];
@@ -286,7 +294,10 @@ class LeadSalesAnalystService
     /**
      * Calculate certification alignment
      */
-    private function calculateCertificationFit(array $qualityStack): array
+    private /**
+ * @param array<string|int, mixed> $qualityStack
+ */
+function calculateCertificationFit(array $qualityStack): array
     {
         $matchedCerts = [];
         $additionalCerts = [];
@@ -343,7 +354,10 @@ class LeadSalesAnalystService
     /**
      * Calculate sector alignment
      */
-    private function calculateSectorFit(array $sectorTags): array
+    private /**
+ * @param array<string|int, mixed> $sectorTags
+ */
+function calculateSectorFit(array $sectorTags): array
     {
         $matchedSectors = [];
         
@@ -387,7 +401,11 @@ class LeadSalesAnalystService
     /**
      * Identify likely pain points from signals and notes
      */
-    private function identifyPainPoints(string $notesAuto, array $fitSignals, array $sectorTags): array
+    private /**
+ * @param array<string|int, mixed> $fitSignals
+ * @param array<string|int, mixed> $sectorTags
+ */
+function identifyPainPoints(string $notesAuto, array $fitSignals, array $sectorTags): array
     {
         $painPoints = [];
         $notesLower = strtolower($notesAuto);
@@ -483,7 +501,13 @@ class LeadSalesAnalystService
     /**
      * Generate conversation starters based on analysis
      */
-    private function generateConversationStarters(
+    private /**
+ * @param array<string|int, mixed> $capabilityFit
+ * @param array<string|int, mixed> $certificationFit
+ * @param array<string|int, mixed> $sectorFit
+ * @param array<string|int, mixed> $painPoints
+ */
+function generateConversationStarters(
         Lead $lead,
         array $capabilityFit,
         array $certificationFit,
@@ -600,7 +624,10 @@ class LeadSalesAnalystService
     /**
      * Generate pain point specific opener
      */
-    private function generatePainPointOpener(array $painPoint): string
+    private /**
+ * @param array<string|int, mixed> $painPoint
+ */
+function generatePainPointOpener(array $painPoint): string
     {
         return match($painPoint['type']) {
             'qa_struggles' => "Quality control is increasingly challenging in today's market. Are you looking to strengthen your QA processes?",
@@ -616,7 +643,10 @@ class LeadSalesAnalystService
     /**
      * Generate competitive positioning advice
      */
-    private function generateCompetitivePositioning(Lead $lead, array $sectorTags): array
+    private /**
+ * @param array<string|int, mixed> $sectorTags
+ */
+function generateCompetitivePositioning(Lead $lead, array $sectorTags): array
     {
         $positioning = [];
         
@@ -718,7 +748,11 @@ class LeadSalesAnalystService
     /**
      * Identify decision maker targets
      */
-    private function identifyDecisionMakerTargets(array $fitSignals, array $sectorTags): array
+    private /**
+ * @param array<string|int, mixed> $fitSignals
+ * @param array<string|int, mixed> $sectorTags
+ */
+function identifyDecisionMakerTargets(array $fitSignals, array $sectorTags): array
     {
         $targets = [];
         
@@ -753,7 +787,10 @@ class LeadSalesAnalystService
     /**
      * Generate email opener suggestion
      */
-    private function generateEmailOpener(Lead $lead, array $conversationStarters): string
+    private /**
+ * @param array<string|int, mixed> $conversationStarters
+ */
+function generateEmailOpener(Lead $lead, array $conversationStarters): string
     {
         $companyName = $lead->getCompanyName();
         
@@ -780,7 +817,11 @@ class LeadSalesAnalystService
     /**
      * Assess potential deal risks
      */
-    private function assessDealRisks(Lead $lead, array $fitSignals, array $qualityStack): array
+    private /**
+ * @param array<string|int, mixed> $fitSignals
+ * @param array<string|int, mixed> $qualityStack
+ */
+function assessDealRisks(Lead $lead, array $fitSignals, array $qualityStack): array
     {
         $risks = [];
         
@@ -838,7 +879,10 @@ class LeadSalesAnalystService
     /**
      * Determine recommended sales approach
      */
-    private function determineApproach(float $fitScore, array $painPoints): string
+    private /**
+ * @param array<string|int, mixed> $painPoints
+ */
+function determineApproach(float $fitScore, array $painPoints): string
     {
         if ($fitScore >= 80 && !empty($painPoints)) {
             return 'AGGRESSIVE: High fit with identified pain points. Prioritize immediate outreach.';
@@ -858,7 +902,10 @@ class LeadSalesAnalystService
     /**
      * Calculate priority score for lead ranking
      */
-    private function calculatePriorityScore(Lead $lead, float $fitScore, array $painPoints): int
+    private /**
+ * @param array<string|int, mixed> $painPoints
+ */
+function calculatePriorityScore(Lead $lead, float $fitScore, array $painPoints): int
     {
         $priority = (int) $fitScore;
         
@@ -894,7 +941,10 @@ class LeadSalesAnalystService
     /**
      * Generate recommended next steps
      */
-    private function generateNextSteps(Lead $lead, float $fitScore, array $painPoints): array
+    private /**
+ * @param array<string|int, mixed> $painPoints
+ */
+function generateNextSteps(Lead $lead, float $fitScore, array $painPoints): array
     {
         $steps = [];
         
@@ -982,7 +1032,10 @@ class LeadSalesAnalystService
     /**
      * Batch analyze multiple leads
      */
-    public function analyzeMultipleLeads(array $leads): array
+    public /**
+ * @param array<string|int, mixed> $leads
+ */
+function analyzeMultipleLeads(array $leads): array
     {
         $results = [];
         

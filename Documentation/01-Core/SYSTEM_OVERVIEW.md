@@ -1,4 +1,4 @@
-# Starz Morocco CRM - System Overview
+# StarzCRM - System Overview
 
 **Version**: 1.0  
 **Last Updated**: October 29, 2025  
@@ -24,9 +24,9 @@
 
 ## 🎯 Introduction
 
-### What is Starz Morocco CRM?
+### What is StarzCRM?
 
-**Starz Morocco CRM** is a comprehensive customer relationship management system designed specifically for **PCBA (Printed Circuit Board Assembly)** and **EMS (Electronics Manufacturing Services)** companies focusing on the **Morocco manufacturing market**.
+**StarzCRM** is a comprehensive customer relationship management system designed specifically for **PCBA (Printed Circuit Board Assembly)** and **EMS (Electronics Manufacturing Services)** companies focusing on the **Morocco manufacturing market**.
 
 The system manages the complete customer lifecycle from initial lead discovery through contract manufacturing relationships, with specialized features for the electronics manufacturing industry.
 

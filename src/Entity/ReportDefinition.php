@@ -205,7 +205,13 @@ class ReportDefinition
         return $this->columns;
     }
     
-    public function setColumns(array $columns): static
+    /**
+     * @param array<string|int, mixed> $columns
+     */
+    public /**
+ * @param array<string|int, mixed> $columns
+ */
+function setColumns(array $columns): static
     {
         $this->columns = $columns;
         return $this;
@@ -213,22 +219,37 @@ class ReportDefinition
     
     public function getFilters(): array
     {
+    /**
+     * @param array<string|int, mixed> $filters
+     */
         return $this->filters;
     }
     
-    public function setFilters(array $filters): static
+    public /**
+ * @param array<string|int, mixed> $filters
+ */
+function setFilters(array $filters): static
     {
         $this->filters = $filters;
         return $this;
     }
+    /**
+     * @param array<string|int, mixed> $groupBy
+     */
     
     public function getGroupBy(): array
     {
         return $this->groupBy;
     }
     
-    public function setGroupBy(array $groupBy): static
+    public /**
+ * @param array<string|int, mixed> $groupBy
+ */
+function setGroupBy(array $groupBy): static
     {
+    /**
+     * @param array<string|int, mixed> $orderBy
+     */
         $this->groupBy = $groupBy;
         return $this;
     }
@@ -237,8 +258,14 @@ class ReportDefinition
     {
         return $this->orderBy;
     }
+    /**
+     * @param array<string|int, mixed> $chartConfig
+     */
     
-    public function setOrderBy(array $orderBy): static
+    public /**
+ * @param array<string|int, mixed> $orderBy
+ */
+function setOrderBy(array $orderBy): static
     {
         $this->orderBy = $orderBy;
         return $this;
@@ -249,7 +276,10 @@ class ReportDefinition
         return $this->chartConfig;
     }
     
-    public function setChartConfig(?array $chartConfig): static
+    public /**
+ * @param array<string|int, mixed> $chartConfig
+ */
+function setChartConfig(?array $chartConfig): static
     {
         $this->chartConfig = $chartConfig;
         return $this;
@@ -357,6 +387,9 @@ class ReportDefinition
     }
     
     public function getCategory(): ?string
+    /**
+     * @param array<string|int, mixed> $accessRoles
+     */
     {
         return $this->category;
     }
@@ -365,6 +398,9 @@ class ReportDefinition
     {
         $this->category = $category;
         return $this;
+    /**
+     * @param array<string|int, mixed> $scheduledDelivery
+     */
     }
     
     public function getAccessRoles(): ?array
@@ -372,7 +408,10 @@ class ReportDefinition
         return $this->accessRoles;
     }
     
-    public function setAccessRoles(?array $accessRoles): static
+    public /**
+ * @param array<string|int, mixed> $accessRoles
+ */
+function setAccessRoles(?array $accessRoles): static
     {
         $this->accessRoles = $accessRoles;
         return $this;
@@ -383,7 +422,10 @@ class ReportDefinition
         return $this->scheduledDelivery;
     }
     
-    public function setScheduledDelivery(?array $scheduledDelivery): static
+    public /**
+ * @param array<string|int, mixed> $scheduledDelivery
+ */
+function setScheduledDelivery(?array $scheduledDelivery): static
     {
         $this->scheduledDelivery = $scheduledDelivery;
         return $this;

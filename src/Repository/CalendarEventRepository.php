@@ -37,6 +37,8 @@ class CalendarEventRepository extends ServiceEntityRepository
 
     /**
      * Find events within a date range
+     *
+     * @return list<CalendarEvent>
      */
     public function findByDateRange(
         \DateTimeInterface $start,
@@ -77,27 +79,34 @@ class CalendarEventRepository extends ServiceEntityRepository
             }
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<CalendarEvent> $events */
+        $events = $qb->getQuery()->getResult();
+
+        return $events;
     }
 
     /**
      * Find events for a specific day
+     *
+     * @return list<CalendarEvent>
      */
     public function findByDate(\DateTimeInterface $date, ?User $user = null): array
     {
-        $start = (clone $date)->setTime(0, 0, 0);
-        $end = (clone $date)->setTime(23, 59, 59);
+        $start = \DateTime::createFromInterface($date)->setTime(0, 0, 0);
+        $end = \DateTime::createFromInterface($date)->setTime(23, 59, 59);
 
         return $this->findByDateRange($start, $end, $user);
     }
 
     /**
      * Find events for a week
+     *
+     * @return list<CalendarEvent>
      */
     public function findByWeek(\DateTimeInterface $date, ?User $user = null): array
     {
         $dayOfWeek = (int) $date->format('N');
-        $start = (clone $date)->modify('-' . ($dayOfWeek - 1) . ' days')->setTime(0, 0, 0);
+        $start = \DateTime::createFromInterface($date)->modify('-' . ($dayOfWeek - 1) . ' days')->setTime(0, 0, 0);
         $end = (clone $start)->modify('+6 days')->setTime(23, 59, 59);
 
         return $this->findByDateRange($start, $end, $user);
@@ -105,6 +114,8 @@ class CalendarEventRepository extends ServiceEntityRepository
 
     /**
      * Find events for a month
+     *
+     * @return list<CalendarEvent>
      */
     public function findByMonth(int $year, int $month, ?User $user = null): array
     {
@@ -116,6 +127,8 @@ class CalendarEventRepository extends ServiceEntityRepository
 
     /**
      * Find upcoming events
+     *
+     * @return list<CalendarEvent>
      */
     public function findUpcoming(?User $user = null, int $limit = 10): array
     {
@@ -137,11 +150,16 @@ class CalendarEventRepository extends ServiceEntityRepository
             ->setParameter('user', $user);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<CalendarEvent> $events */
+        $events = $qb->getQuery()->getResult();
+
+        return $events;
     }
 
     /**
      * Find today's events
+     *
+     * @return list<CalendarEvent>
      */
     public function findToday(?User $user = null): array
     {
@@ -150,6 +168,8 @@ class CalendarEventRepository extends ServiceEntityRepository
 
     /**
      * Find events happening now
+     *
+     * @return list<CalendarEvent>
      */
     public function findHappeningNow(?User $user = null): array
     {
@@ -173,11 +193,16 @@ class CalendarEventRepository extends ServiceEntityRepository
             ->setParameter('user', $user);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<CalendarEvent> $events */
+        $events = $qb->getQuery()->getResult();
+
+        return $events;
     }
 
     /**
      * Find events by company
+     *
+     * @return list<CalendarEvent>
      */
     public function findByCompany(Company $company, ?int $limit = null): array
     {
@@ -192,11 +217,16 @@ class CalendarEventRepository extends ServiceEntityRepository
             $qb->setMaxResults($limit);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<CalendarEvent> $events */
+        $events = $qb->getQuery()->getResult();
+
+        return $events;
     }
 
     /**
      * Find events by contact
+     *
+     * @return list<CalendarEvent>
      */
     public function findByContact(Contact $contact, ?int $limit = null): array
     {
@@ -211,16 +241,22 @@ class CalendarEventRepository extends ServiceEntityRepository
             $qb->setMaxResults($limit);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<CalendarEvent> $events */
+        $events = $qb->getQuery()->getResult();
+
+        return $events;
     }
 
     /**
      * Find events that need reminders sent
+     *
+     * @return array<int, CalendarEvent>
      */
     public function findPendingReminders(): array
     {
         $now = new \DateTime();
 
+        /** @var list<CalendarEvent> $results */
         $results = $this->createQueryBuilder('e')
             ->where('e.reminderMinutes IS NOT NULL')
             ->andWhere('e.reminderSent = :false')
@@ -233,13 +269,20 @@ class CalendarEventRepository extends ServiceEntityRepository
             ->getResult();
 
         return array_filter($results, function (CalendarEvent $e) use ($now) {
-            $reminderThreshold = (clone $e->getStartAt())->modify('-' . (int) $e->getReminderMinutes() . ' minutes');
+            $startAt = $e->getStartAt();
+            if ($startAt === null) {
+                return false;
+            }
+            $reminderThreshold = \DateTime::createFromInterface($startAt)
+                ->modify('-' . (int) $e->getReminderMinutes() . ' minutes');
             return $reminderThreshold <= $now;
         });
     }
 
     /**
      * Get events formatted for FullCalendar
+     *
+     * @return list<array<string, mixed>>
      */
     public function findForFullCalendar(
         \DateTimeInterface $start,
@@ -247,12 +290,17 @@ class CalendarEventRepository extends ServiceEntityRepository
         ?User $user = null
     ): array {
         $events = $this->findByDateRange($start, $end, $user);
-        
-        return array_map(fn(CalendarEvent $e) => $e->toFullCalendarEvent(), $events);
+
+        /** @var list<array<string, mixed>> $formatted */
+        $formatted = array_map(fn(CalendarEvent $e) => $e->toFullCalendarEvent(), $events);
+
+        return $formatted;
     }
 
     /**
      * Find conflicting events
+     *
+     * @return list<CalendarEvent>
      */
     public function findConflicts(
         \DateTimeInterface $start,
@@ -260,8 +308,8 @@ class CalendarEventRepository extends ServiceEntityRepository
         User $user,
         ?int $excludeEventId = null
     ): array {
-        $qb = $this->createQueryBuilder('e')
-            ->where('e.startAt < :end')
+        $qb = $this->createQueryBuilder('e');
+        $qb->where('e.startAt < :end')
             ->andWhere('e.endAt > :start')
             ->andWhere('e.status = :confirmed')
             ->andWhere(
@@ -280,25 +328,31 @@ class CalendarEventRepository extends ServiceEntityRepository
                ->setParameter('excludeId', $excludeEventId);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<CalendarEvent> $events */
+        $events = $qb->getQuery()->getResult();
+
+        return $events;
     }
 
     /**
      * Get user's availability for a date
+     *
+     * @return list<array{start: string, end: string, title: string|null}>
      */
     public function getUserAvailability(User $user, \DateTimeInterface $date): array
     {
         $events = $this->findByDate($date, $user);
-        
+
         $busySlots = [];
         foreach ($events as $event) {
-            if (!$event->isCancelled()) {
-                $busySlots[] = [
-                    'start' => $event->getStartAt()->format('H:i'),
-                    'end' => $event->getEndAt()->format('H:i'),
-                    'title' => $event->getTitle(),
-                ];
+            if ($event->isCancelled() || $event->getStartAt() === null || $event->getEndAt() === null) {
+                continue;
             }
+            $busySlots[] = [
+                'start' => $event->getStartAt()->format('H:i'),
+                'end' => $event->getEndAt()->format('H:i'),
+                'title' => $event->getTitle(),
+            ];
         }
 
         return $busySlots;
@@ -306,14 +360,16 @@ class CalendarEventRepository extends ServiceEntityRepository
 
     /**
      * Get event statistics for a user
+     *
+     * @return array{byType: array<string, array{count: int, minutes: int}>, totalEvents: int, totalMinutes: int}
      */
     public function getStatistics(User $user, ?\DateTimeInterface $from = null, ?\DateTimeInterface $to = null): array
     {
         $from = $from ?? new \DateTime('first day of this month 00:00:00');
         $to = $to ?? new \DateTime('last day of this month 23:59:59');
 
-        $qb = $this->createQueryBuilder('e')
-            ->select('e.eventType, e.startAt, e.endAt')
+        $qb = $this->createQueryBuilder('e');
+        $qb->select('e.eventType, e.startAt, e.endAt')
             ->where('e.startAt BETWEEN :from AND :to')
             ->andWhere(
                 $qb->expr()->orX(
@@ -325,6 +381,7 @@ class CalendarEventRepository extends ServiceEntityRepository
             ->setParameter('to', $to)
             ->setParameter('user', $user);
 
+        /** @var list<array{eventType: string, startAt: \DateTimeInterface|null, endAt: \DateTimeInterface|null}> $results */
         $results = $qb->getQuery()->getResult();
 
         $stats = [
@@ -353,11 +410,13 @@ class CalendarEventRepository extends ServiceEntityRepository
 
     /**
      * Search events
+     *
+     * @return list<CalendarEvent>
      */
     public function search(string $query, ?User $user = null, int $limit = 20): array
     {
-        $qb = $this->createQueryBuilder('e')
-            ->leftJoin('e.company', 'c')
+        $qb = $this->createQueryBuilder('e');
+        $qb->leftJoin('e.company', 'c')
             ->leftJoin('e.contact', 'ct')
             ->where(
                 $qb->expr()->orX(
@@ -385,6 +444,9 @@ class CalendarEventRepository extends ServiceEntityRepository
             ->setParameter('private', CalendarEvent::VISIBILITY_PRIVATE);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<CalendarEvent> $events */
+        $events = $qb->getQuery()->getResult();
+
+        return $events;
     }
 }

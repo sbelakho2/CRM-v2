@@ -192,7 +192,13 @@ class PersonalizationProfile
         return $this->topicInterests ?? [];
     }
 
-    public function setTopicInterests(?array $topicInterests): static
+    /**
+     * @param array<string|int, mixed> $topicInterests
+     */
+    public /**
+ * @param array<string|int, mixed> $topicInterests
+ */
+function setTopicInterests(?array $topicInterests): static
     {
         $this->topicInterests = $topicInterests;
         return $this;
@@ -207,39 +213,63 @@ class PersonalizationProfile
 
     public function getAvoidTopics(): array
     {
+    /**
+     * @param array<string|int, mixed> $avoidTopics
+     */
         return $this->avoidTopics ?? [];
     }
 
-    public function setAvoidTopics(?array $avoidTopics): static
+    public /**
+ * @param array<string|int, mixed> $avoidTopics
+ */
+function setAvoidTopics(?array $avoidTopics): static
     {
         $this->avoidTopics = $avoidTopics;
         return $this;
     }
+    /**
+     * @param array<string|int, mixed> $featureEmbedding
+     */
 
     public function getFeatureEmbedding(): array
     {
         return $this->featureEmbedding ?? [];
     }
 
-    public function setFeatureEmbedding(?array $featureEmbedding): static
+    public /**
+ * @param array<string|int, mixed> $featureEmbedding
+ */
+function setFeatureEmbedding(?array $featureEmbedding): static
     {
         $this->featureEmbedding = $featureEmbedding;
+    /**
+     * @param array<string|int, mixed> $interactionHistory
+     */
         $this->updatedAt = new \DateTime();
         return $this;
     }
+    /**
+     * @param array<string|int, mixed> $data
+     */
 
     public function getInteractionHistory(): array
     {
         return $this->interactionHistory ?? [];
     }
 
-    public function setInteractionHistory(?array $interactionHistory): static
+    public /**
+ * @param array<string|int, mixed> $interactionHistory
+ */
+function setInteractionHistory(?array $interactionHistory): static
     {
         $this->interactionHistory = $interactionHistory;
         return $this;
     }
 
-    public function recordInteraction(string $type, array $data = []): static
+    public /**
+ * @param array<string|int, mixed> $data
+ */
+function recordInteraction(string $type, array $data = []): static
     {
         $this->interactionHistory[] = array_merge([
             'type' => $type,
@@ -328,6 +358,9 @@ class PersonalizationProfile
     public function getSuccessfulSubjectPatterns(): array
     {
         return $this->successfulSubjectPatterns ?? [];
+    /**
+     * @param array<string|int, mixed> $metadata
+     */
     }
 
     public function addSuccessfulSubjectPattern(string $pattern): static
@@ -343,12 +376,18 @@ class PersonalizationProfile
         return $this->metadata ?? [];
     }
 
-    public function setMetadata(?array $metadata): static
+    public /**
+ * @param array<string|int, mixed> $metadata
+ */
+function setMetadata(?array $metadata): static
     {
         $this->metadata = $metadata;
         return $this;
     }
 
+    /**
+     * @param array<string|int, mixed> $interactionHistory
+     */
     public function getCreatedAt(): ?\DateTimeInterface
     {
         return $this->createdAt;
@@ -367,7 +406,10 @@ class PersonalizationProfile
         return self::calculateEngagementScore($this->interactionHistory, $this->emailsOpened, $this->emailsReplied, $this->emailsBounced);
     }
 
-    public static function calculateEngagementScore(?array $interactionHistory, int $emailsOpened, int $emailsReplied, int $emailsBounced): float
+    public static /**
+ * @param array<string|int, mixed> $interactionHistory
+ */
+function calculateEngagementScore(?array $interactionHistory, int $emailsOpened, int $emailsReplied, int $emailsBounced): float
     {
         $history = $interactionHistory ?? [];
 

@@ -35,7 +35,10 @@ class EmailTemplateService
     /**
      * Create a new email template
      */
-    public function createTemplate(
+    public /**
+ * @param array<string|int, mixed> $personalizationTokens
+ */
+function createTemplate(
         string $name,
         string $subjectLine,
         string $bodyHtml,
@@ -66,7 +69,10 @@ class EmailTemplateService
     /**
      * Update an existing template
      */
-    public function updateTemplate(
+    public /**
+ * @param array<string|int, mixed> $personalizationTokens
+ */
+function updateTemplate(
         EmailTemplate $template,
         ?string $name = null,
         ?string $subjectLine = null,
@@ -208,7 +214,10 @@ class EmailTemplateService
      * @param array $data Associative array of token values
      * @return array ['subject' => string, 'html' => string, 'text' => string]
      */
-    public function renderTemplate(EmailTemplate $template, array $data): array
+    public /**
+ * @param array<string|int, mixed> $data
+ */
+function renderTemplate(EmailTemplate $template, array $data): array
     {
         $subject = $this->replaceTokens($template->getSubjectLine(), $data, false);
         $html = $this->replaceTokens($template->getBodyHtml(), $data, true);
@@ -256,7 +265,10 @@ class EmailTemplateService
      * @param bool $escapeForHtml Whether to HTML-escape values (true for HTML body)
      * @return string The text with tokens replaced
      */
-    private function replaceTokens(string $text, array $data, bool $escapeForHtml = true): string
+    private /**
+ * @param array<string|int, mixed> $data
+ */
+function replaceTokens(string $text, array $data, bool $escapeForHtml = true): string
     {
         $result = $text;
         
@@ -431,6 +443,7 @@ class EmailTemplateService
      */
     public function importTemplate(string $json, ?string $newName = null): EmailTemplate
     {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($json, true);
         
         if (!$data) {

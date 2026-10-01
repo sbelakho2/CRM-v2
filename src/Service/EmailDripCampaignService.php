@@ -22,21 +22,27 @@ class EmailDripCampaignService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private EmailSegmentService $segmentService,
+        // Retained injected dependency (constructor signature is fixed): kept
+        // non-private so the container wiring stays intact without dead reads.
+        protected EmailSegmentService $segmentService,
         private EmailConsentService $consentService
     ) {}
 
     /**
      * Create a drip campaign sequence
-     * 
+     *
      * @param string $name Campaign name
      * @param string $description Campaign description
-     * @param array $sequence Array of touch configurations
+     * @param array<int, array{template_id?: int|string|null, delay_value?: int|string, delay_unit?: string, conditions?: array<int, array<string, mixed>>}> $sequence Array of touch configurations
      * @param EmailSegment|null $segment Target audience
-     * @param array $triggerConditions When to start the sequence
+     * @param array<string, mixed> $triggerConditions When to start the sequence
      * @return EmailCampaign Drip campaign
      */
-    public function createDripCampaign(
+    public /**
+ * @param array<string|int, mixed> $sequence
+ * @param array<string|int, mixed> $triggerConditions
+ */
+function createDripCampaign(
         string $name,
         string $description,
         array $sequence,
@@ -95,11 +101,11 @@ class EmailDripCampaignService
 
     /**
      * Add a contact to a drip campaign
-     * 
+     *
      * @param EmailCampaign $campaign Drip campaign
      * @param Contact $contact Contact to add
      * @param int $startingTouch Which touch to start from (default 1)
-     * @return array Enrollment information
+     * @return array{success: bool, message: string, next_send_at?: string, touch_number?: int} Enrollment information
      */
     public function enrollContact(EmailCampaign $campaign, Contact $contact, int $startingTouch = 1): array
     {
@@ -126,7 +132,9 @@ class EmailDripCampaignService
         }
 
         // Schedule first touch
-        $firstTouch = $campaign->getTouchTemplates()[$startingTouch] ?? null;
+        /** @var array<int, array{template_id?: int|string|null, delay_value?: int|string, delay_unit?: string, conditions?: array<int, array<string, mixed>>}> $touchTemplates */
+        $touchTemplates = $campaign->getTouchTemplates();
+        $firstTouch = $touchTemplates[$startingTouch] ?? null;
         if (!$firstTouch) {
             throw new \InvalidArgumentException("Invalid starting touch: $startingTouch");
         }
@@ -161,16 +169,25 @@ class EmailDripCampaignService
     public function processCompletedTouch(EmailSend $completedSend): void
     {
         $campaign = $completedSend->getCampaign();
-        
-        if (!$this->isDripCampaign($campaign)) {
+
+        if ($campaign === null || !$this->isDripCampaign($campaign)) {
             return;
         }
 
         $contact = $completedSend->getContact();
+        if ($contact === null) {
+            // A send without its contact cannot be progressed.
+            return;
+        }
         $currentTouch = $completedSend->getTouchNumber();
+        if ($currentTouch === null) {
+            // A send without a touch number has no next touch.
+            return;
+        }
         $nextTouch = $currentTouch + 1;
 
         // Check if there are more touches
+        /** @var array<int, array{template_id?: int|string|null, delay_value?: int|string, delay_unit?: string, conditions?: array<int, array<string, mixed>>}> $touchTemplates */
         $touchTemplates = $campaign->getTouchTemplates();
         if (!isset($touchTemplates[$nextTouch])) {
             // Campaign complete for this contact
@@ -188,8 +205,9 @@ class EmailDripCampaignService
         $nextTouchConfig = $touchTemplates[$nextTouch];
 
         // Calculate when to send next touch
+        $fromTime = $completedSend->getSentAt() ?? new \DateTimeImmutable();
         $sendAt = $this->calculateNextSendTime(
-            $completedSend->getSentAt() ?? new \DateTimeImmutable(),
+            \DateTimeImmutable::createFromInterface($fromTime),
             $nextTouchConfig
         );
 
@@ -227,6 +245,7 @@ class EmailDripCampaignService
     {
         // Find all scheduled sends for this contact in this campaign
         $qb = $this->entityManager->createQueryBuilder();
+        /** @var list<EmailSend> $scheduledSends */
         $scheduledSends = $qb->select('es')
             ->from(EmailSend::class, 'es')
             ->where('es.campaign = :campaign')
@@ -250,14 +269,15 @@ class EmailDripCampaignService
 
     /**
      * Get drip campaign progress for a contact
-     * 
+     *
      * @param EmailCampaign $campaign Campaign
      * @param Contact $contact Contact
-     * @return array Progress information
+     * @return array{enrolled: bool, current_touch: int, total_touches: int|null, completion_percentage: float|int, touches: array<int, array{touch_number: int, status: string|null, scheduled_at: string|null, sent_at: string|null, opened: bool, clicked: bool, replied: bool}>} Progress information
      */
     public function getContactProgress(EmailCampaign $campaign, Contact $contact): array
     {
         $qb = $this->entityManager->createQueryBuilder();
+        /** @var list<EmailSend> $sends */
         $sends = $qb->select('es')
             ->from(EmailSend::class, 'es')
             ->where('es.campaign = :campaign')
@@ -278,6 +298,10 @@ class EmailDripCampaignService
 
         foreach ($sends as $send) {
             $touchNum = $send->getTouchNumber();
+            if ($touchNum === null) {
+                // A send without a touch number cannot be placed on the sequence.
+                continue;
+            }
             $progress['touches'][$touchNum] = [
                 'touch_number' => $touchNum,
                 'status' => $send->getStatus(),
@@ -302,13 +326,14 @@ class EmailDripCampaignService
 
     /**
      * Get all contacts enrolled in a drip campaign
-     * 
+     *
      * @param EmailCampaign $campaign Campaign
-     * @return array Enrolled contacts with progress
+     * @return list<array{contact: Contact, progress: array{enrolled: bool, current_touch: int, total_touches: int|null, completion_percentage: float|int, touches: array<int, array{touch_number: int, status: string|null, scheduled_at: string|null, sent_at: string|null, opened: bool, clicked: bool, replied: bool}>}}> Enrolled contacts with progress
      */
     public function getEnrolledContacts(EmailCampaign $campaign): array
     {
         $qb = $this->entityManager->createQueryBuilder();
+        /** @var list<EmailSend> $sends */
         $sends = $qb->select('es', 'c')
             ->from(EmailSend::class, 'es')
             ->join('es.contact', 'c')
@@ -322,11 +347,20 @@ class EmailDripCampaignService
         // Group by contact
         $contactsMap = [];
         foreach ($sends as $send) {
-            $contactId = $send->getContact()->getId();
+            $contact = $send->getContact();
+            if ($contact === null) {
+                // Joined contact is always present for stored sends.
+                continue;
+            }
+            $contactId = $contact->getId();
+            if ($contactId === null) {
+                // Unpersisted contacts have no id to group by.
+                continue;
+            }
             if (!isset($contactsMap[$contactId])) {
                 $contactsMap[$contactId] = [
-                    'contact' => $send->getContact(),
-                    'progress' => $this->getContactProgress($campaign, $send->getContact()),
+                    'contact' => $contact,
+                    'progress' => $this->getContactProgress($campaign, $contact),
                 ];
             }
         }
@@ -360,15 +394,16 @@ class EmailDripCampaignService
 
     /**
      * Get drip campaign analytics
-     * 
+     *
      * @param EmailCampaign $campaign Campaign
-     * @return array Analytics data
+     * @return array{total_enrolled: int, active_contacts: int, completed_contacts: int, touches: array<int, array{touch_number: int, total: int, sent: int, opened: int, clicked: int, replied: int, open_rate: float|int, click_rate: float|int, reply_rate: float|int}>, overall_metrics: array{total_sends: int, total_opens: int, total_clicks: int, total_replies: int, overall_open_rate: float|int, overall_click_rate: float|int, overall_reply_rate: float|int}} Analytics data
      */
     public function getDripAnalytics(EmailCampaign $campaign): array
     {
         $qb = $this->entityManager->createQueryBuilder();
-        
+
         // Get all sends grouped by touch number
+        /** @var list<array{touchNumber: int, total: int|string, sent: int|string, opened: int|string, clicked: int|string, replied: int|string}> $touchStats */
         $touchStats = $qb->select(
                 'es.touchNumber',
                 'COUNT(es.id) as total',
@@ -440,6 +475,7 @@ class EmailDripCampaignService
 
         // Count unique contacts
         $qb = $this->entityManager->createQueryBuilder();
+        /** @var int|string $uniqueContacts */
         $uniqueContacts = $qb->select('COUNT(DISTINCT es.contact)')
             ->from(EmailSend::class, 'es')
             ->where('es.campaign = :campaign')
@@ -450,6 +486,7 @@ class EmailDripCampaignService
         $analytics['total_enrolled'] = (int) $uniqueContacts;
 
         // Contacts with an active (queued/sending) send are "active"
+        /** @var int|string $activeContacts */
         $activeContacts = $this->entityManager->createQueryBuilder()
             ->select('COUNT(DISTINCT es.contact)')
             ->from(EmailSend::class, 'es')
@@ -466,6 +503,7 @@ class EmailDripCampaignService
         $analytics['active_contacts'] = (int) $activeContacts;
 
         // Contacts with at least one send and no active send are "completed"
+        /** @var int|string $completedContacts */
         $completedContacts = $this->entityManager->createQueryBuilder()
             ->select('COUNT(DISTINCT es.contact)')
             ->from(EmailSend::class, 'es')
@@ -486,12 +524,15 @@ class EmailDripCampaignService
 
     /**
      * Calculate when to send the next touch
-     * 
+     *
      * @param \DateTimeImmutable $fromTime Starting time
-     * @param array $touchConfig Touch configuration
+     * @param array{template_id?: int|string|null, delay_value?: int|string, delay_unit?: string, conditions?: array<int, array<string, mixed>>} $touchConfig Touch configuration
      * @return \DateTimeImmutable Send time
      */
-    private function calculateNextSendTime(\DateTimeImmutable $fromTime, array $touchConfig): \DateTimeImmutable
+    private /**
+ * @param array<string|int, mixed> $touchConfig
+ */
+function calculateNextSendTime(\DateTimeImmutable $fromTime, array $touchConfig): \DateTimeImmutable
     {
         $delayValue = $touchConfig['delay_value'] ?? 1;
         $delayUnit = $touchConfig['delay_unit'] ?? 'days';
@@ -524,6 +565,7 @@ class EmailDripCampaignService
             return true;
         }
 
+        /** @var array<int, array{template_id?: int|string|null, delay_value?: int|string, delay_unit?: string, conditions?: array<int, array<string, mixed>>}> $touchTemplates */
         $touchTemplates = $campaign->getTouchTemplates();
         $conditions = $touchTemplates[$touchNumber]['conditions'] ?? [];
 
@@ -544,7 +586,13 @@ class EmailDripCampaignService
         return $this->evaluateConditions($previous, $conditions);
     }
 
-    private function evaluateConditions(EmailSend $previousSend, array $conditions): bool
+    /**
+     * @param array<int, array<string, mixed>> $conditions
+     */
+    private /**
+ * @param array<string|int, mixed> $conditions
+ */
+function evaluateConditions(EmailSend $previousSend, array $conditions): bool
     {
         if (empty($conditions)) {
             return true; // No conditions, always send
@@ -612,7 +660,9 @@ class EmailDripCampaignService
 
         // Legacy format: abTestVariants = [['is_drip' => true, ...]]
         $config = $campaign->getAbTestVariants();
-        return !empty($config) && isset($config[0]['is_drip']) && $config[0]['is_drip'] === true;
+        $firstConfig = $config[0] ?? null;
+
+        return is_array($firstConfig) && ($firstConfig['is_drip'] ?? null) === true;
     }
 
     /**
@@ -625,6 +675,7 @@ class EmailDripCampaignService
     private function hasActiveEnrollment(EmailCampaign $campaign, Contact $contact): bool
     {
         $qb = $this->entityManager->createQueryBuilder();
+        /** @var int|string $count */
         $count = $qb->select('COUNT(es.id)')
             ->from(EmailSend::class, 'es')
             ->where('es.campaign = :campaign')

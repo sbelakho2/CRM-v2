@@ -486,7 +486,10 @@ final class BuyerEvidenceResult
      * @param array<string,array<string,bool>> $map
      * @return array<string,string[]>
      */
-    private function boolMapKeys(array $map): array
+    private /**
+ * @param array<string|int, mixed> $map
+ */
+function boolMapKeys(array $map): array
     {
         $out = [];
         foreach ($map as $family => $bools) {

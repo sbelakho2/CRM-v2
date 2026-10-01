@@ -20,7 +20,7 @@
 
 ## Overview
 
-The Starz Morocco CRM system provides:
+The StarzCRM system provides:
 
 ### Email Analytics Capabilities
 - Campaign performance metrics (sent, opened, clicked, unsubscribed)

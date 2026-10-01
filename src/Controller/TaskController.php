@@ -310,6 +310,7 @@ class TaskController extends AbstractController
     #[Route('/api/update-status', name: 'app_task_api_update_status', methods: ['POST'])]
     public function apiUpdateStatus(Request $request): JsonResponse
     {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
 
         if (!$this->isCsrfTokenValid('update_status', $data['_token'] ?? '')) {
@@ -360,6 +361,7 @@ class TaskController extends AbstractController
     #[Route('/api/reorder', name: 'app_task_api_reorder', methods: ['POST'])]
     public function apiReorder(Request $request): JsonResponse
     {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
 
         if (!$this->isCsrfTokenValid('reorder', $data['_token'] ?? '')) {
@@ -412,6 +414,7 @@ class TaskController extends AbstractController
     #[Route('/quick-add', name: 'app_task_quick_add', methods: ['POST'])]
     public function quickAdd(Request $request): JsonResponse
     {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
 
         if (!$this->isCsrfTokenValid('quick_add', $data['_token'] ?? '')) {

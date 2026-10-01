@@ -105,7 +105,13 @@ class PackagingFactor
         return $this->palletizationRuleJson;
     }
 
-    public function setPalletizationRuleJson(?array $palletizationRuleJson): self
+    /**
+     * @param array<string|int, mixed> $palletizationRuleJson
+     */
+    public /**
+ * @param array<string|int, mixed> $palletizationRuleJson
+ */
+function setPalletizationRuleJson(?array $palletizationRuleJson): self
     {
         $this->palletizationRuleJson = $palletizationRuleJson;
         return $this;

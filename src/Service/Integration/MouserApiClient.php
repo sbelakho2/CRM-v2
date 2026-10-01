@@ -389,7 +389,10 @@ class MouserApiClient
     /**
      * Format a part result into standard structure
      */
-    private function formatPartResult(array $part, string $requestedMpn, int $totalCount): array
+    private /**
+ * @param array<string|int, mixed> $part
+ */
+function formatPartResult(array $part, string $requestedMpn, int $totalCount): array
     {
         $pricingData = $this->parsePricing($part['PriceBreaks'] ?? []);
         
@@ -439,7 +442,10 @@ class MouserApiClient
      * 
      * @return array<int, array{score: int, part: array}>
      */
-    private function scoreAndSortParts(array $parts, string $requestedMpn): array
+    private /**
+ * @param array<string|int, mixed> $parts
+ */
+function scoreAndSortParts(array $parts, string $requestedMpn): array
     {
         $normalizedRequested = $this->confidenceCalculator->normalizeMpn($requestedMpn);
         
@@ -458,7 +464,10 @@ class MouserApiClient
     /**
      * Calculate score for a single part
      */
-    private function calculatePartScore(array $part, string $normalizedRequested): int
+    private /**
+ * @param array<string|int, mixed> $part
+ */
+function calculatePartScore(array $part, string $normalizedRequested): int
     {
         $score = 0;
         $normalizedMpn = $this->confidenceCalculator->normalizeMpn($part['ManufacturerPartNumber'] ?? '');
@@ -611,7 +620,10 @@ class MouserApiClient
      * 
      * @return array{breaks: array, moq: int, pack_quantity: int|null, multiple_quantity: int|null}
      */
-    private function parsePricing(array $priceBreaks): array
+    private /**
+ * @param array<string|int, mixed> $priceBreaks
+ */
+function parsePricing(array $priceBreaks): array
     {
         $pricing = [];
         $quantities = [];

@@ -89,7 +89,13 @@ class HtsMapRule
         return $this->keywords;
     }
 
-    public function setKeywords(?array $keywords): self
+    /**
+     * @param array<string|int, mixed> $keywords
+     */
+    public /**
+ * @param array<string|int, mixed> $keywords
+ */
+function setKeywords(?array $keywords): self
     {
         $this->keywords = $keywords;
         return $this;

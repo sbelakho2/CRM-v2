@@ -1,7 +1,7 @@
 {
-  "name": "starz-crm",
+  "name": "starzcrm",
   "version": "1.0.0",
-  "description": "Starz Morocco CRM - E2E UI Tests",
+  "description": "StarzCRM - E2E UI Tests",
   "private": true,
   "scripts": {
     "test:ui": "playwright test"

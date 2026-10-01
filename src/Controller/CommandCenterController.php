@@ -22,7 +22,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 /**
  * Command Center Controller
  * 
- * Unified dashboard for Starz CRM providing:
+ * Unified dashboard for StarzCRM providing:
  * - Live Lead Inflow (LeadBot discoveries)
  * - Quote Status (Quote Buddy pipeline)
  * - Supply Chain Alerts

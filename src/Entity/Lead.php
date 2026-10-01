@@ -266,7 +266,13 @@ class Lead
         return $this->sectorTags;
     }
 
-    public function setSectorTags(?array $sectorTags): self
+    /**
+     * @param array<string|int, mixed> $sectorTags
+     */
+    public /**
+ * @param array<string|int, mixed> $sectorTags
+ */
+function setSectorTags(?array $sectorTags): self
     {
         $this->sectorTags = $sectorTags;
         return $this;
@@ -274,10 +280,16 @@ class Lead
 
     public function getFitSignals(): ?array
     {
+    /**
+     * @param array<string|int, mixed> $fitSignals
+     */
         return $this->fitSignals;
     }
 
-    public function setFitSignals(?array $fitSignals): self
+    public /**
+ * @param array<string|int, mixed> $fitSignals
+ */
+function setFitSignals(?array $fitSignals): self
     {
         $this->fitSignals = $fitSignals;
         return $this;
@@ -293,14 +305,23 @@ class Lead
         $this->moroccoSignal = $moroccoSignal;
         return $this;
     }
+    /**
+     * @param array<string|int, mixed> $qualityStack
+     */
 
     public function getQualityStack(): ?array
     {
         return $this->qualityStack;
     }
 
-    public function setQualityStack(?array $qualityStack): self
+    public /**
+ * @param array<string|int, mixed> $qualityStack
+ */
+function setQualityStack(?array $qualityStack): self
     {
+    /**
+     * @param array<string|int, mixed> $contactEmailsPublic
+     */
         $this->qualityStack = $qualityStack;
         return $this;
     }
@@ -310,7 +331,10 @@ class Lead
         return $this->contactEmailsPublic;
     }
 
-    public function setContactEmailsPublic(?array $contactEmailsPublic): self
+    public /**
+ * @param array<string|int, mixed> $contactEmailsPublic
+ */
+function setContactEmailsPublic(?array $contactEmailsPublic): self
     {
         $this->contactEmailsPublic = $contactEmailsPublic;
         return $this;

@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\ReportDefinition;
+use App\Entity\User;
 use App\Form\ReportDefinitionType;
 use App\Repository\ReportDefinitionRepository;
 use App\Service\ReportBuilderService;
@@ -29,6 +30,9 @@ class ReportController extends AbstractController
     public function index(Request $request): Response
     {
         $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException('User not authenticated.');
+        }
         $dataSource = $request->query->get('source');
         $category = $request->query->get('category');
         
@@ -55,7 +59,11 @@ class ReportController extends AbstractController
     public function new(Request $request): Response
     {
         $report = new ReportDefinition();
-        $report->setCreatedBy($this->getUser());
+        $newUser = $this->getUser();
+        if (!$newUser instanceof User) {
+            throw $this->createAccessDeniedException('User not authenticated.');
+        }
+        $report->setCreatedBy($newUser);
         
         // Pre-select data source if provided
         if ($source = $request->query->get('source')) {
@@ -82,12 +90,17 @@ class ReportController extends AbstractController
     #[Route('/{id}', name: 'report_show', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function show(ReportDefinition $report, Request $request): Response
     {
-        if (!$report->canUserAccess($this->getUser())) {
+        $showUser = $this->getUser();
+        if (!$showUser instanceof User) {
             throw $this->createAccessDeniedException('You do not have access to this report.');
         }
-        
+        if (!$report->canUserAccess($showUser)) {
+            throw $this->createAccessDeniedException('You do not have access to this report.');
+        }
+
         // Execute the report
-        $runtimeFilters = $request->query->all('filter') ?? [];
+        $runtimeFilters = $request->query->all('filter');
+        /** @var array{success: false, error: string, data: list<never>, meta: array<string, mixed>}|array{success: true, data: list<array<string, mixed>>, meta: array<string, mixed>} $results */
         $results = $this->reportBuilder->executeReport($report, $runtimeFilters);
         
         // Format for chart if needed
@@ -112,7 +125,9 @@ class ReportController extends AbstractController
             return $this->redirectToRoute('report_show', ['id' => $report->getId()]);
         }
         
-        $fields = $this->reportBuilder->getFieldsForSource($report->getDataSource());
+        $dataSource = $report->getDataSource() ?? '';
+        /** @var array<string, array<string, mixed>> $fields */
+        $fields = $this->reportBuilder->getFieldsForSource($dataSource);
 
         // Flat list of {property, label, type} entries for the builder palette
         $availableFields = [];
@@ -125,20 +140,26 @@ class ReportController extends AbstractController
         }
         
         if ($request->isMethod('POST')) {
-            if (!$this->isCsrfTokenValid('report_builder', $request->request->get('_token'))) {
+            $builderToken = $request->request->get('_token');
+            if (!\is_string($builderToken) || !$this->isCsrfTokenValid('report_builder', $builderToken)) {
                 throw $this->createAccessDeniedException('Invalid CSRF token.');
             }
 
             $data = $request->request->all();
-            
+
             // Update columns. Aliases become DQL result identifiers — only
             // plain identifier shapes are stored; the engine regenerates
             // anything else server-side.
-            if (isset($data['columns'])) {
+            $columnsParam = $data['columns'] ?? null;
+            if (\is_array($columnsParam)) {
                 $validColumnFields = array_keys($fields);
                 $columns = [];
-                foreach ($data['columns'] as $col) {
-                    $field = (string) ($col['field'] ?? '');
+                foreach ($columnsParam as $col) {
+                    if (!\is_array($col)) {
+                        continue;
+                    }
+                    $fieldRaw = $col['field'] ?? '';
+                    $field = \is_scalar($fieldRaw) ? (string) $fieldRaw : '';
                     if ($field !== '' && in_array($field, $validColumnFields, true)) {
                         $column = ['field' => $field];
                         if (!empty($col['aggregation'])) {
@@ -153,11 +174,12 @@ class ReportController extends AbstractController
                 }
                 $report->setColumns($columns);
             }
-            
+
             // Update filters. Field + operator are validated against the
             // SAME whitelist the engine enforces at execution time — invalid
             // rows are dropped at save time instead of silently skipped later.
-            if (isset($data['filters'])) {
+            $filtersParam = $data['filters'] ?? null;
+            if (\is_array($filtersParam)) {
                 $validFields = array_keys($fields);
                 $validOperators = [
                     'equals', 'not_equals', 'contains', 'not_contains', 'starts_with',
@@ -165,9 +187,14 @@ class ReportController extends AbstractController
                     'less_or_equal', 'is_null', 'is_not_null', 'in', 'not_in', 'between',
                 ];
                 $filters = [];
-                foreach ($data['filters'] as $filter) {
-                    $field = (string) ($filter['field'] ?? '');
-                    $operator = (string) ($filter['operator'] ?? '');
+                foreach ($filtersParam as $filter) {
+                    if (!\is_array($filter)) {
+                        continue;
+                    }
+                    $filterFieldRaw = $filter['field'] ?? '';
+                    $field = \is_scalar($filterFieldRaw) ? (string) $filterFieldRaw : '';
+                    $filterOperatorRaw = $filter['operator'] ?? '';
+                    $operator = \is_scalar($filterOperatorRaw) ? (string) $filterOperatorRaw : '';
                     if ($field !== '' && in_array($field, $validFields, true)
                         && in_array($operator, $validOperators, true)) {
                         $filters[] = [
@@ -179,20 +206,27 @@ class ReportController extends AbstractController
                 }
                 $report->setFilters($filters);
             }
-            
+
             // Update group by
-            if (isset($data['groupBy'])) {
-                $report->setGroupBy(array_filter($data['groupBy']));
+            $groupByParam = $data['groupBy'] ?? null;
+            if (\is_array($groupByParam)) {
+                $report->setGroupBy(array_filter($groupByParam));
             }
-            
+
             // Update order by — direction normalized to ASC|DESC only.
-            if (isset($data['orderBy'])) {
+            $orderByParam = $data['orderBy'] ?? null;
+            if (\is_array($orderByParam)) {
                 $validFields = array_keys($fields);
                 $orderBy = [];
-                foreach ($data['orderBy'] as $order) {
-                    $field = (string) ($order['field'] ?? '');
+                foreach ($orderByParam as $order) {
+                    if (!\is_array($order)) {
+                        continue;
+                    }
+                    $orderFieldRaw = $order['field'] ?? '';
+                    $field = \is_scalar($orderFieldRaw) ? (string) $orderFieldRaw : '';
                     if ($field !== '' && in_array($field, $validFields, true)) {
-                        $direction = strtoupper((string) ($order['direction'] ?? 'ASC'));
+                        $directionRaw = $order['direction'] ?? 'ASC';
+                        $direction = strtoupper(\is_scalar($directionRaw) ? (string) $directionRaw : 'ASC');
                         $orderBy[] = [
                             'field' => $field,
                             'direction' => in_array($direction, ['ASC', 'DESC'], true) ? $direction : 'ASC',
@@ -201,27 +235,34 @@ class ReportController extends AbstractController
                 }
                 $report->setOrderBy($orderBy);
             }
-            
+
             // Update chart config
             if ($report->isChartReport() && isset($data['chartConfig'])) {
-                $report->setChartConfig($data['chartConfig']);
+                $chartConfigParam = $data['chartConfig'];
+                $report->setChartConfig(\is_array($chartConfigParam) ? $chartConfigParam : null);
             }
-            
+
             // Update date range
             if (isset($data['dateRangePreset'])) {
-                $report->setDateRangePreset($data['dateRangePreset'] ?: null);
+                $presetParam = $data['dateRangePreset'];
+                $preset = \is_string($presetParam) ? $presetParam : '';
+                $report->setDateRangePreset($preset ?: null);
             }
             if (isset($data['dateField'])) {
                 // Date-range anchors must be whitelisted date/datetime fields.
-                $dateField = (string) $data['dateField'];
+                $dateFieldRaw = $data['dateField'];
+                $dateField = \is_scalar($dateFieldRaw) ? (string) $dateFieldRaw : '';
                 $report->setDateField(
-                    $dateField !== '' && $this->reportBuilder->isValidDateField($dateField, $report->getDataSource())
+                    $dateField !== '' && $this->reportBuilder->isValidDateField($dateField, $dataSource)
                         ? $dateField
                         : null
                 );
             }
             if (isset($data['recordLimit'])) {
-                $report->setRecordLimit($data['recordLimit'] ? (int) $data['recordLimit'] : null);
+                $recordLimitRaw = $data['recordLimit'];
+                $report->setRecordLimit(
+                    $recordLimitRaw && \is_numeric($recordLimitRaw) ? (int) $recordLimitRaw : null
+                );
             }
             
             $this->em->flush();
@@ -235,6 +276,7 @@ class ReportController extends AbstractController
         
         // Get preview data (rows normalized for template rendering —
         // DateTime objects and arrays are stringified server-side).
+        /** @var array{success: false, error: string, data: list<never>, meta: array<string, mixed>}|array{success: true, data: list<array<string, mixed>>, meta: array<string, mixed>} $previewResults */
         $previewResults = $this->reportBuilder->executeReport($report);
         if (!empty($previewResults['success']) && !empty($previewResults['data'])) {
             $previewResults['data'] = array_map(
@@ -271,7 +313,7 @@ class ReportController extends AbstractController
             'dateRangePresets' => ReportDefinition::getDateRangePresets(),
             'previewResults' => $previewResults,
             'chartData' => $chartData,
-            'suggestions' => $this->reportBuilder->getSuggestedReports($report->getDataSource()),
+            'suggestions' => $this->reportBuilder->getSuggestedReports($dataSource),
         ]);
     }
     
@@ -309,7 +351,8 @@ class ReportController extends AbstractController
             return $this->redirectToRoute('report_index');
         }
         
-        if ($this->isCsrfTokenValid('delete' . $report->getId(), $request->request->get('_token'))) {
+        $deleteToken = $request->request->get('_token');
+        if (\is_string($deleteToken) && $this->isCsrfTokenValid('delete' . $report->getId(), $deleteToken)) {
             $this->reportRepository->remove($report, true);
             $this->addFlash('success', 'Report deleted successfully.');
         }
@@ -320,13 +363,18 @@ class ReportController extends AbstractController
     #[Route('/{id}/duplicate', name: 'report_duplicate', methods: ['POST'])]
     public function duplicate(ReportDefinition $report, Request $request): Response
     {
-        if (!$report->canUserAccess($this->getUser())) {
+        $dupUser = $this->getUser();
+        if (!$dupUser instanceof User) {
             throw $this->createAccessDeniedException('You do not have access to this report.');
         }
-        
-        if ($this->isCsrfTokenValid('duplicate' . $report->getId(), $request->request->get('_token'))) {
+        if (!$report->canUserAccess($dupUser)) {
+            throw $this->createAccessDeniedException('You do not have access to this report.');
+        }
+
+        $dupToken = $request->request->get('_token');
+        if (\is_string($dupToken) && $this->isCsrfTokenValid('duplicate' . $report->getId(), $dupToken)) {
             $newName = $report->getName() . ' (Copy)';
-            $copy = $this->reportRepository->duplicate($report, $this->getUser(), $newName);
+            $copy = $this->reportRepository->duplicate($report, $dupUser, $newName);
             
             $this->addFlash('success', 'Report duplicated successfully.');
             return $this->redirectToRoute('report_builder', ['id' => $copy->getId()]);
@@ -338,10 +386,14 @@ class ReportController extends AbstractController
     #[Route('/{id}/toggle-favorite', name: 'report_toggle_favorite', methods: ['POST'])]
     public function toggleFavorite(ReportDefinition $report, Request $request): Response
     {
-        if (!$report->canUserAccess($this->getUser())) {
+        $favUser = $this->getUser();
+        if (!$favUser instanceof User) {
             throw $this->createAccessDeniedException();
         }
-        
+        if (!$report->canUserAccess($favUser)) {
+            throw $this->createAccessDeniedException();
+        }
+
         $token = $request->headers->get('X-CSRF-Token')
             ?? $request->request->get('_token')
             ?? $request->request->get('_csrf_token');
@@ -349,27 +401,32 @@ class ReportController extends AbstractController
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
-        $report->toggleFavoriteBy($this->getUser());
+        $report->toggleFavoriteBy($favUser);
         $this->em->flush();
-        
+
         if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
             return new JsonResponse([
                 'success' => true,
-                'isFavorite' => $report->isFavoritedBy($this->getUser()),
+                'isFavorite' => $report->isFavoritedBy($favUser),
             ]);
         }
-        
+
         return $this->redirectToRoute('report_index');
     }
     
     #[Route('/{id}/export', name: 'report_export', methods: ['GET'])]
     public function export(ReportDefinition $report, Request $request): Response
     {
-        if (!$report->canUserAccess($this->getUser())) {
+        $exportUser = $this->getUser();
+        if (!$exportUser instanceof User) {
             throw $this->createAccessDeniedException();
         }
-        
+        if (!$report->canUserAccess($exportUser)) {
+            throw $this->createAccessDeniedException();
+        }
+
         $format = $request->query->get('format', 'csv');
+        /** @var array{success: false, error: string, data: list<never>, meta: array<string, mixed>}|array{success: true, data: list<array<string, mixed>>, meta: array<string, mixed>} $results */
         $results = $this->reportBuilder->executeReport($report);
         
         if (!$results['success']) {
@@ -382,7 +439,7 @@ class ReportController extends AbstractController
             
             $response = new Response($csv);
             $response->headers->set('Content-Type', 'text/csv');
-            $response->headers->set('Content-Disposition', 'attachment; filename="' . $this->sanitizeFilename($report->getName()) . '.csv"');
+            $response->headers->set('Content-Disposition', 'attachment; filename="' . $this->sanitizeFilename($report->getName() ?? 'report') . '.csv"');
             
             return $response;
         }
@@ -398,22 +455,36 @@ class ReportController extends AbstractController
     #[Route('/api/preview', name: 'report_api_preview', methods: ['POST'])]
     public function apiPreview(Request $request): JsonResponse
     {
+        $apiUser = $this->getUser();
+        if (!$apiUser instanceof User) {
+            throw $this->createAccessDeniedException('User not authenticated.');
+        }
+
         $token = $request->headers->get('X-CSRF-Token');
         if (!$token) {
+            /** @var mixed $body */
+            /** @var array<string, mixed>|null $body */
             $body = json_decode($request->getContent(), true);
-            $token = is_array($body) ? ($body['_token'] ?? null) : null;
+            $bodyToken = \is_array($body) ? ($body['_token'] ?? null) : null;
+            $token = \is_string($bodyToken) ? $bodyToken : null;
         }
-        if (!$this->isCsrfTokenValid('report_api_preview', (string) $token)) {
+        if (!$this->isCsrfTokenValid('report_api_preview', $token)) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
         }
 
+        /** @var mixed $data */
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        
+        if (!\is_array($data)) {
+            return new JsonResponse(['error' => 'Data source is required'], 400);
+        }
+
         if (!isset($data['dataSource'])) {
             return new JsonResponse(['error' => 'Data source is required'], 400);
         }
 
-        $dataSource = (string) $data['dataSource'];
+        $dataSourceRaw = $data['dataSource'];
+        $dataSource = \is_scalar($dataSourceRaw) ? (string) $dataSourceRaw : '';
         // THE canonical source list (ReportBuilderService::ENTITY_MAP) — the
         // previous plural alias list accepted sources the engine then
         // rejected, and 'activities' which was never a source at all.
@@ -423,18 +494,25 @@ class ReportController extends AbstractController
                 'supported' => array_keys(ReportDefinition::getDataSources()),
             ], 400);
         }
-        
+
         // Create temporary report definition
         $report = new ReportDefinition();
         $report->setDataSource($dataSource);
-        $report->setReportType($data['reportType'] ?? ReportDefinition::TYPE_TABLE);
-        $report->setColumns($data['columns'] ?? []);
-        $report->setFilters($data['filters'] ?? []);
-        $report->setGroupBy($data['groupBy'] ?? []);
-        $report->setOrderBy($data['orderBy'] ?? []);
-        $report->setRecordLimit($data['limit'] ?? 100);
-        $report->setCreatedBy($this->getUser());
-        
+        $reportTypeParam = $data['reportType'] ?? null;
+        $report->setReportType(\is_string($reportTypeParam) && $reportTypeParam !== '' ? $reportTypeParam : ReportDefinition::TYPE_TABLE);
+        $columnsParam = $data['columns'] ?? null;
+        $report->setColumns(\is_array($columnsParam) ? $columnsParam : []);
+        $filtersParam = $data['filters'] ?? null;
+        $report->setFilters(\is_array($filtersParam) ? $filtersParam : []);
+        $groupByParam = $data['groupBy'] ?? null;
+        $report->setGroupBy(\is_array($groupByParam) ? $groupByParam : []);
+        $orderByParam = $data['orderBy'] ?? null;
+        $report->setOrderBy(\is_array($orderByParam) ? $orderByParam : []);
+        $limitParam = $data['limit'] ?? null;
+        $report->setRecordLimit(\is_numeric($limitParam) ? (int) $limitParam : 100);
+        $report->setCreatedBy($apiUser);
+
+        /** @var array{success: false, error: string, data: list<never>, meta: array<string, mixed>}|array{success: true, data: list<array<string, mixed>>, meta: array<string, mixed>} $results */
         $results = $this->reportBuilder->executeReport($report);
         
         $chartData = null;
@@ -473,7 +551,7 @@ class ReportController extends AbstractController
     
     private function sanitizeFilename(string $name): string
     {
-        return preg_replace('/[^a-zA-Z0-9_-]/', '_', $name);
+        return preg_replace('/[^a-zA-Z0-9_-]/', '_', $name) ?? $name;
     }
 
     /**
@@ -487,6 +565,8 @@ class ReportController extends AbstractController
             return $this->isGranted('ROLE_ADMIN');
         }
 
-        return $creator->getId() === $this->getUser()?->getId() || $this->isGranted('ROLE_ADMIN');
+        $currentUser = $this->getUser();
+
+        return ($currentUser instanceof User && $creator->getId() === $currentUser->getId()) || $this->isGranted('ROLE_ADMIN');
     }
 }

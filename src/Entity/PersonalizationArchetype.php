@@ -165,7 +165,13 @@ class PersonalizationArchetype
         return $this->featureEmbedding;
     }
 
-    public function setFeatureEmbedding(array $featureEmbedding): self
+    /**
+     * @param array<string|int, mixed> $featureEmbedding
+     */
+    public /**
+ * @param array<string|int, mixed> $featureEmbedding
+ */
+function setFeatureEmbedding(array $featureEmbedding): self
     {
         $this->featureEmbedding = $featureEmbedding;
         return $this;
@@ -184,10 +190,16 @@ class PersonalizationArchetype
 
     public function getTopicInterests(): ?array
     {
+    /**
+     * @param array<string|int, mixed> $topicInterests
+     */
         return $this->topicInterests;
     }
 
-    public function setTopicInterests(?array $topicInterests): self
+    public /**
+ * @param array<string|int, mixed> $topicInterests
+ */
+function setTopicInterests(?array $topicInterests): self
     {
         $this->topicInterests = $topicInterests;
         return $this;

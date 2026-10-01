@@ -749,7 +749,11 @@ HELP
      * Deduplicates by website domain — if a company with the same website
      * already exists, updates it (adds new contacts, refreshes sector).
      */
-    private function persistCompanyWithContacts(
+    private /**
+ * @param array<string|int, mixed> $result
+ * @param array<string|int, mixed> $contacts
+ */
+function persistCompanyWithContacts(
         string $name,
         string $domain,
         array $result,
@@ -774,7 +778,11 @@ HELP
     /**
      * Internal: actually persist a company and its contacts.
      */
-    private function doPersistCompanyWithContacts(
+    private /**
+ * @param array<string|int, mixed> $result
+ * @param array<string|int, mixed> $contacts
+ */
+function doPersistCompanyWithContacts(
         string $name,
         string $domain,
         array $result,
@@ -1283,7 +1291,10 @@ HELP
      *
      * @return string[] List of quality issues (empty = clean)
      */
-    private function validateCompanyName(string $name, string $domain, string $snippet, string $title, array $fullResult = []): array
+    private /**
+ * @param array<string|int, mixed> $fullResult
+ */
+function validateCompanyName(string $name, string $domain, string $snippet, string $title, array $fullResult = []): array
     {
         $issues = [];
         $nameLower = mb_strtolower(trim($name));
@@ -1407,7 +1418,10 @@ HELP
      * actual human names (2+ alpha chars each, not junk words, not product/
      * marketing text, not form labels, not German phrases).
      */
-    private function hasRealPersonContact(array $contacts): bool
+    private /**
+ * @param array<string|int, mixed> $contacts
+ */
+function hasRealPersonContact(array $contacts): bool
     {
         if (empty($contacts)) {
             return false;
@@ -1850,7 +1864,10 @@ HELP
      *
      * @return string[] List of quality issues (empty = clean)
      */
-    private function validateContact(array $contact): array
+    private /**
+ * @param array<string|int, mixed> $contact
+ */
+function validateContact(array $contact): array
     {
         $issues = [];
         $firstName = $contact['first_name'] ?? '';

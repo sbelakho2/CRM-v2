@@ -1,6 +1,6 @@
-# Starz Morocco CRM - Documentation Index
+# StarzCRM - Documentation Index
 
-Welcome to the **Starz Morocco CRM** documentation hub. This folder contains all technical and user documentation for the system.
+Welcome to the **StarzCRM** documentation hub. This folder contains all technical and user documentation for the system.
 
 **Version**: 2.0  
 **Last Updated**: October 29, 2025  

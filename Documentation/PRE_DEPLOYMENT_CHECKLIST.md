@@ -2,7 +2,7 @@
 
 ## 📋 System Status Overview
 
-**Project**: Starz Morocco CRM v2  
+**Project**: StarzCRM v2  
 **Status**: ✅ READY FOR PRODUCTION DEPLOYMENT  
 **Date**: December 8, 2025  
 **Compilation Errors**: 0  
@@ -118,7 +118,7 @@ DATABASE_URL="mysql://username:password@127.0.0.1:3306/crm_production?charset=ut
 ###> symfony/mailer ###
 MAILER_DSN=smtp://CHANGE_ME@CHANGE_ME:1025
 MAILER_FROM_ADDRESS=noreply@starz.ma
-MAILER_FROM_NAME="Starz Morocco CRM"
+MAILER_FROM_NAME="StarzCRM"
 ###< symfony/mailer ###
 
 ###> Google Custom Search API ###

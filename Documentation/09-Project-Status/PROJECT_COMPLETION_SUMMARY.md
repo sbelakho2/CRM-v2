@@ -1,6 +1,6 @@
 # CRM Release v1 – Project Completion Summary
 
-**Project:** Starz Morocco CRM – Core Feature Bundle  
+**Project:** StarzCRM – Core Feature Bundle  
 **Status:** ✅ Delivery complete (pending SecOps credential confirmation)  
 **Release:** Notifications, Mobile Quick Actions, Authentication, Engagement Heat Map, Quote Co-Pilot  
 **Completion Date:** October 30, 2025

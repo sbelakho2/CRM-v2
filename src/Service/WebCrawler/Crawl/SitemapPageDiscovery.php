@@ -216,7 +216,10 @@ final class SitemapPageDiscovery
     /**
      * Follow a sitemap index (recurse into sub-sitemaps, max 5).
      */
-    private function parseSitemapIndex(array $sitemapLocs, string $baseUrl): array
+    private /**
+ * @param array<string|int, mixed> $sitemapLocs
+ */
+function parseSitemapIndex(array $sitemapLocs, string $baseUrl): array
     {
         $allUrls = [];
         $count = 0;
@@ -303,7 +306,10 @@ final class SitemapPageDiscovery
      * @param list<array{loc: string, priority: float}> $urls
      * @return list<array{url: string, priority: float, section: string}>
      */
-    private function filterAndScoreUrls(array $urls, string $baseUrl): array
+    private /**
+ * @param array<string|int, mixed> $urls
+ */
+function filterAndScoreUrls(array $urls, string $baseUrl): array
     {
         $valuable = [];
 

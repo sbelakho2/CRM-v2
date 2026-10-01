@@ -263,7 +263,7 @@ class Contact
 
     /**
      * @return Collection<int, Activity>
-     */
+         /** @return Collection<int, Activity> */
     public function getActivities(): Collection
     {
         return $this->activities;
@@ -293,7 +293,7 @@ class Contact
 
     /**
      * @return Collection<int, EmailCampaign>
-     */
+         /** @return Collection<int, EmailCampaign> */
     public function getEmailCampaigns(): Collection
     {
         return $this->emailCampaigns;

@@ -365,8 +365,12 @@ TEMPLATE,
     
     /**
      * Render a template with data
+     * @param array<string|int, mixed> $data
      */
-    public function renderTemplate(string $templateId, array $data): ?array
+    public /**
+ * @param array<string|int, mixed> $data
+ */
+function renderTemplate(string $templateId, array $data): ?array
     {
         $template = $this->getTemplate($templateId);
         if (!$template) {
@@ -386,7 +390,10 @@ TEMPLATE,
     /**
      * Render template with Company and Contact context
      */
-    public function renderForCompany(
+    public /**
+ * @param array<string|int, mixed> $additionalData
+ */
+function renderForCompany(
         string $templateId,
         Company $company,
         ?Contact $contact = null,
@@ -422,7 +429,10 @@ TEMPLATE,
     /**
      * Create an Activity entity from a template
      */
-    public function createActivityFromTemplate(
+    public /**
+ * @param array<string|int, mixed> $additionalData
+ */
+function createActivityFromTemplate(
         string $templateId,
         Company $company,
         ?Contact $contact = null,
@@ -502,8 +512,14 @@ TEMPLATE,
     }
     
     // Private helpers
+    /**
+     * @param array<string|int, mixed> $data
+     */
     
-    private function replaceVariables(string $text, array $data): string
+    private /**
+ * @param array<string|int, mixed> $data
+ */
+function replaceVariables(string $text, array $data): string
     {
         foreach ($data as $key => $value) {
             $text = str_replace('{{' . $key . '}}', $value, $text);

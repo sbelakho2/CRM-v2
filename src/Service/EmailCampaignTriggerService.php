@@ -309,7 +309,10 @@ class EmailCampaignTriggerService
      * @param Contact $contact The recipient
      * @param array $metadata Additional metadata for the send
      */
-    private function scheduleSingleEmail(EmailCampaign $campaign, Contact $contact, array $metadata = []): void
+    private /**
+ * @param array<string|int, mixed> $metadata
+ */
+function scheduleSingleEmail(EmailCampaign $campaign, Contact $contact, array $metadata = []): void
     {
         // Check if contact already received this triggered campaign (avoid duplicates)
         $existingSend = $this->em->getRepository(EmailSend::class)
@@ -429,7 +432,10 @@ class EmailCampaignTriggerService
      * @param EmailCampaign|null $baseCampaign Base campaign to use (optional)
      * @return EmailCampaign
      */
-    public function createTriggeredCampaign(
+    public /**
+ * @param array<string|int, mixed> $triggerConditions
+ */
+function createTriggeredCampaign(
         string $name,
         string $triggerType,
         array $triggerConditions,

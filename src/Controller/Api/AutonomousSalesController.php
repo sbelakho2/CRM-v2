@@ -93,6 +93,7 @@ class AutonomousSalesController extends AbstractController
 
     private function getRequestBodyValue(Request $request, string $key): mixed
     {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         return is_array($data) ? ($data[$key] ?? null) : null;
     }
@@ -234,6 +235,7 @@ class AutonomousSalesController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             
             $template = new SpintaxTemplate();
@@ -271,6 +273,7 @@ class AutonomousSalesController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             
             $subjectSpintax = $data['subjectSpintax'] ?? '';
@@ -335,6 +338,7 @@ class AutonomousSalesController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             
             $arm = $this->thompsonSampler->createArm(
@@ -367,6 +371,7 @@ class AutonomousSalesController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             
             $armId = $data['armId'] ?? null;
@@ -419,6 +424,7 @@ class AutonomousSalesController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             
             $contactId = $data['contactId'] ?? null;
@@ -474,6 +480,7 @@ class AutonomousSalesController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             
             $limit = min($data['limit'] ?? 50, 100);
@@ -542,6 +549,7 @@ class AutonomousSalesController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             
             $subject = $data['subject'] ?? '';
@@ -574,6 +582,7 @@ class AutonomousSalesController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             
             $messageId = $data['messageId'] ?? null;
@@ -719,6 +728,7 @@ class AutonomousSalesController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             $content = $data['content'] ?? '';
             $sourceUrl = $data['source_url'] ?? 'api_submission';
@@ -760,6 +770,7 @@ class AutonomousSalesController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             $verifiedBy = $data['verified_by'] ?? 'api';
             $newTier = $data['tier'] ?? null;
@@ -820,6 +831,7 @@ class AutonomousSalesController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             $contactId = $data['contact_id'] ?? null;
             $templateSubject = $data['subject_template'] ?? '';
@@ -906,6 +918,7 @@ class AutonomousSalesController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             $contactId = $data['contact_id'] ?? null;
             $eventType = $data['event_type'] ?? null;
@@ -970,6 +983,7 @@ class AutonomousSalesController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             
             $messageId = $data['outbound_message_id'] ?? $data['message_id'] ?? null;
@@ -1005,6 +1019,7 @@ class AutonomousSalesController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             
             $fromEmail = $data['from'] ?? '';

@@ -72,6 +72,7 @@ class AutonomousSalesSettingsService
             return ['enabled' => false];
         }
 
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($raw, true);
         if (!is_array($data)) {
             $this->logger?->warning('Settings file contains invalid JSON, defaulting to DISABLED', ['path' => $this->settingsPath]);
@@ -81,7 +82,13 @@ class AutonomousSalesSettingsService
         return $data;
     }
 
-    private function writeSettings(array $data): void
+    /**
+     * @param array<string|int, mixed> $data
+     */
+    private /**
+ * @param array<string|int, mixed> $data
+ */
+function writeSettings(array $data): void
     {
         $dir = dirname($this->settingsPath);
         if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {

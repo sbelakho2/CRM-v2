@@ -12,7 +12,13 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 class CurrencyPreferenceType extends AbstractType
 {
     private const MAJOR_CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'CAD', 'AUD', 'CHF', 'MAD', 'AED'];
-    public function buildForm(FormBuilderInterface $builder, array $options): void
+    /**
+     * @param array<string|int, mixed> $options
+     */
+    public /**
+ * @param array<string|int, mixed> $options
+ */
+function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $currencyChoices = array_combine(self::MAJOR_CURRENCIES, self::MAJOR_CURRENCIES);
 

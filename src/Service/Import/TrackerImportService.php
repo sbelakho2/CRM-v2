@@ -116,7 +116,10 @@ class TrackerImportService
     /**
      * Import a single company row from CSV
      */
-    private function importCompanyRow(array $row): string
+    private /**
+ * @param array<string|int, mixed> $row
+ */
+function importCompanyRow(array $row): string
     {
         // Normalize column names (support different variations from actual Tracker.xlsx)
         $companyName = $row['Company'] 
@@ -201,7 +204,10 @@ class TrackerImportService
     /**
      * Import or update supplier portal information
      */
-    private function importPortalInfo(Company $company, string $portalUrl, array $row): void
+    private /**
+ * @param array<string|int, mixed> $row
+ */
+function importPortalInfo(Company $company, string $portalUrl, array $row): void
     {
         $portal = $company->getSupplierPortal();
         

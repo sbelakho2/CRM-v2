@@ -379,7 +379,7 @@
   },
   "app": {
     "company": "ستارز المغرب",
-    "name": "إدارة علاقات العملاء ستارز المغرب",
+    "name": "StarzCRM",
     "subtitle": "محطة التحكم",
     "version": "⁦3.0.1⁩"
   },
@@ -961,7 +961,8 @@
       "select_sector": "اختر القطاع",
       "select_stage": "اختر المرحلة",
       "select_tier": "اختر الفئة",
-      "website_placeholder": "مثال.كوم"
+      "website_placeholder": "مثال.كوم",
+      "select_region": "اختر الإقليم (اختياري)"
     },
     "google_drive_link": "رابط جوجل درايف",
     "industry": "المجال",
@@ -1996,7 +1997,7 @@
       "best_regards": "مع أطيب التحيات",
       "email_sent_to": "تم إرسال هذه الرسالة إلى",
       "hello": "مرحبًا",
-      "automated_message": "هذه رسالة تلقائية من Starz Morocco CRM."
+      "automated_message": "هذه رسالة تلقائية من StarzCRM."
     },
     "playbook": {
       "abm_hot_lead": {
@@ -4287,5 +4288,50 @@
     "mark_handled": "وضع علامة مُعالَج",
     "resolution": "القرار",
     "filter_status": "مرشح حالة الطلبات"
+  },
+  "region": {
+    "territory": {
+      "morocco": "المغرب",
+      "tunisia": "تونس",
+      "egypt": "مصر",
+      "africa_north": "أفريقيا — الشمال",
+      "africa_sub": "أفريقيا — جنوب الصحراء",
+      "middle_east": "الشرق الأوسط",
+      "uk": "المملكة المتحدة",
+      "eu_west": "أوروبا — الغرب",
+      "eu_central": "أوروبا — الوسط",
+      "eu_south": "أوروبا — الجنوب",
+      "eu_north": "أوروبا — الشمال",
+      "eastern_europe": "أوروبا الشرقية",
+      "us_east": "الولايات المتحدة — الشرق",
+      "us_central": "الولايات المتحدة — الوسط",
+      "us_south": "الولايات المتحدة — الجنوب",
+      "us_west": "الولايات المتحدة — الغرب",
+      "canada": "كندا",
+      "mexico": "المكسيك",
+      "brazil": "البرازيل",
+      "latam_other": "أمريكا اللاتينية — أخرى",
+      "china": "الصين",
+      "taiwan": "تايوان",
+      "japan": "اليابان",
+      "south_korea": "كوريا الجنوبية",
+      "india": "الهند",
+      "southeast_asia": "جنوب شرق آسيا",
+      "australia_nz": "أستراليا ونيوزيلندا",
+      "turkey": "تركيا",
+      "other": "أخرى / غير محدد"
+    },
+    "legacy": {
+      "ma": "المغرب (رمز قديم MA)",
+      "us": "الولايات المتحدة (رمز قديم US)",
+      "eu": "أوروبا (رمز قديم EU)",
+      "gb": "المملكة المتحدة (رمز قديم GB)",
+      "eg": "مصر (رمز قديم EG)",
+      "gcc": "مجلس التعاون الخليجي (رمز قديم GCC)"
+    },
+    "group": {
+      "canonical": "جميع أقاليم البيع",
+      "legacy": "الرموز القديمة"
+    }
   }
 }

@@ -234,7 +234,10 @@ final class DomainCrawler
      * @param string[] $urls
      * @return array<string, array{status: int, body: string, error: ?string}>
      */
-    private function fetchBatch(array $urls, bool $preserveEmptyBodies = false): array
+    private /**
+ * @param array<string|int, mixed> $urls
+ */
+function fetchBatch(array $urls, bool $preserveEmptyBodies = false): array
     {
         if (empty($urls)) {
             return [];
@@ -297,7 +300,10 @@ final class DomainCrawler
      * @param string[] $domains
      * @return array<string, array{allowed: bool, disallowed_paths: string[]}>
      */
-    private function fetchRobotsPolicies(array $domains): array
+    private /**
+ * @param array<string|int, mixed> $domains
+ */
+function fetchRobotsPolicies(array $domains): array
     {
         $responses = [];
         $policies = [];
@@ -446,7 +452,10 @@ final class DomainCrawler
     /**
      * @param string[] $disallowedPaths
      */
-    private function isPathAllowed(string $path, array $disallowedPaths): bool
+    private /**
+ * @param array<string|int, mixed> $disallowedPaths
+ */
+function isPathAllowed(string $path, array $disallowedPaths): bool
     {
         foreach ($disallowedPaths as $disallowedPath) {
             if ($disallowedPath === '/') {
@@ -486,7 +495,11 @@ final class DomainCrawler
      * @param array<string, array{status: int, body: string, error: ?string}> $homepageResponses
      * @return array<string, array{domain: string, type: string}>
      */
-    private function discoverFromSitemaps(array $domains, array $homepageResponses): array
+    private /**
+ * @param array<string|int, mixed> $domains
+ * @param array<string|int, mixed> $homepageResponses
+ */
+function discoverFromSitemaps(array $domains, array $homepageResponses): array
     {
         $sitemapPages = [];
 
@@ -705,6 +718,7 @@ final class DomainCrawler
             $matches,
         )) {
             foreach ($matches[1] as $jsonStr) {
+                /** @var array<string, mixed>|null $parsed */
                 $parsed = json_decode(trim($jsonStr), true);
                 if (\is_array($parsed)) {
                     $data[] = $parsed;

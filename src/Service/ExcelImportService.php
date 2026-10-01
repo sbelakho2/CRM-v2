@@ -93,7 +93,10 @@ class ExcelImportService
     /**
      * Map column headers to field names
      */
-    private function mapColumns(array $headers): array
+    private /**
+ * @param array<string|int, mixed> $headers
+ */
+function mapColumns(array $headers): array
     {
         $map = [];
         
@@ -126,7 +129,10 @@ class ExcelImportService
     /**
      * Extract row data based on column map
      */
-    private function extractRowData($row, array $columnMap): array
+    private /**
+ * @param array<string|int, mixed> $columnMap
+ */
+function extractRowData($row, array $columnMap): array
     {
         $data = [];
         $cellIterator = $row->getCellIterator();
@@ -147,7 +153,10 @@ class ExcelImportService
     /**
      * Import or update company
      */
-    private function importCompany(array $data): Company
+    private /**
+ * @param array<string|int, mixed> $data
+ */
+function importCompany(array $data): Company
     {
         $companyName = trim($data['company_name']);
         
@@ -198,7 +207,10 @@ class ExcelImportService
      * updates the existing contact instead of creating a duplicate row.
      * Only non-empty fields are written, so existing data is preserved.
      */
-    private function importContact(Company $company, array $data): ?Contact
+    private /**
+ * @param array<string|int, mixed> $data
+ */
+function importContact(Company $company, array $data): ?Contact
     {
         if (empty($data['contact_email'])) {
             return null;
@@ -237,7 +249,10 @@ class ExcelImportService
     /**
      * Import supplier portal status
      */
-    private function importSupplierPortal(Company $company, array $data): void
+    private /**
+ * @param array<string|int, mixed> $data
+ */
+function importSupplierPortal(Company $company, array $data): void
     {
         $portal = $company->getSupplierPortal();
         

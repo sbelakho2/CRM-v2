@@ -287,7 +287,10 @@ final class PageClassifier
     /**
      * @param array<int, array<string, mixed>> $structuredData
      */
-    private function scoreCategory(string $category, string $text, array $structuredData): int
+    private /**
+ * @param array<string|int, mixed> $structuredData
+ */
+function scoreCategory(string $category, string $text, array $structuredData): int
     {
         $score = 0;
 

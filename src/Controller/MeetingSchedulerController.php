@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\MeetingSlot;
+use App\Entity\User;
 use App\Form\MeetingBookingType;
 use App\Form\MeetingSlotType;
 use App\Repository\MeetingSlotRepository;
@@ -42,7 +43,10 @@ class MeetingSchedulerController extends AbstractController
     public function index(): Response
     {
         $user = $this->getUser();
-        
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException('User not authenticated.');
+        }
+
         $today = $this->slotRepository->findTodayByUser($user);
         $upcoming = $this->slotRepository->findBookedByUser($user, true);
         $available = $this->slotRepository->findAvailableByUser($user);
@@ -77,6 +81,9 @@ class MeetingSchedulerController extends AbstractController
     public function apiSlots(Request $request): JsonResponse
     {
         $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException('User not authenticated.');
+        }
         $start = $this->parseDateParam($request->query->get('start'), 'now');
         if ($start === null) {
             return $this->json(['error' => 'Invalid start date'], 400);
@@ -85,18 +92,25 @@ class MeetingSchedulerController extends AbstractController
         if ($end === null) {
             return $this->json(['error' => 'Invalid end date'], 400);
         }
-        
+
+        /** @var list<MeetingSlot> $slots */
         $slots = $this->slotRepository->findByUserAndDateRange($user, $start, $end);
         
         $events = [];
         foreach ($slots as $slot) {
+            $slotStart = $slot->getStartTime();
+            $slotEnd = $slot->getEndTime();
+            if ($slotStart === null || $slotEnd === null) {
+                continue;
+            }
+            $status = $slot->getStatus() ?? '';
             $events[] = [
                 'id' => $slot->getId(),
                 'title' => $slot->getTitle(),
-                'start' => $slot->getStartTime()->format('c'),
-                'end' => $slot->getEndTime()->format('c'),
-                'backgroundColor' => $this->getStatusColor($slot->getStatus()),
-                'borderColor' => $this->getStatusColor($slot->getStatus()),
+                'start' => $slotStart->format('c'),
+                'end' => $slotEnd->format('c'),
+                'backgroundColor' => $this->getStatusColor($status),
+                'borderColor' => $this->getStatusColor($status),
                 'extendedProps' => [
                     'status' => $slot->getStatus(),
                     'meetingType' => $slot->getMeetingType(),
@@ -117,7 +131,11 @@ class MeetingSchedulerController extends AbstractController
     public function new(Request $request): Response
     {
         $slot = new MeetingSlot();
-        $slot->setOwner($this->getUser());
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException('User not authenticated.');
+        }
+        $slot->setOwner($user);
         
         // Pre-fill from query params if provided
         if ($startTime = $request->query->get('start')) {
@@ -134,14 +152,18 @@ class MeetingSchedulerController extends AbstractController
         
         if ($form->isSubmitted() && $form->isValid()) {
             // Calculate end time from duration
-            $endTime = $slot->getStartTime()->modify("+{$slot->getDurationMinutes()} minutes");
+            $startTime = $slot->getStartTime();
+            if ($startTime === null) {
+                throw $this->createNotFoundException('Meeting slot has no start time.');
+            }
+            $endTime = $startTime->modify("+{$slot->getDurationMinutes()} minutes");
             $slot->setEndTime($endTime);
-            
+
             // Check for conflicts
             $conflicts = $this->slotRepository->findConflicts(
-                $this->getUser(),
-                $slot->getStartTime(),
-                $slot->getEndTime()
+                $user,
+                $startTime,
+                $endTime
             );
             
             if (!empty($conflicts)) {
@@ -193,8 +215,12 @@ class MeetingSchedulerController extends AbstractController
         $form->handleRequest($request);
         
         if ($form->isSubmitted() && $form->isValid()) {
-            $endTime = $slot->getStartTime()->modify("+{$slot->getDurationMinutes()} minutes");
-            $slot->setEndTime($endTime);
+            $editStartTime = $slot->getStartTime();
+            if ($editStartTime === null) {
+                throw $this->createNotFoundException('Meeting slot has no start time.');
+            }
+            $editEndTime = $editStartTime->modify("+{$slot->getDurationMinutes()} minutes");
+            $slot->setEndTime($editEndTime);
             
             $this->em->flush();
             
@@ -219,7 +245,8 @@ class MeetingSchedulerController extends AbstractController
             throw $this->createAccessDeniedException();
         }
         
-        if ($this->isCsrfTokenValid('delete' . $slot->getId(), $request->request->get('_token'))) {
+        $deleteToken = $request->request->get('_token');
+        if (\is_string($deleteToken) && $this->isCsrfTokenValid('delete' . $slot->getId(), $deleteToken)) {
             // Booked slots carry customer booking history (name/email/phone/
             // company/notes): once ever booked, they are ARCHIVED, never
             // hard-deleted — same preservation model as companies/contacts.
@@ -248,7 +275,8 @@ class MeetingSchedulerController extends AbstractController
             throw $this->createAccessDeniedException();
         }
         
-        if ($this->isCsrfTokenValid('cancel' . $slot->getId(), $request->request->get('_token'))) {
+        $cancelToken = $request->request->get('_token');
+        if (\is_string($cancelToken) && $this->isCsrfTokenValid('cancel' . $slot->getId(), $cancelToken)) {
             $bookerEmail = $slot->getBookedByEmail();
             $slot->cancel();
             $this->em->flush();
@@ -288,19 +316,37 @@ class MeetingSchedulerController extends AbstractController
     public function generate(Request $request): Response
     {
         if ($request->isMethod('POST')) {
-            if (!$this->isCsrfTokenValid('meeting_generate', $request->request->get('_csrf_token'))) {
+            $user = $this->getUser();
+            if (!$user instanceof User) {
+                throw $this->createAccessDeniedException('User not authenticated.');
+            }
+            $generateToken = $request->request->get('_csrf_token');
+            if (!\is_string($generateToken) || !$this->isCsrfTokenValid('meeting_generate', $generateToken)) {
                 throw $this->createAccessDeniedException('Invalid CSRF token.');
             }
 
             $data = $request->request->all();
-            
-            $title = $data['title'] ?? '30-min Meeting';
-            $meetingType = $data['meetingType'] ?? MeetingSlot::TYPE_INTRODUCTION;
-            $duration = (int) ($data['duration'] ?? 30);
-            $weekdays = array_map('intval', $data['weekdays'] ?? [1, 2, 3, 4, 5]);
-            $startTime = $data['startTime'] ?? '09:00';
-            $rangeStart = $this->parseDateParam($data['rangeStart'] ?? null, 'tomorrow');
-            $rangeEnd = $this->parseDateParam($data['rangeEnd'] ?? null, '+14 days');
+
+            $titleParam = $data['title'] ?? null;
+            $title = \is_string($titleParam) && $titleParam !== '' ? $titleParam : '30-min Meeting';
+            $meetingTypeParam = $data['meetingType'] ?? null;
+            $meetingType = \is_string($meetingTypeParam) && $meetingTypeParam !== '' ? $meetingTypeParam : MeetingSlot::TYPE_INTRODUCTION;
+            $durationParam = $data['duration'] ?? 30;
+            $duration = \is_numeric($durationParam) ? (int) $durationParam : 30;
+            $weekdaysParam = $data['weekdays'] ?? [1, 2, 3, 4, 5];
+            $weekdays = [1, 2, 3, 4, 5];
+            if (\is_array($weekdaysParam)) {
+                $weekdays = [];
+                foreach ($weekdaysParam as $weekdayValue) {
+                    $weekdays[] = is_bool($weekdayValue) ? (int) $weekdayValue : (\is_numeric($weekdayValue) ? (int) $weekdayValue : 0);
+                }
+            }
+            $startTimeParam = $data['startTime'] ?? null;
+            $startTimeOfDay = \is_string($startTimeParam) && $startTimeParam !== '' ? $startTimeParam : '09:00';
+            $rangeStartParam = $data['rangeStart'] ?? null;
+            $rangeStart = $this->parseDateParam(\is_string($rangeStartParam) ? $rangeStartParam : null, 'tomorrow');
+            $rangeEndParam = $data['rangeEnd'] ?? null;
+            $rangeEnd = $this->parseDateParam(\is_string($rangeEndParam) ? $rangeEndParam : null, '+14 days');
             if ($rangeStart === null || $rangeEnd === null) {
                 $this->addFlash('error', 'Invalid date range.');
                 return $this->redirectToRoute('meeting_generate');
@@ -309,17 +355,20 @@ class MeetingSchedulerController extends AbstractController
                 $this->addFlash('error', 'End date must be after start date.');
                 return $this->redirectToRoute('meeting_generate');
             }
-            $location = $data['location'] ?? null;
-            $meetingUrl = $data['meetingUrl'] ?? null;
-            $timezone = $data['timezone'] ?? 'UTC';
-            
+            $locationParam = $data['location'] ?? null;
+            $location = \is_string($locationParam) ? $locationParam : null;
+            $meetingUrlParam = $data['meetingUrl'] ?? null;
+            $meetingUrl = \is_string($meetingUrlParam) ? $meetingUrlParam : null;
+            $timezoneParam = $data['timezone'] ?? null;
+            $timezone = \is_string($timezoneParam) && $timezoneParam !== '' ? $timezoneParam : 'UTC';
+
             $slots = $this->slotRepository->generateRecurringSlots(
-                $this->getUser(),
+                $user,
                 $title,
                 $meetingType,
                 $duration,
                 $weekdays,
-                $startTime,
+                $startTimeOfDay,
                 $rangeStart,
                 $rangeEnd,
                 $location,
@@ -357,6 +406,7 @@ class MeetingSchedulerController extends AbstractController
         $form->handleRequest($request);
         
         if ($form->isSubmitted() && $form->isValid()) {
+            /** @var array{name: string, email: string, phone: string|null, company: string|null, notes: string|null} $data */
             $data = $form->getData();
 
             // ATOMIC booking claim: the available→booked transition happens
@@ -380,7 +430,11 @@ class MeetingSchedulerController extends AbstractController
                 // Refresh the ORM entity from the claimed row for the
                 // confirmation flow below (raw UPDATE bypassed the UoW).
                 $this->em->clear();
-                $slot = $this->slotRepository->find($slot->getId());
+                $refreshedSlot = $this->slotRepository->find($slot->getId());
+                if ($refreshedSlot === null) {
+                    throw $this->createNotFoundException('Meeting slot not found after booking.');
+                }
+                $slot = $refreshedSlot;
                 $slot->book($data['name'], $data['email'], $data['phone'] ?? null, $data['company'] ?? null, $data['notes'] ?? null);
                 $this->em->flush();
             }
@@ -445,17 +499,21 @@ class MeetingSchedulerController extends AbstractController
         }
 
         $availableSlots = $this->slotRepository->findAvailableByUser($owner);
-        
+
         // Group slots by date
         $slotsByDate = [];
+        /** @var MeetingSlot $slot */
         foreach ($availableSlots as $slot) {
-            $dateKey = $slot->getStartTime()->format('Y-m-d');
+            $dateKey = $slot->getStartTime()?->format('Y-m-d');
+            if ($dateKey === null) {
+                continue;
+            }
             if (!isset($slotsByDate[$dateKey])) {
                 $slotsByDate[$dateKey] = [];
             }
             $slotsByDate[$dateKey][] = $slot;
         }
-        
+
         return $this->render('meeting/public_book.html.twig', [
             'owner' => $owner,
             'slotsByDate' => $slotsByDate,
@@ -483,8 +541,12 @@ class MeetingSchedulerController extends AbstractController
 
         // Group slots by date
         $slotsByDate = [];
+        /** @var MeetingSlot $slot */
         foreach ($availableSlots as $slot) {
-            $dateKey = $slot->getStartTime()->format('Y-m-d');
+            $dateKey = $slot->getStartTime()?->format('Y-m-d');
+            if ($dateKey === null) {
+                continue;
+            }
             if (!isset($slotsByDate[$dateKey])) {
                 $slotsByDate[$dateKey] = [];
             }
@@ -513,7 +575,8 @@ class MeetingSchedulerController extends AbstractController
         }
         
         if ($request->isMethod('POST')) {
-            if (!$this->isCsrfTokenValid('meeting_public_cancel', $request->request->get('_token'))) {
+            $cancelToken = $request->request->get('_token');
+            if (!\is_string($cancelToken) || !$this->isCsrfTokenValid('meeting_public_cancel', $cancelToken)) {
                 throw $this->createAccessDeniedException('Invalid CSRF token.');
             }
 
@@ -562,7 +625,8 @@ class MeetingSchedulerController extends AbstractController
         $idPart = $userId ?? 0;
         $emailPart = $email ?? '';
         // Use a dedicated signing key instead of kernel.secret for better security isolation
-        $secret = (string) $this->getParameter('app.booking_secret');
+        $secretParam = $this->getParameter('app.booking_secret');
+        $secret = \is_scalar($secretParam) ? (string) $secretParam : '';
 
         return hash_hmac('sha256', $idPart . '|' . strtolower($emailPart), $secret);
     }

@@ -660,7 +660,10 @@ class AlibabaApiClient
     /**
      * Parse a single offer object from _PAGE_DATA_ JSON
      */
-    private function parseOfferJson(array $offer): ?array
+    private /**
+ * @param array<string|int, mixed> $offer
+ */
+function parseOfferJson(array $offer): ?array
     {
         $productId = $offer['id'] ?? null;
         if (empty($productId)) {
@@ -1317,7 +1320,10 @@ class AlibabaApiClient
      * 
      * @return array[] Sorted descending by score
      */
-    private function scoreAndRankProducts(array $products, string $partNumber, ?string $manufacturer): array
+    private /**
+ * @param array<string|int, mixed> $products
+ */
+function scoreAndRankProducts(array $products, string $partNumber, ?string $manufacturer): array
     {
         $normalizedMpn = strtolower(trim($partNumber));
         $normalizedMpnClean = str_replace(['-', '_', ' ', '.'], '', $normalizedMpn);
@@ -1439,7 +1445,10 @@ class AlibabaApiClient
      * This is NOT real stock — it's a confidence-weighted estimate that the
      * supplier CAN deliver. The value is flagged via '_stock_estimated'.
      */
-    private function estimateSupplierStock(array $product): int
+    private /**
+ * @param array<string|int, mixed> $product
+ */
+function estimateSupplierStock(array $product): int
     {
         $stock = 0;
         
@@ -1493,7 +1502,10 @@ class AlibabaApiClient
      * - confidence (added by caller)
      * - alternatives[] (added by caller)
      */
-    private function formatCrawledProduct(array $product, string $requestedMpn): array
+    private /**
+ * @param array<string|int, mixed> $product
+ */
+function formatCrawledProduct(array $product, string $requestedMpn): array
     {
         $priceLow = $product['price_low'] ?? 0;
         $priceHigh = $product['price_high'] ?? $priceLow;

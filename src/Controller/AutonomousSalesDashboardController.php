@@ -413,7 +413,13 @@ class AutonomousSalesDashboardController extends AbstractController
         return $this->redirectToRoute('autonomous_sales_index');
     }
 
-    private function trans(string $id, array $parameters = []): string
+    /**
+     * @param array<string|int, mixed> $parameters
+     */
+    private /**
+ * @param array<string|int, mixed> $parameters
+ */
+function trans(string $id, array $parameters = []): string
     {
         return $this->translator->trans($id, $parameters);
     }
@@ -421,9 +427,17 @@ class AutonomousSalesDashboardController extends AbstractController
     // ==================== PRIVATE HELPERS (translate ML → plain English) ====================
 
     /**
+     * @param array<string|int, mixed> $rawArms
+     * @param array<string|int, mixed> $systemStats
+     */
+    /**
      * System health: simple traffic-light status for the whole system.
      */
-    private function buildHealthStatus(array $rawArms, array $systemStats, bool $enabled): array
+    private /**
+ * @param array<string|int, mixed> $rawArms
+ * @param array<string|int, mixed> $systemStats
+ */
+function buildHealthStatus(array $rawArms, array $systemStats, bool $enabled): array
     {
         $totalArms = 0;
         $totalTrials = 0;
@@ -484,6 +498,10 @@ class AutonomousSalesDashboardController extends AbstractController
             'quarantined'   => $quarantined,
             'hasControl'    => $hasControl,
             'safeMode'      => $safeMode,
+    /**
+     * @param array<string|int, mixed> $rawStats
+     * @param array<string|int, mixed> $systemStats
+     */
             'successRate'   => $successRate,
         ];
     }
@@ -491,7 +509,11 @@ class AutonomousSalesDashboardController extends AbstractController
     /**
      * Performance: translate raw stats into meaningful business numbers.
      */
-    private function buildPerformanceOverview(array $rawStats, array $systemStats): array
+    private /**
+ * @param array<string|int, mixed> $rawStats
+ * @param array<string|int, mixed> $systemStats
+ */
+function buildPerformanceOverview(array $rawStats, array $systemStats): array
     {
         $totalTrials = 0;
         $totalArms = 0;
@@ -508,6 +530,10 @@ class AutonomousSalesDashboardController extends AbstractController
             'variationsActive' => $totalArms,
             'successRate'      => $successRate,
             'successPct'       => round($successRate * 100, 1),
+    /**
+     * @param array<string|int, mixed> $rawArms
+     * @param array<string|int, mixed> $armTypes
+     */
             'leadsTotal'       => $systemStats['discovery']['totalLeads'] ?? 0,
             'leadsScored'      => $systemStats['discovery']['scored'] ?? 0,
             'leadsPending'     => $systemStats['discovery']['pendingReview'] ?? 0,
@@ -519,7 +545,11 @@ class AutonomousSalesDashboardController extends AbstractController
     /**
      * Variations: translate each "bandit arm" into a human-readable variation card.
      */
-    private function buildVariationsList(array $rawArms, array $armTypes): array
+    private /**
+ * @param array<string|int, mixed> $rawArms
+ * @param array<string|int, mixed> $armTypes
+ */
+function buildVariationsList(array $rawArms, array $armTypes): array
     {
         $sections = [];
 
@@ -604,6 +634,10 @@ class AutonomousSalesDashboardController extends AbstractController
                 'label' => $label,
                 'items' => $items,
                 'count' => count($items),
+    /**
+     * @param array<string|int, mixed> $health
+     * @param array<string|int, mixed> $performance
+     */
                 'explanation' => match($type) {
                     'subject_line' => 'These are different email subject lines the system tests. It automatically sends more emails with subject lines that get higher open rates, and phases out ones that do not perform well.',
                     'template'     => 'These are different email body templates. The system learns which message style resonates best with your prospects and shifts traffic accordingly.',
@@ -619,7 +653,11 @@ class AutonomousSalesDashboardController extends AbstractController
     /**
      * Automation status: what the system is doing and what actions are available.
      */
-    private function buildAutomationStatus(array $health, array $performance, bool $enabled): array
+    private /**
+ * @param array<string|int, mixed> $health
+ * @param array<string|int, mixed> $performance
+ */
+function buildAutomationStatus(array $health, array $performance, bool $enabled): array
     {
         $actions = [];
 
@@ -658,6 +696,10 @@ class AutonomousSalesDashboardController extends AbstractController
         if ($health['totalTrials'] === 0) {
             return [
                 'summary' => 'Ready to send your first test batch.',
+    /**
+     * @param array<string|int, mixed> $rawArms
+     * @param array<string|int, mixed> $systemStats
+     */
                 'detail' => 'Everything is set up. Run an optimization cycle to start testing email variations. We recommend starting with a dry run first.',
                 'actions' => ['optimize'],
             ];
@@ -677,7 +719,11 @@ class AutonomousSalesDashboardController extends AbstractController
     /**
      * Setup checklist: clear steps for getting started.
      */
-    private function buildSetupChecklist(array $rawArms, array $systemStats, bool $enabled): array
+    private /**
+ * @param array<string|int, mixed> $rawArms
+ * @param array<string|int, mixed> $systemStats
+ */
+function buildSetupChecklist(array $rawArms, array $systemStats, bool $enabled): array
     {
         $totalArms = 0;
         foreach ($rawArms as $arms) {
@@ -715,6 +761,11 @@ class AutonomousSalesDashboardController extends AbstractController
             ],
             [
                 'label' => 'Run first optimization cycle',
+    /**
+     * @param array<string|int, mixed> $setup
+     * @param array<string|int, mixed> $performance
+     * @param array<string|int, mixed> $health
+     */
                 'done'  => ($rawArms['subject_line'][0]['totalTrials'] ?? 0) > 0,
                 'help'  => 'Click "Run optimization cycle" to let the system start testing and sending.',
             ],
@@ -738,7 +789,12 @@ class AutonomousSalesDashboardController extends AbstractController
      * Returns a translation key that the template will pass through |trans.
      * The controller also passes parameters for interpolation.
      */
-    private function buildDynamicSubtitle(bool $enabled, array $setup, array $performance, array $health): array
+    private /**
+ * @param array<string|int, mixed> $setup
+ * @param array<string|int, mixed> $performance
+ * @param array<string|int, mixed> $health
+ */
+function buildDynamicSubtitle(bool $enabled, array $setup, array $performance, array $health): array
     {
         if (!$enabled) {
             return [

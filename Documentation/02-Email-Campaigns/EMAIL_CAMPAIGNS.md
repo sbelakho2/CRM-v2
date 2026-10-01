@@ -8,7 +8,7 @@
 
 ## 1. Module Overview
 
-The email campaign platform delivers an end-to-end marketing automation stack built directly into the Starz Morocco CRM. It covers campaign planning, audience targeting, template design, execution, analytics, CRM automation, and regulatory compliance.
+The email campaign platform delivers an end-to-end marketing automation stack built directly into the StarzCRM. It covers campaign planning, audience targeting, template design, execution, analytics, CRM automation, and regulatory compliance.
 
 **Key Capabilities**
 - Multi-touch drip campaigns (2-10 steps) with conditional branching

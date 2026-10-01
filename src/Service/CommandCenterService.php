@@ -476,6 +476,7 @@ class CommandCenterService
             $bomJson = $quote->getBomDataJson();
             if (!$bomJson) continue;
             
+            /** @var array<string, mixed>|null $bomData */
             $bomData = json_decode($bomJson, true);
             if (!is_array($bomData)) { continue; }
             $lines = $bomData['lines'] ?? $bomData ?? [];
@@ -546,6 +547,7 @@ class CommandCenterService
             $bomJson = $quote->getBomDataJson();
             if (!$bomJson) continue;
             
+            /** @var array<string, mixed>|null $bomData */
             $bomData = json_decode($bomJson, true);
             if (!is_array($bomData)) { continue; }
             $lines = $bomData['lines'] ?? $bomData ?? [];

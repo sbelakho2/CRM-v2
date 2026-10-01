@@ -63,7 +63,10 @@ class CopyLintService
      * @param array  $context  Template context (for token sanity checks)
      * @return array ['passed' => bool, 'violations' => string[], 'warnings' => string[]]
      */
-    public function lint(string $subject, string $body, array $context = []): array
+    public /**
+ * @param array<string|int, mixed> $context
+ */
+function lint(string $subject, string $body, array $context = []): array
     {
         $violations = [];
         $warnings   = [];

@@ -67,7 +67,10 @@ class InteractiveLiveQuoteService
      *
      * @return list<int>
      */
-    private function normalizeQuantityTiers(?array $quantityTiers): array
+    private /**
+ * @param array<string|int, mixed> $quantityTiers
+ */
+function normalizeQuantityTiers(?array $quantityTiers): array
     {
         if (!is_array($quantityTiers) || $quantityTiers === []) {
             return self::DEFAULT_QUANTITY_TIERS;
@@ -117,7 +120,10 @@ class InteractiveLiveQuoteService
      * @param int $expirationDays Token validity period
      * @return array{token: string, url: string, expires_at: string}
      */
-    public function enableInteractiveMode(
+    public /**
+ * @param array<string|int, mixed> $quantityTiers
+ */
+function enableInteractiveMode(
         Quote $quote,
         ?array $quantityTiers = null,
         int $expirationDays = 30
@@ -295,7 +301,10 @@ class InteractiveLiveQuoteService
      * produces (extended_price per line) and priced by the one canonical
      * engine — same cost components, same margin rules, same currency.
      */
-    private function calculatePricingForQuantity(array $bomData, int $quantity, ?string $currency = null): array
+    private /**
+ * @param array<string|int, mixed> $bomData
+ */
+function calculatePricingForQuantity(array $bomData, int $quantity, ?string $currency = null): array
     {
         $unitTotal = 0.0;
         $extendedTotal = 0.0;
@@ -398,7 +407,10 @@ class InteractiveLiveQuoteService
     /**
      * Get unit price based on price breaks
      */
-    private function getUnitPriceForQuantity(array $priceBreaks, int $quantity): float
+    private /**
+ * @param array<string|int, mixed> $priceBreaks
+ */
+function getUnitPriceForQuantity(array $priceBreaks, int $quantity): float
     {
         if (empty($priceBreaks)) {
             return 0.0;
@@ -420,7 +432,11 @@ class InteractiveLiveQuoteService
     /**
      * Calculate savings compared to minimum quantity tier
      */
-    private function calculateSavings(array $existingTiers, array $currentResult): array
+    private /**
+ * @param array<string|int, mixed> $existingTiers
+ * @param array<string|int, mixed> $currentResult
+ */
+function calculateSavings(array $existingTiers, array $currentResult): array
     {
         if (empty($existingTiers)) {
             return [
@@ -449,7 +465,10 @@ class InteractiveLiveQuoteService
     /**
      * Estimate lead time based on quantity and stock levels
      */
-    private function estimateLeadTime(int $quantity, array $bomData): array
+    private /**
+ * @param array<string|int, mixed> $bomData
+ */
+function estimateLeadTime(int $quantity, array $bomData): array
     {
         $maxLeadTimeDays = 0;
         $constrainingPart = null;
@@ -661,7 +680,10 @@ class InteractiveLiveQuoteService
      * still carry a valid public token (i.e. it was retrieved through
      * getQuoteByToken() on the public route).
      */
-    public function acceptQuote(Quote $quote, int $acceptedQuantity, array $customerInfo, ?string $token = null): array
+    public /**
+ * @param array<string|int, mixed> $customerInfo
+ */
+function acceptQuote(Quote $quote, int $acceptedQuantity, array $customerInfo, ?string $token = null): array
     {
         // Archived quotes are read-only — public tokens already refuse them,
         // the authenticated flow must too.
@@ -870,7 +892,10 @@ class InteractiveLiveQuoteService
      * (The data model has no per-quote sales owner — quotes and companies
      * only carry archivedBy — so the admin group IS the follow-up queue.)
      */
-    private function notifyOperations(string $type, string $message, int $entityId, array $data = []): void
+    private /**
+ * @param array<string|int, mixed> $data
+ */
+function notifyOperations(string $type, string $message, int $entityId, array $data = []): void
     {
         try {
             $admins = $this->entityManager->createQuery(

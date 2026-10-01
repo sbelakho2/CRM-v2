@@ -50,7 +50,10 @@ class EmailWebhookController extends AbstractController
      * Process a webhook event for a given EmailSend entity.
      * Handles retry tracking, error logging, and updates send status.
      */
-    private function processWebhookEvent(
+    private /**
+ * @param array<string|int, mixed> $context
+ */
+function processWebhookEvent(
         EmailSend $send,
         string $event,
         string $provider,
@@ -164,8 +167,12 @@ class EmailWebhookController extends AbstractController
 
     /**
      * Handle unsubscribe event with deduplication.
+     * @param array<string|int, mixed> $context
      */
-    private function handleUnsubscribe(EmailSend $send, array $context): void
+    private /**
+ * @param array<string|int, mixed> $context
+ */
+function handleUnsubscribe(EmailSend $send, array $context): void
     {
         $email = $context['recipient_email'] ?? $send->getEmailAddress();
         if (!$email) {
@@ -277,6 +284,7 @@ class EmailWebhookController extends AbstractController
             return $response;
         }
 
+        /** @var array<string, mixed>|null $events */
         $events = json_decode($request->getContent(), true);
         
         if (!is_array($events)) {
@@ -334,6 +342,7 @@ class EmailWebhookController extends AbstractController
             return $response;
         }
 
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         
         $recordType = $data['RecordType'] ?? '';
@@ -441,6 +450,7 @@ class EmailWebhookController extends AbstractController
             return new Response('Autonomous sales system not configured', 503);
         }
 
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         
         if (!$data) {

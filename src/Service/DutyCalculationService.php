@@ -194,7 +194,10 @@ class DutyCalculationService
      *   notFound: bool
      * }
      */
-    public function applyFtaRate(
+    public /**
+ * @param array<string|int, mixed> $eligibilityResult
+ */
+function applyFtaRate(
         string $htsCode,
         string $originCountry,
         string $destinationCountry,

@@ -17,7 +17,13 @@ use Symfony\Component\Validator\Constraints\NotBlank;
 
 class ActivityType extends AbstractType
 {
-    public function buildForm(FormBuilderInterface $builder, array $options): void
+    /**
+     * @param array<string|int, mixed> $options
+     */
+    public /**
+ * @param array<string|int, mixed> $options
+ */
+function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
             ->add('type', ChoiceType::class, [

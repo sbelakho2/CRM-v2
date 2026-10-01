@@ -160,7 +160,10 @@ class ReportBuilderService
     /**
      * Execute a report and return results
      */
-    public function executeReport(ReportDefinition $report, array $runtimeFilters = []): array
+    public /**
+ * @param array<string|int, mixed> $runtimeFilters
+ */
+function executeReport(ReportDefinition $report, array $runtimeFilters = []): array
     {
         $entityClass = self::ENTITY_MAP[$report->getDataSource()] ?? null;
         
@@ -498,7 +501,10 @@ class ReportBuilderService
     /**
      * Apply filters to query
      */
-    private function applyFilters(QueryBuilder $qb, array $filters, string $dataSource): void
+    private /**
+ * @param array<string|int, mixed> $filters
+ */
+function applyFilters(QueryBuilder $qb, array $filters, string $dataSource): void
     {
         $paramIndex = 0;
         
@@ -730,7 +736,10 @@ class ReportBuilderService
     /**
      * Format data for chart display
      */
-    public function formatForChart(array $results, ReportDefinition $report): array
+    public /**
+ * @param array<string|int, mixed> $results
+ */
+function formatForChart(array $results, ReportDefinition $report): array
     {
         $chartConfig = $report->getChartConfig() ?? [];
         $labelField = $chartConfig['labelField'] ?? null;
@@ -802,7 +811,10 @@ class ReportBuilderService
     /**
      * Export report to CSV
      */
-    public function exportToCsv(array $results, ReportDefinition $report): string
+    public /**
+ * @param array<string|int, mixed> $results
+ */
+function exportToCsv(array $results, ReportDefinition $report): string
     {
         if (empty($results)) {
             return '';

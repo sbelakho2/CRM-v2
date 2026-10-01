@@ -12,7 +12,7 @@
 
 ## 🎯 For the System Administrator
 
-This ZIP file contains everything needed to deploy the Starz Morocco CRM to your production server.
+This ZIP file contains everything needed to deploy the StarzCRM to your production server.
 
 ### What's Included
 

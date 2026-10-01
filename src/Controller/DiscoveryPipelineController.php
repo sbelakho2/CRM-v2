@@ -133,6 +133,7 @@ class DiscoveryPipelineController extends AbstractController
     #[Route('/run', name: 'discovery_pipeline_run', methods: ['POST'])]
     public function runPipeline(Request $request): JsonResponse
     {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         if (!$this->isCsrfTokenValid('discovery_pipeline_run', $data['_csrf_token'] ?? '')) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
@@ -258,6 +259,7 @@ class DiscoveryPipelineController extends AbstractController
     #[Route('/preview', name: 'discovery_pipeline_preview', methods: ['POST'])]
     public function previewPipeline(Request $request): JsonResponse
     {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         $csrfToken = is_array($data) ? ($data['_csrf_token'] ?? null) : null;
         $csrfToken = $csrfToken ?? $request->headers->get('X-CSRF-Token');
@@ -327,6 +329,7 @@ class DiscoveryPipelineController extends AbstractController
     #[Route('/enrich-existing', name: 'discovery_pipeline_enrich', methods: ['POST'])]
     public function enrichExistingLeads(Request $request): JsonResponse
     {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         if (!$this->isCsrfTokenValid('discovery_pipeline_enrich', $data['_csrf_token'] ?? '')) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
@@ -364,8 +367,12 @@ class DiscoveryPipelineController extends AbstractController
 
     /**
      * Import a search result as a Lead
+     * @param array<string|int, mixed> $result
      */
-    private function importAsLead(array $result, string $sector, ?string $location, array &$dupeIndex): array
+    private /**
+ * @param array<string|int, mixed> $result
+ */
+function importAsLead(array $result, string $sector, ?string $location, array &$dupeIndex): array
     {
         $website = $result['website'] ?? null;
         $name = $result['name'] ?? $this->extractCompanyNameFromTitle(

@@ -1,4 +1,4 @@
-# Quick Start – Starz Morocco CRM Release V1
+# Quick Start – StarzCRM Release V1
 
 **Audience**: Developers, QA, product owners validating the Smart Ops bundle locally  
 **Last Updated**: October 30, 2025

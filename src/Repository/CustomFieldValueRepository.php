@@ -106,8 +106,12 @@ class CustomFieldValueRepository extends ServiceEntityRepository
 
     /**
      * Bulk set values for an entity
+     * @param array<string|int, mixed> $fieldValues
      */
-    public function setValues(string $entityType, int $entityId, array $fieldValues): void
+    public /**
+ * @param array<string|int, mixed> $fieldValues
+ */
+function setValues(string $entityType, int $entityId, array $fieldValues): void
     {
         $em = $this->getEntityManager();
 

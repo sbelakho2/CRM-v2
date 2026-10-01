@@ -60,7 +60,10 @@ class DfmLintService
      *   findings: array
      * }
      */
-    public function lintBom(int $quoteId, array $options = []): array
+    public /**
+ * @param array<string|int, mixed> $options
+ */
+function lintBom(int $quoteId, array $options = []): array
     {
         // 1. Get all BOM lines for quote
         $bomLines = $this->bomLineRepository->findBy(['quote' => $quoteId]);
@@ -132,7 +135,10 @@ class DfmLintService
      * 
      * @return array - Array of DfmFinding entities
      */
-    public function applyRule(DfmRule $rule, array $bomLines, int $quoteId): array
+    public /**
+ * @param array<string|int, mixed> $bomLines
+ */
+function applyRule(DfmRule $rule, array $bomLines, int $quoteId): array
     {
         // 1. Parse rule condition (JSON)
         $ruleConditionJson = $rule->getCheckLogic();
@@ -140,6 +146,7 @@ class DfmLintService
             return [];
         }
         
+        /** @var array<string, mixed>|null $ruleCondition */
         $ruleCondition = json_decode($ruleConditionJson, true);
         if (!$ruleCondition) {
             return [];
@@ -189,7 +196,10 @@ class DfmLintService
      *   LOW: int
      * }
      */
-    public function categorizeFindings(array $findings): array
+    public /**
+ * @param array<string|int, mixed> $findings
+ */
+function categorizeFindings(array $findings): array
     {
         // Fully implemented helper method
         
@@ -218,7 +228,10 @@ class DfmLintService
      * 
      * @return bool - True if condition matches
      */
-    private function evaluateCondition(array $condition, $bomLine): bool
+    private /**
+ * @param array<string|int, mixed> $condition
+ */
+function evaluateCondition(array $condition, $bomLine): bool
     {
         // 1. Get field value from BomLine
         $field = $condition['field'] ?? null;
@@ -463,6 +476,7 @@ class DfmLintService
         
         // 2. Parse JSON file
         $jsonContent = file_get_contents($jsonPath);
+        /** @var array<string, mixed>|null $rulesData */
         $rulesData = json_decode($jsonContent, true);
         
         if (json_last_error() !== JSON_ERROR_NONE) {

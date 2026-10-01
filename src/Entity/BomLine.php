@@ -384,7 +384,10 @@ class BomLine
         return $this->confidenceReasons;
     }
     
-    public function setConfidenceReasons(?array $confidenceReasons): self
+    public /**
+ * @param array<string|int, mixed> $confidenceReasons
+ */
+function setConfidenceReasons(?array $confidenceReasons): self
     {
         $this->confidenceReasons = $confidenceReasons;
         return $this;
@@ -395,7 +398,10 @@ class BomLine
         return $this->confidenceWarnings;
     }
     
-    public function setConfidenceWarnings(?array $confidenceWarnings): self
+    public /**
+ * @param array<string|int, mixed> $confidenceWarnings
+ */
+function setConfidenceWarnings(?array $confidenceWarnings): self
     {
         $this->confidenceWarnings = $confidenceWarnings;
         return $this;
@@ -592,7 +598,10 @@ class BomLine
         return $this->alternativeParts;
     }
     
-    public function setAlternativeParts(?array $alternativeParts): self
+    public /**
+ * @param array<string|int, mixed> $alternativeParts
+ */
+function setAlternativeParts(?array $alternativeParts): self
     {
         $this->alternativeParts = $alternativeParts;
         return $this;
@@ -617,7 +626,10 @@ class BomLine
     /**
      * Add a single alternative part
      */
-    public function addAlternativePart(array $alternative): self
+    public /**
+ * @param array<string|int, mixed> $alternative
+ */
+function addAlternativePart(array $alternative): self
     {
         if ($this->alternativeParts === null) {
             $this->alternativeParts = [];
@@ -655,7 +667,10 @@ class BomLine
         return $this->sourcingData;
     }
     
-    public function setSourcingData(?array $sourcingData): self
+    public /**
+ * @param array<string|int, mixed> $sourcingData
+ */
+function setSourcingData(?array $sourcingData): self
     {
         $this->sourcingData = $sourcingData;
         return $this;

@@ -93,7 +93,10 @@ class CustomFieldService
      * form / deactivated definitions leave orphan rows otherwise). Only values
      * belonging to this entity are touched.
      */
-    public function saveValues(string $entityType, int $entityId, array $data): void
+    public /**
+ * @param array<string|int, mixed> $data
+ */
+function saveValues(string $entityType, int $entityId, array $data): void
     {
         $fields = $this->getFieldsForEntity($entityType);
         
@@ -307,7 +310,10 @@ class CustomFieldService
     /**
      * Search entities by custom field values
      */
-    public function searchByCustomFields(string $entityType, array $searchCriteria): array
+    public /**
+ * @param array<string|int, mixed> $searchCriteria
+ */
+function searchByCustomFields(string $entityType, array $searchCriteria): array
     {
         $entityIds = null;
 

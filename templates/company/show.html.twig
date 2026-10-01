@@ -112,7 +112,7 @@
                         {% if company.region %}
                             <div class="rams-definition-list__item">
                                 <dt class="rams-definition-list__term">{{ 'company.region'|trans }}</dt>
-                                <dd class="rams-definition-list__desc">{{ company.region }}</dd>
+                                <dd class="rams-definition-list__desc">{{ company.region|region_label }}</dd>
                             </div>
                         {% endif %}
                         {% if company.country %}

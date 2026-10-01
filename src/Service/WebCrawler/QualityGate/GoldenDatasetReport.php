@@ -30,7 +30,10 @@ final class GoldenDatasetReport
      *   gates: array,
      * }> $results
      */
-    public function __construct(array $results)
+    public /**
+ * @param array<string|int, mixed> $results
+ */
+function __construct(array $results)
     {
         $this->results = $results;
         $this->total   = count($results);

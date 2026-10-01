@@ -38,7 +38,10 @@ class GuidanceNotificationService
      * @param string|null $actionLabelKey Translation key for the action button label
      * @param string|null $dismissKey Unique key to identify this notification type for auto-dismissal
      */
-    private function addGuidance(
+    private /**
+ * @param array<string|int, mixed> $messageParams
+ */
+function addGuidance(
         string $type, 
         string $messageKey, 
         array $messageParams = [], 
