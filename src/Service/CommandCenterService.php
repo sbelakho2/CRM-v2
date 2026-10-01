@@ -18,7 +18,7 @@ use Psr\Log\LoggerInterface;
 /**
  * Command Center Dashboard Service
  * 
- * Provides a unified view of critical business metrics for the Starz CRM:
+ * Provides a unified view of critical business metrics for StarzCRM:
  * 
  * 1. LIVE LEAD INFLOW (LeadBot)
  *    - New leads discovered today/this week

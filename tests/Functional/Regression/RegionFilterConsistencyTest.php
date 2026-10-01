@@ -111,6 +111,35 @@ class RegionFilterConsistencyTest extends WebTestCase
         $this->assertNotEmpty(array_filter($names, fn ($n) => str_contains($n, 'Legacy MA Co')));
     }
 
+    public function testShowPageRendsTranslatedRegionLabel(): void
+    {
+        $admin = $this->em->getRepository(User::class)->findOneBy(['email' => 'region-filter@example.com']);
+        $this->client->loginUser($admin);
+        $crawler = $this->client->request('GET', '/companies');
+        $this->assertResponseIsSuccessful();
+
+        // Find the Legacy MA Co card and open it.
+        $titles = iterator_to_array($crawler->filter('a.rams-module .rams-module__title'));
+        $link = null;
+        foreach ($titles as $node) {
+            if (str_contains((string) $node->nodeValue, 'Legacy MA Co')) {
+                $ancestor = $node;
+                while ($ancestor !== null && strtolower($ancestor->nodeName) !== 'a') {
+                    $ancestor = $ancestor->parentNode;
+                }
+                $this->assertNotNull($ancestor, 'title must sit inside its card link');
+                $link = $ancestor->getAttribute('href');
+                break;
+            }
+        }
+        $this->assertNotNull($link, 'Legacy MA Co card must exist');
+        $crawler = $this->client->request('GET', $link);
+        $this->assertResponseIsSuccessful();
+
+        // Stored value 'MA' (legacy) must render the translated canonical label.
+        $this->assertSelectorTextContains('.rams-definition-list', 'Morocco');
+    }
+
     public function testUKTerritoryMatchesGBRowsBothWays(): void
     {
         $byCanonical = $this->listCompanies('uk');
