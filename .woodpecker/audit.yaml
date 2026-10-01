@@ -126,6 +126,20 @@ steps:
         set -eu
         php -d memory_limit=-1 scripts/ci/check-phpstan-divergence.php
 
+  phpstan-level6-gate:
+    image: bash
+    depends_on: [composer-install]
+    commands:
+      - |
+        set -eu
+        export PATH="/opt/homebrew/bin:$PATH"
+        # Round-8 audit item 26: the NEXT strictness tier — level 6 over a
+        # FROZEN baseline (legacy findings accepted verbatim; reportUnmatched
+        # IgnoredErrors=false so shrinkage is free). Any NEW level-6 finding
+        # fails the build. Shrink phpstan-level6-baseline.neon by fixing
+        # code; never grow it.
+        php -d memory_limit=2G vendor/bin/phpstan analyse -c phpstan-level6.neon.dist --no-progress
+
   composer-audit:
     image: bash
     depends_on: [composer-install]

@@ -11238,6 +11238,7 @@ class GoogleDorkService
                 }
             } catch (\Exception $e) {
                 // skip
+            }
         }
 
         // Deduplicate
@@ -11254,7 +11255,6 @@ class GoogleDorkService
         }
 
         return empty($enrichment['contacts']) && empty($enrichment['phone'] ?? null) ? null : $enrichment;
-    }
     }
 
     /**
