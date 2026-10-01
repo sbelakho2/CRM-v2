@@ -11560,8 +11560,7 @@ class GoogleDorkService
             || preg_match('/content=["\']([^"\']+)["\'][^>]*property=["\']og:site_name/i', $html, $m)) {
             $siteName = html_entity_decode(trim($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
             // Strip TLD suffixes early (og:site_name sometimes returns "Phinia.com")
-            $siteName = preg_replace('/\.(com|net|org|io|co|biz|info|us|eu|fr|de|be|ma|in|uk)$/i', '', $siteName);
-            $siteName = trim($siteName);
+            $siteName = trim(preg_replace('/\.(com|net|org|io|co|biz|info|us|eu|fr|de|be|ma|in|uk)$/i', '', $siteName) ?? $siteName);
             if (mb_strlen($siteName) >= 2 && mb_strlen($siteName) <= 60
                 && !$this->isJunkCompanyName($siteName)) {
                 $confirmedName = $siteName;
@@ -11597,14 +11596,14 @@ class GoogleDorkService
 
         // ── Clean confirmed name ─────────────────────────────
         // Strip TLD suffixes (og:site_name sometimes returns "Phinia.com")
-        $confirmedName = preg_replace('/\.(com|net|org|io|co|biz|info|us|eu)$/i', '', $confirmedName);
+        $confirmedName = preg_replace('/\.(com|net|org|io|co|biz|info|us|eu)$/i', '', $confirmedName) ?? $confirmedName;
         // Strip trademark symbols
-        $confirmedName = preg_replace('/[®™©]/u', '', $confirmedName);
+        $confirmedName = preg_replace('/[®™©]/u', '', $confirmedName) ?? $confirmedName;
         // Strip trailing legal suffixes that crept in
-        $confirmedName = preg_replace('/\s*[-–—,]\s*(Ltd|LLC|Inc|Corp|GmbH|SA|SAS|BV|NV|AG|Plc|Co|Pty|Srl|SpA)\.?\s*$/i', '', $confirmedName);
+        $confirmedName = preg_replace('/\s*[-–—,]\s*(Ltd|LLC|Inc|Corp|GmbH|SA|SAS|BV|NV|AG|Plc|Co|Pty|Srl|SpA)\.?\s*$/i', '', $confirmedName) ?? $confirmedName;
         // Strip trailing dash + descriptive phrase
-        $confirmedName = preg_replace('/\s*[-–—]\s*(Electrifying|Driving|Powering|Leading|Global|The).*$/i', '', $confirmedName);
-        $confirmedName = preg_replace('/\s*[-–—]\s*$/', '', $confirmedName);
+        $confirmedName = preg_replace('/\s*[-–—]\s*(Electrifying|Driving|Powering|Leading|Global|The).*$/i', '', $confirmedName) ?? $confirmedName;
+        $confirmedName = preg_replace('/\s*[-–—]\s*$/', '', $confirmedName) ?? $confirmedName;
         $confirmedName = trim($confirmedName);
 
         if (mb_strlen($confirmedName) < 2 || $this->isJunkCompanyName($confirmedName)) {
@@ -11621,9 +11620,9 @@ class GoogleDorkService
             $desc = html_entity_decode(trim($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
             // Fix encoding issues
             $desc = str_replace('�', "'", $desc);
-            $desc = preg_replace('/\x{FFFD}/u', '', $desc);
+            $desc = preg_replace('/\x{FFFD}/u', '', $desc) ?? $desc;
             // Remove raw URLs from descriptions
-            $desc = preg_replace('|https?://\S+|', '', $desc);
+            $desc = preg_replace('|https?://\S+|', '', $desc) ?? $desc;
             $desc = trim($desc, " .\t\n\r");
             // Only keep non-boilerplate descriptions
             if (mb_strlen($desc) >= 30 && mb_strlen($desc) <= 500
