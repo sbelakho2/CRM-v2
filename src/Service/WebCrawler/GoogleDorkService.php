@@ -82,6 +82,37 @@ use Psr\Log\LoggerInterface;
  *     directory_seed?: mixed
  * }
  * @phpstan-type LocationVocabulary array{tlds: list<string>, terms: list<string>, alt_names?: list<string>, regions?: list<string>}
+ * @phpstan-type Enrichment array{
+ *     name?: string|null,
+ *     website?: string|null,
+ *     title?: string,
+ *     snippet?: string,
+ *     link?: string,
+ *     displayLink?: string,
+ *     source_query?: string,
+ *     sector?: string|null,
+ *     location?: string|null,
+ *     location_validated?: bool,
+ *     language?: array{language: string, confidence: float, method: string, region_relevant: bool, relevance_score: float}|string|null,
+ *     all_emails?: mixed,
+ *     employee_hint?: mixed,
+ *     contacts?: list<ContactInfo>,
+ *     phone?: string|null,
+ *     email?: string|null,
+ *     address?: string|null,
+ *     description?: string|null,
+ *     linkedin_url?: string|null,
+ *     legal_name?: string,
+ *     country_hint?: string,
+ *     _homepage_text?: string,
+ *     homepage_rejected?: bool,
+ *     verification_status?: string,
+ *     buyer_evidence?: mixed,
+ *     service_product?: mixed,
+ *     competitor_veto?: mixed,
+ *     rule_verdict?: mixed,
+ *     directory_seed?: mixed
+ * }
  */
 class GoogleDorkService
 {
@@ -10860,7 +10891,7 @@ class GoogleDorkService
      * a value for that key.
      *
      * @param CompanyCandidate $data
-     * @param CompanyCandidate $enrichment
+     * @param Enrichment $enrichment
      * @return CompanyCandidate
      */
     private function mergeEnrichment(array $data, array $enrichment): array
@@ -10887,7 +10918,7 @@ class GoogleDorkService
                 if ($domain !== '' && $this->isNameDomainMismatch($newName, $domain)) {
                     // The new name doesn't match the domain — keep the original name
                     $this->logger->debug('LinkedIn name override rejected (name-domain mismatch)', [
-                        'original' => $data['name'] ?? '?',
+                        'original' => $data['name'] !== '' ? $data['name'] : '?',
                         'rejected' => $newName,
                         'domain' => $domain,
                     ]);
@@ -10965,7 +10996,7 @@ class GoogleDorkService
      * or null if not found.
      * Uses 1 Google Custom Search API call per invocation.
      *
-     * @return CompanyCandidate|null
+     * @return Enrichment|null
      */
     private function checkLinkedInCompanyPage(string $companyName): ?array
     {
@@ -10987,7 +11018,7 @@ class GoogleDorkService
                 $snippet = $first['snippet'] ?? '';
                 $link = $first['link'] ?? '';
 
-                /** @var CompanyCandidate $enrichment */
+                /** @var Enrichment $enrichment */
                 $enrichment = [
                     'linkedin_url' => $link,
                     'description' => $this->extractLinkedInDescription($snippet),
@@ -10996,7 +11027,7 @@ class GoogleDorkService
                 // ── Improvement 5A: Use LinkedInProfileParser for company pages ──
                 $companyPageData = $this->linkedIn()->parseCompanyPage($link, $title, $snippet);
                 if ($companyPageData !== null) {
-                    if (!empty($companyPageData['company_name'])) {
+                    if (is_string($companyPageData['company_name'] ?? null) && $companyPageData['company_name'] !== '') {
                         $enrichment['name'] = $companyPageData['company_name'];
                     }
                     if (!empty($companyPageData['employee_hint'])) {
@@ -11093,7 +11124,7 @@ class GoogleDorkService
      * This is FREE (HTTP request only, no API cost).
      */
     /**
-     * @return CompanyCandidate|null
+     * @return Enrichment|null
      */
     public function verifyAndEnrichViaHomepage(string $url, string $expectedName): ?array
     {
@@ -11166,375 +11197,24 @@ class GoogleDorkService
         $preserved = '';
 
         // 1. Schema.org JSON-LD (always in <head>, small, structured data)
-        if (preg_match_all('/<script[^>]*type=["\']application\/ld\+json["\'][^>]*>[\s\S]{1,15000}?<\/script>/i', $html, $m)) {
-            $preserved .= implode("\n", $m[0]);
-        }
-
-        // 2. Footer section (phone, email, "founded by", addresses)
-        if (preg_match('/<footer[\s>][\s\S]{1,50000}?<\/footer>/i', $html, $m)) {
-            $preserved .= "\n" . $m[0];
-        }
-
-        // 3. About/team/management sections by ID or class
-        if (preg_match_all('/<(?:section|div|article)[^>]*(?:id|class)=["\'][^"\']*(?:about|team|management|leadership|founder|director|president|chairman|governance|equipe|directoire)[^"\']*["\'][^>]*>[\s\S]{1,30000}?<\/(?:section|div|article)>/i', $html, $m)) {
-            foreach ($m[0] as $section) {
-                $preserved .= "\n" . $section;
-            }
-        }
-
-        // Take the first $maxBytes of original HTML (head + hero + nav + body start)
-        $mainChunk = substr($html, 0, $maxBytes);
-
-        // Append preserved sections if they weren't already in the main chunk
-        if (!empty($preserved)) {
-            // Check that we're not double-including content
-            $preservedLen = strlen($preserved);
-            // Only append if it would fit in a reasonable total size
-            if ($preservedLen < 100000) {
-                $mainChunk .= "\n<!-- smartTruncate preserved sections -->\n" . $preserved;
-            }
-        }
-
-        return $mainChunk;
-    }
-
-    /**
-     * Discover and scrape contact-bearing links found in the page HTML.
-     *
-     * Unlike scrapeSubpagesForContacts() which tries hardcoded paths,
-     * this method scans the actual page for <a> links that point to
-     * about/team/management/governance pages and follows them.
-     *
-     * This catches non-standard CMS paths like:
-     * - /accueil/mot-du-president/  (CIELEC)
-     * - /english/pages/page.aspx?pageid=9  (Egypt Cable)
-     * - /en/notre-societe/equipe-dirigeante  (NSE Groupe)
-     */
-    /**
-     * @return CompanyCandidate|null
-     */
-    private function discoverAndScrapeContactLinks(string $html, string $website, string $companyName): ?array
-    {
-        if (empty($website) || empty($html)) {
-            return null;
-        }
-
-        $base = rtrim($website, '/');
-        $parsedBase = parse_url($base);
-        $baseHost = $parsedBase['host'] ?? '';
-
-        // Patterns that indicate a link leads to a page with people/contacts
-        $linkPatterns = [
-            // English
-            'about[\-_/]?us', 'who[\-_/]we[\-_/]are', 'our[\-_/]team',
-            'our[\-_/]people', 'management', 'leadership', 'executive',
-            'board[\-_/](?:of[\-_/])?directors?', 'governance',
-            'company[\-_/]profile', 'our[\-_/]company', 'our[\-_/]management',
-            'meet[\-_/]the[\-_/]team', 'our[\-_/]leadership',
-            'chairman', 'ceo[\-_/]message', 'president[\-_/]message',
-            'founder', 'management[\-_/]team',
-            // French (common in MA/TN)
-            'a[\-_/]propos', 'qui[\-_/]sommes', 'notre[\-_/]equipe',
-            'equipe[\-_/]dirigeante', 'mot[\-_/]du[\-_/]president',
-            'mot[\-_/]du[\-_/]directeur', 'direction[\-_/]generale',
-            'directoire', 'conseil[\-_/]administration', 'gouvernance',
-            'notre[\-_/]societe', 'notre[\-_/]entreprise',
-            // Arabic-ish transliterated patterns
-            'manajem', 'idara',
-        ];
-        $linkRegex = '#(' . implode('|', $linkPatterns) . ')#i';
-
-        // Find all <a> tags with href containing relevant keywords
-        $discoveredUrls = [];
-        if (preg_match_all('/<a[^>]+href=["\']([^"\']{5,200})["\'][^>]*>/i', $html, $matches)) {
-            foreach ($matches[1] as $href) {
-                // Check if the href or its visible text matches our patterns
-                if (!preg_match($linkRegex, $href)) {
-                    continue;
-                }
-
-                // Resolve relative URLs
-                if (str_starts_with($href, 'http://') || str_starts_with($href, 'https://')) {
-                    $url = $href;
-                    // Must be same domain
-                    $parsedHref = parse_url($url);
-                    if (($parsedHref['host'] ?? '') !== $baseHost) {
-                        continue;
-                    }
-                } elseif (str_starts_with($href, '/')) {
-                    $scheme = $parsedBase['scheme'] ?? 'https';
-                    $url = $scheme . '://' . $baseHost . $href;
-                } else {
-                    $url = $base . '/' . $href;
-                }
-
-                // Avoid duplicates and non-HTML resources
-                if (preg_match('/\.(pdf|jpg|jpeg|png|gif|svg|css|js|zip|doc)$/i', $url)) {
-                    continue;
-                }
-
-                $discoveredUrls[$url] = true;
-            }
-        }
-
-        // Also check anchor text for pattern matches even if href is opaque
-        if (preg_match_all('/<a[^>]+href=["\']([^"\']{5,200})["\'][^>]*>([\s\S]{1,200}?)<\/a>/i', $html, $matches, PREG_SET_ORDER)) {
-            $anchorKeywords = '/\b(about\s+us|who\s+we\s+are|our\s+team|management|leadership|board|governance|chairman|directoire|notre\s+(?:é|e)quipe|mot\s+du\s+pr(?:é|e)sident|direction|à\s+propos|company\s+profile)\b/iu';
-            foreach ($matches as $match) {
-                $href = $match[1];
-                $anchorText = strip_tags($match[2]);
-                if (!preg_match($anchorKeywords, $anchorText)) {
-                    continue;
-                }
-                // Resolve URL
-                if (str_starts_with($href, 'http://') || str_starts_with($href, 'https://')) {
-                    $url = $href;
-                    $parsedHref = parse_url($url);
-                    if (($parsedHref['host'] ?? '') !== $baseHost) continue;
-                } elseif (str_starts_with($href, '/')) {
-                    $scheme = $parsedBase['scheme'] ?? 'https';
-                    $url = $scheme . '://' . $baseHost . $href;
-                } elseif (str_starts_with($href, '#') || str_starts_with($href, 'mailto:') || str_starts_with($href, 'tel:')) {
-                    continue;
-                } else {
-                    $url = $base . '/' . $href;
-                }
-                if (preg_match('/\.(pdf|jpg|jpeg|png|gif|svg|css|js|zip|doc)$/i', $url)) continue;
-                $discoveredUrls[$url] = true;
-            }
-        }
-
-        if (empty($discoveredUrls)) {
-            return null;
-        }
-
-        // Limit to 8 URLs to avoid excessive requests
-        $urls = array_slice(array_keys($discoveredUrls), 0, 8);
-
-        $this->logger->debug('Dynamic link discovery found contact pages', [
-            'company' => $companyName,
-            'urls' => $urls,
-        ]);
-
-        // Fire concurrent requests
-        $responses = [];
-        foreach ($urls as $url) {
-            try {
-                $responses[$url] = $this->httpClient->request('GET', $url, [
-                    'timeout' => 5,
-                    'max_redirects' => 2,
-                    'headers' => [
-                        'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept' => 'text/html,application/xhtml+xml',
-                        'Accept-Language' => 'en-US,en;q=0.9',
-                    ],
-                ]);
-            } catch (\Exception $e) {
-                // skip
-            }
-        }
-        $enrichment = ['contacts' => []];
-        foreach ($responses as $url => $response) {
-            try {
-                if ($response->getStatusCode() >= 400) continue;
-                $subHtml = $this->smartTruncateHtml($response->getContent(false), 200000);
-                if (empty($subHtml)) continue;
-
-                // Extract contacts
-                $contactInfo = $this->extractContactInfoFromHtml($subHtml);
-                if (!empty($contactInfo['contacts'])) {
-                    $enrichment['contacts'] = array_merge($enrichment['contacts'], $contactInfo['contacts']);
-                }
-                if (empty($enrichment['phone']) && !empty($contactInfo['phone'])) {
-                    $enrichment['phone'] = $contactInfo['phone'];
-                }
-                if (empty($enrichment['email']) && !empty($contactInfo['email'])) {
-                    $enrichment['email'] = $contactInfo['email'];
-                }
-                if (empty($enrichment['address']) && !empty($contactInfo['address'])) {
-                    $enrichment['address'] = $contactInfo['address'];
-                }
-
-                // Also try team page extraction
-                $teamContacts = $this->extractTeamPageContacts($subHtml);
-                if (!empty($teamContacts)) {
-                    $enrichment['contacts'] = array_merge($enrichment['contacts'], $teamContacts);
-                }
-            } catch (\Exception $e) {
-                // skip
-            }
-        }
-
-        // Deduplicate
-        if (!empty($enrichment['contacts'])) {
-            $seen = [];
-            $unique = [];
-            foreach ($enrichment['contacts'] as $c) {
-                $key = strtolower(($c['first_name'] ?? '') . '|' . ($c['last_name'] ?? ''));
-                if ($key === '|' || isset($seen[$key])) continue;
-                $seen[$key] = true;
-                $unique[] = $c;
-            }
-            $enrichment['contacts'] = array_slice($unique, 0, 5);
-        }
-
-        return empty($enrichment['contacts']) && empty($enrichment['phone'] ?? null) ? null : $enrichment;
-    }
-
-    /**
-     * Process raw HTML from a company homepage to verify identity and
-     * extract enrichment data (phone, email, address, contacts, LinkedIn URL).
-     *
-     * Separated from HTTP fetching to support concurrent request patterns.
-     */
-    private function processHomepageHtml(string $html, string $expectedName): ?array
-    {
-        // ── Identity verification ────────────────────────────
-        $confirmedName = null;
-
-        // Priority 1: og:site_name
-        if (preg_match('/property=["\']og:site_name["\'][^>]*content=["\']([^"\']+)/i', $html, $m)
-            || preg_match('/content=["\']([^"\']+)["\'][^>]*property=["\']og:site_name/i', $html, $m)) {
-            $siteName = html_entity_decode(trim($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            // Strip TLD suffixes early (og:site_name sometimes returns "Phinia.com")
-            $siteName = preg_replace('/\.(com|net|org|io|co|biz|info|us|eu|fr|de|be|ma|in|uk)$/i', '', $siteName);
-            $siteName = trim($siteName);
-            if (mb_strlen($siteName) >= 2 && mb_strlen($siteName) <= 60
-                && !$this->isJunkCompanyName($siteName)) {
-                $confirmedName = $siteName;
-            }
-        }
-
-        // Priority 2: <title> tag
-        if ($confirmedName === null && preg_match('/<title[^>]*>([^<]+)<\/title>/i', $html, $m)) {
-            $pageTitle = html_entity_decode(trim($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            if (stripos($pageTitle, $expectedName) !== false) {
-                $confirmedName = $expectedName;
-            } else {
-                $extracted = $this->extractCompanyName($pageTitle, '');
-                if (!$this->isJunkCompanyName($extracted)
-                    && mb_strlen($extracted) >= 2 && mb_strlen($extracted) <= 50) {
-                    $confirmedName = $extracted;
-                }
-            }
-        }
-
-        // Priority 3: application-name meta
-        if ($confirmedName === null && preg_match('/name=["\']application-name["\'][^>]*content=["\']([^"\']+)/i', $html, $m)) {
-            $appName = html_entity_decode(trim($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            if (mb_strlen($appName) >= 2 && mb_strlen($appName) <= 50
-                && !$this->isJunkCompanyName($appName)) {
-                $confirmedName = $appName;
-            }
-        }
-
-        if ($confirmedName === null) {
-            return null; // Can't verify identity
-        }
-
-        // ── Clean confirmed name ─────────────────────────────
-        // Strip TLD suffixes (og:site_name sometimes returns "Phinia.com")
-        $confirmedName = preg_replace('/\.(com|net|org|io|co|biz|info|us|eu)$/i', '', $confirmedName);
-        // Strip trademark symbols
-        $confirmedName = preg_replace('/[®™©]/u', '', $confirmedName);
-        // Strip trailing legal suffixes that crept in
-        $confirmedName = preg_replace('/\s*[-–—,]\s*(Ltd|LLC|Inc|Corp|GmbH|SA|SAS|BV|NV|AG|Plc|Co|Pty|Srl|SpA)\.?\s*$/i', '', $confirmedName);
-        // Strip trailing dash + descriptive phrase
-        $confirmedName = preg_replace('/\s*[-–—]\s*(Electrifying|Driving|Powering|Leading|Global|The).*$/i', '', $confirmedName);
-        $confirmedName = preg_replace('/\s*[-–—]\s*$/', '', $confirmedName);
-        $confirmedName = trim($confirmedName);
-
-        if (mb_strlen($confirmedName) < 2 || $this->isJunkCompanyName($confirmedName)) {
-            return null;
-        }
-
-        // ── Enrichment extraction ────────────────────────────
-        $enrichment = ['name' => $confirmedName];
-
-        // Extract og:description for company description
-        if (preg_match('/property=["\']og:description["\'][^>]*content=["\']([^"\']+)/i', $html, $m)
-            || preg_match('/content=["\']([^"\']+)["\'][^>]*property=["\']og:description/i', $html, $m)
-            || preg_match('/name=["\']description["\'][^>]*content=["\']([^"\']+)/i', $html, $m)) {
-            $desc = html_entity_decode(trim($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            // Fix encoding issues
-            $desc = str_replace('�', "'", $desc);
-            $desc = preg_replace('/\x{FFFD}/u', '', $desc);
-            // Remove raw URLs from descriptions
-            $desc = preg_replace('|https?://\S+|', '', $desc);
-            $desc = trim($desc, " .\t\n\r");
-            // Only keep non-boilerplate descriptions
-            if (mb_strlen($desc) >= 30 && mb_strlen($desc) <= 500
-                && !preg_match('/cookie|privacy|javascript|browser|enabled/i', $desc)) {
-                $enrichment['description'] = $desc;
-            }
-        }
-
-        // Extract contact info from HTML
-        $contactInfo = $this->extractContactInfoFromHtml($html);
-        if (!empty($contactInfo['phone'])) {
-            $enrichment['phone'] = $contactInfo['phone'];
-        }
-        if (!empty($contactInfo['address'])) {
-            $enrichment['address'] = $contactInfo['address'];
-        }
-        if (!empty($contactInfo['email'])) {
-            $enrichment['email'] = $contactInfo['email'];
-        }
-        if (!empty($contactInfo['contacts'])) {
-            $enrichment['contacts'] = $contactInfo['contacts'];
-        }
-
-        // Also try team page extraction patterns on homepage
-        // (some sites embed leadership info directly on homepage)
-        $teamContacts = $this->extractTeamPageContacts($html);
-        if (!empty($teamContacts)) {
-            $enrichment['contacts'] = array_merge(
-                    $enrichment['contacts'] ?? [],
-                    $teamContacts
-            );
-        }
-
-        // Extract LinkedIn URL from page links
-        if (preg_match('/href=["\']?(https?:\/\/(?:www\.)?linkedin\.com\/company\/[a-zA-Z0-9_-]+)\/?["\'\s>]/i', $html, $liMatch)) {
-            $enrichment['linkedin_url'] = rtrim($liMatch[1], '/');
-        }
-
-        return $enrichment;
-    }
-
-    /**
-     * Extract phone numbers, email addresses, and physical address from HTML.
-     *
-     * Uses a priority hierarchy:
-     * 1. Schema.org JSON-LD structured data (most reliable)
-     * 2. tel: links (explicit phone markup)
-     * 3. mailto: links (explicit email markup)
-     * 4. Schema.org microdata (itemtype="Organization")
-     *
-     * Avoids false positives by filtering fax numbers, support lines,
-     * and boilerplate template text.
-     */
-    private function extractContactInfoFromHtml(string $html): array
-    {
-        $info = ['phone' => null, 'email' => null, 'address' => null, 'contacts' => []];
-
-        // ── 1. Schema.org JSON-LD (highest quality) ──────────────
-        // Many corporate sites embed structured data like:
-        // {"@type":"Organization","telephone":"+1-555-123-4567","address":{...}}
+        // Schema.org JSON-LD values are free-form JSON: every field must be
+        // narrowed before it can be used as a string (a malformed payload
+        // would previously fatal on a strict-types string parameter).
         if (preg_match_all('/<script[^>]*type=["\']application\/ld\+json["\'][^>]*>([\s\S]{1,10000}?)<\/script>/i', $html, $jsonMatches)) {
             foreach ($jsonMatches[1] as $jsonStr) {
                 $jsonData = @json_decode($jsonStr, true);
-                if (!$jsonData) continue;
+                if (!is_array($jsonData)) continue;
 
                 // Handle @graph wrapper
                 $entities = [];
-                if (isset($jsonData['@graph'])) {
+                if (isset($jsonData['@graph']) && is_array($jsonData['@graph'])) {
                     $entities = $jsonData['@graph'];
                 } else {
                     $entities = [$jsonData];
                 }
 
                 foreach ($entities as $entity) {
+                    if (!is_array($entity)) continue;
                     $type = $entity['@type'] ?? '';
 
                     // ── Extract Person entities (contact people) ─────
@@ -11553,14 +11233,14 @@ class GoogleDorkService
 
                     // Phone
                     if (!$info['phone'] && !empty($entity['telephone'])) {
-                        $phone = is_array($entity['telephone']) ? $entity['telephone'][0] : $entity['telephone'];
-                        $info['phone'] = $this->cleanPhoneNumber($phone);
+                        $phoneRaw = $this->jsonLdStringValue($entity['telephone']);
+                        $info['phone'] = $phoneRaw !== null ? $this->cleanPhoneNumber($phoneRaw) : null;
                     }
 
                     // Email
                     if (!$info['email'] && !empty($entity['email'])) {
-                        $email = is_array($entity['email']) ? $entity['email'][0] : $entity['email'];
-                        $email = str_replace('mailto:', '', $email);
+                        $emailRaw = $this->jsonLdStringValue($entity['email']);
+                        $email = $emailRaw !== null ? str_replace('mailto:', '', $emailRaw) : '';
                         if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
                             $info['email'] = $email;
                         }
@@ -11572,11 +11252,11 @@ class GoogleDorkService
                         if (is_array($addr)) {
                             // PostalAddress object
                             $parts = array_filter([
-                                $addr['streetAddress'] ?? null,
-                                $addr['addressLocality'] ?? null,
-                                $addr['addressRegion'] ?? null,
-                                $addr['postalCode'] ?? null,
-                                $addr['addressCountry'] ?? null,
+                                $this->jsonLdStringValue($addr['streetAddress'] ?? null),
+                                $this->jsonLdStringValue($addr['addressLocality'] ?? null),
+                                $this->jsonLdStringValue($addr['addressRegion'] ?? null),
+                                $this->jsonLdStringValue($addr['postalCode'] ?? null),
+                                $this->jsonLdStringValue($addr['addressCountry'] ?? null),
                             ]);
                             if (!empty($parts)) {
                                 $info['address'] = implode(', ', $parts);
@@ -11588,32 +11268,34 @@ class GoogleDorkService
 
                     // Extract contactPoint for person names/roles
                     if (!empty($entity['contactPoint'])) {
-                        $cps = isset($entity['contactPoint']['@type'])
+                        $cps = is_array($entity['contactPoint']) && isset($entity['contactPoint']['@type'])
                             ? [$entity['contactPoint']]
-                            : $entity['contactPoint'];
+                            : (is_array($entity['contactPoint']) ? $entity['contactPoint'] : []);
                         foreach ($cps as $cp) {
-                            if (!empty($cp['contactType']) || !empty($cp['name'])) {
+                            if (!is_array($cp)) continue;
+                            $cpName = $this->jsonLdStringValue($cp['name'] ?? null);
+                            $cpType = $this->jsonLdStringValue($cp['contactType'] ?? null);
+                            if ($cpType !== null || $cpName !== null) {
                                 $person = [];
-                                if (!empty($cp['name'])) {
-                                    $nameParts = $this->splitPersonName($cp['name']);
+                                if ($cpName !== null) {
+                                    $nameParts = $this->splitPersonName($cpName);
                                     if ($nameParts) {
                                         $person = $nameParts;
                                     }
                                 }
                                 if (!empty($cp['telephone'])) {
-                                    $person['phone'] = $this->cleanPhoneNumber(
-                                        is_array($cp['telephone']) ? $cp['telephone'][0] : $cp['telephone']
-                                    );
+                                    $cpPhoneRaw = $this->jsonLdStringValue($cp['telephone']);
+                                    $person['phone'] = $cpPhoneRaw !== null ? $this->cleanPhoneNumber($cpPhoneRaw) : null;
                                 }
                                 if (!empty($cp['email'])) {
-                                    $email = str_replace('mailto:', '', is_array($cp['email']) ? $cp['email'][0] : $cp['email']);
+                                    $cpEmailRaw = $this->jsonLdStringValue($cp['email']);
+                                    $email = $cpEmailRaw !== null ? str_replace('mailto:', '', $cpEmailRaw) : '';
                                     if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
                                         $person['email'] = $email;
                                     }
                                 }
-                                if (!empty($cp['contactType'])) {
-                                    $ct = is_array($cp['contactType']) ? $cp['contactType'][0] : $cp['contactType'];
-                                    $person['job_title'] = ucwords((string)$ct);
+                                if ($cpType !== null) {
+                                    $person['job_title'] = ucwords($cpType);
                                 }
                                 if (!empty($person['first_name']) || !empty($person['email'])) {
                                     $info['contacts'][] = $person;
@@ -11624,11 +11306,13 @@ class GoogleDorkService
 
                     // Extract employee/member for org person names
                     foreach (['employee', 'member', 'founder'] as $personKey) {
-                        if (!empty($entity[$personKey])) {
+                        if (!empty($entity[$personKey]) && is_array($entity[$personKey])) {
                             $persons = isset($entity[$personKey]['@type'])
                                 ? [$entity[$personKey]]
                                 : $entity[$personKey];
+                            if (!is_array($persons)) continue;
                             foreach ($persons as $p) {
+                                if (!is_array($p)) continue;
                                 $extracted = $this->extractPersonFromSchemaOrg($p);
                                 if ($extracted) {
                                     $info['contacts'][] = $extracted;
@@ -11639,6 +11323,7 @@ class GoogleDorkService
                 }
             }
         }
+
 
         // ── 2. tel: links (explicit phone number markup) ─────────
         if (!$info['phone']) {
@@ -13425,6 +13110,9 @@ class GoogleDorkService
      * This is FREE — only HTTP requests, no API calls.
      * Returns an enrichment array compatible with mergeEnrichment().
      */
+    /**
+     * @return Enrichment|null
+     */
     private function scrapeSubpagesForContacts(string $website, string $companyName): ?array
     {
         if (empty($website)) {
@@ -14072,6 +13760,10 @@ class GoogleDorkService
      * "j.doe@company.com" → skip (first name too short)
       * @param array<string|int, mixed> $data
      */
+    /**
+     * @param CompanyCandidate $data
+     * @return list<ContactInfo>
+     */
     private function extractContactsFromEmails(array $data): array
     {
         $contacts = [];
@@ -14213,6 +13905,9 @@ class GoogleDorkService
      *
      * Cost: 1–2 Google API calls per company (stops after first hit).
      * Returns array of contact arrays with first_name, last_name, job_title, linkedin_url.
+     */
+    /**
+     * @return list<ContactInfo>
      */
     private function searchLinkedInDecisionMakers(string $companyName): array
     {
