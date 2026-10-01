@@ -133,8 +133,8 @@ class AutonomousSalesController extends AbstractController
     }
 
     /**
-     * @param array<string, mixed> $fallback
-     * @return array<string, mixed>
+     * @param array<int|string, mixed> $fallback
+     * @return array<int|string, mixed>
      */
     private static function arrayValue(mixed $value, array $fallback = []): array
     {
@@ -565,7 +565,7 @@ class AutonomousSalesController extends AbstractController
             $messages = $this->inboxRepository->findPendingReview();
         } elseif ($status) {
             /** @var list<InboxMessage> $messages */
-            $messages = $this->inboxRepository->findByClassification($status);
+            $messages = $this->inboxRepository->findByClassification((string) $status);
         } else {
             /** @var list<InboxMessage> $messages */
             $messages = $this->inboxRepository->findBy([], ['receivedAt' => 'DESC'], 100);
@@ -583,7 +583,7 @@ class AutonomousSalesController extends AbstractController
                 'confidence' => $m->getClassificationConfidence(),
                 'method' => $m->getClassificationMethod(),
                 'requiresReview' => $m->requiresHumanReview(),
-                'receivedAt' => $m->getReceivedAt()->format('c'),
+                'receivedAt' => $m->getReceivedAt()?->format('c'),
             ], $messages),
             'stats' => $stats,
         ]);

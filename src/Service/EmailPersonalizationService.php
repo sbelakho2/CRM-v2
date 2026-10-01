@@ -33,7 +33,7 @@ use Psr\Log\LoggerInterface;
  *
  * @phpstan-type ProfileMatch array{profile: PersonalizationProfile, similarity: float, engagementScore: float, companyId: int|null, rung: int}
  * @phpstan-type OptimalSettings array{tone: string, content: string, style: string, topicEmphasis: array<int|string, mixed>, learnedFromSimilar?: bool}
- * @phpstan-type PersonalizationContext array{variables: array<string, mixed>, tone: string, content: string, toneConfig: array{greeting: string, closing: string, style: string}, contentConfig: array{emphasis: string, detail: string, data: bool, emotional: bool}, industry: string, role: string, contentLength: string, lengthSettings: array{max_sentences: int, max_paragraphs: int, max_words: int, cta_style: string, detail_level: string}, engagementLevel: string}
+ * @phpstan-type PersonalizationContext array{variables: array<int|string, mixed>, tone: string, content: string, toneConfig: array{greeting: string, closing: string, style: string}, contentConfig: array{emphasis: string, detail: string, data: bool, emotional: bool}, industry: string, role: string, contentLength: string, lengthSettings: array{max_sentences: int, max_paragraphs: int, max_words: int, cta_style: string, detail_level: string}, engagementLevel: string}
  */
 class EmailPersonalizationService
 {
@@ -721,8 +721,8 @@ class EmailPersonalizationService
      * which are then passed to the spintax engine for template rendering.
      *
      * @param Contact $contact The contact to personalize for
-     * @param array<string, mixed> $additionalVariables Additional variables to merge
-     * @return array{variables: array<string, mixed>, profile: PersonalizationProfile, settings: OptimalSettings, tone: string, content: string, industry: string, role: string, contentLength: string, engagementLevel: string, similarProfilesUsed: int, successfulPatterns: array<int|string, mixed>}
+     * @param array<int|string, mixed> $additionalVariables Additional variables to merge
+     * @return array{variables: array<int|string, mixed>, profile: PersonalizationProfile, settings: OptimalSettings, tone: string, content: string, industry: string, role: string, contentLength: string, engagementLevel: string, similarProfilesUsed: int, successfulPatterns: array<int|string, mixed>}
      */
     public function getPersonalizationContext(Contact $contact, array $additionalVariables = []): array
     {
@@ -768,7 +768,7 @@ class EmailPersonalizationService
     /**
      * Generate personalized email content for a contact
      *
-     * @param array<string, mixed> $additionalVariables
+     * @param array<int|string, mixed> $additionalVariables
      * @return array{subject: string, body: string, profile: PersonalizationProfile, settings: OptimalSettings, context: PersonalizationContext, similarProfilesUsed: int}
      */
     public function personalizeEmail(
@@ -1026,15 +1026,13 @@ class EmailPersonalizationService
             }
 
             // Use most successful tone/content from similar profiles
-            if ($toneCounts !== []) {
-                arsort($toneCounts);
-                $settings['tone'] = array_key_first($toneCounts);
-            }
+            // (the branch is only reached with at least one similar profile,
+            // so both count maps are provably non-empty here)
+            arsort($toneCounts);
+            $settings['tone'] = array_key_first($toneCounts);
 
-            if ($contentCounts !== []) {
-                arsort($contentCounts);
-                $settings['content'] = array_key_first($contentCounts);
-            }
+            arsort($contentCounts);
+            $settings['content'] = array_key_first($contentCounts);
 
             $settings['learnedFromSimilar'] = true;
         }
@@ -1231,7 +1229,7 @@ class EmailPersonalizationService
     /**
      * Apply personalization to template text
      *
-     * @param array<string, mixed> $variables
+     * @param array<int|string, mixed> $variables
      * @param PersonalizationContext $context
      */
     private function applyPersonalization(string $template, array $variables, array $context): string
@@ -1395,16 +1393,14 @@ class EmailPersonalizationService
             $dayCounts[$day] = ($dayCounts[$day] ?? 0) + 1;
         }
 
-        if ($hourCounts !== []) {
-            arsort($hourCounts);
-            $bestHour = array_key_first($hourCounts);
-            $profile->setBestSendTime(sprintf('%02d:00', $bestHour));
-        }
+        // The >= 3 successful interactions above guarantee both count maps
+        // are non-empty at this point.
+        arsort($hourCounts);
+        $bestHour = array_key_first($hourCounts);
+        $profile->setBestSendTime(sprintf('%02d:00', $bestHour));
 
-        if ($dayCounts !== []) {
-            arsort($dayCounts);
-            $profile->setBestSendDay(array_key_first($dayCounts));
-        }
+        arsort($dayCounts);
+        $profile->setBestSendDay(array_key_first($dayCounts));
     }
 
     /**
@@ -1722,7 +1718,7 @@ class EmailPersonalizationService
     ];
 
     /**
-     * @return array List of competitor names
+     * @return list<string> List of competitor names
      */
     public function getKnownCompetitors(): array
     {
@@ -1736,7 +1732,7 @@ class EmailPersonalizationService
      * or null if the competitor is not in our database.
      *
      * @param string $competitor Competitor name (lowercase)
-     * @return array|null Competitor hook data or null
+     * @return array{hook: string, differentiator: string, value: string}|null Competitor hook data or null
      */
     public function getCompetitorHook(string $competitor): ?array
     {
@@ -1746,16 +1742,16 @@ class EmailPersonalizationService
 
     /**
      * Get optimal send time recommendation for a contact
-     * 
+     *
      * Uses learned send time from profile if available, otherwise falls back
      * to intelligent defaults based on day of week.
-     * 
+     *
      * @param Contact $contact The contact to get send time for
-     * @return array ['time' => 'HH:MM', 'day' => 'Day', 'source' => 'learned'|'default']
+     * @return array{time: string, day: string, source: string, confidence: float}
      */
     public function getOptimalSendTime(Contact $contact): array
     {
-        $profile = $this->profileRepository->findByContactId($contact->getId());
+        $profile = $this->profileRepository->findByContactId($this->requireContactId($contact));
         
         // Check if we have learned data
         if ($profile) {
@@ -1799,9 +1795,10 @@ class EmailPersonalizationService
      */
     private function calculateSendTimeConfidence(PersonalizationProfile $profile): float
     {
+        /** @var list<array{type: string, timestamp: int, ...}> $interactions */
         $interactions = $profile->getInteractionHistory();
-        $successfulCount = count(array_filter($interactions, fn($i) => 
-            in_array($i['type'] ?? '', ['opened', 'replied', 'clicked'])
+        $successfulCount = count(array_filter($interactions, fn($i) =>
+            in_array($i['type'], ['opened', 'replied', 'clicked'])
         ));
         
         // More data = higher confidence, cap at 0.95
@@ -1820,12 +1817,13 @@ class EmailPersonalizationService
      */
     public function synthesizeSubjectLine(Contact $contact, string $baseTemplate): string
     {
-        $profile = $this->profileRepository->findByContactId($contact->getId());
-        
+        $profile = $this->profileRepository->findByContactId($this->requireContactId($contact));
+
         if (!$profile) {
             return $baseTemplate;
         }
-        
+
+        /** @var list<string> $successfulPatterns */
         $successfulPatterns = $profile->getSuccessfulSubjectPatterns();
         
         if (empty($successfulPatterns)) {
@@ -1854,20 +1852,22 @@ class EmailPersonalizationService
         if ($elements['avg_length'] > 0) {
             $targetLength = (int)$elements['avg_length'];
             $currentLength = strlen($baseTemplate);
-            
+
             // If template is much longer than successful patterns, try to shorten
             if ($currentLength > $targetLength * 1.3) {
                 // Remove filler words
-                $baseTemplate = preg_replace('/\b(just|quick|brief|short)\b\s*/i', '', $baseTemplate);
+                $baseTemplate = preg_replace('/\b(just|quick|brief|short)\b\s*/i', '', $baseTemplate) ?? $baseTemplate;
             }
         }
-        
+
         return trim($baseTemplate);
     }
 
     /**
      * Analyze subject patterns for common elements
-      * @param array<string|int, mixed> $patterns
+     *
+     * @param list<string> $patterns
+     * @return array{uses_company_name: bool, is_question: bool, avg_length: float}
      */
     private function analyzeSubjectPatterns(array $patterns): array
     {
@@ -1902,23 +1902,24 @@ class EmailPersonalizationService
      * 
      * @param string $industry The industry key
      * @param string $contentFocus The content focus (technical, business, etc.)
-     * @return array ['value_prop' => string, 'variant_id' => string, 'is_ab_test' => bool]
+     * @return array{value_prop: string|null, variant_id: string|null, arm_id: int|null, is_ab_test: bool}
      */
     public function getValuePropVariant(string $industry, string $contentFocus): array
     {
         // Get base value proposition
-        $baseValueProp = self::INDUSTRY_VALUE_PROPS[$industry][$contentFocus] 
+        $baseValueProp = self::INDUSTRY_VALUE_PROPS[$industry][$contentFocus]
             ?? self::INDUSTRY_VALUE_PROPS['other']['business'];
         $baseValueProp = $this->sanitizeClaimsText($baseValueProp);
-        
+
         // If Thompson Sampler is available, try to get A/B test variant
         if ($this->thompsonSampler) {
             $armName = "value_prop_{$industry}_{$contentFocus}";
-            
+
             // Check if we have arms for this value prop
             $armResult = $this->thompsonSampler->sampleAndSelect($armName);
-            
-            if ($armResult && isset($armResult['arm'])) {
+
+            if ($armResult !== null && isset($armResult['arm'])) {
+                /** @var array{arm: \App\Entity\BanditArm, sampledScore: float, isControl: bool, trace: array<string, mixed>} $armResult */
                 $arm = $armResult['arm'];
                 return [
                     'value_prop' => $arm->getArmValue(),
@@ -1946,7 +1947,7 @@ class EmailPersonalizationService
      * 
      * @param string $industry Industry to seed variants for
      * @param string $contentFocus Content focus to seed variants for
-     * @return array Created arm IDs
+     * @return list<int|null> Created arm IDs
      */
     public function seedValuePropVariants(string $industry, string $contentFocus): array
     {
@@ -1988,9 +1989,7 @@ class EmailPersonalizationService
                     $variant['name'],
                     $variant['value']
                 );
-                if ($arm) {
-                    $createdArms[] = $arm->getId();
-                }
+                $createdArms[] = $arm->getId();
             } catch (\Exception $e) {
                 // Arm may already exist, which is fine
                 $this->logger->debug('Value prop arm may already exist', [
@@ -2046,11 +2045,11 @@ class EmailPersonalizationService
             '/\bOTD\b/i' => 'delivery performance',
         ];
 
-        $sanitized = preg_replace(array_keys($replacements), array_values($replacements), $text);
+        $sanitized = preg_replace(array_keys($replacements), array_values($replacements), $text) ?? $text;
 
         // Remove double spaces and tidy punctuation
-        $sanitized = preg_replace('/\s{2,}/', ' ', $sanitized);
-        $sanitized = preg_replace('/\s+([,\.])/', '$1', $sanitized);
+        $sanitized = preg_replace('/\s{2,}/', ' ', $sanitized) ?? $sanitized;
+        $sanitized = preg_replace('/\s+([,\.])/', '$1', $sanitized) ?? $sanitized;
 
         return trim($sanitized);
     }
@@ -2079,10 +2078,14 @@ class EmailPersonalizationService
 
     /**
      * Get personalization statistics
+     *
+     * @return array<string, mixed>
      */
     public function getStatistics(): array
     {
-        return $this->profileRepository->getStatistics();
+        /** @var array<string, mixed> $stats */
+        $stats = $this->profileRepository->getStatistics();
+        return $stats;
     }
 
     // ==================================================================================
@@ -2281,7 +2284,7 @@ class EmailPersonalizationService
         // Format with similarity emphasis (key insight from Cialdini)
         $element = sprintf(
             '%s are increasingly evaluating nearshore alternatives. %s',
-            $socialProof['similarity'] ?? 'Companies like yours',
+            $socialProof['similarity'],
             $socialProof['stat']
         );
         
@@ -2347,24 +2350,24 @@ class EmailPersonalizationService
      * T.I.M.E. Framework - MOVE: Position the message at the optimal moment.
      * Certain times create natural receptivity.
      * 
-     * @return array ['is_privileged' => bool, 'reason' => string]
+     * @return array{is_privileged: bool, reason: string, messaging_hook: string}
      */
     public function checkPrivilegedMoment(): array
     {
         $month = (int)date('n');
         $dayOfWeek = date('l');
-        
+
         // Q4 budget planning (October-December)
-        if ($month >= 10 && $month <= 12) {
+        if ($month >= 10) {
             return [
                 'is_privileged' => true,
                 'reason' => self::PRESUASION_ELEMENTS['privileged_moments']['budget_cycle'],
                 'messaging_hook' => 'As you finalize next year\'s sourcing strategy...',
             ];
         }
-        
+
         // Q1 new budget (January-February)
-        if ($month >= 1 && $month <= 2) {
+        if ($month <= 2) {
             return [
                 'is_privileged' => true,
                 'reason' => self::PRESUASION_ELEMENTS['privileged_moments']['budget_cycle'],
@@ -2415,7 +2418,7 @@ class EmailPersonalizationService
         }
         
         // Q2 - emphasize continuous improvement
-        if ($month >= 3 && $month <= 5) {
+        if ($month <= 5) {
             return $options['continuous_improvement'];
         }
         
@@ -2429,9 +2432,9 @@ class EmailPersonalizationService
 
     /**
      * Get geographic value proposition based on customer region
-     * 
+     *
      * @param Contact $contact The contact
-     * @return array Geographic value prop data
+     * @return array{region: string, logistics: string, timezone: string, trade: string, cultural: string, proximity: string}
      */
     public function getGeographicValueProp(Contact $contact): array
     {
@@ -2494,22 +2497,22 @@ class EmailPersonalizationService
      * contact's profile.
      * 
      * @param Contact $contact The contact
-     * @return array Complete persuasion context
+     * @return array<string, mixed> Complete persuasion context
      */
     public function buildPersuasionContext(Contact $contact): array
     {
         $company = $contact->getCompany();
         $industry = $company ? strtolower($company->getSector() ?? 'other') : 'other';
         $role = $this->inferRoleCategory($contact->getJobTitle() ?? '');
-        
+
         // Get geographic context
         $geoProps = $this->getGeographicValueProp($contact);
-        
+
         // Check timing
         $privilegedMoment = $this->checkPrivilegedMoment();
-        
+
         // Get profile for engagement level
-        $profile = $this->profileRepository->findByContactId($contact->getId());
+        $profile = $this->profileRepository->findByContactId($this->requireContactId($contact));
         $engagementScore = $profile ? $profile->getEngagementScore() : 0;
         $engagementLevel = $engagementScore > 70 ? 'hot' : ($engagementScore > 30 ? 'warm' : 'cold');
         
@@ -2526,7 +2529,7 @@ class EmailPersonalizationService
             // Pre-suasion elements
             'presuasive_opener' => $this->getPresuasiveOpener($contact),
             'privileged_moment' => $privilegedMoment,
-            'privileged_moment_hook' => $privilegedMoment['messaging_hook'] ?? '',  // FIXED: Actually use messaging_hook
+            'privileged_moment_hook' => $privilegedMoment['messaging_hook'],  // FIXED: Actually use messaging_hook
             'extend_impact' => $this->getExtendImpactElement(),
             
             // Geographic context - FIXED: Added geo_cultural that was missing
@@ -2556,7 +2559,7 @@ class EmailPersonalizationService
             'industry' => $industry,
             'role' => $role,
             'engagement_level' => $engagementLevel,
-            'template_architecture' => self::TEMPLATE_ARCHITECTURES[$engagementLevel] ?? self::TEMPLATE_ARCHITECTURES['cold'],
+            'template_architecture' => self::TEMPLATE_ARCHITECTURES[$engagementLevel],
         ];
     }
 
@@ -2600,8 +2603,9 @@ class EmailPersonalizationService
      */
     private function getPainPointForRole(string $role): string
     {
+        // 'other' covers every role not listed in ROLE_PAIN_POINTS
         $painPoints = self::ROLE_PAIN_POINTS[$role] ?? self::ROLE_PAIN_POINTS['other'];
-        return $painPoints['primary'] ?? 'finding the right manufacturing partner';
+        return $painPoints['primary'];
     }
 
     /**
@@ -2653,8 +2657,8 @@ class EmailPersonalizationService
             // Remove orphaned "We" at sentence start when it became empty
             '/^\s*,\s*/' => '',
         ];
-        
-        return preg_replace(array_keys($patterns), array_values($patterns), $text);
+
+        return preg_replace(array_keys($patterns), array_values($patterns), $text) ?? $text;
     }
 
     /**
@@ -2681,8 +2685,9 @@ class EmailPersonalizationService
             'warm' => 1,    // Balanced
             default => 2,   // Most casual/brief for cold
         };
-        
-        $template = $templates[$templateIndex] ?? $templates[0];
+
+        // Every fusion template list has exactly 3 entries, so the index always exists
+        $template = $templates[$templateIndex];
         
         // Get the raw elements
         $company = $contact->getCompany();
@@ -2737,9 +2742,9 @@ class EmailPersonalizationService
 
     /**
      * Get template architecture settings for an engagement level
-     * 
+     *
      * @param string $engagementLevel 'cold', 'warm', or 'hot'
-     * @return array Architecture settings
+     * @return array{structure: string, max_sentences: int, max_paragraphs: int, cialdini_limit: int, allowed_principles: list<string>, avoid_principles: list<string>, tone_preference: string}
      */
     public function getTemplateArchitecture(string $engagementLevel): array
     {
@@ -2748,18 +2753,18 @@ class EmailPersonalizationService
 
     /**
      * Filter Cialdini principles based on engagement level
-     * 
+     *
      * Cold leads should not receive scarcity/authority heavy messages
-     * 
-     * @param array $principles All available principles
+     *
+     * @param array<string, mixed> $principles All available principles
      * @param string $engagementLevel 'cold', 'warm', or 'hot'
-     * @return array Filtered principles appropriate for engagement level
+     * @return array<string, mixed> Filtered principles appropriate for engagement level
      */
     public function filterPrinciplesForEngagement(array $principles, string $engagementLevel): array
     {
         $architecture = self::TEMPLATE_ARCHITECTURES[$engagementLevel] ?? self::TEMPLATE_ARCHITECTURES['cold'];
-        $allowed = $architecture['allowed_principles'] ?? [];
-        $limit = $architecture['cialdini_limit'] ?? 2;
+        $allowed = $architecture['allowed_principles'];
+        $limit = $architecture['cialdini_limit'];
         
         // Filter to allowed principles
         $filtered = array_intersect_key($principles, array_flip($allowed));
@@ -2777,12 +2782,9 @@ class EmailPersonalizationService
      */
     public function getCuriositySubjectLine(Contact $contact, string $patternType = 'question'): string
     {
+        // The ?? fallback guarantees at least the 'question' patterns exist
         $patterns = self::CURIOSITY_SUBJECT_PATTERNS[$patternType] ?? self::CURIOSITY_SUBJECT_PATTERNS['question'];
-        
-        if (empty($patterns)) {
-            return 'Quick question';
-        }
-        
+
         // Select pattern
         $pattern = $patterns[array_rand($patterns)];
         
@@ -2863,10 +2865,10 @@ class EmailPersonalizationService
         $content = $this->fixSentenceCase($content);
         
         // 6. Clean up artifacts
-        $content = preg_replace('/\n{3,}/', "\n\n", $content);  // Max 2 newlines
-        $content = preg_replace('/  +/', ' ', $content);         // No double spaces
-        $content = preg_replace('/\n +/', "\n", $content);       // No leading spaces on lines
-        
+        $content = preg_replace('/\n{3,}/', "\n\n", $content) ?? $content;  // Max 2 newlines
+        $content = preg_replace('/  +/', ' ', $content) ?? $content;         // No double spaces
+        $content = preg_replace('/\n +/', "\n", $content) ?? $content;       // No leading spaces on lines
+
         return trim($content);
     }
 
@@ -2880,11 +2882,11 @@ class EmailPersonalizationService
     public function enforceContentLength(string $content, string $lengthSetting = 'standard'): string
     {
         $settings = self::CONTENT_LENGTH_SETTINGS[$lengthSetting] ?? self::CONTENT_LENGTH_SETTINGS['standard'];
-        $maxParagraphs = $settings['max_paragraphs'] ?? 5;
-        $maxWords = $settings['max_words'] ?? 200;
-        $maxSentences = $settings['max_sentences'] ?? 5;
+        $maxParagraphs = $settings['max_paragraphs'];
+        $maxWords = $settings['max_words'];
+        $maxSentences = $settings['max_sentences'];
 
-        $paragraphs = preg_split('/\n{2,}/', trim($content));
+        $paragraphs = preg_split('/\n{2,}/', trim($content)) ?: [];
         if (count($paragraphs) > $maxParagraphs) {
             $paragraphs = array_slice($paragraphs, 0, $maxParagraphs);
         }
@@ -2892,7 +2894,7 @@ class EmailPersonalizationService
         $result = implode("\n\n", $paragraphs);
 
         // Sentence-level trim: enforce max_sentences
-        $sentences = preg_split('/(?<=[.!?])\s+/', trim($result), -1, PREG_SPLIT_NO_EMPTY);
+        $sentences = preg_split('/(?<=[.!?])\s+/', trim($result), -1, PREG_SPLIT_NO_EMPTY) ?: [];
         if (count($sentences) > $maxSentences) {
             $sentences = array_slice($sentences, 0, $maxSentences);
             $result = implode(' ', $sentences);
@@ -2986,8 +2988,8 @@ class EmailPersonalizationService
      */
     public function addTransitionalPhrases(string $content, ?int $seed = null, float $probability = 0.5): string
     {
-        $paragraphs = preg_split('/\n\n+/', trim($content));
-        
+        $paragraphs = preg_split('/\n\n+/', trim($content)) ?: [];
+
         if (count($paragraphs) <= 2) {
             return $content; // Too short to need transitions
         }
@@ -3042,11 +3044,10 @@ class EmailPersonalizationService
             $result[] = $para;
         }
         
-        // Keep last paragraph as-is (usually the CTA/closing)
-        if (count($paragraphs) > 1) {
-            $result[] = end($paragraphs);
-        }
-        
+        // Keep last paragraph as-is (usually the CTA/closing).
+        // At this point count($paragraphs) >= 3 (see the early return above).
+        $result[] = end($paragraphs);
+
         return implode("\n\n", $result);
     }
 
@@ -3091,7 +3092,7 @@ class EmailPersonalizationService
      * Use this to validate emails before sending - aim for score >= 6.0
      * 
      * @param string $email The email body text
-     * @return array ['score' => float 0-10, 'breakdown' => array, 'suggestions' => array]
+     * @return array{score: float, breakdown: array{warm: list<array<string, mixed>>, cold: list<array<string, mixed>>}, suggestions: list<string>, verdict: string, config: array<string, mixed>}
      */
     public function calculateWarmthScore(string $email): array
     {
@@ -3180,8 +3181,8 @@ class EmailPersonalizationService
      * Useful for quality assurance and A/B testing personalization levels.
      * 
      * @param Contact $contact The contact
-     * @param array $context The personalization context used
-     * @return array Detailed personalization assessment
+     * @param array<string, mixed> $context The personalization context used
+     * @return array<string, mixed> Detailed personalization assessment
      */
     public function calculatePersonalizationDepth(Contact $contact, array $context): array
     {
@@ -3195,61 +3196,62 @@ class EmailPersonalizationService
             'tone_matched' => false,
             'pain_point_targeted' => false,
         ];
-        
+
         $details = [];
-        
+
         // Check industry specificity
-        $industry = $context['industry'] ?? 'other';
+        $industry = is_string($context['industry'] ?? null) ? $context['industry'] : 'other';
         if ($industry !== 'other' && isset(self::INDUSTRY_VALUE_PROPS[$industry])) {
             $dimensions['industry_specific'] = true;
             $details[] = "Industry-specific content for: " . ucfirst($industry);
         }
-        
+
         // Check role specificity
-        $role = $context['role'] ?? 'other';
+        $role = is_string($context['role'] ?? null) ? $context['role'] : 'other';
         if ($role !== 'other' && isset(self::ROLE_PAIN_POINTS[$role])) {
             $dimensions['role_specific'] = true;
             $details[] = "Role-targeted messaging for: " . ucfirst($role);
         }
-        
+
         // Check geographic specificity
-        $region = $context['region'] ?? 'global';
+        $region = is_string($context['region'] ?? null) ? $context['region'] : 'global';
         if ($region !== 'global') {
             $dimensions['geo_specific'] = true;
             $details[] = "Geographic value props for: " . strtoupper($region);
         }
-        
+
         // Check engagement adaptation
-        $engagementLevel = $context['engagement_level'] ?? 'cold';
+        $engagementLevel = is_string($context['engagement_level'] ?? null) ? $context['engagement_level'] : 'cold';
         if ($engagementLevel !== 'cold') {
             $dimensions['engagement_adaptive'] = true;
             $details[] = "Engagement-adapted content: " . ucfirst($engagementLevel);
         }
-        
+
         // Check company personalization
         $company = $contact->getCompany();
         if ($company && $company->getName()) {
             $dimensions['company_named'] = true;
             $details[] = "Company named: " . $company->getName();
         }
-        
-        // Check person personalization  
+
+        // Check person personalization
         if ($contact->getFirstName() && $contact->getFirstName() !== 'there') {
             $dimensions['person_named'] = true;
             $details[] = "Personalized to: " . $contact->getFirstName();
         }
-        
+
         // Check tone matching
-        $tone = $context['tone'] ?? 'formal';
+        $tone = is_string($context['tone'] ?? null) ? $context['tone'] : 'formal';
         if ($tone !== 'formal') {
             $dimensions['tone_matched'] = true;
             $details[] = "Tone adapted: " . ucfirst($tone);
         }
-        
+
         // Check pain point targeting
-        if (isset($context['pain_point']) && $context['pain_point'] !== 'finding the right manufacturing partner') {
+        $painPoint = $context['pain_point'] ?? null;
+        if (is_string($painPoint) && $painPoint !== 'finding the right manufacturing partner') {
             $dimensions['pain_point_targeted'] = true;
-            $details[] = "Pain point targeted: " . $context['pain_point'];
+            $details[] = "Pain point targeted: " . $painPoint;
         }
         
         // Calculate score
@@ -3309,17 +3311,17 @@ class EmailPersonalizationService
             $text = preg_replace_callback($pattern, function ($matches) {
                 $options = array_map('trim', explode('|', $matches[1]));
                 $options = array_filter($options, fn($o) => $o !== '');
-                
+
                 if (empty($options)) {
                     // Unresolvable (e.g. "{ }") — strip the braces so the
                     // loop always makes progress instead of spinning forever.
                     return $matches[1];
                 }
-                
+
                 return $options[array_rand($options)];
-            }, $text);
+            }, $text) ?? $text;
         }
-        
+
         return $text;
     }
 
@@ -3339,31 +3341,32 @@ class EmailPersonalizationService
             '/\.\s+([a-z])/',
             fn($m) => '. ' . strtoupper($m[1]),
             $content
-        );
-        
+        ) ?? $content;
+
         // Fix first character of content if lowercase
         if (strlen($content) > 0 && ctype_lower($content[0])) {
             $content = ucfirst($content);
         }
-        
+
         // Fix paragraph starts (after double newline)
         $content = preg_replace_callback(
             '/\n\n([a-z])/',
             fn($m) => "\n\n" . strtoupper($m[1]),
             $content
-        );
-        
+        ) ?? $content;
+
         // Fix mid-sentence capitals after commas (e.g., ", You'll" → ", you'll")
         // but preserve proper nouns, geography, and "I"
-        $properNouns = ['Atlantic', 'Pacific', 'Morocco', 'European', 'African', 'American', 
+        $properNouns = ['Atlantic', 'Pacific', 'Morocco', 'European', 'African', 'American',
             'Tangier', 'Tunisia', 'North', 'South', 'East', 'West', 'EU', 'US', 'UK', 'GCC',
             'IPC', 'ISO', 'IATF', 'AS9100', 'Starz'];
         $content = preg_replace_callback(
             '/,\s+([A-Z])([a-z\']+)/',
             function ($m) use ($properNouns) {
                 $word = $m[1] . $m[2];
-                // Preserve "I", "I'll", "I'd", "I'm"  
-                if ($m[1] === 'I' && (strlen($m[2]) === 0 || $m[2][0] === "'")) {
+                // Preserve "I'll", "I'd", "I'm" (the capture group is never empty,
+                // so the bare pronoun "I" cannot occur here)
+                if ($m[1] === 'I' && $m[2][0] === "'") {
                     return ', ' . $word;
                 }
                 // Preserve known proper nouns
@@ -3373,15 +3376,15 @@ class EmailPersonalizationService
                 return ', ' . lcfirst($word);
             },
             $content
-        );
-        
+        ) ?? $content;
+
         // Fix awkward "Because Working" pattern from fusion
         $content = preg_replace_callback(
             '/\b(Because|Since|Given that|As|If)\s+([A-Z][a-z]+ing)\b/',
             fn($m) => $m[1] . ' ' . lcfirst($m[2]),
             $content
-        );
-        
+        ) ?? $content;
+
         return $content;
     }
 
@@ -3393,7 +3396,7 @@ class EmailPersonalizationService
      * 
      * @param string $email The email body text
      * @param float $threshold Minimum warmth score (default 5.5)
-     * @return array ['approved' => bool, 'score' => float, 'reason' => string, 'suggestions' => array]
+     * @return array{approved: bool, score: float, threshold: float, reason: string, suggestions: list<string>, verdict: string}
      */
     public function validateEmailWarmth(string $email, float $threshold = 5.5): array
     {
@@ -3457,7 +3460,7 @@ class EmailPersonalizationService
      * and may trigger spam filters or be ignored by recipients.
      * 
      * @param string $email The email body text
-     * @return array ['is_templated' => bool, 'score' => int, 'phrases' => array, 'verdict' => string]
+     * @return array{is_templated: bool, score: int, max_acceptable: int, phrases: list<string>, verdict: string}
      */
     public function detectTemplatedLanguage(string $email): array
     {
@@ -3492,8 +3495,8 @@ class EmailPersonalizationService
      * Useful for previewing before send and for A/B testing analysis.
      * 
      * @param Contact $contact The contact
-     * @param array $context Additional context variables
-     * @return array Complete email preview with metrics
+     * @param array<string, mixed> $context Additional context variables
+     * @return array<string, mixed> Complete email preview with metrics
      */
     public function previewEmailWithMetrics(Contact $contact, array $context = [], ?string $sampleEmailBody = null): array
     {
@@ -3506,27 +3509,27 @@ class EmailPersonalizationService
         // Generate a sample email body for metrics if not provided
         // This uses the fused paragraphs to simulate what the final email would look like
         if ($sampleEmailBody === null) {
-            $engagementLevel = $personalization['engagementLevel'] ?? 'cold';
+            $engagementLevel = $personalization['engagementLevel'];
             $sampleParts = [
-                $persuasionContext['fused_intro'] ?? '',
-                $persuasionContext['fused_value'] ?? '',
-                $persuasionContext['fused_close'] ?? '',
+                is_string($persuasionContext['fused_intro'] ?? null) ? $persuasionContext['fused_intro'] : '',
+                is_string($persuasionContext['fused_value'] ?? null) ? $persuasionContext['fused_value'] : '',
+                is_string($persuasionContext['fused_close'] ?? null) ? $persuasionContext['fused_close'] : '',
             ];
             $sampleEmailBody = implode("\n\n", array_filter($sampleParts));
         }
-        
+
         // Calculate ALL metrics - FIX: Actually compute warmth and templated language
-        $warmth = !empty($sampleEmailBody) 
-            ? $this->calculateWarmthScore($sampleEmailBody) 
+        $warmth = $sampleEmailBody !== ''
+            ? $this->calculateWarmthScore($sampleEmailBody)
             : ['score' => 0, 'breakdown' => [], 'suggestions' => [], 'verdict' => 'No content'];
-            
-        $templated = !empty($sampleEmailBody)
+
+        $templated = $sampleEmailBody !== ''
             ? $this->detectTemplatedLanguage($sampleEmailBody)
             : ['is_templated' => false, 'score' => 0, 'phrases' => [], 'verdict' => 'No content'];
-            
+
         $personalizationDepth = $this->calculatePersonalizationDepth($contact, array_merge(
             $persuasionContext,
-            ['tone' => $personalization['tone'] ?? 'formal']
+            ['tone' => $personalization['tone']]
         ));
         
         // Generate email fingerprint for deduplication tracking
@@ -3661,11 +3664,7 @@ class EmailPersonalizationService
         
         // Get patterns for this industry, fall back to 'other'
         $patterns = self::INDUSTRY_SUBJECT_PATTERNS[$industry] ?? self::INDUSTRY_SUBJECT_PATTERNS['other'];
-        
-        if (empty($patterns)) {
-            $patterns = self::INDUSTRY_SUBJECT_PATTERNS['other'];
-        }
-        
+
         // Select a pattern
         $pattern = $patterns[array_rand($patterns)];
         
@@ -3691,8 +3690,8 @@ class EmailPersonalizationService
     public function calculateTextSimilarity(string $text1, string $text2): float
     {
         // Tokenize (simple word split)
-        $tokens1 = array_unique(preg_split('/\s+/', strtolower(strip_tags($text1))));
-        $tokens2 = array_unique(preg_split('/\s+/', strtolower(strip_tags($text2))));
+        $tokens1 = array_unique(preg_split('/\s+/', strtolower(strip_tags($text1))) ?: []);
+        $tokens2 = array_unique(preg_split('/\s+/', strtolower(strip_tags($text2))) ?: []);
         
         // Remove very common words
         $stopWords = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 
@@ -3709,11 +3708,11 @@ class EmailPersonalizationService
             return 0.0;
         }
         
-        // Jaccard similarity
+        // Jaccard similarity (union is provably non-empty after the checks above)
         $intersection = count(array_intersect($tokens1, $tokens2));
         $union = count(array_unique(array_merge($tokens1, $tokens2)));
-        
-        return $union > 0 ? $intersection / $union : 0.0;
+
+        return $intersection / $union;
     }
 
     /**
@@ -3723,10 +3722,10 @@ class EmailPersonalizationService
      * to the same company vary sufficiently to avoid spam detection.
      * 
      * @param Contact $contact The contact
-     * @param array $recentEmailBodies Array of recent email body texts sent to this company
+     * @param list<string> $recentEmailBodies Array of recent email body texts sent to this company
      * @param float $maxSimilarity Maximum allowed similarity (default 0.6)
      * @param int $maxAttempts Maximum generation attempts (default 10)
-     * @return array ['success' => bool, 'body' => string|null, 'attempts' => int, 'similarity' => float]
+     * @return array<string, mixed>
      */
     public function ensureUniqueVariation(
         Contact $contact,
@@ -3772,8 +3771,8 @@ class EmailPersonalizationService
      * 
      * @param string $emailBody The email body text
      * @param Contact $contact The recipient contact
-     * @param array $context The personalization context used
-     * @return array Complete quality assessment with pass/fail
+     * @param array<string, mixed> $context The personalization context used
+     * @return array<string, mixed> Complete quality assessment with pass/fail
      */
     public function runFullQualityCheck(string $emailBody, Contact $contact, array $context = []): array
     {
@@ -3904,8 +3903,8 @@ class EmailPersonalizationService
     {
         // Normalize: lowercase, collapse whitespace, remove punctuation variations
         $normalized = strtolower($body);
-        $normalized = preg_replace('/\s+/', ' ', $normalized);  // Collapse whitespace
-        $normalized = preg_replace('/[^\w\s]/', '', $normalized); // Remove punctuation
+        $normalized = preg_replace('/\s+/', ' ', $normalized) ?? $normalized;  // Collapse whitespace
+        $normalized = preg_replace('/[^\w\s]/', '', $normalized) ?? $normalized; // Remove punctuation
         $normalized = trim($normalized);
         
         // Use xxHash for speed, or fall back to MD5 if not available
@@ -3921,7 +3920,7 @@ class EmailPersonalizationService
      * Check if an email fingerprint matches any recent emails
      * 
      * @param string $fingerprint The fingerprint to check
-     * @param array $recentFingerprints Array of recent fingerprints to compare against
+     * @param list<string> $recentFingerprints Array of recent fingerprints to compare against
      * @return bool True if fingerprint is found (duplicate), false otherwise
      */
     public function isDuplicateFingerprint(string $fingerprint, array $recentFingerprints): bool
@@ -3941,7 +3940,7 @@ class EmailPersonalizationService
      * @param Contact $contact The contact
      * @param int $count Number of variations to generate
      * @param int $maxAttempts Maximum attempts per variation
-     * @return array Array of unique variations with fingerprints
+     * @return array<string, mixed> Array of unique variations with fingerprints
      */
     public function generateUniqueEmailVariations(Contact $contact, int $count = 3, int $maxAttempts = 10): array
     {
@@ -3967,21 +3966,26 @@ class EmailPersonalizationService
             do {
                 $attempts++;
                 $totalAttempts++;
-                
+
                 // Build fresh persuasion context (uses random spintax selections)
                 $persuasionContext = $this->buildPersuasionContext($contact);
-                $engagementLevel = $persuasionContext['engagement_level'] ?? 'cold';
-                
+                $engagementLevel = is_string($persuasionContext['engagement_level'] ?? null)
+                    ? $persuasionContext['engagement_level']
+                    : 'cold';
+
                 // Generate sample body from fused paragraphs
                 $sampleParts = [
-                    $persuasionContext['fused_intro'] ?? '',
-                    $persuasionContext['fused_value'] ?? '',
-                    $persuasionContext['fused_close'] ?? '',
+                    is_string($persuasionContext['fused_intro'] ?? null) ? $persuasionContext['fused_intro'] : '',
+                    is_string($persuasionContext['fused_value'] ?? null) ? $persuasionContext['fused_value'] : '',
+                    is_string($persuasionContext['fused_close'] ?? null) ? $persuasionContext['fused_close'] : '',
                 ];
                 $sampleBody = implode("\n\n", array_filter($sampleParts));
-                
+
                 // Apply quality fixes
-                $tone = $persuasionContext['template_architecture']['tone_preference'] ?? 'formal';
+                $architecture = $persuasionContext['template_architecture'] ?? null;
+                $tone = is_array($architecture) && is_string($architecture['tone_preference'] ?? null)
+                    ? $architecture['tone_preference']
+                    : 'formal';
                 $sampleBody = $this->applyOutputQualityFixes($sampleBody, $engagementLevel, $tone);
                 
                 $fingerprint = $this->generateEmailFingerprint($sampleBody);

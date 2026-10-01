@@ -53,27 +53,14 @@ class PreserveComplianceLegacyCommandTest extends WebTestCase
         $this->connection = $this->em->getConnection();
         $this->command = new PreserveComplianceLegacyCommand($this->connection);
 
-        $this->connection->executeStatement('SET FOREIGN_KEY_CHECKS=0');
-        foreach (['compliance_documents'] as $table) {
-            $this->connection->executeStatement('TRUNCATE TABLE ' . $table);
-        }
-        $this->connection->executeStatement('SET FOREIGN_KEY_CHECKS=1');
-        // The archive table may not exist on a fresh chain (the command
-        // creates it) — reset it here so every test starts clean.
+        // DDL SWAP: the real compliance_documents is RENAMED aside and a
+        // legacy-era clone takes its name for the duration of the test.
+        // The real table is NEVER altered — rename is metadata-only and
+        // tearDown restores it byte-for-byte. (Direct ALTER on the shared
+        // table poisoned every later test under certain random seeds.)
         $this->connection->executeStatement('DROP TABLE IF EXISTS compliance_legacy_preserved');
-
-        // Re-create the PRE-DROP era on the throwaway DB: add ONLY the
-        // legacy columns the latest schema no longer has (document_type).
-        // sha256_hash/version_id exist post-restore — they are REAL data
-        // columns and must never be touched.
-        foreach (self::LEGACY_COLUMNS as $column => $definition) {
-            if (!$this->columnExists($column)) {
-                $this->connection->executeStatement(
-                    "ALTER TABLE compliance_documents ADD COLUMN {$column} {$definition}"
-                );
-                $this->addedColumns[] = $column;
-            }
-        }
+        $this->connection->executeStatement('DROP TABLE IF EXISTS compliance_documents_p9clone');
+        // Archive table exists from the start: test 3 seeds pre-restore rows.
         $this->connection->executeStatement(
             'CREATE TABLE compliance_legacy_preserved (
                 document_id INT NOT NULL PRIMARY KEY,
@@ -83,19 +70,52 @@ class PreserveComplianceLegacyCommandTest extends WebTestCase
                 preserved_at DATETIME NOT NULL
             ) ENGINE = InnoDB'
         );
+        $this->connection->executeStatement('DROP TABLE IF EXISTS compliance_documents_p9backup');
+        $this->connection->executeStatement(
+            'CREATE TABLE compliance_documents_p9clone (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                company_id INT NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                required TINYINT(1) NOT NULL DEFAULT 1,
+                provided TINYINT(1) NOT NULL DEFAULT 0,
+                status VARCHAR(100) DEFAULT NULL,
+                file_name VARCHAR(255) DEFAULT NULL,
+                file_size INT DEFAULT NULL,
+                expiry_date DATE DEFAULT NULL,
+                uploaded_at DATETIME DEFAULT NULL,
+                updated_at DATETIME DEFAULT NULL,
+                snoozed_until DATE DEFAULT NULL,
+                snooze_reason VARCHAR(255) DEFAULT NULL,
+                snoozed_by VARCHAR(100) DEFAULT NULL,
+                entity_id INT DEFAULT NULL,
+                entity_type VARCHAR(50) DEFAULT NULL,
+                document_type VARCHAR(255) DEFAULT NULL,
+                sha256_hash VARCHAR(64) DEFAULT NULL,
+                version_number VARCHAR(50) DEFAULT NULL,
+                version_id VARCHAR(100) DEFAULT NULL,
+                generated_at DATETIME DEFAULT NULL,
+                generated_by VARCHAR(100) DEFAULT NULL,
+                metadata_json LONGTEXT DEFAULT NULL,
+                deleted_at DATETIME DEFAULT NULL,
+                deleted_by VARCHAR(100) DEFAULT NULL
+            ) ENGINE = InnoDB'
+        );
+        $this->connection->executeStatement(
+            'RENAME TABLE compliance_documents TO compliance_documents_p9backup, compliance_documents_p9clone TO compliance_documents'
+        );
     }
 
     protected function tearDown(): void
     {
-        // Remove ONLY the columns this test added — never the real
-        // (restored-era) schema. Dropping sha256_hash/version_id here
-        // poisoned every later test in the suite (order-dependent).
-        foreach ($this->addedColumns as $column) {
-            if ($this->columnExists($column)) {
-                $this->connection->executeStatement("ALTER TABLE compliance_documents DROP {$column}");
-            }
+        // Restore the REAL table; discard the clone. Metadata-only renames.
+        try {
+            $this->connection->executeStatement(
+                'RENAME TABLE compliance_documents TO compliance_documents_p9clone, compliance_documents_p9backup TO compliance_documents'
+            );
+        } catch (\Doctrine\DBAL\Exception\TableNotFoundException) {
+            // setUp never completed the swap — nothing to restore.
         }
-        $this->addedColumns = [];
+        $this->connection->executeStatement('DROP TABLE IF EXISTS compliance_documents_p9clone');
         $this->connection->executeStatement('DROP TABLE IF EXISTS compliance_legacy_preserved');
         parent::tearDown();
     }
@@ -190,12 +210,10 @@ class PreserveComplianceLegacyCommandTest extends WebTestCase
      *  @preserveGlobalState disabled */
     public function testWithoutLegacyColumnsTheCommandIsANoOp(): void
     {
-        // Drop back to the latest-era schema INSIDE the test: the era
-        // detector must see "not applicable" and never re-archive restored
-        // data (the columns that exist post-restore are the REAL ones).
-        foreach (array_keys(self::LEGACY_COLUMNS) as $column) {
-            $this->connection->executeStatement("ALTER TABLE compliance_documents DROP {$column}");
-        }
+        // Drop document_type ON THE THROWAWAY CLONE so the era detector
+        // sees the latest-era shape ("not applicable") and never re-archives
+        // restored data. The clone is discarded in tearDown.
+        $this->connection->executeStatement('ALTER TABLE compliance_documents DROP document_type');
         $this->connection->executeStatement(
             'INSERT INTO compliance_legacy_preserved (document_id, document_type, sha256_hash, version_id, preserved_at)
              VALUES (424242, \'RESTORED_VALUE\', \'RESTORED_HASH\', \'RESTORED_VER\', NOW()), (424243, NULL, NULL, NULL, NOW())'

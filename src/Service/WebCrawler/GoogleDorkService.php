@@ -31,7 +31,27 @@ use Psr\Log\LoggerInterface;
  *
  * @phpstan-type WebSearchResult array{title?: string, link?: string, snippet?: string, displayLink?: string}
  * @phpstan-type WebSearchResponse array{results: list<WebSearchResult>, totalResults: int|string, searchTime: float|int}
- * @phpstan-type ContactInfo array<string, mixed>
+ * @phpstan-type ContactInfo array{
+ *     id?: int|string|null,
+ *     first_name?: string|null,
+ *     last_name?: string|null,
+ *     name?: string|null,
+ *     full_name?: string|null,
+ *     job_title?: string|null,
+ *     title?: string|null,
+ *     email?: string|null,
+ *     phone?: string|null,
+ *     linkedin?: string|null,
+ *     linkedin_url?: string|null,
+ *     source?: string|null,
+ *     source_url?: string|null,
+ *     company_domain?: string|null,
+ *     role_score?: int|float|null,
+ *     confidence?: int|float|string|null,
+ *     reason?: string|null,
+ *     snippet?: string|null,
+ *     ...
+ * }
  * @phpstan-type CompanyCandidate array{
  *     name: string,
  *     website?: string|null,
@@ -43,7 +63,9 @@ use Psr\Log\LoggerInterface;
  *     sector?: string|null,
  *     location?: string|null,
  *     location_validated?: bool,
- *     language?: string|null,
+ *     language?: array{language: string, confidence: float, method: string, region_relevant: bool, relevance_score: float}|string|null,
+ *     all_emails?: mixed,
+ *     employee_hint?: mixed,
  *     contacts?: list<ContactInfo>,
  *     phone?: string|null,
  *     email?: string|null,
@@ -806,11 +828,11 @@ class GoogleDorkService
         }
 
         // Remove trademark symbols early (before any splitting)
-        $title = preg_replace('/[®™©]/u', '', $title);
+        $title = preg_replace('/[®™©]/u', '', $title) ?? $title;
         // Remove emoji characters (iter14: "✅ Tank Oil Group" → "Tank Oil Group")
-        $title = preg_replace('/[\x{1F000}-\x{1FFFF}\x{2600}-\x{27BF}\x{FE00}-\x{FE0F}\x{200D}\x{20E3}\x{E0020}-\x{E007F}\x{2702}-\x{27B0}\x{2300}-\x{23FF}]/u', '', $title);
+        $title = preg_replace('/[\x{1F000}-\x{1FFFF}\x{2600}-\x{27BF}\x{FE00}-\x{FE0F}\x{200D}\x{20E3}\x{E0020}-\x{E007F}\x{2702}-\x{27B0}\x{2300}-\x{23FF}]/u', '', $title) ?? $title;
         // Remove DB artifact suffixes like "_597259-RM" or "_12345"
-        $title = preg_replace('/_\d{4,}(-[A-Z]{1,4})?$/i', '', $title);
+        $title = preg_replace('/_\d{4,}(-[A-Z]{1,4})?$/i', '', $title) ?? $title;
         $title = trim($title);
 
         // --- Step 1: clean the title ---
@@ -840,7 +862,7 @@ class GoogleDorkService
         }
 
         // Strip known page-section suffixes after a dash
-        $name = preg_replace('/\s*[-]\s*(LinkedIn|Facebook|Twitter|Homepage|Home|About|Contact|Careers|Jobs|News|Blog|Press|The Sites?|Locations?|Company guide|Overseas|Global Network|Wikipedia|Wire Harness|Cable Assembly|PCB Assembly|Products?|Services?|Solutions?).*$/i', '', $name);
+        $name = preg_replace('/\s*[-]\s*(LinkedIn|Facebook|Twitter|Homepage|Home|About|Contact|Careers|Jobs|News|Blog|Press|The Sites?|Locations?|Company guide|Overseas|Global Network|Wikipedia|Wire Harness|Cable Assembly|PCB Assembly|Products?|Services?|Solutions?).*$/i', '', $name) ?? $name;
 
         // If title still has " - DescriptivePhrase" pattern, try extracting the brand
         if (preg_match('/^(.+?)\s+-\s+(.+)$/', $name, $m)) {
@@ -869,20 +891,20 @@ class GoogleDorkService
         }
 
         // Remove leading prefixes like "MAKING - ", "Visit of plants Morocco - "
-        $name = preg_replace('/^(MAKING|Visit of plants?|List of all|Contacts and locations|Overview of|Homepage)\s*[-–—:|»]\s*/iu', '', $name);
+        $name = preg_replace('/^(MAKING|Visit of plants?|List of all|Contacts and locations|Overview of|Homepage)\s*[-–—:|»]\s*/iu', '', $name) ?? $name;
         // "About us - X" / "About - X" — require a REAL separator so a bare
         // "About Us" title stays intact (it falls through to the generic
         // pattern below and resolves to the domain name)
-        $name = preg_replace('/^About(?:\s+us)?\s*[-–—:|»]\s*/iu', '', $name);
+        $name = preg_replace('/^About(?:\s+us)?\s*[-–—:|»]\s*/iu', '', $name) ?? $name;
         // "Welcome to" / "We are" don't need a separator — strip directly
-        $name = preg_replace('/^Welcome\s+to\s+/iu', '', $name);
-        $name = preg_replace('/^We\s+are\s+/iu', '', $name);
+        $name = preg_replace('/^Welcome\s+to\s+/iu', '', $name) ?? $name;
+        $name = preg_replace('/^We\s+are\s+/iu', '', $name) ?? $name;
         // Strip language tags: "(EN)", "(DE)", "(FR)" etc.
-        $name = preg_replace('/\s*\((?:EN|DE|FR|ES|IT|NL|PL|CZ|FI|SE|NO|DA|PT|RU|JP|CN|KR|AR|HE|TR|HU|RO|BG|HR|SK|SI|LT|LV|EE|EL|UK|INT)\)\s*$/iu', '', $name);
+        $name = preg_replace('/\s*\((?:EN|DE|FR|ES|IT|NL|PL|CZ|FI|SE|NO|DA|PT|RU|JP|CN|KR|AR|HE|TR|HU|RO|BG|HR|SK|SI|LT|LV|EE|EL|UK|INT)\)\s*$/iu', '', $name) ?? $name;
         // Strip trailing language labels: "in English", "- English"
-        $name = preg_replace('/\s*[-–—]?\s*\b(in\s+)?(English|Deutsch|Français|Español|Italiano|Nederlands)\s*$/iu', '', $name);
+        $name = preg_replace('/\s*[-–—]?\s*\b(in\s+)?(English|Deutsch|Français|Español|Italiano|Nederlands)\s*$/iu', '', $name) ?? $name;
         // Remove trailing ": Home", ": Home Page", ": Homepage", ": Products", ": Services"
-        $name = preg_replace('/\s*:\s*(Home(\s*Page)?|Homepage|Products?|Services?|Solutions?|Contact(\s+Us)?|About(\s+Us)?|Careers?|Overview)\s*$/i', '', $name);
+        $name = preg_replace('/\s*:\s*(Home(\s*Page)?|Homepage|Products?|Services?|Solutions?|Contact(\s+Us)?|About(\s+Us)?|Careers?|Overview)\s*$/i', '', $name) ?? $name;
         // General colon stripping: if a colon remains, take the shorter side
         // that looks like a company name (proper noun, < 40 chars)
         if (str_contains($name, ':')) {
@@ -897,15 +919,15 @@ class GoogleDorkService
             }
         }
         // Remove trailing " » " or " > " followed by page section  
-        $name = preg_replace('/\s*[»>]\s+.+$/u', '', $name);
+        $name = preg_replace('/\s*[»>]\s+.+$/u', '', $name) ?? $name;
         // Remove trailing " ... " (truncated titles)
-        $name = preg_replace('/\s*\.{2,}\s*$/', '', $name);
+        $name = preg_replace('/\s*\.{2,}\s*$/', '', $name) ?? $name;
         // Clean up trailing dashes/spaces ("W Motors -" → "W Motors")
-        $name = preg_replace('/\s*[-–—]\s*$/', '', $name);
+        $name = preg_replace('/\s*[-–—]\s*$/', '', $name) ?? $name;
         // Strip trailing descriptive taglines:
         // "AED Vantage automotive electronics partner" → "AED Vantage"
         // Only strip known industry descriptors + terminal role word
-        $name = preg_replace('/\s+(?:(?:automotive|electronics?|industrial|manufacturing|engineering|technology|digital|software|hardware|mechanical|electrical|technical|global|local|regional|contract|trusted|reliable|leading|your)\s+){0,3}(partner|supplier|provider|specialist|expert|distributor|manufacturer|contractor|consultant|leader|pioneer|innovator)\s*$/i', '', $name);
+        $name = preg_replace('/\s+(?:(?:automotive|electronics?|industrial|manufacturing|engineering|technology|digital|software|hardware|mechanical|electrical|technical|global|local|regional|contract|trusted|reliable|leading|your)\s+){0,3}(partner|supplier|provider|specialist|expert|distributor|manufacturer|contractor|consultant|leader|pioneer|innovator)\s*$/i', '', $name) ?? $name;
         $name = trim($name);
 
         // ─── Location-as-name detection ──────────────────────────────
@@ -1075,7 +1097,7 @@ class GoogleDorkService
         // like descriptive phrases rather than proper company names.
         if (!$isGeneric && $name !== '') {
             // Count words: real company names are 1-5 words
-            $nameWords = preg_split('/\s+/', $name);
+            $nameWords = preg_split('/\s+/', $name) ?: [];
             $wc = count($nameWords);
             
             // If the name contains common EMS/industry descriptors as
@@ -1094,10 +1116,10 @@ class GoogleDorkService
         // --- Step 3: if title is good, use it ---
         if (!$isGeneric && $name !== '') {
             // Final cleanup: strip trailing common suffixes that are noise
-            $name = preg_replace('/\s*[-–—]\s*(Ltd|LLC|Inc|Corp|GmbH|SA|SAS|BV|NV|AG|Plc|Co|Pty|Srl|SpA)\.?\s*$/i', '', $name);
+            $name = preg_replace('/\s*[-–—]\s*(Ltd|LLC|Inc|Corp|GmbH|SA|SAS|BV|NV|AG|Plc|Co|Pty|Srl|SpA)\.?\s*$/i', '', $name) ?? $name;
             // Strip trailing TLD fragments accidentally included in title-derived names
             // e.g. "Cooperconsumerhealth.nl" -> "Cooperconsumerhealth"
-            $name = preg_replace('/\.(com|net|org|io|co|fr|de|nl|it|es|pl|cz|fi|se)\.?$/i', '', $name);
+            $name = preg_replace('/\.(com|net|org|io|co|fr|de|nl|it|es|pl|cz|fi|se)\.?$/i', '', $name) ?? $name;
             return trim($name);
         }
 
@@ -1249,21 +1271,21 @@ class GoogleDorkService
         }
 
         // Clean domain: strip TLD, www, subdomains
-        $cleanDomain = strtolower(preg_replace('/^www\./', '', $domain));
-        $cleanDomain = preg_replace('/\.(co|com|org|net|io)\.[a-z]{2,4}$/i', '', $cleanDomain);
-        $cleanDomain = preg_replace('/\.[a-z]{2,6}$/i', '', $cleanDomain);
+        $cleanDomain = strtolower(preg_replace('/^www\./', '', $domain) ?? $domain);
+        $cleanDomain = preg_replace('/\.(co|com|org|net|io)\.[a-z]{2,4}$/i', '', $cleanDomain) ?? $cleanDomain;
+        $cleanDomain = preg_replace('/\.[a-z]{2,6}$/i', '', $cleanDomain) ?? $cleanDomain;
         // If subdomain exists (e.g. "globalcareers.lge"), use the main domain
         if (str_contains($cleanDomain, '.')) {
             $parts = explode('.', $cleanDomain);
             $cleanDomain = end($parts); // Use main domain part
         }
         // Split camelCase and hyphens: "elsewedyelectric" → ["elsewedy", "electric"]
-        $domainWords = preg_split('/[-_.]/', $cleanDomain);
+        $domainWords = preg_split('/[-_.]/', $cleanDomain) ?: [];
         // Also split camelCase-ish patterns
         $expandedDomainWords = [];
         foreach ($domainWords as $dw) {
             // Split on transition from lowercase to uppercase
-            $subwords = preg_split('/(?<=[a-z])(?=[A-Z])/', $dw);
+            $subwords = preg_split('/(?<=[a-z])(?=[A-Z])/', $dw) ?: [$dw];
             $expandedDomainWords = array_merge($expandedDomainWords, $subwords);
         }
         $domainWords = array_map('strtolower', $expandedDomainWords);
@@ -1274,8 +1296,8 @@ class GoogleDorkService
         }
 
         // Extract meaningful words from the name
-        $nameClean = preg_replace('/\s*(GmbH|LLC|Inc\.?|Ltd\.?|Corp\.?|S\.?A\.?|Co\.?|PLC)\s*$/i', '', $name);
-        $nameWords = preg_split('/[\s\-&,\.]+/', strtolower($nameClean));
+        $nameClean = preg_replace('/\s*(GmbH|LLC|Inc\.?|Ltd\.?|Corp\.?|S\.?A\.?|Co\.?|PLC)\s*$/i', '', $name) ?? $name;
+        $nameWords = preg_split('/[\s\-&,\.]+/', strtolower($nameClean)) ?: [];
         $nameWords = array_filter($nameWords, fn($w) => strlen($w) >= 3);
 
         if (empty($nameWords)) {
@@ -1314,7 +1336,7 @@ class GoogleDorkService
         }
 
         // Also check: does the full concatenated domain appear as substring of name?
-        $nameLowerFull = strtolower(preg_replace('/[\s\-&,\.]+/', '', $nameClean));
+        $nameLowerFull = strtolower(preg_replace('/[\s\-&,\.]+/', '', $nameClean) ?? $nameClean);
         if (str_contains($nameLowerFull, $fullDomainStr) || str_contains($fullDomainStr, $nameLowerFull)) {
             return false; // Fuzzy whole-string match
         }
@@ -1336,13 +1358,13 @@ class GoogleDorkService
         }
 
         // Strip scheme, www prefix, path, port
-        $host = preg_replace('#^https?://#', '', $domain);
-        $host = preg_replace('#[:/].*$#', '', $host);
-        $host = preg_replace('/^www\./', '', $host);
+        $host = preg_replace('#^https?://#', '', $domain) ?? $domain;
+        $host = preg_replace('#[:/].*$#', '', $host) ?? $host;
+        $host = preg_replace('/^www\./', '', $host) ?? $host;
 
         // Remove TLD(s): e.g. co.uk, com.eg, com
-        $host = preg_replace('/\.(co|com|org|net|gov|edu|io)\.[a-z]{2,4}$/i', '', $host);
-        $host = preg_replace('/\.[a-z]{2,6}$/i', '', $host);
+        $host = preg_replace('/\.(co|com|org|net|gov|edu|io)\.[a-z]{2,4}$/i', '', $host) ?? $host;
+        $host = preg_replace('/\.[a-z]{2,6}$/i', '', $host) ?? $host;
 
         // Turn hyphens/dots into spaces and capitalise
         $name = str_replace(['-', '.', '_'], ' ', $host);
@@ -3554,13 +3576,14 @@ class GoogleDorkService
             return true;
         }
 
-        $domain = strtolower(preg_replace('/^www\./', '', $domain));
+        $domain = strtolower(preg_replace('/^www\./', '', $domain) ?? $domain);
         if (!preg_match('/\.([a-z]{2,3})$/', $domain, $m)) {
             return false;
         }
         $tld = $m[1];
 
         // Generic TLDs — always OK
+        /** @var list<string> $genericTlds */
         static $genericTlds = [
             'com', 'net', 'org', 'io', 'co', 'biz', 'info', 'pro',
             'xyz', 'dev', 'app', 'tech', 'online', 'site', 'store',
@@ -3571,6 +3594,7 @@ class GoogleDorkService
         }
 
         // Map each TLD to its region code (same codes detectRegionFromLocation uses)
+        /** @var array<string, string> $tldToRegion */
         static $tldToRegion = [
             // North Africa / Middle East
             'ma' => 'MA', 'tn' => 'TN', 'eg' => 'EG',
@@ -3609,9 +3633,12 @@ class GoogleDorkService
 
         // Allow EU cross-matches: an .it domain is OK when searching
         // for EU, or vice versa. Define compatible region groups.
+        /** @var list<string> $euGroup */
         static $euGroup = ['DE', 'FR', 'PL', 'NL', 'IT', 'ES', 'BE', 'AT',
             'CZ', 'SE', 'DK', 'FI', 'NO', 'CH', 'RO', 'HU', 'PT', 'IE', 'GB', 'EU'];
+        /** @var list<string> $gccGroup */
         static $gccGroup = ['GCC', 'AE', 'SA', 'QA', 'BH', 'OM', 'KW'];
+        /** @var list<string> $nafricaGroup */
         static $nafricaGroup = ['MA', 'TN', 'EG'];
 
         // Within the same broad group → allow
@@ -3626,6 +3653,7 @@ class GoogleDorkService
         // have factories in North Africa & GCC (nearshoring). A .fr or .de
         // domain is perfectly valid when searching for TN/MA/EG companies.
         // Likewise, MENA-based companies may appear in EU searches.
+        /** @var list<string> $menaGroup */
         static $menaGroup = ['MA', 'TN', 'EG', 'GCC', 'AE', 'SA', 'QA', 'BH', 'OM', 'KW'];
         if (in_array($region, $menaGroup, true) && in_array($domainRegion, $euGroup, true)) {
             return false;
@@ -3646,7 +3674,7 @@ class GoogleDorkService
      */
     private function isBlockedDomain(string $domain): bool
     {
-        $domain = strtolower(preg_replace('/^www\./', '', $domain));
+        $domain = strtolower(preg_replace('/^www\./', '', $domain) ?? $domain);
 
         // ─── Block code hosting / developer platform domains ──────────
         // Structural rule: these are collaboration platforms, not buyer companies.
@@ -3743,7 +3771,7 @@ class GoogleDorkService
         }
         // Catch domains where media words are embedded as suffixes
         // e.g. "opportimes.com" → root "opportimes" ends with "times"
-        $domainRoot = preg_replace('/\.[a-z]{2,6}(\.[a-z]{2,3})?$/i', '', $domain);
+        $domainRoot = preg_replace('/\.[a-z]{2,6}(\.[a-z]{2,3})?$/i', '', $domain) ?? $domain;
         $mediaSuffixes = ['times', 'news', 'daily', 'tribune', 'herald',
             'gazette', 'chronicle', 'dispatch', 'observer', 'telegraph',
             'monitor', 'journal', 'digest', 'weekly', 'monthly', 'magazine',
@@ -3873,7 +3901,7 @@ class GoogleDorkService
         }
         // Catch certification-related substrings in compound domain names
         // e.g. "proficert.com", "eurocert.de", "qualicert.ch"
-        $domainRootForCert = preg_replace('/\.[a-z]{2,6}(\.[a-z]{2,3})?$/i', '', $domain);
+        $domainRootForCert = preg_replace('/\.[a-z]{2,6}(\.[a-z]{2,3})?$/i', '', $domain) ?? $domain;
         $certSubstrings = ['certif', 'zertif', 'accredit', 'homolog', 'proficert',
             'eurocert', 'qualicert', 'isocert', 'certqua', 'tuvcert',
         ];
@@ -4298,7 +4326,7 @@ class GoogleDorkService
         $name = trim(html_entity_decode($name, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
         $lower = strtolower(trim($name));
-        $words = preg_split('/\s+/', trim($name));
+        $words = preg_split('/\s+/', trim($name)) ?: [];
         $wordCount = count($words);
 
         // Fast rejects for UI fragments / snippets
@@ -6147,6 +6175,7 @@ class GoogleDorkService
     {
         $lower = strtolower(trim($name));
 
+        /** @var list<string>|null $giantOemBlocklist */
         static $giantOemBlocklist = null;
         if ($giantOemBlocklist === null) {
             $giantOemBlocklist = [
@@ -7576,7 +7605,7 @@ class GoogleDorkService
      * Returns TRUE if this looks like a real EMS buyer prospect.
      * Returns FALSE if there's no evidence this is a real buyer.
      */
-    private function isLikelyEMSBuyer(string $name, string $snippet, string $title, string $domain): bool
+    public function isLikelyEMSBuyer(string $name, string $snippet, string $title, string $domain): bool
     {
         $text = strtolower($snippet . ' ' . $title . ' ' . $name);
         $lower = strtolower(trim($name));
@@ -8045,9 +8074,10 @@ class GoogleDorkService
      *
      * This improves recall for real companies that had sparse SERP snippets,
      * while avoiding expensive retries for obviously bad candidates.
-      * @param array<string|int, mixed> $result
+     *
+     * @param WebSearchResult $result
      */
-    private function shouldAttemptEvidenceHomepageRescue(
+    public function shouldAttemptEvidenceHomepageRescue(
         BuyerEvidenceResult $evidenceResult,
         array $result,
         string $domain,
@@ -8535,7 +8565,7 @@ class GoogleDorkService
     /**
      * Get country/city vocabulary for location-presence validation.
      *
-     * @return array{tlds: string[], terms: string[]}|null
+     * @return LocationVocabulary|null
      */
     private function getLocationVocabulary(string $location): ?array
     {
@@ -8780,7 +8810,7 @@ class GoogleDorkService
             return null;
         }
 
-        return $countryVocab[$countryCode] ?? null;
+        return $countryVocab[$countryCode];
     }
 
     /**
@@ -10258,6 +10288,9 @@ class GoogleDorkService
      * Extract clean website URL from search result
       * @param array<string|int, mixed> $result
      */
+    /**
+     * @param WebSearchResult $result
+     */
     private function extractWebsiteFromResult(array $result): ?string
     {
         if (!empty($result['link'])) {
@@ -10281,7 +10314,9 @@ class GoogleDorkService
      *
      * This eliminates news articles, forums, product pages, and other
      * non-company results that slip through pattern-based filters.
-      * @param array<string|int, mixed> $candidates
+     *
+     * @param array<string, CompanyCandidate> $candidates
+     * @return array<string, CompanyCandidate>
      */
     private function verifyCompanies(array $candidates): array
     {
@@ -10552,7 +10587,7 @@ class GoogleDorkService
         // with branded domains are real companies regardless of homepage content.
         // The BuyerEvidenceGate later in the pipeline handles buyer filtering.
         foreach ($needsLinkedIn as $domain => $data) {
-            $name = $data['name'];
+            $name = (string) $data['name'];
 
             // ── Entity-Type Pre-Filter (v19) for Phase 2 ──────────
             // Catch obvious non-targets before BOTD/LinkedIn verification
@@ -10569,7 +10604,7 @@ class GoogleDorkService
             // candidate. A branded domain proves the company exists; whether
             // it's a buyer target is handled by BuyerEvidenceGate downstream.
             $domainParts = explode('.', $domain);
-            $baseName = $domainParts[0] ?? '';
+            $baseName = $domainParts[0];
             $looksLikeCompanyDomain = (
                 mb_strlen($baseName) >= 3 &&
                 mb_strlen($baseName) <= 30 &&
@@ -10823,8 +10858,10 @@ class GoogleDorkService
      * Enrichment keys (phone, description, address, linkedin_url, etc.)
      * are only applied if non-empty and the candidate doesn't already have
      * a value for that key.
-      * @param array<string|int, mixed> $data
- * @param array<string|int, mixed> $enrichment
+     *
+     * @param CompanyCandidate $data
+     * @param CompanyCandidate $enrichment
+     * @return CompanyCandidate
      */
     private function mergeEnrichment(array $data, array $enrichment): array
     {
@@ -10832,13 +10869,13 @@ class GoogleDorkService
         if (!empty($enrichment['name'])) {
             $newName = $enrichment['name'];
             // Strip TLD suffixes that may have crept in
-            $newName = preg_replace('/\.(com|net|org|io|co|biz|info|us|eu|fr|de|nl|it|es|pl|cz|fi|se)\.?$/i', '', $newName);
+            $newName = preg_replace('/\.(com|net|org|io|co|biz|info|us|eu|fr|de|nl|it|es|pl|cz|fi|se)\.?$/i', '', $newName) ?? $newName;
             // Strip trademark symbols
-            $newName = preg_replace('/[®™©]/u', '', $newName);
+            $newName = preg_replace('/[®™©]/u', '', $newName) ?? $newName;
             // Strip trailing dashes and descriptive suffixes
-            $newName = preg_replace('/\s*[-–—|·]\s*(LinkedIn|Facebook|Twitter|Indeed|Glassdoor|Crunchbase|Overview|About).*$/i', '', $newName);
-            $newName = preg_replace('/\s*[-–—]\s*(Electrifying|Driving|Powering|Leading|Global|The).*$/i', '', $newName);
-            $newName = preg_replace('/\s*[-–—]\s*$/i', '', $newName);
+            $newName = preg_replace('/\s*[-–—|·]\s*(LinkedIn|Facebook|Twitter|Indeed|Glassdoor|Crunchbase|Overview|About).*$/i', '', $newName) ?? $newName;
+            $newName = preg_replace('/\s*[-–—]\s*(Electrifying|Driving|Powering|Leading|Global|The).*$/i', '', $newName) ?? $newName;
+            $newName = preg_replace('/\s*[-–—]\s*$/i', '', $newName) ?? $newName;
             $newName = trim($newName);
             if (!$this->isJunkCompanyName($newName)
                 && !$this->isGenericPageWord($newName)
@@ -10869,9 +10906,12 @@ class GoogleDorkService
 
         // Merge all_emails array (accumulate from all extraction phases)
         if (!empty($enrichment['all_emails']) && is_array($enrichment['all_emails'])) {
-            $existing = $data['all_emails'] ?? [];
+            /** @var list<string> $existingEmails */
+            $existingEmails = $data['all_emails'] ?? [];
+            /** @var list<string> $incomingEmails */
+            $incomingEmails = $enrichment['all_emails'];
             $data['all_emails'] = array_values(array_unique(
-                array_merge($existing, $enrichment['all_emails'])
+                array_merge($existingEmails, $incomingEmails)
             ));
         }
 
@@ -10885,8 +10925,11 @@ class GoogleDorkService
 
         // Merge contacts array (accumulate, don't overwrite)
         if (!empty($enrichment['contacts'])) {
-            $existing = $data['contacts'] ?? [];
-            $data['contacts'] = array_merge($existing, $enrichment['contacts']);
+            /** @var list<ContactInfo> $existingContacts */
+            $existingContacts = $data['contacts'] ?? [];
+            /** @var list<ContactInfo> $incomingContacts */
+            $incomingContacts = $enrichment['contacts'];
+            $data['contacts'] = array_merge($existingContacts, $incomingContacts);
             // Deduplicate by first_name+last_name
             $seen = [];
             $unique = [];
@@ -10906,7 +10949,9 @@ class GoogleDorkService
                     $ct['role_score'] = $this->linkedIn()->computeRoleScore($ct['job_title'] ?? '');
                 }
                 unset($ct);
-                $data['contacts'] = $this->contactScorer->scoreAndSort($data['contacts']);
+                /** @var list<ContactInfo> $scoredContacts */
+                $scoredContacts = $this->contactScorer->scoreAndSort($data['contacts']);
+                $data['contacts'] = $scoredContacts;
             }
         }
 
@@ -10919,6 +10964,8 @@ class GoogleDorkService
      * Returns an enrichment array if found (name, linkedin_url, description),
      * or null if not found.
      * Uses 1 Google Custom Search API call per invocation.
+     *
+     * @return CompanyCandidate|null
      */
     private function checkLinkedInCompanyPage(string $companyName): ?array
     {
@@ -10940,6 +10987,7 @@ class GoogleDorkService
                 $snippet = $first['snippet'] ?? '';
                 $link = $first['link'] ?? '';
 
+                /** @var CompanyCandidate $enrichment */
                 $enrichment = [
                     'linkedin_url' => $link,
                     'description' => $this->extractLinkedInDescription($snippet),
@@ -11001,11 +11049,11 @@ class GoogleDorkService
         }
 
         // Strip the follower count prefix
-        $desc = preg_replace('/^.*?\d[\d,]*\s+followers?\s+on\s+LinkedIn\.?\s*/i', '', $snippet);
+        $desc = preg_replace('/^.*?\d[\d,]*\s+followers?\s+on\s+LinkedIn\.?\s*/i', '', $snippet) ?? $snippet;
         // Strip "CompanyName · Industry." prefix
-        $desc = preg_replace('/^[^·]+·\s*[^.]+\.\s*/', '', $desc);
+        $desc = preg_replace('/^[^·]+·\s*[^.]+\.\s*/', '', $desc) ?? $desc;
         // Strip trailing "..."
-        $desc = preg_replace('/\s*\.{2,}\s*$/', '', $desc);
+        $desc = preg_replace('/\s*\.{2,}\s*$/', '', $desc) ?? $desc;
 
         $desc = trim($desc);
 
@@ -11015,14 +11063,14 @@ class GoogleDorkService
             return null;
         }
         // Reject descriptions containing raw URLs (e.g. "http://www.company.com/. External link...")
-        $desc = preg_replace('|https?://\S+|', '', $desc);
-        $desc = preg_replace('/\s*External link for\s.*$/i', '', $desc);
+        $desc = preg_replace('|https?://\S+|', '', $desc) ?? $desc;
+        $desc = preg_replace('/\s*External link for\s.*$/i', '', $desc) ?? $desc;
         $desc = trim($desc, " .\t\n\r");
 
         // Fix common encoding issues (UTF-8 replacement char)
         $desc = str_replace('�', "'", $desc); // Common misencoded apostrophe
         // Remove remaining replacement characters
-        $desc = preg_replace('/\x{FFFD}/u', '', $desc);
+        $desc = preg_replace('/\x{FFFD}/u', '', $desc) ?? $desc;
 
         $desc = trim($desc);
 
@@ -11044,14 +11092,18 @@ class GoogleDorkService
      * Returns an enrichment array on success, null on failure.
      * This is FREE (HTTP request only, no API cost).
      */
-    private function verifyAndEnrichViaHomepage(string $url, string $expectedName): ?array
+    /**
+     * @return CompanyCandidate|null
+     */
+    public function verifyAndEnrichViaHomepage(string $url, string $expectedName): ?array
     {
         if (empty($url)) {
             return null;
         }
 
         // Polite crawl: check governor before homepage fetch
-        $domain = parse_url($url, PHP_URL_HOST) ?? '';
+        $host = parse_url($url, PHP_URL_HOST);
+        $domain = is_string($host) ? $host : '';
         if ($this->crawlGovernor !== null && !$this->crawlGovernor->canRequest($domain)) {
             $this->logger->debug('verifyAndEnrichViaHomepage: crawl limit reached', ['domain' => $domain]);
             return null;
@@ -11157,6 +11209,9 @@ class GoogleDorkService
      * - /accueil/mot-du-president/  (CIELEC)
      * - /english/pages/page.aspx?pageid=9  (Egypt Cable)
      * - /en/notre-societe/equipe-dirigeante  (NSE Groupe)
+     */
+    /**
+     * @return CompanyCandidate|null
      */
     private function discoverAndScrapeContactLinks(string $html, string $website, string $companyName): ?array
     {
@@ -11864,11 +11919,11 @@ class GoogleDorkService
     {
         $name = trim($fullName);
         // Strip common prefixes (including "MR.MOHAMED" without space)
-        $name = preg_replace('/^(Mr\.?|Mrs\.?|Ms\.?|Mme\.?|Dr\.?|Prof\.?|Eng\.?|Ir\.?)\s*/i', '', $name);
+        $name = preg_replace('/^(Mr\.?|Mrs\.?|Ms\.?|Mme\.?|Dr\.?|Prof\.?|Eng\.?|Ir\.?)\s*/i', '', $name) ?? $name;
         // Strip common suffixes (German format "Firstname Lastname Dr")
-        $name = preg_replace('/\s+(Dr\.?|Prof\.?|Eng\.?|Ir\.?|Dipl\.\s*\w+\.?|M\.?\s*Sc\.?|B\.?\s*Sc\.?|MBA|PhD|Jr\.?|Sr\.?|MS|BS|BA|MA|PE|PMP|CSM®?|CPA|CISSP|PgMP)$/i', '', $name);
+        $name = preg_replace('/\s+(Dr\.?|Prof\.?|Eng\.?|Ir\.?|Dipl\.\s*\w+\.?|M\.?\s*Sc\.?|B\.?\s*Sc\.?|MBA|PhD|Jr\.?|Sr\.?|MS|BS|BA|MA|PE|PMP|CSM®?|CPA|CISSP|PgMP)$/i', '', $name) ?? $name;
         // Strip trailing comma + title/degree ("Firstname Lastname, MS")
-        $name = preg_replace('/,\s*(Dr\.?|Prof\.?|PhD|MBA|Eng\.?|Jr\.?|Sr\.?|MS|MSc|BSc|BS|BA|MA|PE|PMP|CSM®?|CPA|CISSP|PgMP|LEED\s*AP|CPHIMS|FACHE|RN|MD|DO|DDS|DMD|JD|LLM|CFA|CFP|SPHR|SHRM)\.?$/i', '', $name);
+        $name = preg_replace('/,\s*(Dr\.?|Prof\.?|PhD|MBA|Eng\.?|Jr\.?|Sr\.?|MS|MSc|BSc|BS|BA|MA|PE|PMP|CSM®?|CPA|CISSP|PgMP|LEED\s*AP|CPHIMS|FACHE|RN|MD|DO|DDS|DMD|JD|LLM|CFA|CFP|SPHR|SHRM)\.?$/i', '', $name) ?? $name;
         $name = trim($name);
 
         if (mb_strlen($name) < 4) return null;
