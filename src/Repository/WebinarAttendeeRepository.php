@@ -34,6 +34,7 @@ class WebinarAttendeeRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /** @return list<App\Entity\WebinarAttendee> */
     public function findNeedingFollowUp(Webinar $webinar): array
     {
         return $this->createQueryBuilder('a')

@@ -33,10 +33,11 @@ class ReportController extends AbstractController
         if (!$user instanceof User) {
             throw $this->createAccessDeniedException('User not authenticated.');
         }
-        /** @var string|int|float|bool|null $dataSource */
-        $dataSource = $request->query->get('source');
-        /** @var string|int|float|bool|null $category */
-        $category = $request->query->get('category');
+        // Symfony's query input bag yields scalar (string) values or null.
+        $sourceRaw = $request->query->get('source');
+        $dataSource = \is_scalar($sourceRaw) ? (string) $sourceRaw : null;
+        $categoryRaw = $request->query->get('category');
+        $category = \is_scalar($categoryRaw) ? (string) $categoryRaw : null;
         
         $reports = $this->reportRepository->findAccessibleByUser($user, $dataSource, $category);
         $favorites = $this->reportRepository->findFavorites($user);

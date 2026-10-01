@@ -28,6 +28,7 @@ class WebinarRepository extends ServiceEntityRepository
             ->getSingleScalarResult() ?? 0;
     }
 
+    /** @return list<App\Entity\Webinar> */
     public function findUpcoming(?string $language = null): array
     {
         $qb = $this->createQueryBuilder('w')
@@ -43,6 +44,7 @@ class WebinarRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    /** @return list<App\Entity\Webinar> */
     public function findPast(?string $language = null): array
     {
         $qb = $this->createQueryBuilder('w')
