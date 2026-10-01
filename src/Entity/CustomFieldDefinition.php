@@ -379,13 +379,7 @@ class CustomFieldDefinition
         return $this->validationRules;
     }
 
-    /**
-     * @param array<string|int, mixed> $validationRules
-     */
-    public /**
- * @param array<string|int, mixed> $validationRules
- */
-function setValidationRules(?array $validationRules): static
+    public function setValidationRules(?array $validationRules): static
     {
         $this->validationRules = $validationRules;
         return $this;
@@ -393,33 +387,21 @@ function setValidationRules(?array $validationRules): static
 
     public function getOptions(): ?array
     {
-    /**
-     * @param array<string|int, mixed> $options
-     */
         return $this->options;
     }
 
-    public /**
- * @param array<string|int, mixed> $options
- */
-function setOptions(?array $options): static
+    public function setOptions(?array $options): static
     {
         $this->options = $options;
         return $this;
     }
-    /**
-     * @param array<string|int, mixed> $config
-     */
 
     public function getConfig(): ?array
     {
         return $this->config;
     }
 
-    public /**
- * @param array<string|int, mixed> $config
- */
-function setConfig(?array $config): static
+    public function setConfig(?array $config): static
     {
         $this->config = $config;
         return $this;
@@ -460,7 +442,7 @@ function setConfig(?array $config): static
 
     /**
      * @return Collection<int, CustomFieldValue>
-         /** @return Collection<int, App\Entity\CustomFieldValue> */
+     */
     public function getValues(): Collection
     {
         return $this->values;

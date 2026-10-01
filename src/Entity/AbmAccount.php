@@ -190,13 +190,7 @@ class AbmAccount
         return $this->metadata;
     }
 
-    /**
-     * @param array<string|int, mixed> $metadata
-     */
-    public /**
- * @param array<string|int, mixed> $metadata
- */
-function setMetadata(?array $metadata): self
+    public function setMetadata(?array $metadata): self
     {
         $this->metadata = $metadata;
         return $this;
@@ -237,7 +231,7 @@ function setMetadata(?array $metadata): self
 
     /**
      * @return Collection<int, AbmHit>
-         /** @return Collection<int, App\Entity\AbmHit> */
+     */
     public function getAbmHits(): Collection
     {
         return $this->abmHits;

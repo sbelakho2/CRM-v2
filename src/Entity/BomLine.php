@@ -384,10 +384,7 @@ class BomLine
         return $this->confidenceReasons;
     }
     
-    public /**
- * @param array<string|int, mixed> $confidenceReasons
- */
-function setConfidenceReasons(?array $confidenceReasons): self
+    public function setConfidenceReasons(?array $confidenceReasons): self
     {
         $this->confidenceReasons = $confidenceReasons;
         return $this;
@@ -398,10 +395,7 @@ function setConfidenceReasons(?array $confidenceReasons): self
         return $this->confidenceWarnings;
     }
     
-    public /**
- * @param array<string|int, mixed> $confidenceWarnings
- */
-function setConfidenceWarnings(?array $confidenceWarnings): self
+    public function setConfidenceWarnings(?array $confidenceWarnings): self
     {
         $this->confidenceWarnings = $confidenceWarnings;
         return $this;
@@ -598,10 +592,7 @@ function setConfidenceWarnings(?array $confidenceWarnings): self
         return $this->alternativeParts;
     }
     
-    public /**
- * @param array<string|int, mixed> $alternativeParts
- */
-function setAlternativeParts(?array $alternativeParts): self
+    public function setAlternativeParts(?array $alternativeParts): self
     {
         $this->alternativeParts = $alternativeParts;
         return $this;
@@ -626,10 +617,7 @@ function setAlternativeParts(?array $alternativeParts): self
     /**
      * Add a single alternative part
      */
-    public /**
- * @param array<string|int, mixed> $alternative
- */
-function addAlternativePart(array $alternative): self
+    public function addAlternativePart(array $alternative): self
     {
         if ($this->alternativeParts === null) {
             $this->alternativeParts = [];
@@ -667,10 +655,7 @@ function addAlternativePart(array $alternative): self
         return $this->sourcingData;
     }
     
-    public /**
- * @param array<string|int, mixed> $sourcingData
- */
-function setSourcingData(?array $sourcingData): self
+    public function setSourcingData(?array $sourcingData): self
     {
         $this->sourcingData = $sourcingData;
         return $this;

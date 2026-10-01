@@ -5,7 +5,6 @@ namespace App\Form;
 use App\Entity\Company;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
-use App\Service\Geo\RegionCatalog;
 use Symfony\Component\Form\Extension\Core\Type\CountryType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
@@ -18,26 +17,15 @@ use Symfony\Component\Validator\Constraints\Url;
 
 class CompanyType extends AbstractType
 {
-    /**
-     * Round-9: the region form now offers the FULL canonical territory
-     * catalog (RegionCatalog) instead of 6 coarse codes — consistent
-     * naming with the region filter, and legacy codes remain selectable
-     * so stored historical values stay editable (no data rewrites).
-     *
-     * @return array<string, array<string, string>>
-     */
-    public static function regionChoices(): array
-    {
-        return RegionCatalog::formChoices();
-    }
-
-    /**
-     * @param array<string|int, mixed> $options
-     */
-    public /**
- * @param array<string|int, mixed> $options
- */
-function buildForm(FormBuilderInterface $builder, array $options): void
+    public const REGION_CHOICES = [
+        'Morocco' => 'MA',
+        'United States' => 'US',
+        'Europe' => 'EU',
+        'United Kingdom' => 'GB',
+        'Egypt' => 'EG',
+        'GCC / Gulf' => 'GCC',
+    ];
+    public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
             ->add('name', TextType::class, [
@@ -112,11 +100,10 @@ function buildForm(FormBuilderInterface $builder, array $options): void
             ])
             ->add('region', ChoiceType::class, [
                 'label' => 'company.region',
-                'choices' => self::regionChoices(),
-                'choice_translation_domain' => 'messages',
+                'choices' => self::REGION_CHOICES,
                 'attr' => ['class' => 'rams-form__select'],
-                'placeholder' => 'company.form.select_region',
-                'required' => false,
+                'placeholder' => 'Select region (optional)',
+                'required' => false
             ])
             ->add('country', CountryType::class, [
                 'label' => 'Country',

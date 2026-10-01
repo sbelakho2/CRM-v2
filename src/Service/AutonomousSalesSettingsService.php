@@ -82,13 +82,7 @@ class AutonomousSalesSettingsService
         return $data;
     }
 
-    /**
-     * @param array<string|int, mixed> $data
-     */
-    private /**
- * @param array<string|int, mixed> $data
- */
-function writeSettings(array $data): void
+    private function writeSettings(array $data): void
     {
         $dir = dirname($this->settingsPath);
         if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {

@@ -434,12 +434,8 @@ class RFQController extends AbstractController
     
     /**
      * Calculate win/loss metrics from a collection of RFQs
-     * @param array<string|int, mixed> $rfqs
      */
-    private /**
- * @param array<string|int, mixed> $rfqs
- */
-function calculateWinLossMetrics(array $rfqs): array
+    private function calculateWinLossMetrics(array $rfqs): array
     {
         $wonCount = 0;
         $lostCount = 0;

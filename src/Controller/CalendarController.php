@@ -278,6 +278,7 @@ class CalendarController extends AbstractController
     public function apiUpdate(Request $request): JsonResponse
     {
         /** @var array<string, mixed>|null $data */
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
 
         if (!$this->isCsrfTokenValid('calendar_update', $data['_token'] ?? '')) {
@@ -330,6 +331,7 @@ class CalendarController extends AbstractController
     #[Route('/api/quick-add', name: 'calendar_quick_add', methods: ['POST'])]
     public function quickAdd(Request $request): JsonResponse
     {
+        /** @var array<string, mixed>|null $data */
         /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
 

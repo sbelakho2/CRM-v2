@@ -36,11 +36,7 @@ class CsvExportService
      * @param array $filters Optional filters: status, hasEmails, sector, region, dateFrom, dateTo
      * @param array|null $fields Custom field selection (null = all fields)
      */
-    public /**
- * @param array<string|int, mixed> $filters
- * @param array<string|int, mixed> $fields
- */
-function exportLeads(array $filters = [], ?array $fields = null): StreamedResponse
+    public function exportLeads(array $filters = [], ?array $fields = null): StreamedResponse
     {
         $response = new StreamedResponse(function() use ($filters, $fields) {
             $handle = fopen('php://output', 'w');
@@ -269,10 +265,7 @@ function exportLeads(array $filters = [], ?array $fields = null): StreamedRespon
     /**
      * Export part sourcing report (multi-quote comparison)
      */
-    public /**
- * @param array<string|int, mixed> $quoteIds
- */
-function exportSourcingReport(array $quoteIds): StreamedResponse
+    public function exportSourcingReport(array $quoteIds): StreamedResponse
     {
         $response = new StreamedResponse(function() use ($quoteIds) {
             $handle = fopen('php://output', 'w');
@@ -324,10 +317,7 @@ function exportSourcingReport(array $quoteIds): StreamedResponse
     /**
      * Convert Lead entity to CSV row array
      */
-    private /**
- * @param array<string|int, mixed> $fields
- */
-function leadToRow(Lead $lead, array $fields): array
+    private function leadToRow(Lead $lead, array $fields): array
     {
         $row = [];
         
@@ -390,10 +380,7 @@ function leadToRow(Lead $lead, array $fields): array
     /**
      * Format JSON field for CSV
      */
-    private /**
- * @param array<string|int, mixed> $data
- */
-function formatJsonField(?array $data): string
+    private function formatJsonField(?array $data): string
     {
         if (!$data) return '';
         

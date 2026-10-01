@@ -347,10 +347,7 @@ class PortalCrawlerService
      * 
      * @return SupplierPortal
      */
-    public /**
- * @param array<string|int, mixed> $portalData
- */
-function createPortal(array $portalData, int $companyId): SupplierPortal
+    public function createPortal(array $portalData, int $companyId): SupplierPortal
     {
         // ONE architecture: discovery/TOS state lives on PortalCandidate
         // (portalUrl, status, discoveredAt, hasRobotsTxt, tosUrl,
@@ -465,10 +462,7 @@ function createPortal(array $portalData, int $companyId): SupplierPortal
      * 
      * @return int - Number of merged records
      */
-    public /**
- * @param array<string|int, mixed> $duplicateIds
- */
-function mergeDuplicates(int $primaryId, array $duplicateIds): int
+    public function mergeDuplicates(int $primaryId, array $duplicateIds): int
     {
         // 1. Get primary canonical
         $primary = $this->companyCanonicalRepository->find($primaryId);

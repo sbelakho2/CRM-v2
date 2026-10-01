@@ -50,6 +50,7 @@ class QuoteReviewController extends AbstractController
     {
         $token = $request->headers->get('X-CSRF-Token');
         if (!$token) {
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             $token = is_array($data) ? ($data['_token'] ?? $data['_csrf_token'] ?? null) : null;
         }
@@ -140,6 +141,7 @@ class QuoteReviewController extends AbstractController
     #[Route('/line/{id}/verify', name: 'quote_review_verify_line', methods: ['POST'])]
     public function verifyLine(int $id, Request $request): JsonResponse
     {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         if (!$this->isCsrfTokenValid('quote_review_verify_line_' . $id, $data['_csrf_token'] ?? '')) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
@@ -191,6 +193,7 @@ class QuoteReviewController extends AbstractController
     #[Route('/line/{id}/override', name: 'quote_review_override_line', methods: ['POST'])]
     public function overrideLine(int $id, Request $request): JsonResponse
     {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         if (!$this->isCsrfTokenValid('quote_review_override_line_' . $id, $data['_csrf_token'] ?? '')) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
@@ -270,6 +273,7 @@ class QuoteReviewController extends AbstractController
     #[Route('/line/{id}/reject', name: 'quote_review_reject_line', methods: ['POST'])]
     public function rejectLine(int $id, Request $request): JsonResponse
     {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         if (!$this->isCsrfTokenValid('quote_review_reject_line_' . $id, $data['_csrf_token'] ?? '')) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
@@ -329,6 +333,7 @@ class QuoteReviewController extends AbstractController
     #[Route('/{id}/verify-all-high', name: 'quote_review_verify_all_high', methods: ['POST'])]
     public function verifyAllHighConfidence(int $id, Request $request): JsonResponse
     {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         if (!$this->isCsrfTokenValid('quote_review_verify_all_high_' . $id, $data['_csrf_token'] ?? '')) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
@@ -382,6 +387,7 @@ class QuoteReviewController extends AbstractController
     #[Route('/{id}/approve', name: 'quote_review_approve', methods: ['POST'])]
     public function approveQuote(int $id, Request $request): JsonResponse
     {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         if (!$this->isCsrfTokenValid('quote_review_approve_' . $id, $data['_csrf_token'] ?? '')) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
@@ -467,6 +473,7 @@ class QuoteReviewController extends AbstractController
             return new JsonResponse(['error' => 'BOM line not found'], 404);
         }
 
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         
         // Allow user to provide a corrected MPN
@@ -543,6 +550,7 @@ class QuoteReviewController extends AbstractController
             return new JsonResponse(['error' => 'BOM line not found'], 404);
         }
 
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         
         if (!isset($data['mpn'])) {
@@ -656,10 +664,7 @@ class QuoteReviewController extends AbstractController
     /**
      * Helper to calculate unit price from price breaks
      */
-    private /**
- * @param array<string|int, mixed> $priceBreaks
- */
-function calculateUnitPriceFromPricing(array $priceBreaks, int $quantity): float
+    private function calculateUnitPriceFromPricing(array $priceBreaks, int $quantity): float
     {
         if (empty($priceBreaks)) {
             return 0.0;
@@ -682,10 +687,7 @@ function calculateUnitPriceFromPricing(array $priceBreaks, int $quantity): float
     /**
      * Calculate review statistics for a set of BOM lines
      */
-    private /**
- * @param array<string|int, mixed> $bomLines
- */
-function calculateReviewStats(array $bomLines): array
+    private function calculateReviewStats(array $bomLines): array
     {
         $stats = [
             'total_lines' => count($bomLines),

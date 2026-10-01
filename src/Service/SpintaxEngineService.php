@@ -87,10 +87,7 @@ class SpintaxEngineService
     /**
      * Personalize content by replacing {{variable}} placeholders
      */
-    public /**
- * @param array<string|int, mixed> $context
- */
-function personalize(string $content, array $context): string
+    public function personalize(string $content, array $context): string
     {
         return preg_replace_callback('/\{\{(\w+)\}\}/', function ($matches) use ($context) {
             $variable = $matches[1];
@@ -101,10 +98,7 @@ function personalize(string $content, array $context): string
     /**
      * Spin and personalize template content
      */
-    public /**
- * @param array<string|int, mixed> $context
- */
-function spinAndPersonalize(
+    public function spinAndPersonalize(
         string $subjectSpintax,
         string $bodySpintax,
         array $context
@@ -140,11 +134,7 @@ function spinAndPersonalize(
      * Attempts to generate a unique variation with sufficient Levenshtein distance
      * from previous variations.
      */
-    public /**
- * @param array<string|int, mixed> $context
- * @param array<string|int, mixed> $previousVariations
- */
-function generateUnique(
+    public function generateUnique(
         string $subjectSpintax,
         string $bodySpintax,
         array $context,
@@ -175,10 +165,7 @@ function generateUnique(
     /**
      * Check if content is unique compared to previous variations
      */
-    public /**
- * @param array<string|int, mixed> $previousVariations
- */
-function isUnique(string $content, array $previousVariations): bool
+    public function isUnique(string $content, array $previousVariations): bool
     {
         foreach ($previousVariations as $previous) {
             $distance = $this->levenshteinDistance($content, $previous);
@@ -291,10 +278,7 @@ function isUnique(string $content, array $previousVariations): bool
     /**
      * Preview multiple variations of a template
      */
-    public /**
- * @param array<string|int, mixed> $context
- */
-function previewVariations(
+    public function previewVariations(
         string $subjectSpintax,
         string $bodySpintax,
         array $context,
@@ -320,10 +304,7 @@ function previewVariations(
     /**
      * Get active template and spin content
      */
-    public /**
- * @param array<string|int, mixed> $context
- */
-function composeFromTemplate(
+    public function composeFromTemplate(
         SpintaxTemplate $template,
         array $context
     ): array {

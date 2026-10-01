@@ -20,13 +20,7 @@ use Symfony\Component\Validator\Constraints\Url;
 
 class ContactType extends AbstractType
 {
-    /**
-     * @param array<string|int, mixed> $options
-     */
-    public /**
- * @param array<string|int, mixed> $options
- */
-function buildForm(FormBuilderInterface $builder, array $options): void
+    public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
             ->add('firstName', TextType::class, [

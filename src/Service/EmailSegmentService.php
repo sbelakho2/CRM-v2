@@ -31,10 +31,7 @@ class EmailSegmentService
     /**
      * Create a new segment
      */
-    public /**
- * @param array<string|int, mixed> $filterRules
- */
-function createSegment(
+    public function createSegment(
         string $name,
         ?string $description = null,
         array $filterRules = [],
@@ -62,10 +59,7 @@ function createSegment(
     /**
      * Update segment
      */
-    public /**
- * @param array<string|int, mixed> $filterRules
- */
-function updateSegment(
+    public function updateSegment(
         EmailSegment $segment,
         ?string $name = null,
         ?string $description = null,
@@ -148,10 +142,7 @@ function updateSegment(
     /**
      * Calculate contact count for filter rules (SQL COUNT, never loads rows).
      */
-    private /**
- * @param array<string|int, mixed> $filterRules
- */
-function calculateContactCount(array $filterRules): int
+    private function calculateContactCount(array $filterRules): int
     {
         if (empty($filterRules)) {
             return $this->contactRepository->count([]);
@@ -210,10 +201,7 @@ function calculateContactCount(array $filterRules): int
      * True when every rule references a whitelisted field/operator, so the
      * whole filter set can compile to a single DQL query.
      */
-    private /**
- * @param array<string|int, mixed> $filterRules
- */
-function isCompilableToDql(array $filterRules): bool
+    private function isCompilableToDql(array $filterRules): bool
     {
         $rules = $filterRules['rules'] ?? [];
         if ($rules === []) {
@@ -245,10 +233,7 @@ function isCompilableToDql(array $filterRules): bool
      * Build a QueryBuilder implementing the filter rules against Contact,
      * joined with Company when any rule uses dot notation.
      */
-    private /**
- * @param array<string|int, mixed> $filterRules
- */
-function buildFilterQueryBuilder(array $filterRules): \Doctrine\ORM\QueryBuilder
+    private function buildFilterQueryBuilder(array $filterRules): \Doctrine\ORM\QueryBuilder
     {
         $qb = $this->contactRepository->createQueryBuilder('c');
         $needsCompanyJoin = false;
@@ -323,10 +308,7 @@ function buildFilterQueryBuilder(array $filterRules): \Doctrine\ORM\QueryBuilder
      * and never load the contact table into PHP memory. Only non-whitelisted
      * legacy fields fall back to the (bounded, but in-memory) legacy path.
      */
-    private /**
- * @param array<string|int, mixed> $filterRules
- */
-function getContactsByFilters(array $filterRules, ?int $limit = null, int $offset = 0): array
+    private function getContactsByFilters(array $filterRules, ?int $limit = null, int $offset = 0): array
     {
         if ($this->isCompilableToDql($filterRules)) {
             try {
@@ -381,10 +363,7 @@ function getContactsByFilters(array $filterRules, ?int $limit = null, int $offse
      * (deprecated fields throw before reaching here). Cap is a safety
      * valve, not a product limit.
      */
-    private /**
- * @param array<string|int, mixed> $filterRules
- */
-function evaluateInMemory(array $filterRules, ?int $limit, int $offset): array
+    private function evaluateInMemory(array $filterRules, ?int $limit, int $offset): array
     {
         // Last-resort degradation only (deprecated fields never reach
         // here): hydrate once, bounded, never again.
@@ -404,10 +383,7 @@ function evaluateInMemory(array $filterRules, ?int $limit, int $offset): array
     /**
      * Evaluate if a contact matches filter rules
      */
-    private /**
- * @param array<string|int, mixed> $filterRules
- */
-function evaluateFilters(Contact $contact, array $filterRules): bool
+    private function evaluateFilters(Contact $contact, array $filterRules): bool
     {
         if (empty($filterRules) || empty($filterRules['rules'])) {
             return true;
@@ -432,10 +408,7 @@ function evaluateFilters(Contact $contact, array $filterRules): bool
     /**
      * Evaluate a single filter rule
      */
-    private /**
- * @param array<string|int, mixed> $rule
- */
-function evaluateRule(Contact $contact, array $rule): bool
+    private function evaluateRule(Contact $contact, array $rule): bool
     {
         $field = $rule['field'] ?? '';
         $operator = $rule['operator'] ?? '=';
@@ -515,10 +488,7 @@ function evaluateRule(Contact $contact, array $rule): bool
     /**
      * Validate filter rules structure
      */
-    public /**
- * @param array<string|int, mixed> $filterRules
- */
-function validateFilterRules(array $filterRules): array
+    public function validateFilterRules(array $filterRules): array
     {
         $errors = [];
 

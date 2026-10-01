@@ -256,36 +256,18 @@ class ProxyRotationService
         return array_filter($this->proxies, fn($proxy) => !isset($this->blacklist[$proxy]));
     }
 
-    /**
-     * @param array<string|int, mixed> $available
-     */
-    private /**
- * @param array<string|int, mixed> $available
- */
-function selectRoundRobin(array $available): string
+    private function selectRoundRobin(array $available): string
     {
         $this->currentIndex = ($this->currentIndex + 1) % count($available);
-    /**
-     * @param array<string|int, mixed> $available
-     */
         return array_values($available)[$this->currentIndex];
     }
-    /**
-     * @param array<string|int, mixed> $available
-     */
 
-    private /**
- * @param array<string|int, mixed> $available
- */
-function selectRandom(array $available): string
+    private function selectRandom(array $available): string
     {
         return $available[array_rand($available)];
     }
 
-    private /**
- * @param array<string|int, mixed> $available
- */
-function selectWeighted(array $available): string
+    private function selectWeighted(array $available): string
     {
         // Weight by success rate (higher = more likely to be selected)
         $weights = [];

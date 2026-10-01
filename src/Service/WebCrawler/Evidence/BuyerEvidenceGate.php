@@ -859,11 +859,7 @@ class BuyerEvidenceGate
      * @param array<string,int> $signals
      * @param array<string,string> $segments
      */
-    private /**
- * @param array<string|int, mixed> $signals
- * @param array<string|int, mixed> $segments
- */
-function addTextSignals(
+    private function addTextSignals(
         array &$bucket,
         array &$dedupe,
         string $family,
@@ -903,11 +899,7 @@ function addTextSignals(
      * @param array<string,int> $patterns
      * @param array<string,string> $segments
      */
-    private /**
- * @param array<string|int, mixed> $patterns
- * @param array<string|int, mixed> $segments
- */
-function addRegexSignals(
+    private function addRegexSignals(
         array &$bucket,
         array &$dedupe,
         string $family,
@@ -1038,10 +1030,7 @@ function addRegexSignals(
      * @param array<string,string> $segments
      * @return array<string,string>
      */
-    private /**
- * @param array<string|int, mixed> $segments
- */
-function antiSegmentsForFamily(string $family, array $segments): array
+    private function antiSegmentsForFamily(string $family, array $segments): array
     {
         $homepageNoisyFamilies = [
             'MEDIA',
@@ -1068,10 +1057,7 @@ function antiSegmentsForFamily(string $family, array $segments): array
      * @param EvidenceItem[] $evidence
      * @return array<string,int>
      */
-    private /**
- * @param array<string|int, mixed> $evidence
- */
-function sumEvidenceByFamily(array $evidence): array
+    private function sumEvidenceByFamily(array $evidence): array
     {
         $totals = [];
         foreach ($evidence as $item) {

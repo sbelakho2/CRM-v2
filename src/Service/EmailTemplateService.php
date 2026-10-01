@@ -35,10 +35,7 @@ class EmailTemplateService
     /**
      * Create a new email template
      */
-    public /**
- * @param array<string|int, mixed> $personalizationTokens
- */
-function createTemplate(
+    public function createTemplate(
         string $name,
         string $subjectLine,
         string $bodyHtml,
@@ -69,10 +66,7 @@ function createTemplate(
     /**
      * Update an existing template
      */
-    public /**
- * @param array<string|int, mixed> $personalizationTokens
- */
-function updateTemplate(
+    public function updateTemplate(
         EmailTemplate $template,
         ?string $name = null,
         ?string $subjectLine = null,
@@ -214,10 +208,7 @@ function updateTemplate(
      * @param array $data Associative array of token values
      * @return array ['subject' => string, 'html' => string, 'text' => string]
      */
-    public /**
- * @param array<string|int, mixed> $data
- */
-function renderTemplate(EmailTemplate $template, array $data): array
+    public function renderTemplate(EmailTemplate $template, array $data): array
     {
         $subject = $this->replaceTokens($template->getSubjectLine(), $data, false);
         $html = $this->replaceTokens($template->getBodyHtml(), $data, true);
@@ -265,10 +256,7 @@ function renderTemplate(EmailTemplate $template, array $data): array
      * @param bool $escapeForHtml Whether to HTML-escape values (true for HTML body)
      * @return string The text with tokens replaced
      */
-    private /**
- * @param array<string|int, mixed> $data
- */
-function replaceTokens(string $text, array $data, bool $escapeForHtml = true): string
+    private function replaceTokens(string $text, array $data, bool $escapeForHtml = true): string
     {
         $result = $text;
         

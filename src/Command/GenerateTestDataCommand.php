@@ -156,13 +156,7 @@ class GenerateTestDataCommand extends Command
         return $companies;
     }
 
-    /**
-     * @param array<string|int, mixed> $companies
-     */
-    private /**
- * @param array<string|int, mixed> $companies
- */
-function generateContacts(array $companies, int $count): array
+    private function generateContacts(array $companies, int $count): array
     {
         $contacts = [];
         $firstNames = ['Ahmed', 'Fatima', 'Mohamed', 'Aicha', 'Youssef', 'Khadija', 'Omar', 'Salma'];
@@ -185,18 +179,10 @@ function generateContacts(array $companies, int $count): array
         }
 
         $this->em->flush();
-    /**
-     * @param array<string|int, mixed> $companies
-     * @param array<string|int, mixed> $contacts
-     */
         return $contacts;
     }
 
-    private /**
- * @param array<string|int, mixed> $companies
- * @param array<string|int, mixed> $contacts
- */
-function generateActivities(array $companies, array $contacts, User $user, int $count): array
+    private function generateActivities(array $companies, array $contacts, User $user, int $count): array
     {
         $activities = [];
 
@@ -245,9 +231,6 @@ function generateActivities(array $companies, array $contacts, User $user, int $
             $lead->setCreatedAt(new \DateTime('-' . rand(1, 60) . ' days'));
 
             $this->em->persist($lead);
-    /**
-     * @param array<string|int, mixed> $companies
-     */
             $leads[] = $lead;
         }
 
@@ -255,10 +238,7 @@ function generateActivities(array $companies, array $contacts, User $user, int $
         return $leads;
     }
 
-    private /**
- * @param array<string|int, mixed> $companies
- */
-function generateRFQs(array $companies, int $count): array
+    private function generateRFQs(array $companies, int $count): array
     {
         $rfqs = [];
         $statuses = ['Draft', 'Submitted', 'In Review', 'Won', 'Lost'];
@@ -278,9 +258,6 @@ function generateRFQs(array $companies, int $count): array
             $rfq->setSopDate(new \DateTime('+' . rand(30, 180) . ' days'));
             $rfq->setRfqDate(new \DateTime('-' . rand(1, 30) . ' days'));
             $rfq->setNotes('Generated test RFQ for development');
-    /**
-     * @param array<string|int, mixed> $companies
-     */
             $rfq->setCreatedAt(new \DateTime('-' . rand(1, 90) . ' days'));
 
             $this->em->persist($rfq);
@@ -291,10 +268,7 @@ function generateRFQs(array $companies, int $count): array
         return $rfqs;
     }
 
-    private /**
- * @param array<string|int, mixed> $companies
- */
-function generateCompliance(array $companies, int $count): array
+    private function generateCompliance(array $companies, int $count): array
     {
         $documents = [];
         $docTypes = ['ISO 9001', 'AS9100', 'ISO 14001', 'Quality Manual'];

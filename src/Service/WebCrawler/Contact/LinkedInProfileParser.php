@@ -287,10 +287,7 @@ final class LinkedInProfileParser
      * @param list<array> $contacts
      * @return list<array> Sorted by role_score descending
      */
-    public /**
- * @param array<string|int, mixed> $contacts
- */
-function rankContacts(array $contacts): array
+    public function rankContacts(array $contacts): array
     {
         foreach ($contacts as &$c) {
             if (!isset($c['role_score'])) {
@@ -430,12 +427,8 @@ function rankContacts(array $contacts): array
 
     /**
      * Enrich a parsed contact with additional data from the Google snippet.
-     * @param array<string|int, mixed> $contact
      */
-    private /**
- * @param array<string|int, mixed> $contact
- */
-function enrichFromSnippet(array $contact, string $snippet): array
+    private function enrichFromSnippet(array $contact, string $snippet): array
     {
         if (empty($snippet)) {
             return $contact;

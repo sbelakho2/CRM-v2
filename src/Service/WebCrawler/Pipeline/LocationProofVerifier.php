@@ -206,13 +206,7 @@ final class LocationProofVerifier
         return new LocationVerdict($confirmed, $confidence, $signals);
     }
 
-    /**
-     * @param array<string|int, mixed> $structuredData
-     */
-    private /**
- * @param array<string|int, mixed> $structuredData
- */
-function checkJsonLdAddress(array $structuredData, string $location): int
+    private function checkJsonLdAddress(array $structuredData, string $location): int
     {
         $countryCodes = self::COUNTRY_CODES[$location] ?? [];
 

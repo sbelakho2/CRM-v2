@@ -611,12 +611,14 @@ class AlibabaApiClient
             return [];
         }
         
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($jsonStr, true);
         if ($data === null) {
             // Alibaba embeds control characters (tabs, newlines, etc.) inside
             // JSON string values.  Strip them and retry — this fixes ~50% of
             // pages where the raw JSON is otherwise perfectly valid.
             $cleaned = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', ' ', $jsonStr);
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($cleaned, true);
         }
         if ($data === null) {
@@ -660,10 +662,7 @@ class AlibabaApiClient
     /**
      * Parse a single offer object from _PAGE_DATA_ JSON
      */
-    private /**
- * @param array<string|int, mixed> $offer
- */
-function parseOfferJson(array $offer): ?array
+    private function parseOfferJson(array $offer): ?array
     {
         $productId = $offer['id'] ?? null;
         if (empty($productId)) {
@@ -1320,10 +1319,7 @@ function parseOfferJson(array $offer): ?array
      * 
      * @return array[] Sorted descending by score
      */
-    private /**
- * @param array<string|int, mixed> $products
- */
-function scoreAndRankProducts(array $products, string $partNumber, ?string $manufacturer): array
+    private function scoreAndRankProducts(array $products, string $partNumber, ?string $manufacturer): array
     {
         $normalizedMpn = strtolower(trim($partNumber));
         $normalizedMpnClean = str_replace(['-', '_', ' ', '.'], '', $normalizedMpn);
@@ -1445,10 +1441,7 @@ function scoreAndRankProducts(array $products, string $partNumber, ?string $manu
      * This is NOT real stock — it's a confidence-weighted estimate that the
      * supplier CAN deliver. The value is flagged via '_stock_estimated'.
      */
-    private /**
- * @param array<string|int, mixed> $product
- */
-function estimateSupplierStock(array $product): int
+    private function estimateSupplierStock(array $product): int
     {
         $stock = 0;
         
@@ -1502,10 +1495,7 @@ function estimateSupplierStock(array $product): int
      * - confidence (added by caller)
      * - alternatives[] (added by caller)
      */
-    private /**
- * @param array<string|int, mixed> $product
- */
-function formatCrawledProduct(array $product, string $requestedMpn): array
+    private function formatCrawledProduct(array $product, string $requestedMpn): array
     {
         $priceLow = $product['price_low'] ?? 0;
         $priceHigh = $product['price_high'] ?? $priceLow;

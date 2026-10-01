@@ -360,10 +360,7 @@ class CompanyDeduplicationService
      * @param Company[] $duplicates Companies to merge into primary
      * @return int Number of merged companies
      */
-    public /**
- * @param array<string|int, mixed> $duplicates
- */
-function mergeCompanies(Company $primary, array $duplicates): int
+    public function mergeCompanies(Company $primary, array $duplicates): int
     {
         $primaryId = $primary->getId();
         if (!$primaryId) {

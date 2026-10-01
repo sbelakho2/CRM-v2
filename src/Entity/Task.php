@@ -430,13 +430,7 @@ class Task
         return $this->tags;
     }
 
-    /**
-     * @param array<string|int, mixed> $tags
-     */
-    public /**
- * @param array<string|int, mixed> $tags
- */
-function setTags(?array $tags): static
+    public function setTags(?array $tags): static
     {
         $this->tags = $tags;
         return $this;

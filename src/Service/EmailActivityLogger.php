@@ -219,10 +219,7 @@ class EmailActivityLogger
      * @param string $eventType Event type (created, sent, completed)
      * @param array $stats Optional stats to include
      */
-    public /**
- * @param array<string|int, mixed> $stats
- */
-function logCampaignEvent(EmailCampaign $campaign, string $eventType, array $stats = []): void
+    public function logCampaignEvent(EmailCampaign $campaign, string $eventType, array $stats = []): void
     {
         // Get primary company for campaign (from segment or first contact)
         $segment = $campaign->getSegment();

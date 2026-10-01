@@ -61,10 +61,7 @@ class CostingEngineService
      *   pricePerSqcm: float
      * }
      */
-    public /**
- * @param array<string|int, mixed> $pcbSpec
- */
-function calculatePcbCost(array $pcbSpec): array
+    public function calculatePcbCost(array $pcbSpec): array
     {
         // 1. Calculate board area (convert mm² to cm²)
         $width = $pcbSpec['width'] ?? 100;
@@ -152,10 +149,7 @@ function calculatePcbCost(array $pcbSpec): array
      *   pricePerComponent: float
      * }
      */
-    public /**
- * @param array<string|int, mixed> $asmSpec
- */
-function calculateAsmCost(array $asmSpec): array
+    public function calculateAsmCost(array $asmSpec): array
     {
         // 1. Query AsmCurve for base price
         $curve = $this->asmCurveRepository->createQueryBuilder('a')
@@ -252,10 +246,7 @@ function calculateAsmCost(array $asmSpec): array
      *   totalNre: float
      * }
      */
-    public /**
- * @param array<string|int, mixed> $nreItems
- */
-function calculateNre(array $nreItems): array
+    public function calculateNre(array $nreItems): array
     {
         // 1. Query NreTable for item costs
         $nreRates = [];
@@ -396,12 +387,7 @@ function calculateNre(array $nreItems): array
      *   breakdown: array
      * }
      */
-    public /**
- * @param array<string|int, mixed> $pcbSpec
- * @param array<string|int, mixed> $asmSpec
- * @param array<string|int, mixed> $nreItems
- */
-function getTotalMfgCost(array $pcbSpec, array $asmSpec, array $nreItems): array
+    public function getTotalMfgCost(array $pcbSpec, array $asmSpec, array $nreItems): array
     {
         // 1. Calculate each component cost
         $pcbCost = $this->calculatePcbCost($pcbSpec);

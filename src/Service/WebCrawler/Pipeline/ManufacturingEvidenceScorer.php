@@ -300,13 +300,7 @@ final class ManufacturingEvidenceScorer
         return null;
     }
 
-    /**
-     * @param array<string|int, mixed> $family
-     */
-    private /**
- * @param array<string|int, mixed> $family
- */
-function scoreFamily(array $family, string $text): int
+    private function scoreFamily(array $family, string $text): int
     {
         $cap = $family['cap'];
         $score = 0;

@@ -234,10 +234,7 @@ final class DomainCrawler
      * @param string[] $urls
      * @return array<string, array{status: int, body: string, error: ?string}>
      */
-    private /**
- * @param array<string|int, mixed> $urls
- */
-function fetchBatch(array $urls, bool $preserveEmptyBodies = false): array
+    private function fetchBatch(array $urls, bool $preserveEmptyBodies = false): array
     {
         if (empty($urls)) {
             return [];
@@ -300,10 +297,7 @@ function fetchBatch(array $urls, bool $preserveEmptyBodies = false): array
      * @param string[] $domains
      * @return array<string, array{allowed: bool, disallowed_paths: string[]}>
      */
-    private /**
- * @param array<string|int, mixed> $domains
- */
-function fetchRobotsPolicies(array $domains): array
+    private function fetchRobotsPolicies(array $domains): array
     {
         $responses = [];
         $policies = [];
@@ -452,10 +446,7 @@ function fetchRobotsPolicies(array $domains): array
     /**
      * @param string[] $disallowedPaths
      */
-    private /**
- * @param array<string|int, mixed> $disallowedPaths
- */
-function isPathAllowed(string $path, array $disallowedPaths): bool
+    private function isPathAllowed(string $path, array $disallowedPaths): bool
     {
         foreach ($disallowedPaths as $disallowedPath) {
             if ($disallowedPath === '/') {
@@ -495,11 +486,7 @@ function isPathAllowed(string $path, array $disallowedPaths): bool
      * @param array<string, array{status: int, body: string, error: ?string}> $homepageResponses
      * @return array<string, array{domain: string, type: string}>
      */
-    private /**
- * @param array<string|int, mixed> $domains
- * @param array<string|int, mixed> $homepageResponses
- */
-function discoverFromSitemaps(array $domains, array $homepageResponses): array
+    private function discoverFromSitemaps(array $domains, array $homepageResponses): array
     {
         $sitemapPages = [];
 

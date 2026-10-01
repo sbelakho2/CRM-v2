@@ -132,10 +132,7 @@ class CurrencyConversionService
      * @param string $targetCurrency Target currency code
      * @return array Updated pricing array with converted values
      */
-    public /**
- * @param array<string|int, mixed> $pricing
- */
-function convertPricingToUsd(array $pricing, string $targetCurrency = 'USD'): array
+    public function convertPricingToUsd(array $pricing, string $targetCurrency = 'USD'): array
     {
         $converted = [];
         
@@ -313,12 +310,8 @@ function convertPricingToUsd(array $pricing, string $targetCurrency = 'USD'): ar
 
     /**
      * Check if all required currencies have fresh rates
-     * @param array<string|int, mixed> $currencies
      */
-    public /**
- * @param array<string|int, mixed> $currencies
- */
-function validateRateFreshness(array $currencies): array
+    public function validateRateFreshness(array $currencies): array
     {
         $issues = [];
         

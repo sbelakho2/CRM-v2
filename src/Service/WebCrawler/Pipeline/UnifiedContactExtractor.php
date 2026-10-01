@@ -157,13 +157,7 @@ final class UnifiedContactExtractor
     //  Extraction sources
     // ──────────────────────────────────────────────────────────────────
 
-    /**
-     * @param array<string|int, mixed> $structuredData
-     */
-    private /**
- * @param array<string|int, mixed> $structuredData
- */
-function extractFromJsonLd(array $structuredData): array
+    private function extractFromJsonLd(array $structuredData): array
     {
         $contacts = [];
 
@@ -664,16 +658,10 @@ function extractFromJsonLd(array $structuredData): array
     }
 
     // ──────────────────────────────────────────────────────────────────
-    /**
-     * @param array<string|int, mixed> $rawContacts
-     */
     //  Deduplication
     // ──────────────────────────────────────────────────────────────────
 
-    private /**
- * @param array<string|int, mixed> $rawContacts
- */
-function deduplicate(array $rawContacts): array
+    private function deduplicate(array $rawContacts): array
     {
         $seen = [];
         $deduped = [];
@@ -708,27 +696,16 @@ function deduplicate(array $rawContacts): array
             }
         }
 
-    /**
-     * @param array<string|int, mixed> $a
-     * @param array<string|int, mixed> $b
-     */
         return array_values($deduped);
     }
 
     /**
      * Merge additional data from $b into $a, preferring non-null values.
      */
-    private /**
- * @param array<string|int, mixed> $a
- * @param array<string|int, mixed> $b
- */
-function mergeContact(array $a, array $b): array
+    private function mergeContact(array $a, array $b): array
     {
         foreach (['first_name', 'last_name', 'job_title', 'email', 'phone', 'linkedin_url'] as $field) {
             if (($a[$field] ?? null) === null && ($b[$field] ?? null) !== null) {
-    /**
-     * @param array<string|int, mixed> $raw
-     */
                 $a[$field] = $b[$field];
             }
         }
@@ -739,10 +716,7 @@ function mergeContact(array $a, array $b): array
     //  Quality scoring
     // ──────────────────────────────────────────────────────────────────
 
-    private /**
- * @param array<string|int, mixed> $raw
- */
-function scoreContact(array $raw, string $domainName): int
+    private function scoreContact(array $raw, string $domainName): int
     {
         $score = 0;
 
@@ -761,9 +735,6 @@ function scoreContact(array $raw, string $domainName): int
             $score += self::DECISION_MAKER_SCORES[$this->classifyDecisionMakerRole($raw['job_title'])] ?? 0;
         }
         if ($raw['phone'] ?? null) {
-    /**
-     * @param array<string|int, mixed> $raw
-     */
             $score += self::SCORE_PHONE;
         }
         if ($raw['linkedin_url'] ?? null) {
@@ -777,10 +748,7 @@ function scoreContact(array $raw, string $domainName): int
     //  Helpers
     // ──────────────────────────────────────────────────────────────────
 
-    private /**
- * @param array<string|int, mixed> $raw
- */
-function prepareContact(array $raw, string $domainName): ?array
+    private function prepareContact(array $raw, string $domainName): ?array
     {
         $raw['email'] = isset($raw['email']) ? $this->normalizeEmail($raw['email']) : null;
         $raw['job_title'] = isset($raw['job_title']) ? trim((string) $raw['job_title']) : null;

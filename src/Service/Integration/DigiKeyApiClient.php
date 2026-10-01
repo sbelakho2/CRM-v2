@@ -290,12 +290,8 @@ class DigiKeyApiClient
      * Parse pricing with MOQ detection
      * 
      * @return array{breaks: array, moq: int, pack_quantity: int|null, multiple_quantity: int|null}
-     * @param array<string|int, mixed> $pricing
      */
-    private /**
- * @param array<string|int, mixed> $pricing
- */
-function parsePricing(array $pricing): array
+    private function parsePricing(array $pricing): array
     {
         $result = [];
         $quantities = [];

@@ -28,10 +28,7 @@ class ExportService
     /**
      * Export companies to file
      */
-    public /**
- * @param array<string|int, mixed> $companies
- */
-function exportCompanies(array $companies, string $format = 'csv'): string
+    public function exportCompanies(array $companies, string $format = 'csv'): string
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -68,10 +65,7 @@ function exportCompanies(array $companies, string $format = 'csv'): string
     /**
      * Export discovered companies with enrichment data (contacts, addresses, LinkedIn)
      */
-    public /**
- * @param array<string|int, mixed> $companies
- */
-function exportDiscoveredCompanies(array $companies, string $format = 'xlsx'): string
+    public function exportDiscoveredCompanies(array $companies, string $format = 'xlsx'): string
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -144,10 +138,7 @@ function exportDiscoveredCompanies(array $companies, string $format = 'xlsx'): s
     /**
      * Export contacts to file
      */
-    public /**
- * @param array<string|int, mixed> $contacts
- */
-function exportContacts(array $contacts, string $format = 'csv'): string
+    public function exportContacts(array $contacts, string $format = 'csv'): string
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -182,10 +173,7 @@ function exportContacts(array $contacts, string $format = 'csv'): string
     /**
      * Export leads to file
      */
-    public /**
- * @param array<string|int, mixed> $leads
- */
-function exportLeads(array $leads, string $format = 'csv'): string
+    public function exportLeads(array $leads, string $format = 'csv'): string
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -221,10 +209,7 @@ function exportLeads(array $leads, string $format = 'csv'): string
     /**
      * Export activities to file
      */
-    public /**
- * @param array<string|int, mixed> $activities
- */
-function exportActivities(array $activities, string $format = 'csv'): string
+    public function exportActivities(array $activities, string $format = 'csv'): string
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -309,10 +294,7 @@ function exportActivities(array $activities, string $format = 'csv'): string
      *  - getters must be real methods matching the ^get[A-Z] pattern
      * (callers currently: none in-repo — kept as a safe generic helper)
      */
-    public /**
- * @param array<string|int, mixed> $fields
- */
-function exportGeneric(string $entityClass, array $fields, string $filename, string $format = 'csv'): string
+    public function exportGeneric(string $entityClass, array $fields, string $filename, string $format = 'csv'): string
     {
         // Guard 1: entity class must be a known entity
         if (!class_exists($entityClass) || !str_starts_with($entityClass, 'App\Entity\\')) {

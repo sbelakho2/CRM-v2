@@ -67,10 +67,7 @@ class PipelineForecastingService
     /**
      * Set custom stage probabilities based on historical data
      */
-    public /**
- * @param array<string|int, mixed> $probabilities
- */
-function setCustomProbabilities(array $probabilities): void
+    public function setCustomProbabilities(array $probabilities): void
     {
         foreach ($probabilities as $stage => $probability) {
             if ($probability < 0.0 || $probability > 1.0) {
@@ -531,10 +528,7 @@ function setCustomProbabilities(array $probabilities): void
      *
      * @param array{id: int, accountTier: string|null, ...} $companyRow
      */
-    private /**
- * @param array<string|int, mixed> $companyRow
- */
-function estimateDealValue(array $companyRow): float
+    private function estimateDealValue(array $companyRow): float
     {
         // Check for RFQs
         $rfqs = $this->rfqRepository->findBy(['company' => (int) $companyRow['id']], ['createdAt' => 'DESC'], 1);
@@ -560,10 +554,7 @@ function estimateDealValue(array $companyRow): float
     /**
      * @param array{updatedAt: \DateTimeInterface|null, ...} $companyRow
      */
-    private /**
- * @param array<string|int, mixed> $companyRow
- */
-function calculateTimeDecay(array $companyRow): float
+    private function calculateTimeDecay(array $companyRow): float
     {
         $updatedAt = $companyRow['updatedAt'];
         if (!$updatedAt) {
@@ -584,10 +575,7 @@ function calculateTimeDecay(array $companyRow): float
     /**
      * @param array{accountTier: string|null, ...} $companyRow
      */
-    private /**
- * @param array<string|int, mixed> $companyRow
- */
-function getTierMultiplier(array $companyRow): float
+    private function getTierMultiplier(array $companyRow): float
     {
         $tier = $companyRow['accountTier'];
         return self::TIER_MULTIPLIERS[$tier] ?? 1.0;
@@ -596,10 +584,7 @@ function getTierMultiplier(array $companyRow): float
     /**
      * @param array{pipelineStage: string|null, ...} $companyRow
      */
-    private /**
- * @param array<string|int, mixed> $companyRow
- */
-function determineExpectedCloseQuarter(array $companyRow): string
+    private function determineExpectedCloseQuarter(array $companyRow): string
     {
         $stage = $companyRow['pipelineStage'];
         
@@ -622,10 +607,7 @@ function determineExpectedCloseQuarter(array $companyRow): string
     /**
      * @param array{updatedAt: \DateTimeInterface|null, ...} $companyRow
      */
-    private /**
- * @param array<string|int, mixed> $companyRow
- */
-function getDaysInCurrentStage(array $companyRow): int
+    private function getDaysInCurrentStage(array $companyRow): int
     {
         $updatedAt = $companyRow['updatedAt'];
         if (!$updatedAt) {

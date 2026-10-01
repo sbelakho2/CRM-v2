@@ -302,10 +302,7 @@ class RouteSelectionService
      *        duty_basis=unresolved, total_landed_cost=null and sort AFTER
      *        every ranked candidate — "duty unknown" is never zero duty.
      */
-    public /**
- * @param array<string|int, mixed> $dutyInputs
- */
-function compareRoutes(
+    public function compareRoutes(
         string $destinationCountry,
         float $weightKg,
         float $volumeM3,
@@ -370,10 +367,7 @@ function compareRoutes(
      *                    otherwise a candidate row whose total_landed_cost is
      *                    null + unresolved_reason set when it cannot be ranked.
      */
-    private /**
- * @param array<string|int, mixed> $dutyInputs
- */
-function evaluateLaneCandidate(
+    private function evaluateLaneCandidate(
         RoutePreference $route,
         string $mode,
         float $weightKg,
@@ -502,10 +496,7 @@ function evaluateLaneCandidate(
      *
      * @param list<FreightTable> $rows
      */
-    private /**
- * @param array<string|int, mixed> $rows
- */
-function pickFreightRow(array $rows, string $mode, float $volumeM3): ?FreightTable
+    private function pickFreightRow(array $rows, string $mode, float $volumeM3): ?FreightTable
     {
         if ($mode === 'FCL') {
             $desired = $volumeM3 > 67 ? '40HQ' : ($volumeM3 > 33 ? '40GP' : '20GP');

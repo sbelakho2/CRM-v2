@@ -367,12 +367,8 @@ class DiscoveryPipelineController extends AbstractController
 
     /**
      * Import a search result as a Lead
-     * @param array<string|int, mixed> $result
      */
-    private /**
- * @param array<string|int, mixed> $result
- */
-function importAsLead(array $result, string $sector, ?string $location, array &$dupeIndex): array
+    private function importAsLead(array $result, string $sector, ?string $location, array &$dupeIndex): array
     {
         $website = $result['website'] ?? null;
         $name = $result['name'] ?? $this->extractCompanyNameFromTitle(

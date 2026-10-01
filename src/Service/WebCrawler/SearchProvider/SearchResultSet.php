@@ -120,12 +120,8 @@ final class SearchResultSet implements \Countable, \IteratorAggregate
 
     /**
      * Create a SearchResultSet from the legacy array format.
-     * @param array<string|int, mixed> $data
      */
-    public static /**
- * @param array<string|int, mixed> $data
- */
-function fromLegacyArray(array $data, string $providerName, string $query = ''): self
+    public static function fromLegacyArray(array $data, string $providerName, string $query = ''): self
     {
         $results = [];
         foreach (($data['results'] ?? []) as $item) {

@@ -319,13 +319,7 @@ class ScrapingFailSafeService
         }
     }
 
-    /**
-     * @param array<string|int, mixed> $stats
-     */
-    private /**
- * @param array<string|int, mixed> $stats
- */
-function saveStats(string $domain, array $stats): void
+    private function saveStats(string $domain, array $stats): void
     {
         $this->domainStats[$domain] = $stats;
         
@@ -371,35 +365,23 @@ function saveStats(string $domain, array $stats): void
             '403_count' => 0,
             'last_success' => null,
             'last_failure' => null,
-    /**
-     * @param array<string|int, mixed> $stats
-     */
         ];
     }
 
-    private /**
- * @param array<string|int, mixed> $stats
- */
-function cleanOldData(array $stats): array
+    private function cleanOldData(array $stats): array
     {
         $cutoff = time() - self::RATE_WINDOW_SECONDS;
         
         // Clean successes
         $stats['successes'] = array_filter($stats['successes'], fn($t) => $t >= $cutoff);
         
-    /**
-     * @param array<string|int, mixed> $stats
-     */
         // Clean failures
         $stats['failures'] = array_filter($stats['failures'], fn($f) => $f['time'] >= $cutoff);
         
         return $stats;
     }
 
-    private /**
- * @param array<string|int, mixed> $stats
- */
-function checkCircuitBreaker(string $domain, array $stats, int $httpCode): bool
+    private function checkCircuitBreaker(string $domain, array $stats, int $httpCode): bool
     {
         // Check 1: Consecutive failures
         if ($stats['consecutive_failures'] >= self::CONSECUTIVE_FAILURE_THRESHOLD) {

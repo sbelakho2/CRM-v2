@@ -54,10 +54,7 @@ class MultiDistributorSourcingService
      *   waterfall_reason: string|null
      * }
      */
-    public /**
- * @param array<string|int, mixed> $options
- */
-function searchPart(
+    public function searchPart(
         string $partNumber,
         ?string $manufacturer = null,
         ?string $description = null,
@@ -560,10 +557,7 @@ function searchPart(
      * 
      * @return array{part: array|null, source: string|null}
      */
-    private /**
- * @param array<string|int, mixed> $allSources
- */
-function selectBestOverall(array $allSources, string $requestedMpn): array
+    private function selectBestOverall(array $allSources, string $requestedMpn): array
     {
         if (empty($allSources)) {
             return ['part' => null, 'source' => null];
@@ -629,10 +623,7 @@ function selectBestOverall(array $allSources, string $requestedMpn): array
     /**
      * Get the lowest unit price from a result's pricing breaks
      */
-    private /**
- * @param array<string|int, mixed> $result
- */
-function getLowestUnitPrice(array $result): ?float
+    private function getLowestUnitPrice(array $result): ?float
     {
         $pricing = $result['pricing'] ?? [];
         if (empty($pricing)) {
@@ -658,10 +649,7 @@ function getLowestUnitPrice(array $result): ?float
      * Example: Alibaba at $0.88 vs DigiKey at $0.09 for the same part —
      * DigiKey should get a huge bonus because it's 10x cheaper.
      */
-    private /**
- * @param array<string|int, mixed> $candidates
- */
-function applyPriceCompetitiveness(array $candidates): array
+    private function applyPriceCompetitiveness(array $candidates): array
     {
         // Find candidates with valid pricing
         $priced = array_filter($candidates, fn($c) => $c['lowest_price'] !== null && $c['lowest_price'] > 0);
@@ -707,10 +695,7 @@ function applyPriceCompetitiveness(array $candidates): array
      * Alibaba gets a source preference bonus because it provides factory-direct
      * pricing with better bulk rates.
      */
-    private /**
- * @param array<string|int, mixed> $result
- */
-function calculateOverallScore(array $result, string $requestedMpn): int
+    private function calculateOverallScore(array $result, string $requestedMpn): int
     {
         $score = 0;
         
@@ -784,11 +769,7 @@ function calculateOverallScore(array $result, string $requestedMpn): int
     /**
      * Build alternatives list from all sources
      */
-    private /**
- * @param array<string|int, mixed> $allSources
- * @param array<string|int, mixed> $selected
- */
-function buildAlternativesList(array $allSources, ?array $selected, ?string $selectedSource): array
+    private function buildAlternativesList(array $allSources, ?array $selected, ?string $selectedSource): array
     {
         $alternatives = [];
         

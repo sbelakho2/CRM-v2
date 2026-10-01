@@ -181,13 +181,7 @@ class EmailTemplate
         return $this->personalizationTokens;
     }
 
-    /**
-     * @param array<string|int, mixed> $personalizationTokens
-     */
-    public /**
- * @param array<string|int, mixed> $personalizationTokens
- */
-function setPersonalizationTokens(?array $personalizationTokens): self
+    public function setPersonalizationTokens(?array $personalizationTokens): self
     {
         $this->personalizationTokens = $personalizationTokens;
         return $this;

@@ -10,6 +10,7 @@ use App\Entity\OutboundMessage;
 use App\Entity\RFQ;
 use App\Entity\SpintaxTemplate;
 use App\Entity\BanditArm;
+use App\Repository\ContactRepository;
 use App\Repository\LeadRepository;
 use App\Repository\OutboundMessageRepository;
 use App\Repository\SpintaxTemplateRepository;
@@ -47,6 +48,7 @@ class AutonomousSalesOrchestratorService
         private CompetitorDetectionService $competitorDetection,
         private LeadSalesAnalystService $leadAnalyst,
         private OutboundMessageRepository $outboundRepository,
+        private ContactRepository $contactRepository,
         private LeadRepository $leadRepository,
         private SpintaxTemplateRepository $templateRepository,
         private ?MailerInterface $mailer,
@@ -77,14 +79,10 @@ class AutonomousSalesOrchestratorService
      * - Campaign-aware Thompson Sampling for multi-campaign support
      * 
      * @param Contact $contact The contact to compose a message for
-     * @param array<string, mixed> $context Additional context variables
+     * @param array $context Additional context variables
      * @param string|null $campaignId Optional campaign ID for campaign-specific A/B testing
-     * @return array<string, mixed>
      */
-    public /**
- * @param array<string|int, mixed> $context
- */
-function composeMessage(Contact $contact, array $context = [], ?string $campaignId = null): array
+    public function composeMessage(Contact $contact, array $context = [], ?string $campaignId = null): array
     {
         $this->assertEnabled();
 
@@ -110,7 +108,6 @@ function composeMessage(Contact $contact, array $context = [], ?string $campaign
         $valuePropArmId = null;
         
         if ($this->personalizationService) {
-            /** @var array{variables: array<string, mixed>, profile: \App\Entity\PersonalizationProfile, settings: array<string, mixed>, tone: string|null, content: string|null, industry: string|null, role: string|null, contentLength: string|null, engagementLevel: string|null, similarProfilesUsed: int, successfulPatterns: list<string>|null} $personalization */
             $personalization = $this->personalizationService->getPersonalizationContext($contact, $baseContext);
             
             // Merge all personalization variables into full context
@@ -135,13 +132,12 @@ function composeMessage(Contact $contact, array $context = [], ?string $campaign
             // Try to get A/B tested value prop variant
             $industry = $personalization['industry'] ?? 'other';
             $contentFocus = $this->mapContentToFocus($personalization['content'] ?? 'business');
-
-            /** @var array{value_prop: string|null, variant_id: string, arm_id: int|null, is_ab_test: bool} $valuePropResult */
+            
             $valuePropResult = $this->personalizationService->getValuePropVariant($industry, $contentFocus);
             if ($valuePropResult['is_ab_test']) {
                 $fullContext['value_prop'] = $valuePropResult['value_prop'];
                 // Create brief version by taking first sentence
-                $vp = $valuePropResult['value_prop'] ?? '';
+                $vp = $valuePropResult['value_prop'];
                 $dotPos = strpos($vp, '.');
                 $fullContext['value_prop_short'] = $dotPos !== false ? substr($vp, 0, $dotPos + 1) : $vp;
                 $valuePropArmId = $valuePropResult['arm_id'];
@@ -159,10 +155,10 @@ function composeMessage(Contact $contact, array $context = [], ?string $campaign
             // ==================== COMPETITOR DISPLACEMENT ====================
             // Check for competitor displacement opportunity
             $competitorHook = $this->getCompetitorDisplacementHook($contact);
-            if ($competitorHook !== null) {
+            if ($competitorHook) {
                 $fullContext['competitor_hook'] = $competitorHook['hook'];
-                $fullContext['competitor_pain'] = $competitorHook['value'];
-                $fullContext['competitor_diff'] = $competitorHook['differentiator'];
+                $fullContext['competitor_pain'] = $competitorHook['pain'];
+                $fullContext['competitor_diff'] = $competitorHook['differentiation'];
             }
         }
 
@@ -199,29 +195,27 @@ function composeMessage(Contact $contact, array $context = [], ?string $campaign
         // Thompson Sampling: Select best subject line arm
         // Now passes icpCluster for per-industry pools + 10% control group routing
         $armName = $campaignId ? "subject_line_{$campaignId}" : 'subject_line';
-        /** @var array{arm: BanditArm, sampledScore: float, allSamples: array<string, float>, isControl: bool, trace: array<string, mixed>}|null $armResult */
         $armResult = $this->thompsonSampler->sampleAndSelect($armName, $icpCluster);
-
+        
         // If campaign-specific arm not found, fall back to generic
         if (!$armResult && $campaignId) {
-            /** @var array{arm: BanditArm, sampledScore: float, allSamples: array<string, float>, isControl: bool, trace: array<string, mixed>}|null $armResult */
             $armResult = $this->thompsonSampler->sampleAndSelect('subject_line', $icpCluster);
         }
-
+        
         // If we have a subject arm, use it instead of template subject
         $subjectSpintax = $template->getSubjectSpintax();
         $subjectArm = null;
         $isControlGroup = false;
-
+        
         if ($armResult) {
             $subjectArm = $armResult['arm'];
-            $subjectSpintax = $subjectArm->getArmValue() ?? '';
-            $isControlGroup = $armResult['isControl'];
+            $subjectSpintax = $subjectArm->getArmValue();
+            $isControlGroup = $armResult['isControl'] ?? false;
             $decisionTrace['subjectArm'] = [
                 'armId' => $subjectArm->getId(),
                 'armName' => $subjectArm->getArmName(),
                 'isControl' => $isControlGroup,
-                'sampledValue' => null,
+                'sampledValue' => $armResult['sampledValue'] ?? null,
             ];
         }
         
@@ -233,7 +227,6 @@ function composeMessage(Contact $contact, array $context = [], ?string $campaign
         }
 
         // Spin and personalize the message with full context
-        /** @var array{subject: string, body: string, variationHash: string} $result */
         $result = $this->spintaxEngine->spinAndPersonalize(
             $subjectSpintax,
             $template->getBodySpintax(),
@@ -242,8 +235,9 @@ function composeMessage(Contact $contact, array $context = [], ?string $campaign
         
         // Apply tone transformations to the final output if personalization service is available
         $toneApplied = 'formal'; // default
-        if ($this->personalizationService) {
-            $engagementLevel = $personalization['engagementLevel'] ?? 'cold';            
+        if ($this->personalizationService && $personalization) {
+            $engagementLevel = $personalization['engagementLevel'] ?? 'cold';
+            
             // Use architecture-recommended tone based on engagement level.
             $profileTone = $personalization['tone'] ?? 'formal';
             $architectureTone = match($engagementLevel) {
@@ -335,17 +329,14 @@ function composeMessage(Contact $contact, array $context = [], ?string $campaign
      * Uses learned send time data from personalization profiles.
      * 
      * @param Contact $contact The contact to get send time for
-     * @return array<string, mixed> Send time recommendation with 'time', 'day', 'source', 'confidence'
+     * @return array Send time recommendation with 'time', 'day', 'source', 'confidence'
      */
     public function getOptimalSendTime(Contact $contact): array
     {
         $this->assertEnabled();
 
         if ($this->personalizationService) {
-            /** @var array<string, mixed> $sendTimeRecommendation */
-            $sendTimeRecommendation = $this->personalizationService->getOptimalSendTime($contact);
-
-            return $sendTimeRecommendation;
+            return $this->personalizationService->getOptimalSendTime($contact);
         }
         
         // Fallback if personalization service not available
@@ -363,33 +354,29 @@ function composeMessage(Contact $contact, array $context = [], ?string $campaign
      * Returns competitor displacement messaging if applicable.
      * 
      * @param Contact $contact The contact to check
-     * @return array{hook: string, differentiator: string, value: string}|null Competitor hook data or null
+     * @return array|null Competitor hook data or null
      */
     public function getCompetitorDisplacementHook(Contact $contact): ?array
     {
         if (!$this->personalizationService) {
             return null;
         }
-
+        
         $company = $contact->getCompany();
         if (!$company) {
             return null;
         }
-
+        
         // Check company notes/sources for competitor mentions
         $sourceNotes = strtolower($company->getSourceNotes() ?? '');
-        /** @var list<string> $competitors */
         $competitors = $this->personalizationService->getKnownCompetitors();
-
+        
         foreach ($competitors as $competitor) {
             if (str_contains($sourceNotes, $competitor)) {
-                /** @var array{hook: string, differentiator: string, value: string}|null $hookData */
-                $hookData = $this->personalizationService->getCompetitorHook($competitor);
-
-                return $hookData;
+                return $this->personalizationService->getCompetitorHook($competitor);
             }
         }
-
+        
         return null;
     }
 
@@ -398,21 +385,16 @@ function composeMessage(Contact $contact, array $context = [], ?string $campaign
      * 
      * Now includes reply pattern learning to prefer templates that
      * match patterns from previously successful emails.
-     *
-     * @param array<string, mixed> $context
      */
-    private /**
- * @param array<string|int, mixed> $context
- */
-function selectTemplate(Contact $contact, array $context = []): ?SpintaxTemplate
+    private function selectTemplate(Contact $contact, array $context = []): ?SpintaxTemplate
     {
         $company = $contact->getCompany();
         $companyName = strtolower($company?->getName() ?? '');
-
+        
         // ==================== REPLY PATTERN LEARNING ====================
         // Check if we have successful subject patterns to match against
         $successfulPatterns = $context['successfulPatterns'] ?? [];
-        if (\is_array($successfulPatterns) && $successfulPatterns !== []) {
+        if (!empty($successfulPatterns)) {
             $matchedTemplate = $this->findTemplateMatchingPatterns($successfulPatterns);
             if ($matchedTemplate) {
                 $this->logger->info('Selected template based on successful reply patterns', [
@@ -449,14 +431,14 @@ function selectTemplate(Contact $contact, array $context = []): ?SpintaxTemplate
         // ==================== INDUSTRY-SPECIFIC SELECTION ====================
         // Select template based on industry if available
         $industry = $context['industry'] ?? null;
-        if (\is_string($industry) && $industry !== '' && $industry !== 'other') {
+        if ($industry && $industry !== 'other') {
             $industryTemplateMap = [
                 'automotive' => 'Initial Outreach - Tier1 Auto',
                 'aerospace' => 'Initial Outreach - Technical',
                 'defense' => 'Initial Outreach - Technical',
                 'medical' => 'Initial Outreach - Technical',
             ];
-
+            
             if (isset($industryTemplateMap[$industry])) {
                 $template = $this->templateRepository->findOneBy(['name' => $industryTemplateMap[$industry], 'active' => true]);
                 if ($template) {
@@ -464,11 +446,11 @@ function selectTemplate(Contact $contact, array $context = []): ?SpintaxTemplate
                 }
             }
         }
-
+        
         // ==================== ROLE-SPECIFIC SELECTION ====================
         // Select template based on role if available
         $role = $context['role'] ?? null;
-        if (\is_string($role) && $role !== '' && $role !== 'other') {
+        if ($role && $role !== 'other') {
             $roleTemplateMap = [
                 'procurement' => 'Initial Outreach - Cost Focus',
                 'engineering' => 'Initial Outreach - Technical',
@@ -515,50 +497,40 @@ function selectTemplate(Contact $contact, array $context = []): ?SpintaxTemplate
         
         if (!$template) {
             $this->logger->warning('No active templates found, seeding defaults');
-            /** @var list<SpintaxTemplate> $seeded */
             $seeded = $this->spintaxEngine->seedDefaultTemplates();
             $template = !empty($seeded) ? $seeded[0] : null;
         }
-
+        
         return $template;
     }
 
     /**
      * Find a template that matches successful reply patterns
-     *
+     * 
      * This enables learning from past successful emails by preferring
      * templates with similar subject line structures.
-     *
-     * @param array<mixed, mixed> $successfulPatterns
      */
-    private /**
- * @param array<string|int, mixed> $successfulPatterns
- */
-function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTemplate
+    private function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTemplate
     {
-        /** @var list<SpintaxTemplate> $templates */
         $templates = $this->templateRepository->findActiveByType('email');
-
+        
         if (empty($templates)) {
             return null;
         }
-
+        
         $bestTemplate = null;
         $bestScore = 0;
-
+        
         foreach ($templates as $template) {
             $subjectSpintax = strtolower($template->getSubjectSpintax());
             $score = 0;
-
+            
             foreach ($successfulPatterns as $pattern) {
-                if (!\is_string($pattern)) {
-                    continue;
-                }
                 $pattern = strtolower($pattern);
-
+                
                 // Check for keyword overlap
-                $patternWords = array_filter(explode(' ', preg_replace('/[^a-z\s]/', '', $pattern) ?? ''));
-                $templateWords = array_filter(explode(' ', preg_replace('/[^a-z\s]/', '', $subjectSpintax) ?? ''));
+                $patternWords = array_filter(explode(' ', preg_replace('/[^a-z\s]/', '', $pattern)));
+                $templateWords = array_filter(explode(' ', preg_replace('/[^a-z\s]/', '', $subjectSpintax)));
                 
                 $overlap = count(array_intersect($patternWords, $templateWords));
                 $score += $overlap;
@@ -630,13 +602,8 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
         }
 
         $contact = $message->getContact();
-        if ($contact === null) {
-            $this->logger->warning('Outbound message has no contact, skipping send', ['messageId' => $message->getId()]);
-            return false;
-        }
-
-        $contactEmail = $contact->getEmail();
-        if (!$contactEmail) {
+        
+        if (!$contact->getEmail()) {
             $this->logger->warning('Contact has no email', ['contactId' => $contact->getId()]);
             return false;
         }
@@ -644,7 +611,6 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
         // ==================== CADENCE GOVERNOR ====================
         // Check send cadence limits and stop rules before sending
         if ($this->cadenceGovernor) {
-            /** @var array{allowed: bool, reason: string|null, nextAllowedAt: \DateTimeImmutable|\DateTime|null} $cadenceCheck */
             $cadenceCheck = $this->cadenceGovernor->canSendTo($contact);
             if (!$cadenceCheck['allowed']) {
                 $this->logger->info('Cadence governor blocked send', [
@@ -656,7 +622,6 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
             }
 
             // Check business hours
-            /** @var array{inWindow: bool, timezone: string, localHour: int, dayOfWeek: int} $bizHours */
             $bizHours = $this->cadenceGovernor->isWithinBusinessHours($contact);
             if (!$bizHours['inWindow']) {
                 $this->logger->info('Outside business hours for contact timezone', [
@@ -711,8 +676,8 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
         try {
             $email = (new Email())
                 ->from($this->resolveSenderAddress())
-                ->to($contactEmail)
-                ->subject($message->getSubject() ?? '')
+                ->to($contact->getEmail())
+                ->subject($message->getSubject())
                 ->text($message->getBodyText());
 
             if ($message->getBodyHtml()) {
@@ -748,7 +713,7 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
 
             $this->logger->info('Email sent successfully', [
                 'messageId' => $message->getId(),
-                'to' => $contactEmail,
+                'to' => $contact->getEmail(),
             ]);
 
             return true;
@@ -777,9 +742,9 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
      */
     private function resolveSenderAddress(): string
     {
-        $envFrom = $_ENV['MAILER_FROM_ADDRESS'] ?? null;
         $from = $this->mailerFromAddress
-            ?? (\is_string($envFrom) ? $envFrom : '');
+            ?? ($_ENV['MAILER_FROM_ADDRESS'] ?? '')
+            ?? '';
 
         if ($from !== '') {
             return $from;
@@ -801,7 +766,7 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
      * @param int|OutboundMessage $messageOrId Message ID or entity
      * @param string $eventType Event type: 'open', 'click', 'reply', 'bounce', 'delivered', 'complaint'
      * @param string|null $replyContent Raw reply content for classification (optional)
-     * @return array<string, mixed> Result with classification and Thompson update info
+     * @return array Result with classification and Thompson update info
      */
     public function recordEmailEvent(int|OutboundMessage $messageOrId, string $eventType, ?string $replyContent = null): array
     {
@@ -850,11 +815,9 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
         }
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     private function doRecordEmailEvent(OutboundMessage $message, string $eventType, ?string $replyContent = null): array
-    {        $result = [
+    {
+        $result = [
             'status' => 'recorded',
             'event_type' => $eventType,
             'thompson_updated' => false,
@@ -894,16 +857,15 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
         }
 
         // Store reply content if provided
-        if ($replyContent) {
+        if ($replyContent && method_exists($message, 'setReplyContent')) {
             $message->setReplyContent($replyContent);
         }
 
         // If this is a reply event with content, classify it
         $classification = null;
-        if ($eventType === 'reply' && $replyContent) {
+        if ($eventType === 'reply' && $replyContent && $this->emailClassifier) {
             $replySubject = $message->getSubject() ? 'Re: ' . $message->getSubject() : '';
             $replyFrom = $message->getContact()?->getEmail() ?? '';
-            /** @var array{classification: string, confidence: float, method: string, requiresReview: bool, probabilities?: array<string, float>, matchedPattern?: string|null} $classificationResult */
             $classificationResult = $this->emailClassifier->classifyEmail($replySubject, $replyContent, $replyFrom);
             $classification = $classificationResult['classification'];
             $message->setReplyClassification($classification);
@@ -917,10 +879,10 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
         $arm = $message->getSubjectArm();
         if ($arm) {
             $currentRecordedType = $message->getRecordedEventType();
-
+            
             // Determine if we should record this event (higher priority overrides lower)
             $eventPriority = ['bounce' => 1, 'open' => 2, 'click' => 3, 'reply' => 4];
-            $currentPriority = $eventPriority[$currentRecordedType ?? ''] ?? 0;
+            $currentPriority = $eventPriority[$currentRecordedType] ?? 0;
             $newPriority = $eventPriority[$eventType] ?? 0;
             
             $shouldRecord = ($currentRecordedType === null || $newPriority > $currentPriority);
@@ -945,10 +907,9 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
                     $weightedEventType = $eventType;
                 }
 
-                $armId = $arm->getId();
-                if ($weightedEventType && $armId !== null) {
+                if ($weightedEventType) {
                     // Update subject arm
-                    $this->thompsonSampler->recordWeightedOutcome($armId, $weightedEventType);
+                    $this->thompsonSampler->recordWeightedOutcome($arm->getId(), $weightedEventType);
                     
                     // Also update value-prop arm if tracked
                     $vpArmId = $message->getValuePropArmId();
@@ -977,8 +938,7 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
 
                     // Create opportunity RFQ for positive email engagement
                     if ($weightedEventType === 'positive_reply' && $this->pipelineOrchestrator) {
-                        $newRfq = $this->pipelineOrchestrator->afterPositiveEmailEngagement($message, $classification);
-
+                        $newRfq = $this->pipelineOrchestrator->afterPositiveEmailEngagement($message, $classification ?? 'interested');
                         $result['opportunity_created'] = $newRfq !== null;
                         if ($newRfq) {
                             $result['rfq_id'] = $newRfq->getId();
@@ -1048,16 +1008,15 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
         
         // If the classification changed, update Thompson Sampler
         $arm = $message->getSubjectArm();
-        $armId = $arm?->getId();
-        if ($arm !== null && $armId !== null && $previousClassification !== $correctClassification) {
+        if ($arm && $previousClassification !== $correctClassification) {
             $positiveClassifications = ['interested', 'meeting_request', 'information_request'];
             $negativeClassifications = ['not_interested', 'unsubscribe', 'bounce', 'spam'];
-
+            
             // Reverse previous outcome if it was recorded
             if ($message->getRecordedEventType() === 'reply') {
                 $wasPrevPositive = in_array($previousClassification, $positiveClassifications, true);
                 $wasPrevNegative = in_array($previousClassification, $negativeClassifications, true);
-
+                
                 // Undo previous outcome
                 if ($wasPrevPositive) {
                     // Previous was positive, now need to reverse it
@@ -1065,21 +1024,21 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
                 } elseif ($wasPrevNegative) {
                     $arm->setBeta(max(1.0, $arm->getBeta() - 1.0));
                 }
-
+                
                 // Apply correct outcome
                 $isNowPositive = in_array($correctClassification, $positiveClassifications, true);
                 $isNowNegative = in_array($correctClassification, $negativeClassifications, true);
-
+                
                 if ($isNowPositive) {
-                    $this->thompsonSampler->recordReplyOutcome($armId, true);
+                    $this->thompsonSampler->recordReplyOutcome($arm->getId(), true);
                 } elseif ($isNowNegative) {
-                    $this->thompsonSampler->recordOutcome($armId, false, 'reply');
+                    $this->thompsonSampler->recordOutcome($arm->getId(), false, 'reply');
                 }
             }
         }
-
+        
         // Train Naive Bayes with corrected classification
-        if ($replyContent) {
+        if ($replyContent && $this->emailClassifier) {
             $this->emailClassifier->learnFromHumanReview($replyContent, $correctClassification);
         }
         
@@ -1116,8 +1075,6 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
 
     /**
      * Get system statistics
-     *
-     * @return array<string, mixed>
      */
     public function getStats(): array
     {
@@ -1173,14 +1130,11 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
 
     /**
      * Score leads batch
-     *
-     * @return array{scored: int, byTier: array{hot: int, warm: int, cold: int, ice: int}, leads: list<array{id: int|null, name: string|null, score: int, tier: string, competitorBoost: int}>}
      */
     public function scoreLeads(int $limit = 50): array
     {
         $this->assertEnabled();
 
-        /** @var list<Lead> $leads */
         $leads = $this->leadRepository->createQueryBuilder('l')
             ->where('l.leadScore IS NULL OR l.updatedAt < :stale')
             ->setParameter('stale', new \DateTime('-7 days'))
@@ -1194,10 +1148,9 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
         foreach ($leads as $lead) {
             // Use existing LeadSalesAnalystService for analysis
             $analysis = $this->leadAnalyst->analyzeLead($lead);
-
+            
             // Calculate base score from analysis
-            $fitScoreRaw = $analysis['fit_score'] ?? 0;
-            $score = \is_numeric($fitScoreRaw) ? (int) $fitScoreRaw : 0;
+            $score = (int) $analysis['fit_score'];
             
             // Add competitor boost if detected
             $competitorBoost = $this->competitorDetection->getCompetitorScoreBoost($lead);
@@ -1240,8 +1193,6 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
 
     /**
      * Initialize default data (templates, arms, competitors)
-     *
-     * @return array{templates: int, arms: int, valuePropArms: int, competitors: int}
      */
     public function initialize(): array
     {
@@ -1308,12 +1259,12 @@ function findTemplateMatchingPatterns(array $successfulPatterns): ?SpintaxTempla
         }
         
         // Strip common prefixes/titles
-        $title = preg_replace('/\b(senior|junior|chief|vice|executive|lead|head|principal|associate|assistant|deputy|global|regional|group)\b\s*/i', '', $title) ?? '';
-        $title = preg_replace('/\b(officer|manager|director|president|vp|svp|evp|ceo|coo|cto|cfo|cmo|cio|cpo)\b\s*/i', '', $title) ?? '';
-        $title = preg_replace('/\b(of|for|and|the|&)\b/i', ' ', $title) ?? '';
-        $title = preg_replace('/[,\-\/]+/', ' ', $title) ?? ''; // Strip punctuation
-
-        $area = trim(preg_replace('/\s+/', ' ', $title) ?? '');
+        $title = preg_replace('/\b(senior|junior|chief|vice|executive|lead|head|principal|associate|assistant|deputy|global|regional|group)\b\s*/i', '', $title);
+        $title = preg_replace('/\b(officer|manager|director|president|vp|svp|evp|ceo|coo|cto|cfo|cmo|cio|cpo)\b\s*/i', '', $title);
+        $title = preg_replace('/\b(of|for|and|the|&)\b/i', ' ', $title);
+        $title = preg_replace('/[,\-\/]+/', ' ', $title); // Strip punctuation
+        
+        $area = trim(preg_replace('/\s+/', ' ', $title));
         
         // If nothing remains, try common mappings
         if (empty($area) || strlen($area) < 3) {

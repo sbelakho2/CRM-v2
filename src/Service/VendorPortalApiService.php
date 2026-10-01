@@ -232,12 +232,8 @@ final class VendorPortalApiService
 
     /**
      * @return array{success: bool, vendor: string, response: null, errorMessage: string, external_id: null}
-     * @param array<string|int, mixed> $envVars
      */
-    private /**
- * @param array<string|int, mixed> $envVars
- */
-function configRequired(string $vendor, array $envVars): array
+    private function configRequired(string $vendor, array $envVars): array
     {
         $message = sprintf(
             '%s API credentials not configured. Set %s in the environment (ops secret store) and retry — the integration itself is implemented and ready.',

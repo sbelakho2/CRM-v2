@@ -749,11 +749,7 @@ HELP
      * Deduplicates by website domain — if a company with the same website
      * already exists, updates it (adds new contacts, refreshes sector).
      */
-    private /**
- * @param array<string|int, mixed> $result
- * @param array<string|int, mixed> $contacts
- */
-function persistCompanyWithContacts(
+    private function persistCompanyWithContacts(
         string $name,
         string $domain,
         array $result,
@@ -778,11 +774,7 @@ function persistCompanyWithContacts(
     /**
      * Internal: actually persist a company and its contacts.
      */
-    private /**
- * @param array<string|int, mixed> $result
- * @param array<string|int, mixed> $contacts
- */
-function doPersistCompanyWithContacts(
+    private function doPersistCompanyWithContacts(
         string $name,
         string $domain,
         array $result,
@@ -1291,10 +1283,7 @@ function doPersistCompanyWithContacts(
      *
      * @return string[] List of quality issues (empty = clean)
      */
-    private /**
- * @param array<string|int, mixed> $fullResult
- */
-function validateCompanyName(string $name, string $domain, string $snippet, string $title, array $fullResult = []): array
+    private function validateCompanyName(string $name, string $domain, string $snippet, string $title, array $fullResult = []): array
     {
         $issues = [];
         $nameLower = mb_strtolower(trim($name));
@@ -1418,10 +1407,7 @@ function validateCompanyName(string $name, string $domain, string $snippet, stri
      * actual human names (2+ alpha chars each, not junk words, not product/
      * marketing text, not form labels, not German phrases).
      */
-    private /**
- * @param array<string|int, mixed> $contacts
- */
-function hasRealPersonContact(array $contacts): bool
+    private function hasRealPersonContact(array $contacts): bool
     {
         if (empty($contacts)) {
             return false;
@@ -1864,10 +1850,7 @@ function hasRealPersonContact(array $contacts): bool
      *
      * @return string[] List of quality issues (empty = clean)
      */
-    private /**
- * @param array<string|int, mixed> $contact
- */
-function validateContact(array $contact): array
+    private function validateContact(array $contact): array
     {
         $issues = [];
         $firstName = $contact['first_name'] ?? '';

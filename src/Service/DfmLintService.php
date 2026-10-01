@@ -60,10 +60,7 @@ class DfmLintService
      *   findings: array
      * }
      */
-    public /**
- * @param array<string|int, mixed> $options
- */
-function lintBom(int $quoteId, array $options = []): array
+    public function lintBom(int $quoteId, array $options = []): array
     {
         // 1. Get all BOM lines for quote
         $bomLines = $this->bomLineRepository->findBy(['quote' => $quoteId]);
@@ -135,10 +132,7 @@ function lintBom(int $quoteId, array $options = []): array
      * 
      * @return array - Array of DfmFinding entities
      */
-    public /**
- * @param array<string|int, mixed> $bomLines
- */
-function applyRule(DfmRule $rule, array $bomLines, int $quoteId): array
+    public function applyRule(DfmRule $rule, array $bomLines, int $quoteId): array
     {
         // 1. Parse rule condition (JSON)
         $ruleConditionJson = $rule->getCheckLogic();
@@ -196,10 +190,7 @@ function applyRule(DfmRule $rule, array $bomLines, int $quoteId): array
      *   LOW: int
      * }
      */
-    public /**
- * @param array<string|int, mixed> $findings
- */
-function categorizeFindings(array $findings): array
+    public function categorizeFindings(array $findings): array
     {
         // Fully implemented helper method
         
@@ -228,10 +219,7 @@ function categorizeFindings(array $findings): array
      * 
      * @return bool - True if condition matches
      */
-    private /**
- * @param array<string|int, mixed> $condition
- */
-function evaluateCondition(array $condition, $bomLine): bool
+    private function evaluateCondition(array $condition, $bomLine): bool
     {
         // 1. Get field value from BomLine
         $field = $condition['field'] ?? null;

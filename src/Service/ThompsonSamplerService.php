@@ -247,10 +247,7 @@ class ThompsonSamplerService
      *
      * @return array|null ['arm' => BanditArm, 'sampledScore' => float, 'allSamples' => array]
      */
-    private /**
- * @param array<string|int, mixed> $arms
- */
-function thompsonSelectFrom(array $arms, bool $applyDecay): ?array
+    private function thompsonSelectFrom(array $arms, bool $applyDecay): ?array
     {
         $bestArm = null;
         $bestScore = -1.0;
@@ -307,10 +304,7 @@ function thompsonSelectFrom(array $arms, bool $applyDecay): ?array
     /**
      * Find the control-group arm for a type, or promote first arm if none marked.
      */
-    private /**
- * @param array<string|int, mixed> $arms
- */
-function findControlArm(array $arms, string $armType): ?BanditArm
+    private function findControlArm(array $arms, string $armType): ?BanditArm
     {
         foreach ($arms as $arm) {
             if ($arm->isControl()) {

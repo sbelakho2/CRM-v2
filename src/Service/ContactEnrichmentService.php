@@ -222,10 +222,7 @@ class ContactEnrichmentService
      * Typical title format: "John Smith - Procurement Manager - ACME Corp | LinkedIn"
      * Snippet may contain additional role/company info.
      */
-    private /**
- * @param array<string|int, mixed> $item
- */
-function parseLinkedInSearchResult(array $item, string $companyName): ?array
+    private function parseLinkedInSearchResult(array $item, string $companyName): ?array
     {
         $title   = $item['title'] ?? '';
         $link    = $item['link'] ?? ($item['url'] ?? '');
@@ -420,10 +417,7 @@ function parseLinkedInSearchResult(array $item, string $companyName): ?array
      *
      * @return array{created: int, updated: int, skipped: int, contacts: Contact[]}
      */
-    private /**
- * @param array<string|int, mixed> $candidates
- */
-function persistValidContacts(array $candidates, Company $company, ?string $domain, int $maxContacts): array
+    private function persistValidContacts(array $candidates, Company $company, ?string $domain, int $maxContacts): array
     {
         // Step 1: deduplicate candidates (merge multi-source data for the same person)
         $merged = $this->deduplicateCandidates($candidates);
@@ -570,10 +564,7 @@ function persistValidContacts(array $candidates, Company $company, ?string $doma
      * Merge candidate records that refer to the same person.
      * Uses name + email as dedup keys.
      */
-    private /**
- * @param array<string|int, mixed> $candidates
- */
-function deduplicateCandidates(array $candidates): array
+    private function deduplicateCandidates(array $candidates): array
     {
         $buckets = []; // key → merged record
 
@@ -637,10 +628,7 @@ function deduplicateCandidates(array $candidates): array
     /**
      * Score a candidate contact 0–100.
      */
-    private /**
- * @param array<string|int, mixed> $contact
- */
-function scoreContact(array $contact, ?string $companyDomain = null): int
+    private function scoreContact(array $contact, ?string $companyDomain = null): int
     {
         return $this->deepScrapingService->scoreContactQuality($contact, $companyDomain);
     }

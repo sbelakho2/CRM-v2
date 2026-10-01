@@ -133,13 +133,7 @@ class ReportAudit
         return $this->datasetVersions;
     }
 
-    /**
-     * @param array<string|int, mixed> $datasetVersions
-     */
-    public /**
- * @param array<string|int, mixed> $datasetVersions
- */
-function setDatasetVersions(?array $datasetVersions): self
+    public function setDatasetVersions(?array $datasetVersions): self
     {
         $this->datasetVersions = $datasetVersions;
         return $this;
@@ -147,33 +141,21 @@ function setDatasetVersions(?array $datasetVersions): self
 
     public function getApiVersions(): ?array
     {
-    /**
-     * @param array<string|int, mixed> $apiVersions
-     */
         return $this->apiVersions;
     }
 
-    public /**
- * @param array<string|int, mixed> $apiVersions
- */
-function setApiVersions(?array $apiVersions): self
+    public function setApiVersions(?array $apiVersions): self
     {
         $this->apiVersions = $apiVersions;
         return $this;
     }
-    /**
-     * @param array<string|int, mixed> $metadata
-     */
 
     public function getMetadata(): ?array
     {
         return $this->metadata;
     }
 
-    public /**
- * @param array<string|int, mixed> $metadata
- */
-function setMetadata(?array $metadata): self
+    public function setMetadata(?array $metadata): self
     {
         $this->metadata = $metadata;
         return $this;

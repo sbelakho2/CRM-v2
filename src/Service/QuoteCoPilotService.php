@@ -75,10 +75,7 @@ class QuoteCoPilotService
      *   bomLineCount: int
      * }
      */
-    public /**
- * @param array<string|int, mixed> $metadata
- */
-function autogenerateQuote(
+    public function autogenerateQuote(
         string $bomFilePath,
         int $companyId,
         int $contactId,
@@ -234,10 +231,7 @@ function autogenerateQuote(
      * @param int   $orderMultiple  Round quantities to this multiple (e.g. 10)
      * @return array  BOM data with quantities rounded up
      */
-    public /**
- * @param array<string|int, mixed> $bomData
- */
-function applyOrderMultiple(array $bomData, int $orderMultiple): array
+    public function applyOrderMultiple(array $bomData, int $orderMultiple): array
     {
         return $this->bomParser->applyOrderMultiple($bomData, $orderMultiple);
     }
@@ -248,10 +242,7 @@ function applyOrderMultiple(array $bomData, int $orderMultiple): array
      * Used when the BOM lists per-board quantities and the user wants to order
      * multiple boards (e.g., BOM qty=2, board_count=10 → final qty=20).
      */
-    public /**
- * @param array<string|int, mixed> $bomData
- */
-function applyBoardCount(array $bomData, int $boardCount): array
+    public function applyBoardCount(array $bomData, int $boardCount): array
     {
         return $this->bomParser->applyBoardCount($bomData, $boardCount);
     }
@@ -275,11 +266,7 @@ function applyBoardCount(array $bomData, int $boardCount): array
      *   stats: array
      * }
      */
-    public /**
- * @param array<string|int, mixed> $bomData
- * @param array<string|int, mixed> $options
- */
-function processBom(array $bomData, int $quoteId, array $options = []): array
+    public function processBom(array $bomData, int $quoteId, array $options = []): array
     {
         $quote = $this->quoteRepository->find($quoteId);
         if (!$quote) {
@@ -530,10 +517,7 @@ function processBom(array $bomData, int $quoteId, array $options = []): array
      *
      * @return BomLine The persisted BomLine entity
      */
-    private /**
- * @param array<string|int, mixed> $lineData
- */
-function createAndPersistBomLine(Quote $quote, array $lineData, int $lineNum): BomLine
+    private function createAndPersistBomLine(Quote $quote, array $lineData, int $lineNum): BomLine
     {
         $bomLine = new BomLine();
         $bomLine->setQuote($quote);

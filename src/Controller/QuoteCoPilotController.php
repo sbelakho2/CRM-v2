@@ -609,6 +609,7 @@ class QuoteCoPilotController extends AbstractController
     public function publish(int $id, Request $request): Response
     {
         /** @var array<string, mixed>|null $data */
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         if (!$this->isCsrfTokenValid('quote_copilot_publish_' . $id, $data['_csrf_token'] ?? '')) {
             return $this->json(['success' => false, 'message' => 'Invalid CSRF token.'], 403);

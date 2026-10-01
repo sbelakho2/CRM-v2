@@ -50,10 +50,7 @@ class EmailWebhookController extends AbstractController
      * Process a webhook event for a given EmailSend entity.
      * Handles retry tracking, error logging, and updates send status.
      */
-    private /**
- * @param array<string|int, mixed> $context
- */
-function processWebhookEvent(
+    private function processWebhookEvent(
         EmailSend $send,
         string $event,
         string $provider,
@@ -167,12 +164,8 @@ function processWebhookEvent(
 
     /**
      * Handle unsubscribe event with deduplication.
-     * @param array<string|int, mixed> $context
      */
-    private /**
- * @param array<string|int, mixed> $context
- */
-function handleUnsubscribe(EmailSend $send, array $context): void
+    private function handleUnsubscribe(EmailSend $send, array $context): void
     {
         $email = $context['recipient_email'] ?? $send->getEmailAddress();
         if (!$email) {

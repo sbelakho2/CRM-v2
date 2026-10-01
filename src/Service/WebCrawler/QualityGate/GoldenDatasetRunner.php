@@ -67,10 +67,7 @@ final class GoldenDatasetRunner
      *
      * @param list<array{expected: string, name: string, domain: string, snippet: string, title: string, country: string, sector: string, category: string}> $entries
      */
-    public /**
- * @param array<string|int, mixed> $entries
- */
-function loadFromArray(array $entries): void
+    public function loadFromArray(array $entries): void
     {
         $this->entries = [];
         foreach ($entries as $i => $entry) {
@@ -112,12 +109,8 @@ function loadFromArray(array $entries): void
      *   category: string,
      *   gates: array<string, array{passed: bool, detail: string}>,
      * }
-     * @param array<string|int, mixed> $entry
      */
-    public /**
- * @param array<string|int, mixed> $entry
- */
-function evaluateSingle(array $entry): array
+    public function evaluateSingle(array $entry): array
     {
         $name    = $entry['name'];
         $domain  = $entry['domain'];
@@ -233,14 +226,8 @@ function evaluateSingle(array $entry): array
     }
 
     // ──────────────────────────────────────────────────
-    /**
-     * @param array<string|int, mixed> $entry
-     */
 
-    private /**
- * @param array<string|int, mixed> $entry
- */
-function validateEntry(array $entry, int $index): void
+    private function validateEntry(array $entry, int $index): void
     {
         $required = ['expected', 'name', 'domain', 'snippet', 'title'];
         foreach ($required as $field) {

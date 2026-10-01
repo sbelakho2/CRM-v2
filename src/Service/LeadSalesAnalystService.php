@@ -112,12 +112,7 @@ class LeadSalesAnalystService
     private array $ourCertifications;
     private array $targetSectors;
     
-    public /**
- * @param array<string|int, mixed> $ourCapabilities
- * @param array<string|int, mixed> $ourCertifications
- * @param array<string|int, mixed> $targetSectors
- */
-function __construct(
+    public function __construct(
         private LoggerInterface $logger,
         private ?\App\Repository\VerifiedCapabilityRepository $capabilityRepository = null,
         private ?\App\Repository\VerifiedCertificationRepository $certificationRepository = null,
@@ -225,10 +220,7 @@ function __construct(
     /**
      * Calculate capability fit between lead's needs and our offerings
      */
-    private /**
- * @param array<string|int, mixed> $fitSignals
- */
-function calculateCapabilityFit(array $fitSignals): array
+    private function calculateCapabilityFit(array $fitSignals): array
     {
         $matchedCapabilities = [];
         $unmatchedNeeds = [];
@@ -294,10 +286,7 @@ function calculateCapabilityFit(array $fitSignals): array
     /**
      * Calculate certification alignment
      */
-    private /**
- * @param array<string|int, mixed> $qualityStack
- */
-function calculateCertificationFit(array $qualityStack): array
+    private function calculateCertificationFit(array $qualityStack): array
     {
         $matchedCerts = [];
         $additionalCerts = [];
@@ -354,10 +343,7 @@ function calculateCertificationFit(array $qualityStack): array
     /**
      * Calculate sector alignment
      */
-    private /**
- * @param array<string|int, mixed> $sectorTags
- */
-function calculateSectorFit(array $sectorTags): array
+    private function calculateSectorFit(array $sectorTags): array
     {
         $matchedSectors = [];
         
@@ -401,11 +387,7 @@ function calculateSectorFit(array $sectorTags): array
     /**
      * Identify likely pain points from signals and notes
      */
-    private /**
- * @param array<string|int, mixed> $fitSignals
- * @param array<string|int, mixed> $sectorTags
- */
-function identifyPainPoints(string $notesAuto, array $fitSignals, array $sectorTags): array
+    private function identifyPainPoints(string $notesAuto, array $fitSignals, array $sectorTags): array
     {
         $painPoints = [];
         $notesLower = strtolower($notesAuto);
@@ -501,13 +483,7 @@ function identifyPainPoints(string $notesAuto, array $fitSignals, array $sectorT
     /**
      * Generate conversation starters based on analysis
      */
-    private /**
- * @param array<string|int, mixed> $capabilityFit
- * @param array<string|int, mixed> $certificationFit
- * @param array<string|int, mixed> $sectorFit
- * @param array<string|int, mixed> $painPoints
- */
-function generateConversationStarters(
+    private function generateConversationStarters(
         Lead $lead,
         array $capabilityFit,
         array $certificationFit,
@@ -624,10 +600,7 @@ function generateConversationStarters(
     /**
      * Generate pain point specific opener
      */
-    private /**
- * @param array<string|int, mixed> $painPoint
- */
-function generatePainPointOpener(array $painPoint): string
+    private function generatePainPointOpener(array $painPoint): string
     {
         return match($painPoint['type']) {
             'qa_struggles' => "Quality control is increasingly challenging in today's market. Are you looking to strengthen your QA processes?",
@@ -643,10 +616,7 @@ function generatePainPointOpener(array $painPoint): string
     /**
      * Generate competitive positioning advice
      */
-    private /**
- * @param array<string|int, mixed> $sectorTags
- */
-function generateCompetitivePositioning(Lead $lead, array $sectorTags): array
+    private function generateCompetitivePositioning(Lead $lead, array $sectorTags): array
     {
         $positioning = [];
         
@@ -748,11 +718,7 @@ function generateCompetitivePositioning(Lead $lead, array $sectorTags): array
     /**
      * Identify decision maker targets
      */
-    private /**
- * @param array<string|int, mixed> $fitSignals
- * @param array<string|int, mixed> $sectorTags
- */
-function identifyDecisionMakerTargets(array $fitSignals, array $sectorTags): array
+    private function identifyDecisionMakerTargets(array $fitSignals, array $sectorTags): array
     {
         $targets = [];
         
@@ -787,10 +753,7 @@ function identifyDecisionMakerTargets(array $fitSignals, array $sectorTags): arr
     /**
      * Generate email opener suggestion
      */
-    private /**
- * @param array<string|int, mixed> $conversationStarters
- */
-function generateEmailOpener(Lead $lead, array $conversationStarters): string
+    private function generateEmailOpener(Lead $lead, array $conversationStarters): string
     {
         $companyName = $lead->getCompanyName();
         
@@ -817,11 +780,7 @@ function generateEmailOpener(Lead $lead, array $conversationStarters): string
     /**
      * Assess potential deal risks
      */
-    private /**
- * @param array<string|int, mixed> $fitSignals
- * @param array<string|int, mixed> $qualityStack
- */
-function assessDealRisks(Lead $lead, array $fitSignals, array $qualityStack): array
+    private function assessDealRisks(Lead $lead, array $fitSignals, array $qualityStack): array
     {
         $risks = [];
         
@@ -879,10 +838,7 @@ function assessDealRisks(Lead $lead, array $fitSignals, array $qualityStack): ar
     /**
      * Determine recommended sales approach
      */
-    private /**
- * @param array<string|int, mixed> $painPoints
- */
-function determineApproach(float $fitScore, array $painPoints): string
+    private function determineApproach(float $fitScore, array $painPoints): string
     {
         if ($fitScore >= 80 && !empty($painPoints)) {
             return 'AGGRESSIVE: High fit with identified pain points. Prioritize immediate outreach.';
@@ -902,10 +858,7 @@ function determineApproach(float $fitScore, array $painPoints): string
     /**
      * Calculate priority score for lead ranking
      */
-    private /**
- * @param array<string|int, mixed> $painPoints
- */
-function calculatePriorityScore(Lead $lead, float $fitScore, array $painPoints): int
+    private function calculatePriorityScore(Lead $lead, float $fitScore, array $painPoints): int
     {
         $priority = (int) $fitScore;
         
@@ -941,10 +894,7 @@ function calculatePriorityScore(Lead $lead, float $fitScore, array $painPoints):
     /**
      * Generate recommended next steps
      */
-    private /**
- * @param array<string|int, mixed> $painPoints
- */
-function generateNextSteps(Lead $lead, float $fitScore, array $painPoints): array
+    private function generateNextSteps(Lead $lead, float $fitScore, array $painPoints): array
     {
         $steps = [];
         
@@ -1032,10 +982,7 @@ function generateNextSteps(Lead $lead, float $fitScore, array $painPoints): arra
     /**
      * Batch analyze multiple leads
      */
-    public /**
- * @param array<string|int, mixed> $leads
- */
-function analyzeMultipleLeads(array $leads): array
+    public function analyzeMultipleLeads(array $leads): array
     {
         $results = [];
         

@@ -524,13 +524,7 @@ class CalendarEvent
         return $this->recurringDays;
     }
 
-    /**
-     * @param array<string|int, mixed> $recurringDays
-     */
-    public /**
- * @param array<string|int, mixed> $recurringDays
- */
-function setRecurringDays(?array $recurringDays): static
+    public function setRecurringDays(?array $recurringDays): static
     {
         $this->recurringDays = $recurringDays;
         return $this;
@@ -582,7 +576,7 @@ function setRecurringDays(?array $recurringDays): static
 
     /**
      * @return Collection<int, User>
-         /** @return Collection<int, App\Entity\User> */
+     */
     public function getAttendees(): Collection
     {
         return $this->attendees;
@@ -692,16 +686,10 @@ function setRecurringDays(?array $recurringDays): static
 
     public function getMetadata(): ?array
     {
-    /**
-     * @param array<string|int, mixed> $metadata
-     */
         return $this->metadata;
     }
 
-    public /**
- * @param array<string|int, mixed> $metadata
- */
-function setMetadata(?array $metadata): static
+    public function setMetadata(?array $metadata): static
     {
         $this->metadata = $metadata;
         return $this;

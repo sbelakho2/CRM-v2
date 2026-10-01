@@ -13,13 +13,7 @@ use Symfony\Component\Validator\Constraints\NotBlank;
 
 class ProfileAccountType extends AbstractType
 {
-    /**
-     * @param array<string|int, mixed> $options
-     */
-    public /**
- * @param array<string|int, mixed> $options
- */
-function buildForm(FormBuilderInterface $builder, array $options): void
+    public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
             ->add('firstName', TextType::class, [

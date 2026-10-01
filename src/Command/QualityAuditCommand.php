@@ -6,6 +6,7 @@ use App\Entity\Company;
 use App\Entity\Contact;
 use App\Repository\CompanyRepository;
 use App\Service\WebCrawler\CompanyDiscoveryService;
+use App\Service\WebCrawler\GoogleDorkService;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -63,6 +64,7 @@ class QualityAuditCommand extends Command
 
     public function __construct(
         private CompanyDiscoveryService $discoveryService,
+        private GoogleDorkService       $googleDorkService,
         private EntityManagerInterface  $em,
         private CompanyRepository       $companyRepo,
         private ManagerRegistry         $doctrine,
@@ -86,10 +88,12 @@ class QualityAuditCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $io->title('🔍 Webcrawler Quality Audit');
 
-        $sectorsOption = $input->getOption('sectors');
-        $sectors = $sectorsOption && \is_string($sectorsOption) ? explode(',', $sectorsOption) : self::SECTORS;
-        $regionsOption = $input->getOption('regions');
-        $regions = $regionsOption && \is_string($regionsOption) ? explode(',', $regionsOption) : self::REGIONS;
+        $sectors = $input->getOption('sectors')
+            ? explode(',', $input->getOption('sectors'))
+            : self::SECTORS;
+        $regions = $input->getOption('regions')
+            ? explode(',', $input->getOption('regions'))
+            : self::REGIONS;
         $auditOnly = $input->getOption('audit-only');
         $wipe = $input->getOption('wipe');
         $force = $input->getOption('force');
@@ -204,9 +208,7 @@ class QualityAuditCommand extends Command
                         $io->writeln(sprintf('         → <error>ERROR</error>: %s', $e->getMessage()));
                         // Reset EntityManager if it was closed by the error
                         if (!$this->em->isOpen()) {
-                            /** @var EntityManagerInterface $resetManager */
-                            $resetManager = $this->doctrine->resetManager();
-                            $this->em = $resetManager;
+                            $this->em = $this->doctrine->resetManager();
                         }
                     }
 
@@ -260,14 +262,10 @@ class QualityAuditCommand extends Command
         $batchIds = [];
 
         foreach ($iterableResult as $row) {
-            /** @var array{0: Company} $row */
+            /** @var Company $company */
             $company = $row[0];
-            $companyId = $company->getId();
-            if ($companyId === null) {
-                continue;
-            }
-            $batchCompanies[$companyId] = $company;
-            $batchIds[] = $companyId;
+            $batchCompanies[$company->getId()] = $company;
+            $batchIds[] = $company->getId();
 
             if (count($batchCompanies) >= $batchSize) {
                 $this->processCompanyBatch(
@@ -383,18 +381,8 @@ class QualityAuditCommand extends Command
      * Process a batch of companies for the quality audit.
      * Pre-loads all contacts in one query to avoid N+1.
      * Metrics are passed by reference and updated in-place.
-     *
-     * @param array<int, Company> $batchCompanies
-     * @param list<int>           $batchIds
-     * @param array<string, int>  $junkReasons
-     * @param array<string, array{total: int, junk: int, contacts: int, address: int}> $regionBreakdown
-     * @param array<string, array{total: int, junk: int, contacts: int, address: int}> $sectorBreakdown
-     * @param list<array{name: string|null, website: string, sector: string, reason: string}> $junkExamples
      */
-    private /**
- * @param array<string|int, mixed> $batchIds
- */
-function processCompanyBatch(
+    private function processCompanyBatch(
         array $batchCompanies,
         array $batchIds,
         int &$junkCount,
@@ -411,7 +399,6 @@ function processCompanyBatch(
     ): void {
         // Pre-load all contacts for this batch in one query
         $contactsMap = [];
-        /** @var list<Contact> $batchContacts */
         $batchContacts = $this->em->getRepository(Contact::class)
             ->createQueryBuilder('ct')
             ->where('ct.company IN (:companyIds)')
@@ -420,12 +407,8 @@ function processCompanyBatch(
             ->getResult();
 
         foreach ($batchContacts as $contact) {
-            $parentCompany = $contact->getCompany();
-            $parentCompanyId = $parentCompany?->getId();
-            if ($parentCompanyId === null) {
-                continue;
-            }
-            $contactsMap[$parentCompanyId][] = $contact;
+            $companyId = $contact->getCompany()->getId();
+            $contactsMap[$companyId][] = $contact;
         }
         unset($batchContacts);
 
@@ -464,10 +447,8 @@ function processCompanyBatch(
             }
 
             // Look up contacts from pre-loaded map
-            $contactCompanyId = $company->getId();
-            $contacts = $contactCompanyId !== null ? $contactsMap[$contactCompanyId] ?? [] : [];
+            $contacts = $contactsMap[$company->getId()] ?? [];
             $hasRealContact = false;
-            /** @var Contact $contact */
             foreach ($contacts as $contact) {
                 $fn = trim($contact->getFirstName() ?? '');
                 $ln = trim($contact->getLastName() ?? '');
@@ -509,7 +490,7 @@ function processCompanyBatch(
      */
     private function isJunkCompany(Company $company): bool
     {
-        $name = strtolower($company->getName() ?? '');
+        $name = strtolower($company->getName());
 
         // ── Pattern 1: No name or very short ─────────────────────
         if (empty($name) || mb_strlen($name) < 3) {
@@ -592,7 +573,7 @@ function processCompanyBatch(
      */
     private function getJunkReason(Company $company): string
     {
-        $name = strtolower($company->getName() ?? '');
+        $name = strtolower($company->getName());
         $website = strtolower($company->getWebsite() ?? '');
 
         if (empty($name) || mb_strlen($name) < 3) return 'Empty/short name';

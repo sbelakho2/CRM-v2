@@ -58,10 +58,7 @@ class LeadScoringService
      * @param array $lead Lead data with extracted features
      * @return array ['score' => int, 'breakdown' => array, 'recommendation' => string]
      */
-    public /**
- * @param array<string|int, mixed> $lead
- */
-function scoreLead(array $lead): array
+    public function scoreLead(array $lead): array
     {
         // Check if we have enough content to score
         $pageContent = $lead['page_content'] ?? '';
@@ -172,10 +169,7 @@ function scoreLead(array $lead): array
      *   Egypt zones / cities / TLDs → geo_egypt weight (default 14)
      *   GCC free zones / cities / TLDs → geo_gcc weight (default 14)
      */
-    private /**
- * @param array<string|int, mixed> $lead
- */
-function scoreGeo(array $lead): int
+    private function scoreGeo(array $lead): int
     {
         $pageContent = strtolower($lead['page_content'] ?? '');
         $address = strtolower($lead['address'] ?? '');
@@ -328,10 +322,7 @@ function scoreGeo(array $lead): int
     /**
      * Score manufacturing fit (0-20)
      */
-    private /**
- * @param array<string|int, mixed> $lead
- */
-function scoreManufacturingFit(array $lead): int
+    private function scoreManufacturingFit(array $lead): int
     {
         $pageContent = strtolower($lead['page_content'] ?? '');
         $uniqueTerms = [];
@@ -349,10 +340,7 @@ function scoreManufacturingFit(array $lead): int
     /**
      * Score procurement readiness (0-18)
      */
-    private /**
- * @param array<string|int, mixed> $lead
- */
-function scoreProcurement(array $lead): int
+    private function scoreProcurement(array $lead): int
     {
         $pageContent = strtolower($lead['page_content'] ?? '');
         $markers = 0;
@@ -370,10 +358,7 @@ function scoreProcurement(array $lead): int
     /**
      * Score sector alignment (0-12)
      */
-    private /**
- * @param array<string|int, mixed> $lead
- */
-function scoreSector(array $lead): int
+    private function scoreSector(array $lead): int
     {
         $pageContent = strtolower($lead['page_content'] ?? '');
         $uniqueTerms = [];
@@ -398,10 +383,7 @@ function scoreSector(array $lead): int
      * 
      * Accepts both legacy morocco_* fields and generic *_evidence fields.
      */
-    private /**
- * @param array<string|int, mixed> $lead
- */
-function scoreRegionEvidence(array $lead): int
+    private function scoreRegionEvidence(array $lead): int
     {
         $score = 0;
 
@@ -426,10 +408,7 @@ function scoreRegionEvidence(array $lead): int
     /**
      * Score contactability (0-8)
      */
-    private /**
- * @param array<string|int, mixed> $lead
- */
-function scoreContactability(array $lead): int
+    private function scoreContactability(array $lead): int
     {
         $score = 0;
 
@@ -454,10 +433,7 @@ function scoreContactability(array $lead): int
     /**
      * Score content freshness (0-7)
      */
-    private /**
- * @param array<string|int, mixed> $lead
- */
-function scoreFreshness(array $lead): int
+    private function scoreFreshness(array $lead): int
     {
         $lastModified = $lead['content_last_modified'] ?? null;
 
@@ -503,10 +479,7 @@ function scoreFreshness(array $lead): int
     /**
      * Generate human-readable reason
      */
-    private /**
- * @param array<string|int, mixed> $breakdown
- */
-function generateReason(array $breakdown, int $totalScore): string
+    private function generateReason(array $breakdown, int $totalScore): string
     {
         $reasons = [];
 
@@ -526,10 +499,7 @@ function generateReason(array $breakdown, int $totalScore): string
     /**
      * Batch score multiple leads
      */
-    public /**
- * @param array<string|int, mixed> $leads
- */
-function scoreLeads(array $leads): array
+    public function scoreLeads(array $leads): array
     {
         $scored = [];
 
@@ -552,11 +522,7 @@ function scoreLeads(array $leads): array
     /**
      * Calculate precision @ top-N
      */
-    public /**
- * @param array<string|int, mixed> $scoredLeads
- * @param array<string|int, mixed> $approvedLeadIds
- */
-function calculatePrecision(array $scoredLeads, array $approvedLeadIds, int $topN = 50): float
+    public function calculatePrecision(array $scoredLeads, array $approvedLeadIds, int $topN = 50): float
     {
         $topLeads = array_slice($scoredLeads, 0, $topN);
         $approved = 0;
@@ -583,10 +549,7 @@ function calculatePrecision(array $scoredLeads, array $approvedLeadIds, int $top
      * @param array $lead Lead data with minimal content
      * @return array Score data with fallback indicators
      */
-    private /**
- * @param array<string|int, mixed> $lead
- */
-function scoreLeadWithFallback(array $lead): array
+    private function scoreLeadWithFallback(array $lead): array
     {
         $breakdown = [];
         $totalScore = 0;
@@ -668,10 +631,7 @@ function scoreLeadWithFallback(array $lead): array
     /**
      * Score based on company name patterns
      */
-    private /**
- * @param array<string|int, mixed> $lead
- */
-function scoreCompanyNameFallback(array $lead): int
+    private function scoreCompanyNameFallback(array $lead): int
     {
         $companyName = strtolower($lead['company_name'] ?? '');
         if (empty($companyName)) {
@@ -696,10 +656,7 @@ function scoreCompanyNameFallback(array $lead): int
     /**
      * Score based on pre-extracted metadata
      */
-    private /**
- * @param array<string|int, mixed> $lead
- */
-function scoreMetadataFallback(array $lead): int
+    private function scoreMetadataFallback(array $lead): int
     {
         $score = 0;
         
@@ -730,10 +687,7 @@ function scoreMetadataFallback(array $lead): int
     /**
      * Score based on pre-extracted sector tags
      */
-    private /**
- * @param array<string|int, mixed> $lead
- */
-function scoreSectorTagsFallback(array $lead): int
+    private function scoreSectorTagsFallback(array $lead): int
     {
         $sectorTags = $lead['sector_tags'] ?? [];
         if (!is_array($sectorTags)) {
@@ -761,10 +715,7 @@ function scoreSectorTagsFallback(array $lead): int
     /**
      * Score based on quality certifications
      */
-    private /**
- * @param array<string|int, mixed> $lead
- */
-function scoreQualityStackFallback(array $lead): int
+    private function scoreQualityStackFallback(array $lead): int
     {
         $qualityStack = $lead['quality_stack'] ?? [];
         if (!is_array($qualityStack)) {
@@ -790,10 +741,7 @@ function scoreQualityStackFallback(array $lead): int
     /**
      * Score based on region — all target regions scored equally
      */
-    private /**
- * @param array<string|int, mixed> $lead
- */
-function scoreRegionFallback(array $lead): int
+    private function scoreRegionFallback(array $lead): int
     {
         $regionTag = strtolower($lead['region_tag'] ?? '');
         $siteLocation = strtolower($lead['site_location'] ?? '');

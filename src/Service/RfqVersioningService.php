@@ -181,10 +181,7 @@ class RfqVersioningService
     /**
      * Add a line item to an RFQ
      */
-    public /**
- * @param array<string|int, mixed> $data
- */
-function addLineItem(RFQ $rfq, array $data): RfqLineItem
+    public function addLineItem(RFQ $rfq, array $data): RfqLineItem
     {
         $lineItem = null;
         
@@ -229,10 +226,7 @@ function addLineItem(RFQ $rfq, array $data): RfqLineItem
     /**
      * Update a line item
      */
-    public /**
- * @param array<string|int, mixed> $data
- */
-function updateLineItem(RfqLineItem $lineItem, array $data): void
+    public function updateLineItem(RfqLineItem $lineItem, array $data): void
     {
         $this->entityManager->wrapInTransaction(function () use ($lineItem, $data) {
             if (isset($data['partNumber'])) $lineItem->setPartNumber($data['partNumber']);
@@ -346,11 +340,7 @@ function updateLineItem(RfqLineItem $lineItem, array $data): void
         return chr(64 + $first) . chr(64 + $second);
     }
     
-    private /**
- * @param array<string|int, mixed> $oldItems
- * @param array<string|int, mixed> $newItems
- */
-function compareLineItems(array $oldItems, array $newItems): array
+    private function compareLineItems(array $oldItems, array $newItems): array
     {
         $changes = [];
         

@@ -13,13 +13,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 class MeetingBookingType extends AbstractType
 {
-    /**
-     * @param array<string|int, mixed> $options
-     */
-    public /**
- * @param array<string|int, mixed> $options
- */
-function buildForm(FormBuilderInterface $builder, array $options): void
+    public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
             ->add('name', TextType::class, [

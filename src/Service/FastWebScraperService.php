@@ -65,10 +65,7 @@ class FastWebScraperService
      * @param string[] $urls Company website URLs
      * @return array<string, array> URL → {baseUrl, pagesScraped, pages: [...]}
      */
-    public /**
- * @param array<string|int, mixed> $urls
- */
-function batchScrape(array $urls): array
+    public function batchScrape(array $urls): array
     {
         $urls = array_values(array_unique($urls));
         if (empty($urls)) {
@@ -184,10 +181,7 @@ function batchScrape(array $urls): array
      * @param string[] $urls
      * @return array<string, string> URL -> response body (empty string on failure)
      */
-    private /**
- * @param array<string|int, mixed> $urls
- */
-function multiGet(array $urls): array
+    private function multiGet(array $urls): array
     {
         if (empty($urls)) {
             return [];
@@ -278,10 +272,7 @@ function multiGet(array $urls): array
      * @param string[] $urls
      * @return array<string, array{body: ?string, redirect: ?string}>
      */
-    private /**
- * @param array<string|int, mixed> $urls
- */
-function curlMultiGet(array $urls): array
+    private function curlMultiGet(array $urls): array
     {
         $results = [];
         $chunks = array_chunk($urls, self::CONCURRENCY);

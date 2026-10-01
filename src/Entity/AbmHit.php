@@ -141,13 +141,7 @@ class AbmHit
         return $this->firmographicData;
     }
 
-    /**
-     * @param array<string|int, mixed> $firmographicData
-     */
-    public /**
- * @param array<string|int, mixed> $firmographicData
- */
-function setFirmographicData(?array $firmographicData): self
+    public function setFirmographicData(?array $firmographicData): self
     {
         $this->firmographicData = $firmographicData;
         return $this;

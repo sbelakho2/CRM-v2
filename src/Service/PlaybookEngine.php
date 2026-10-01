@@ -147,6 +147,7 @@ class PlaybookEngine
             return true; // No triggers = always match
         }
         
+        /** @var array<string, mixed>|null $triggers */
         $triggers = json_decode($triggersJson, true);
         
         if (!$triggers || !is_array($triggers)) {
@@ -215,6 +216,7 @@ class PlaybookEngine
             return [];
         }
         
+        /** @var array<string, mixed>|null $actions */
         $actions = json_decode($actionsJson, true);
         
         if (!$actions || !is_array($actions)) {
@@ -272,10 +274,7 @@ class PlaybookEngine
      * 
      * @return array - Action result
      */
-    private /**
- * @param array<string|int, mixed> $action
- */
-function executeAction(array $action, $context, $event): array
+    private function executeAction(array $action, $context, $event): array
     {
         $actionType = $action['type'] ?? 'unknown';
         $actionData = $action['data'] ?? [];
@@ -416,10 +415,7 @@ function executeAction(array $action, $context, $event): array
      * 
      * @return PlaybookRun
      */
-    public /**
- * @param array<string|int, mixed> $results
- */
-function logRun(
+    public function logRun(
         int $playbookId,
         string $status,
         ?array $results = null,
@@ -494,10 +490,7 @@ function logRun(
      * 
      * @return array - Execution result
      */
-    private /**
- * @param array<string|int, mixed> $actionData
- */
-function executeSendEmailAction(array $actionData, $context, $event): array
+    private function executeSendEmailAction(array $actionData, $context, $event): array
     {
         $templateKey = $actionData['template'] ?? 'default';
         $recipient = $actionData['to'] ?? null;
@@ -606,10 +599,7 @@ function executeSendEmailAction(array $actionData, $context, $event): array
     /**
      * Build template context from context and event objects
      */
-    private /**
- * @param array<string|int, mixed> $actionData
- */
-function buildEmailTemplateContext($context, $event, array $actionData, ?string $recipient = null): array
+    private function buildEmailTemplateContext($context, $event, array $actionData, ?string $recipient = null): array
     {
         $templateContext = [
             'action_data' => $actionData,
@@ -722,10 +712,7 @@ function buildEmailTemplateContext($context, $event, array $actionData, ?string 
     /**
      * Render email template, with fallback for missing templates
      */
-    private /**
- * @param array<string|int, mixed> $context
- */
-function renderEmailTemplate(string $templatePath, array $context): string
+    private function renderEmailTemplate(string $templatePath, array $context): string
     {
         if ($this->twig === null) {
             // Fallback: generate simple HTML without Twig
@@ -747,10 +734,7 @@ function renderEmailTemplate(string $templatePath, array $context): string
     /**
      * Generate fallback email HTML when Twig is unavailable or template missing
      */
-    private /**
- * @param array<string|int, mixed> $context
- */
-function generateFallbackEmailHtml(array $context): string
+    private function generateFallbackEmailHtml(array $context): string
     {
         $accountName = $context['account_name'] ?? $context['company_name'] ?? 'Unknown';
         $score = $context['engagement_score'] ?? 'N/A';

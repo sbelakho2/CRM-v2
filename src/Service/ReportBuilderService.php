@@ -160,10 +160,7 @@ class ReportBuilderService
     /**
      * Execute a report and return results
      */
-    public /**
- * @param array<string|int, mixed> $runtimeFilters
- */
-function executeReport(ReportDefinition $report, array $runtimeFilters = []): array
+    public function executeReport(ReportDefinition $report, array $runtimeFilters = []): array
     {
         $entityClass = self::ENTITY_MAP[$report->getDataSource()] ?? null;
         
@@ -501,10 +498,7 @@ function executeReport(ReportDefinition $report, array $runtimeFilters = []): ar
     /**
      * Apply filters to query
      */
-    private /**
- * @param array<string|int, mixed> $filters
- */
-function applyFilters(QueryBuilder $qb, array $filters, string $dataSource): void
+    private function applyFilters(QueryBuilder $qb, array $filters, string $dataSource): void
     {
         $paramIndex = 0;
         
@@ -736,10 +730,7 @@ function applyFilters(QueryBuilder $qb, array $filters, string $dataSource): voi
     /**
      * Format data for chart display
      */
-    public /**
- * @param array<string|int, mixed> $results
- */
-function formatForChart(array $results, ReportDefinition $report): array
+    public function formatForChart(array $results, ReportDefinition $report): array
     {
         $chartConfig = $report->getChartConfig() ?? [];
         $labelField = $chartConfig['labelField'] ?? null;
@@ -811,10 +802,7 @@ function formatForChart(array $results, ReportDefinition $report): array
     /**
      * Export report to CSV
      */
-    public /**
- * @param array<string|int, mixed> $results
- */
-function exportToCsv(array $results, ReportDefinition $report): string
+    public function exportToCsv(array $results, ReportDefinition $report): string
     {
         if (empty($results)) {
             return '';

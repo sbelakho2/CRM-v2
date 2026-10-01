@@ -69,10 +69,7 @@ class AbmResolverService
      *   playbookTriggered: bool
      * }
      */
-    public /**
- * @param array<string|int, mixed> $eventData
- */
-function processWebEvent(array $eventData): array
+    public function processWebEvent(array $eventData): array
     {
         $ipAddress = (string)($eventData['ip'] ?? '');
         if ($ipAddress === '') {
@@ -262,13 +259,7 @@ function processWebEvent(array $eventData): array
         ];
     }
 
-    /**
-     * @param array<string|int, mixed> $resolvedData
-     */
-    public /**
- * @param array<string|int, mixed> $resolvedData
- */
-function createAbmHit(WebEvent $webEvent, AbmAccount $abmAccount, array $resolvedData): AbmHit
+    public function createAbmHit(WebEvent $webEvent, AbmAccount $abmAccount, array $resolvedData): AbmHit
     {
         $abmHit = new AbmHit();
         $abmHit->setTimestamp($webEvent->getTimestamp() ?? new \DateTime());

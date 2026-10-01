@@ -44,10 +44,7 @@ class PartMatchConfidenceCalculator
      *   requiresReview: bool
      * }
      */
-    public /**
- * @param array<string|int, mixed> $apiResult
- */
-function calculateConfidence(
+    public function calculateConfidence(
         string $requestedMpn,
         ?string $requestedManufacturer,
         ?string $requestedDescription,
@@ -334,10 +331,7 @@ function calculateConfidence(
     /**
      * Score data quality indicators (0-10 points)
      */
-    private /**
- * @param array<string|int, mixed> $apiResult
- */
-function scoreDataQuality(array $apiResult): array
+    private function scoreDataQuality(array $apiResult): array
     {
         $points = 0;
         $reasons = [];
@@ -467,11 +461,7 @@ function scoreDataQuality(array $apiResult): array
     /**
      * Check if manual review is required
      */
-    private /**
- * @param array<string|int, mixed> $warnings
- * @param array<string|int, mixed> $apiResult
- */
-function requiresManualReview(string $level, array $warnings, array $apiResult): bool
+    private function requiresManualReview(string $level, array $warnings, array $apiResult): bool
     {
         // Always require review for low confidence
         if (in_array($level, [self::CONFIDENCE_LOW, self::CONFIDENCE_VERY_LOW])) {

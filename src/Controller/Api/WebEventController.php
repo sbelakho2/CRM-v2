@@ -40,6 +40,7 @@ class WebEventController extends AbstractController
         $token = $request->headers->get('X-CSRF-Token');
         if (!$token) {
             /** @var array<string, mixed>|null $body */
+            /** @var array<string, mixed>|null $body */
             $body = json_decode($request->getContent(), true);
             $token = is_array($body) ? ($body['_token'] ?? null) : null;
         }
@@ -58,6 +59,7 @@ class WebEventController extends AbstractController
         }
 
         try {
+            /** @var array<string, mixed>|null $data */
             /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             

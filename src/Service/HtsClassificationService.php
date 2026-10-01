@@ -45,10 +45,7 @@ class HtsClassificationService
      *    → Return ['hts_code' => rule.hts_code, 'confidence' => 60, 'method' => 'HEURISTIC', 'rule_id' => rule.id]
      * 4. If no match, return ['hts_code' => null, 'confidence' => 0, 'method' => 'UNKNOWN']
      */
-    public /**
- * @param array<string|int, mixed> $bomLine
- */
-function classifyBomLine(array $bomLine): array
+    public function classifyBomLine(array $bomLine): array
     {
         // 1. Check if HTS code is provided
         if (!empty($bomLine['hts_code'])) {
@@ -119,10 +116,7 @@ function classifyBomLine(array $bomLine): array
      * @param array $bomLine BOM line data
      * @return HtsMapRule|null Best matching rule (highest priority) or null
      */
-    private /**
- * @param array<string|int, mixed> $bomLine
- */
-function applyHeuristics(array $bomLine): ?HtsMapRule
+    private function applyHeuristics(array $bomLine): ?HtsMapRule
     {
         $description = $bomLine['description'] ?? '';
         $category = $bomLine['category'] ?? '';
@@ -260,10 +254,7 @@ function applyHeuristics(array $bomLine): ?HtsMapRule
      * 3. Return array of results
      * 4. Log any UNKNOWN classifications for review
      */
-    public /**
- * @param array<string|int, mixed> $bom
- */
-function classifyBom(array $bom): array
+    public function classifyBom(array $bom): array
     {
         $results = [];
         foreach ($bom as $line) {
@@ -283,10 +274,7 @@ function classifyBom(array $bom): array
      * 2. Calculate average confidence score
      * 3. Return statistics array
      */
-    public /**
- * @param array<string|int, mixed> $classificationResults
- */
-function getClassificationStats(array $classificationResults): array
+    public function getClassificationStats(array $classificationResults): array
     {
         $stats = [
             'total' => count($classificationResults),

@@ -850,10 +850,7 @@ class UnifiedPdfGeneratorService
      * 5. Link to Company entity
      * 6. Persist and flush
      */
-    private /**
- * @param array<string|int, mixed> $metadata
- */
-function createDocument(
+    private function createDocument(
         ?Company $company,
         string $documentType,
         string $pdfContent,
@@ -922,12 +919,7 @@ function createDocument(
      * @param array $apiVersions API versions used (e.g., ['mouser' => '2024.10'])
      * @param array $metadata Additional metadata
      */
-    private /**
- * @param array<string|int, mixed> $datasetVersions
- * @param array<string|int, mixed> $apiVersions
- * @param array<string|int, mixed> $metadata
- */
-function logToAudit(
+    private function logToAudit(
         string $reportType,
         string $entityType,
         int $entityId,

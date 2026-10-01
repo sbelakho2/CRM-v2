@@ -82,10 +82,7 @@ class PricingEngine
      *                     'confidence', 'alternatives', 'lifecycle_warning', 'search_url', 
      *                     'waterfall_info']
      */
-    public /**
- * @param array<string|int, mixed> $options
- */
-function getPricing(string $mpn, ?string $manufacturer = null, ?string $description = null, array $options = []): ?array
+    public function getPricing(string $mpn, ?string $manufacturer = null, ?string $description = null, array $options = []): ?array
     {
         $key = $this->priceMemoKey([$mpn, $manufacturer, $description, $options]);
         if (array_key_exists($key, $this->priceMemo)) {
@@ -98,10 +95,7 @@ function getPricing(string $mpn, ?string $manufacturer = null, ?string $descript
     /**
      * Build a memo key covering every input that can affect the pricing result.
      */
-    private /**
- * @param array<string|int, mixed> $inputs
- */
-function priceMemoKey(array $inputs): string
+    private function priceMemoKey(array $inputs): string
     {
         return serialize($inputs);
     }
@@ -111,10 +105,7 @@ function priceMemoKey(array $inputs): string
      *                     'confidence', 'alternatives', 'lifecycle_warning', 'search_url',
      *                     'waterfall_info']
      */
-    private /**
- * @param array<string|int, mixed> $options
- */
-function resolvePricing(string $mpn, ?string $manufacturer = null, ?string $description = null, array $options = []): ?array
+    private function resolvePricing(string $mpn, ?string $manufacturer = null, ?string $description = null, array $options = []): ?array
     {
         $allowedProviders = $options['providers'] ?? [];
         // Nexar disabled by default — Mouser-only mode
@@ -251,11 +242,7 @@ function resolvePricing(string $mpn, ?string $manufacturer = null, ?string $desc
      * @param array $options Options: ['providers' => ['alibaba','mouser','digikey','nexar']]
      * @return array ['lines' => processed lines, 'stats' => statistics, 'reviewRequired' => bool]
      */
-    public /**
- * @param array<string|int, mixed> $bomLines
- * @param array<string|int, mixed> $options
- */
-function processBOM(array $bomLines, array $options = []): array
+    public function processBOM(array $bomLines, array $options = []): array
     {
         $allowedProviders = $options['providers'] ?? [];
         $processedLines = [];
@@ -825,11 +812,7 @@ function processBOM(array $bomLines, array $options = []): array
      *   1. Pulling real manufacturer + description from alternative DigiKey/Mouser results
      *   2. If no alternative data exists, attempt to clean the Alibaba description
      */
-    private /**
- * @param array<string|int, mixed> $processedLine
- * @param array<string|int, mixed> $originalBomLine
- */
-function enrichAlibabaPresentation(array $processedLine, array $originalBomLine): array
+    private function enrichAlibabaPresentation(array $processedLine, array $originalBomLine): array
     {
         $source = $processedLine['source'] ?? '';
         $manufacturer = $processedLine['manufacturer'] ?? '';
@@ -1178,11 +1161,7 @@ function enrichAlibabaPresentation(array $processedLine, array $originalBomLine)
      * @param array $overrides Array of ['line_index' => ['unit_price' => float, 'notes' => string]]
      * @return array Updated lines with overrides applied
      */
-    public /**
- * @param array<string|int, mixed> $processedLines
- * @param array<string|int, mixed> $overrides
- */
-function applyManualOverrides(array $processedLines, array $overrides): array
+    public function applyManualOverrides(array $processedLines, array $overrides): array
     {
         foreach ($overrides as $lineIndex => $override) {
             if (!isset($processedLines[$lineIndex])) {
@@ -1222,10 +1201,7 @@ function applyManualOverrides(array $processedLines, array $overrides): array
     /**
      * Recalculate totals after manual overrides
      */
-    public /**
- * @param array<string|int, mixed> $processedLines
- */
-function recalculateStats(array $processedLines): array
+    public function recalculateStats(array $processedLines): array
     {
         $stats = [
             'total_lines' => count($processedLines),
@@ -1278,10 +1254,7 @@ function recalculateStats(array $processedLines): array
      *   - Qty 15 gets $8 (meets 10 break)
      *   - Qty 200 gets $5 (meets 100 break)
      */
-    private /**
- * @param array<string|int, mixed> $priceBreaks
- */
-function calculateUnitPrice(array $priceBreaks, int $quantity): float
+    private function calculateUnitPrice(array $priceBreaks, int $quantity): float
     {
         if (empty($priceBreaks)) {
             return 0.0;
@@ -1530,10 +1503,7 @@ function calculateUnitPrice(array $priceBreaks, int $quantity): float
      * - Cost at 95: $95.00
      * - Cost at 100: $80.00 (SAVE $15 by ordering 5 more!)
      */
-    public /**
- * @param array<string|int, mixed> $priceBreaks
- */
-function getPriceBreakRecommendation(array $priceBreaks, int $quantity): ?array
+    public function getPriceBreakRecommendation(array $priceBreaks, int $quantity): ?array
     {
         if (empty($priceBreaks) || $quantity <= 0) {
             return null;
@@ -1606,10 +1576,7 @@ function getPriceBreakRecommendation(array $priceBreaks, int $quantity): ?array
     /**
      * Calculate quote totals with margins
      */
-    public /**
- * @param array<string|int, mixed> $processedLines
- */
-function calculateQuoteTotals(array $processedLines, float $marginPercent = 25.0, ?string $currency = null): array
+    public function calculateQuoteTotals(array $processedLines, float $marginPercent = 25.0, ?string $currency = null): array
     {
         $subtotal = 0.0;
         $currency = $currency
@@ -1632,10 +1599,7 @@ function calculateQuoteTotals(array $processedLines, float $marginPercent = 25.0
         ];
     }
 
-    private /**
- * @param array<string|int, mixed> $processedLines
- */
-function resolveCurrencyFromLines(array $processedLines): ?string
+    private function resolveCurrencyFromLines(array $processedLines): ?string
     {
         $counts = [];
 
@@ -1661,10 +1625,7 @@ function resolveCurrencyFromLines(array $processedLines): ?string
         return array_key_first($counts);
     }
 
-    private /**
- * @param array<string|int, mixed> $priceBreaks
- */
-function resolveCurrencyFromPriceBreaks(array $priceBreaks): ?string
+    private function resolveCurrencyFromPriceBreaks(array $priceBreaks): ?string
     {
         foreach ($priceBreaks as $break) {
             if (!empty($break['currency'])) {
@@ -1678,11 +1639,7 @@ function resolveCurrencyFromPriceBreaks(array $priceBreaks): ?string
     /**
      * Check if quote meets auto-publish criteria
      */
-    public /**
- * @param array<string|int, mixed> $stats
- * @param array<string|int, mixed> $processedLines
- */
-function canAutoPublish(array $stats, array $processedLines): array
+    public function canAutoPublish(array $stats, array $processedLines): array
     {
         $checks = [
             'coverage_ok' => $stats['coverage_percent'] >= 90,
@@ -1742,10 +1699,7 @@ function canAutoPublish(array $stats, array $processedLines): array
      *     recommendation: string
      * }
      */
-    public /**
- * @param array<string|int, mixed> $processedLines
- */
-function optimizeBOMSourcing(array $processedLines, float $orderOverhead = 12.00): array
+    public function optimizeBOMSourcing(array $processedLines, float $orderOverhead = 12.00): array
     {
         // ── 1. Build multi-source pricing map ──
         // Each sourced line already has alternatives from multi-distributor.

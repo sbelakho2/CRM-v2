@@ -194,10 +194,7 @@ class GoogleSearchService
     /**
      * Parse search results into structured format
      */
-    private /**
- * @param array<string|int, mixed> $items
- */
-function parseResults(array $items): array
+    private function parseResults(array $items): array
     {
         $results = [];
 
@@ -285,10 +282,7 @@ function parseResults(array $items): array
     /**
      * Extract company website from search result
      */
-    public /**
- * @param array<string|int, mixed> $searchResult
- */
-function extractWebsite(array $searchResult): ?string
+    public function extractWebsite(array $searchResult): ?string
     {
         if (!empty($searchResult['link'])) {
             $parsed = parse_url($searchResult['link']);
@@ -301,10 +295,7 @@ function extractWebsite(array $searchResult): ?string
     /**
      * Build advanced search query
      */
-    public /**
- * @param array<string|int, mixed> $criteria
- */
-function buildAdvancedQuery(array $criteria): string
+    public function buildAdvancedQuery(array $criteria): string
     {
         $parts = [];
 

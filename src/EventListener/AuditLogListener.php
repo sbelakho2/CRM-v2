@@ -119,12 +119,8 @@ class AuditLogListener
      * built with real data in the current flush. Entities persisted inside
      * lifecycle events are otherwise inserted with an empty change set,
      * which produces an unparameterised INSERT and a MySQL syntax error.
-     * @param array<string|int, mixed> $changeSet
      */
-    private /**
- * @param array<string|int, mixed> $changeSet
- */
-function scheduleAuditLog(UnitOfWork $uow, string $action, object $entity, array $changeSet = []): void
+    private function scheduleAuditLog(UnitOfWork $uow, string $action, object $entity, array $changeSet = []): void
     {
         $auditLog = $this->createAuditLog($action, $entity, $changeSet);
         $this->em->persist($auditLog);
@@ -144,14 +140,8 @@ function scheduleAuditLog(UnitOfWork $uow, string $action, object $entity, array
     {
         return $this->em->getClassMetadata(get_class($entity))->getName();
     }
-    /**
-     * @param array<string|int, mixed> $changeSet
-     */
 
-    private /**
- * @param array<string|int, mixed> $changeSet
- */
-function createAuditLog(string $action, object $entity, array $changeSet = []): AuditLog
+    private function createAuditLog(string $action, object $entity, array $changeSet = []): AuditLog
     {
         $auditLog = new AuditLog();
         $className = $this->getRealClassName($entity);

@@ -588,6 +588,7 @@ class DeepScrapingService
     {
         try {
             $crawler->filter('script[type="application/ld+json"]')->each(function (Crawler $node) use (&$result) {
+                /** @var array<string, mixed>|null $json */
                 $json = json_decode($node->text(), true);
                 if (!is_array($json)) {
                     return;
@@ -655,10 +656,7 @@ class DeepScrapingService
     /**
      * Parse a Schema.org Person entity into a structured contact
      */
-    private /**
- * @param array<string|int, mixed> $entity
- */
-function parseSchemaOrgPerson(array $entity): ?array
+    private function parseSchemaOrgPerson(array $entity): ?array
     {
         $name = $entity['name'] ?? null;
         $firstName = $entity['givenName'] ?? null;
@@ -1127,10 +1125,7 @@ function parseSchemaOrgPerson(array $entity): ?array
     /**
      * Check if a contact is a decision-maker (procurement, engineering, C-suite)
      */
-    public /**
- * @param array<string|int, mixed> $contact
- */
-function isDecisionMaker(array $contact): bool
+    public function isDecisionMaker(array $contact): bool
     {
         $title = strtolower($contact['job_title'] ?? '');
         if (!$title) {
@@ -1153,10 +1148,7 @@ function isDecisionMaker(array $contact): bool
      * Score a contact's quality (0-100) for B2B sales relevance.
      * Higher = more likely a real, reachable decision-maker.
      */
-    public /**
- * @param array<string|int, mixed> $contact
- */
-function scoreContactQuality(array $contact, ?string $companyDomain = null): int
+    public function scoreContactQuality(array $contact, ?string $companyDomain = null): int
     {
         $score = 0;
 
@@ -1317,10 +1309,7 @@ function scoreContactQuality(array $contact, ?string $companyDomain = null): int
     /**
      * Clean and filter emails
      */
-    private /**
- * @param array<string|int, mixed> $emails
- */
-function cleanEmails(array $emails): array
+    private function cleanEmails(array $emails): array
     {
         $cleaned = [];
         $seen = [];
@@ -1367,10 +1356,7 @@ function cleanEmails(array $emails): array
     /**
      * Clean and filter phones
      */
-    private /**
- * @param array<string|int, mixed> $phones
- */
-function cleanPhones(array $phones): array
+    private function cleanPhones(array $phones): array
     {
         $cleaned = [];
         $seen = [];
@@ -1399,11 +1385,7 @@ function cleanPhones(array $phones): array
      * If a contact has no email but we found emails like firstname.lastname@domain
      * or firstinitiallastname@domain, we match them up.
      */
-    private /**
- * @param array<string|int, mixed> $contacts
- * @param array<string|int, mixed> $emails
- */
-function deduplicateAndEnrichContacts(array $contacts, array $emails, string $baseUrl): array
+    private function deduplicateAndEnrichContacts(array $contacts, array $emails, string $baseUrl): array
     {
         $domain = parse_url($baseUrl, PHP_URL_HOST);
         $domain = $domain ? preg_replace('/^www\./', '', strtolower($domain)) : null;
@@ -1477,10 +1459,7 @@ function deduplicateAndEnrichContacts(array $contacts, array $emails, string $ba
     /**
      * Deduplicate social links
      */
-    private /**
- * @param array<string|int, mixed> $links
- */
-function deduplicateSocialLinks(array $links): array
+    private function deduplicateSocialLinks(array $links): array
     {
         $seen = [];
         $unique = [];

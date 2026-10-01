@@ -464,6 +464,7 @@ class ReportController extends AbstractController
         if (!$token) {
             /** @var mixed $body */
             /** @var array<string, mixed>|null $body */
+            /** @var array<string, mixed>|null $body */
             $body = json_decode($request->getContent(), true);
             $bodyToken = \is_array($body) ? ($body['_token'] ?? null) : null;
             $token = \is_string($bodyToken) ? $bodyToken : null;
@@ -473,6 +474,7 @@ class ReportController extends AbstractController
         }
 
         /** @var mixed $data */
+        /** @var array<string, mixed>|null $data */
         /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         if (!\is_array($data)) {

@@ -60,10 +60,7 @@ final class ContactQualityScorer
      *
      * @return int Quality score (higher = better)
      */
-    public /**
- * @param array<string|int, mixed> $contact
- */
-function score(array $contact): int
+    public function score(array $contact): int
     {
         $score = 0;
 
@@ -99,10 +96,7 @@ function score(array $contact): int
      * @param list<array> $contacts
      * @return list<array> Sorted descending by quality_score
      */
-    public /**
- * @param array<string|int, mixed> $contacts
- */
-function scoreAndSort(array $contacts): array
+    public function scoreAndSort(array $contacts): array
     {
         foreach ($contacts as &$c) {
             $c['quality_score'] = $this->score($c);
@@ -121,10 +115,7 @@ function scoreAndSort(array $contacts): array
      * @param list<array> $contacts Already scored
      * @return list<array> Deduplicated
      */
-    public /**
- * @param array<string|int, mixed> $contacts
- */
-function deduplicate(array $contacts): array
+    public function deduplicate(array $contacts): array
     {
         /** @var array<string, array> $seen key=normalized identity */
         $seen = [];
@@ -174,10 +165,7 @@ function deduplicate(array $contacts): array
      * @param int $minScore Minimum quality score
      * @return list<array>
      */
-    public /**
- * @param array<string|int, mixed> $contacts
- */
-function pipeline(array $contacts, int $maxContacts = 5, int $minScore = self::MIN_QUALITY_SCORE): array
+    public function pipeline(array $contacts, int $maxContacts = 5, int $minScore = self::MIN_QUALITY_SCORE): array
     {
         $scored = $this->scoreAndSort($contacts);
         $deduped = $this->deduplicate($scored);
@@ -201,10 +189,7 @@ function pipeline(array $contacts, int $maxContacts = 5, int $minScore = self::M
      *
      * @return list<string>
      */
-    private /**
- * @param array<string|int, mixed> $c
- */
-function getDedupeKeys(array $c): array
+    private function getDedupeKeys(array $c): array
     {
         $keys = [];
 
@@ -235,11 +220,7 @@ function getDedupeKeys(array $c): array
     /**
      * Merge two contact records, keeping the richer data from each.
      */
-    private /**
- * @param array<string|int, mixed> $existing
- * @param array<string|int, mixed> $new
- */
-function mergeContacts(array $existing, array $new): array
+    private function mergeContacts(array $existing, array $new): array
     {
         $mergeFields = ['email', 'phone', 'linkedin_url', 'job_title', 'location', 'company_mentioned'];
 

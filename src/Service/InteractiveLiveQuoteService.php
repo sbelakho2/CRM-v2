@@ -67,10 +67,7 @@ class InteractiveLiveQuoteService
      *
      * @return list<int>
      */
-    private /**
- * @param array<string|int, mixed> $quantityTiers
- */
-function normalizeQuantityTiers(?array $quantityTiers): array
+    private function normalizeQuantityTiers(?array $quantityTiers): array
     {
         if (!is_array($quantityTiers) || $quantityTiers === []) {
             return self::DEFAULT_QUANTITY_TIERS;
@@ -120,10 +117,7 @@ function normalizeQuantityTiers(?array $quantityTiers): array
      * @param int $expirationDays Token validity period
      * @return array{token: string, url: string, expires_at: string}
      */
-    public /**
- * @param array<string|int, mixed> $quantityTiers
- */
-function enableInteractiveMode(
+    public function enableInteractiveMode(
         Quote $quote,
         ?array $quantityTiers = null,
         int $expirationDays = 30
@@ -301,10 +295,7 @@ function enableInteractiveMode(
      * produces (extended_price per line) and priced by the one canonical
      * engine — same cost components, same margin rules, same currency.
      */
-    private /**
- * @param array<string|int, mixed> $bomData
- */
-function calculatePricingForQuantity(array $bomData, int $quantity, ?string $currency = null): array
+    private function calculatePricingForQuantity(array $bomData, int $quantity, ?string $currency = null): array
     {
         $unitTotal = 0.0;
         $extendedTotal = 0.0;
@@ -407,10 +398,7 @@ function calculatePricingForQuantity(array $bomData, int $quantity, ?string $cur
     /**
      * Get unit price based on price breaks
      */
-    private /**
- * @param array<string|int, mixed> $priceBreaks
- */
-function getUnitPriceForQuantity(array $priceBreaks, int $quantity): float
+    private function getUnitPriceForQuantity(array $priceBreaks, int $quantity): float
     {
         if (empty($priceBreaks)) {
             return 0.0;
@@ -432,11 +420,7 @@ function getUnitPriceForQuantity(array $priceBreaks, int $quantity): float
     /**
      * Calculate savings compared to minimum quantity tier
      */
-    private /**
- * @param array<string|int, mixed> $existingTiers
- * @param array<string|int, mixed> $currentResult
- */
-function calculateSavings(array $existingTiers, array $currentResult): array
+    private function calculateSavings(array $existingTiers, array $currentResult): array
     {
         if (empty($existingTiers)) {
             return [
@@ -465,10 +449,7 @@ function calculateSavings(array $existingTiers, array $currentResult): array
     /**
      * Estimate lead time based on quantity and stock levels
      */
-    private /**
- * @param array<string|int, mixed> $bomData
- */
-function estimateLeadTime(int $quantity, array $bomData): array
+    private function estimateLeadTime(int $quantity, array $bomData): array
     {
         $maxLeadTimeDays = 0;
         $constrainingPart = null;
@@ -559,6 +540,7 @@ function estimateLeadTime(int $quantity, array $bomData): array
         // Fallback to JSON data
         $bomJson = $quote->getBomDataJson();
         if ($bomJson) {
+            /** @var array<string, mixed>|null $decoded */
             $decoded = json_decode($bomJson, true);
             $lines = $decoded['lines'] ?? $decoded ?? [];
 
@@ -680,10 +662,7 @@ function estimateLeadTime(int $quantity, array $bomData): array
      * still carry a valid public token (i.e. it was retrieved through
      * getQuoteByToken() on the public route).
      */
-    public /**
- * @param array<string|int, mixed> $customerInfo
- */
-function acceptQuote(Quote $quote, int $acceptedQuantity, array $customerInfo, ?string $token = null): array
+    public function acceptQuote(Quote $quote, int $acceptedQuantity, array $customerInfo, ?string $token = null): array
     {
         // Archived quotes are read-only — public tokens already refuse them,
         // the authenticated flow must too.
@@ -892,10 +871,7 @@ function acceptQuote(Quote $quote, int $acceptedQuantity, array $customerInfo, ?
      * (The data model has no per-quote sales owner — quotes and companies
      * only carry archivedBy — so the admin group IS the follow-up queue.)
      */
-    private /**
- * @param array<string|int, mixed> $data
- */
-function notifyOperations(string $type, string $message, int $entityId, array $data = []): void
+    private function notifyOperations(string $type, string $message, int $entityId, array $data = []): void
     {
         try {
             $admins = $this->entityManager->createQuery(

@@ -401,10 +401,7 @@ class QuoteWinPredictorService
     /**
      * Calculate model confidence based on data completeness
      */
-    private /**
- * @param array<string|int, mixed> $factors
- */
-function calculateConfidence(Quote $quote, array $factors): float
+    private function calculateConfidence(Quote $quote, array $factors): float
     {
         $confidence = 0.5;
         
@@ -458,10 +455,7 @@ function calculateConfidence(Quote $quote, array $factors): float
     /**
      * Generate actionable recommendation based on analysis
      */
-    private /**
- * @param array<string|int, mixed> $factors
- */
-function generateRecommendation(float $probability, array $factors): string
+    private function generateRecommendation(float $probability, array $factors): string
     {
         if ($probability >= 0.80) {
             return 'High confidence win. Proceed with follow-up to close.';
@@ -494,10 +488,7 @@ function generateRecommendation(float $probability, array $factors): string
     /**
      * Generate detailed insights for sales team
      */
-    private /**
- * @param array<string|int, mixed> $factors
- */
-function generateInsights(array $factors, float $probability): array
+    private function generateInsights(array $factors, float $probability): array
     {
         $insights = [];
         

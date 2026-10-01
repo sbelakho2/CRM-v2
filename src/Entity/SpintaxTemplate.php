@@ -153,13 +153,7 @@ class SpintaxTemplate
         return $this->availableVariables;
     }
 
-    /**
-     * @param array<string|int, mixed> $availableVariables
-     */
-    public /**
- * @param array<string|int, mixed> $availableVariables
- */
-function setAvailableVariables(array $availableVariables): self
+    public function setAvailableVariables(array $availableVariables): self
     {
         $this->availableVariables = $availableVariables;
         return $this;

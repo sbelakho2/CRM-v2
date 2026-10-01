@@ -16,13 +16,7 @@ class PasswordPolicy extends Compound
 {
     public const MIN_LENGTH = 12;
 
-    /**
-     * @param array<string|int, mixed> $options
-     */
-    protected /**
- * @param array<string|int, mixed> $options
- */
-function getConstraints(array $options): array
+    protected function getConstraints(array $options): array
     {
         return [
             new NotBlank(['message' => 'validation.required']),

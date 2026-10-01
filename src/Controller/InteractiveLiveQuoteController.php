@@ -55,6 +55,7 @@ class InteractiveLiveQuoteController extends AbstractController
         $token = $request->headers->get('X-CSRF-Token');
         if (!$token) {
             /** @var array<string, mixed>|null $data */
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             $token = is_array($data) ? ($data['_token'] ?? null) : null;
         }
@@ -139,6 +140,7 @@ class InteractiveLiveQuoteController extends AbstractController
         }
         
         /** @var array<string, mixed>|null $data */
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         $quantity = (int) ($data['quantity'] ?? 0);
         
@@ -203,6 +205,7 @@ class InteractiveLiveQuoteController extends AbstractController
         }
         
         /** @var array<string, mixed>|null $data */
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         $quantity = (int) ($data['quantity'] ?? 0);
         $notes = $data['notes'] ?? null;
@@ -253,6 +256,7 @@ class InteractiveLiveQuoteController extends AbstractController
         // Idempotency is handled IN the service: a replay returns the
         // ORIGINAL QuoteAcceptance record with its authoritative data.
         /** @var array<string, mixed>|null $data */
+        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         $quantity = (int) ($data['quantity'] ?? $quote->getQuantity());
         $customerInfo = [
@@ -301,6 +305,7 @@ class InteractiveLiveQuoteController extends AbstractController
             ], Response::HTTP_NOT_FOUND);
         }
         
+        /** @var array<string, mixed>|null $data */
         /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         $quantityTiers = $data['quantity_tiers'] ?? null;
@@ -387,6 +392,7 @@ class InteractiveLiveQuoteController extends AbstractController
             ], Response::HTTP_NOT_FOUND);
         }
         
+        /** @var array<string, mixed>|null $data */
         /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
         $expirationDays = (int) ($data['expiration_days'] ?? 30);

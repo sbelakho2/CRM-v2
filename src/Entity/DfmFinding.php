@@ -168,13 +168,7 @@ class DfmFinding
         return $this->metadata;
     }
 
-    /**
-     * @param array<string|int, mixed> $metadata
-     */
-    public /**
- * @param array<string|int, mixed> $metadata
- */
-function setMetadata(?array $metadata): self
+    public function setMetadata(?array $metadata): self
     {
         $this->metadata = $metadata;
         return $this;

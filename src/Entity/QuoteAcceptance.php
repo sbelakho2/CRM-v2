@@ -195,13 +195,7 @@ class QuoteAcceptance
         return $this->pricingSnapshot;
     }
 
-    /**
-     * @param array<string|int, mixed> $pricingSnapshot
-     */
-    public /**
- * @param array<string|int, mixed> $pricingSnapshot
- */
-function setPricingSnapshot(?array $pricingSnapshot): self
+    public function setPricingSnapshot(?array $pricingSnapshot): self
     {
         $this->pricingSnapshot = $pricingSnapshot;
 

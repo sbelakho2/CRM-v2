@@ -220,6 +220,7 @@ class PlaybookController extends AbstractController
 
             $payload = $request->request->get('trigger_rules', '[]');
             /** @var array<string, mixed>|null $decoded */
+            /** @var array<string, mixed>|null $decoded */
             $decoded = json_decode($payload, true);
 
             if (!is_array($decoded)) {
@@ -251,6 +252,7 @@ class PlaybookController extends AbstractController
 
             $payload = $request->request->get('actions', '[]');
             /** @var array<string, mixed>|null $decoded */
+            /** @var array<string, mixed>|null $decoded */
             $decoded = json_decode($payload, true);
 
             if (!is_array($decoded)) {
@@ -273,6 +275,7 @@ class PlaybookController extends AbstractController
 
     private function decodeJsonArray(?string $value): array
     {
+        /** @var array<string, mixed>|null $decoded */
         /** @var array<string, mixed>|null $decoded */
         $decoded = json_decode($value ?? '[]', true);
         return is_array($decoded) ? $decoded : [];

@@ -296,10 +296,7 @@ class HourlyOptimizationService
      * - Top-K arms by Thompson sampling score
      * - Exploration floor: at least 15% of sends go to under-tested arms
      */
-    private /**
- * @param array<string|int, mixed> $snapshot
- */
-function stage2_candidateSelection(array $snapshot): array
+    private function stage2_candidateSelection(array $snapshot): array
     {
         $candidates = [
             'exploitation' => [],
@@ -335,10 +332,7 @@ function stage2_candidateSelection(array $snapshot): array
      * Compose messages for eligible contacts.
      * Each message passes through copy-lint and cadence governor.
      */
-    private /**
- * @param array<string|int, mixed> $candidates
- */
-function stage3_personalizeAndGate(array $candidates, int $limit, bool $dryRun): array
+    private function stage3_personalizeAndGate(array $candidates, int $limit, bool $dryRun): array
     {
         $composed = [];
         $gateResults = ['passed' => 0, 'lintBlocked' => 0, 'cadenceBlocked' => 0, 'errors' => 0];
@@ -417,10 +411,7 @@ function stage3_personalizeAndGate(array $candidates, int $limit, bool $dryRun):
     /**
      * Send the composed batch, recording each as an OutboundMessage.
      */
-    private /**
- * @param array<string|int, mixed> $stage3Result
- */
-function stage4_executionWindow(array $stage3Result, bool $dryRun): array
+    private function stage4_executionWindow(array $stage3Result, bool $dryRun): array
     {
         if ($dryRun || empty($stage3Result['composed'] ?? [])) {
             return [
@@ -498,10 +489,7 @@ function stage4_executionWindow(array $stage3Result, bool $dryRun): array
      * Evaluate each arm's performance vs baseline over the recent window.
      * Uses messages from the last hour (or last 24h for broader context).
      */
-    private /**
- * @param array<string|int, mixed> $snapshot
- */
-function stage5_hourlyEvaluation(array $snapshot): array
+    private function stage5_hourlyEvaluation(array $snapshot): array
     {
         $evaluation = [];
 
@@ -577,10 +565,7 @@ function stage5_hourlyEvaluation(array $snapshot): array
      * 2. Underperformance check — flag arms performing < 70% of baseline
      * 3. System-wide safe mode — halt non-control sends if overall neg rate >= 35%
      */
-    private /**
- * @param array<string|int, mixed> $snapshot
- */
-function stage6_safetyEnforcement(array $snapshot): array
+    private function stage6_safetyEnforcement(array $snapshot): array
     {
         $instantKills = [];
         $underperformers = [];
@@ -677,11 +662,7 @@ function stage6_safetyEnforcement(array $snapshot): array
      * - Prune: deactivate arms with verdict 'prune_candidate' or 'instant_kill'
      * - Promote: freeze promoted arms (lock alpha/beta), mark as proven winners
      */
-    private /**
- * @param array<string|int, mixed> $snapshot
- * @param array<string|int, mixed> $evaluation
- */
-function stage7_pruneAndPromote(array $snapshot, array $evaluation, bool $dryRun): array
+    private function stage7_pruneAndPromote(array $snapshot, array $evaluation, bool $dryRun): array
     {
         $pruned = [];
         $promoted = [];
@@ -874,10 +855,7 @@ function stage7_pruneAndPromote(array $snapshot, array $evaluation, bool $dryRun
      * Invariant checks that must hold at the end of every cycle.
      * Failures are logged as CRITICAL but do not crash the cycle.
      */
-    private /**
- * @param array<string|int, mixed> $report
- */
-function stage9_assertions(array $report): array
+    private function stage9_assertions(array $report): array
     {
         $assertions = [];
         $allPassed = true;
@@ -953,12 +931,7 @@ function stage9_assertions(array $report): array
      * - hold:     No significant change; system is stable
      * - rollback: Arms were pruned or instant-killed; system fell back to safer state
      */
-    private /**
- * @param array<string|int, mixed> $snapshot
- * @param array<string|int, mixed> $evaluation
- * @param array<string|int, mixed> $prunePromote
- */
-function stage10_guaranteedOutcome(array $snapshot, array $evaluation, array $prunePromote): array
+    private function stage10_guaranteedOutcome(array $snapshot, array $evaluation, array $prunePromote): array
     {
         $promoteCount = $prunePromote['promoteCount'] ?? 0;
         $pruneCount = $prunePromote['pruneCount'] ?? 0;

@@ -277,13 +277,7 @@ class CustomFieldValue
         return $this->jsonValue;
     }
 
-    /**
-     * @param array<string|int, mixed> $jsonValue
-     */
-    public /**
- * @param array<string|int, mixed> $jsonValue
- */
-function setJsonValue(?array $jsonValue): static
+    public function setJsonValue(?array $jsonValue): static
     {
         $this->jsonValue = $jsonValue;
         return $this;

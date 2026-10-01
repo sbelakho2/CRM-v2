@@ -332,10 +332,7 @@ class EmailComplianceService
      * @param array $contacts
      * @return array Validation results
      */
-    public /**
- * @param array<string|int, mixed> $contacts
- */
-function preFlightCheck(EmailCampaign $campaign, array $contacts): array
+    public function preFlightCheck(EmailCampaign $campaign, array $contacts): array
     {
         $results = [
             'can_send' => true,

@@ -281,13 +281,7 @@ class LearnedCompetitor
         return $this->aliases ?? [];
     }
 
-    /**
-     * @param array<string|int, mixed> $aliases
-     */
-    public /**
- * @param array<string|int, mixed> $aliases
- */
-function setAliases(?array $aliases): static
+    public function setAliases(?array $aliases): static
     {
         $this->aliases = $aliases;
         return $this;
@@ -305,16 +299,10 @@ function setAliases(?array $aliases): static
 
     public function getKeywords(): array
     {
-    /**
-     * @param array<string|int, mixed> $keywords
-     */
         return $this->keywords ?? [];
     }
 
-    public /**
- * @param array<string|int, mixed> $keywords
- */
-function setKeywords(?array $keywords): static
+    public function setKeywords(?array $keywords): static
     {
         $this->keywords = $keywords;
         return $this;
@@ -329,19 +317,13 @@ function setKeywords(?array $keywords): static
         }
         return $this;
     }
-    /**
-     * @param array<string|int, mixed> $metadata
-     */
 
     public function getMetadata(): array
     {
         return $this->metadata ?? [];
     }
 
-    public /**
- * @param array<string|int, mixed> $metadata
- */
-function setMetadata(?array $metadata): static
+    public function setMetadata(?array $metadata): static
     {
         $this->metadata = $metadata;
         return $this;
