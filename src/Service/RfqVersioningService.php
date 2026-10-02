@@ -19,6 +19,27 @@ use Psr\Log\LoggerInterface;
  * - Creates new versions when quotes are revised
  * - Tracks line item changes
  * - Maintains audit trail
+ *
+ * @phpstan-type LineItemSnapshot array{
+ *     lineNumber: int|null,
+ *     partNumber: string|null,
+ *     customerPartNumber: string|null,
+ *     description: string|null,
+ *     quantityAnnual: int|null,
+ *     quantityPerBatch: int|null,
+ *     unitPrice: string|null,
+ *     nrePrice: string|null,
+ *     currency: string|null,
+ *     leadTimeDays: int|null,
+ *     technology: string|null,
+ *     lineTotal: float
+ * }
+ * @phpstan-type LineItemChange array{
+ *     type: 'added'|'removed'|'modified',
+ *     lineNumber: int|null,
+ *     item?: LineItemSnapshot,
+ *     changes?: array<string, array{from: mixed, to: mixed}>
+ * }
  */
 class RfqVersioningService
 {
@@ -68,7 +89,13 @@ class RfqVersioningService
             
             $version = $newVersion;
         });
-        
+
+        if (!$version instanceof RfqVersion) {
+            // Unreachable while the transaction callback assigns the version;
+            // guards against a future callback refactor silently returning null.
+            throw new \RuntimeException('Initial RFQ version was not created');
+        }
+
         return $version;
     }
     
@@ -122,7 +149,13 @@ class RfqVersioningService
             
             $version = $newVersion;
         });
-        
+
+        if (!$version instanceof RfqVersion) {
+            // Unreachable while the transaction callback assigns the version;
+            // guards against a future callback refactor silently returning null.
+            throw new \RuntimeException('RFQ revision was not created');
+        }
+
         return $version;
     }
     
@@ -144,6 +177,8 @@ class RfqVersioningService
     
     /**
      * Get version comparison between two versions
+     *
+     * @return array{value_change: array{from: float, to: float, difference: float, percentage: float|null}|null, line_item_changes: list<LineItemChange>, scope_changed: bool}
      */
     public function compareVersions(RfqVersion $older, RfqVersion $newer): array
     {
@@ -167,7 +202,9 @@ class RfqVersioningService
         }
         
         // Compare line items
+        /** @var list<LineItemSnapshot> $oldItems */
         $oldItems = $older->getLineItemsSnapshot() ?? [];
+        /** @var list<LineItemSnapshot> $newItems */
         $newItems = $newer->getLineItemsSnapshot() ?? [];
         
         $changes['line_item_changes'] = $this->compareLineItems($oldItems, $newItems);
@@ -185,42 +222,30 @@ class RfqVersioningService
     public function addLineItem(RFQ $rfq, array $data): RfqLineItem
     {
         $lineItem = null;
-        
+
         $this->entityManager->wrapInTransaction(function () use ($rfq, $data, &$lineItem) {
             $newLineItem = new RfqLineItem();
             $newLineItem->setRfq($rfq);
             $newLineItem->setLineNumber($this->lineItemRepository->getNextLineNumber($rfq));
-            
+
             // Set data
-            if (isset($data['partNumber'])) $newLineItem->setPartNumber($data['partNumber']);
-            if (isset($data['customerPartNumber'])) $newLineItem->setCustomerPartNumber($data['customerPartNumber']);
-            if (isset($data['description'])) $newLineItem->setDescription($data['description']);
-            if (isset($data['quantityAnnual'])) $newLineItem->setQuantityAnnual($data['quantityAnnual']);
-            if (isset($data['quantityPerBatch'])) $newLineItem->setQuantityPerBatch($data['quantityPerBatch']);
-            if (isset($data['unitPrice'])) $newLineItem->setUnitPrice($data['unitPrice']);
-            if (isset($data['nrePrice'])) $newLineItem->setNrePrice($data['nrePrice']);
-            if (isset($data['currency'])) $newLineItem->setCurrency($data['currency']);
-            if (isset($data['leadTimeDays'])) $newLineItem->setLeadTimeDays($data['leadTimeDays']);
-            if (isset($data['technology'])) $newLineItem->setTechnology($data['technology']);
-            if (isset($data['componentCount'])) $newLineItem->setComponentCount($data['componentCount']);
-            if (isset($data['specifications'])) $newLineItem->setSpecifications($data['specifications']);
-            if (isset($data['notes'])) $newLineItem->setNotes($data['notes']);
-            
-            // Boolean flags
-            $newLineItem->setRequiresXray($data['requiresXray'] ?? false);
-            $newLineItem->setRequiresAoi($data['requiresAoi'] ?? false);
-            $newLineItem->setRequiresFunctionalTest($data['requiresFunctionalTest'] ?? false);
-            $newLineItem->setRequiresConformalCoating($data['requiresConformalCoating'] ?? false);
-            
+            $this->applyLineItemData($newLineItem, $data);
+
             $this->entityManager->persist($newLineItem);
             $this->entityManager->flush();
-            
+
             // Update RFQ estimated value
             $this->updateRfqTotalValue($rfq);
-            
+
             $lineItem = $newLineItem;
         });
-        
+
+        if (!$lineItem instanceof RfqLineItem) {
+            // Unreachable while the transaction callback assigns the item;
+            // guards against a future callback refactor silently returning null.
+            throw new \RuntimeException('RFQ line item was not created');
+        }
+
         return $lineItem;
     }
     
@@ -231,26 +256,8 @@ class RfqVersioningService
     public function updateLineItem(RfqLineItem $lineItem, array $data): void
     {
         $this->entityManager->wrapInTransaction(function () use ($lineItem, $data) {
-            if (isset($data['partNumber'])) $lineItem->setPartNumber($data['partNumber']);
-            if (isset($data['customerPartNumber'])) $lineItem->setCustomerPartNumber($data['customerPartNumber']);
-            if (isset($data['description'])) $lineItem->setDescription($data['description']);
-            if (isset($data['quantityAnnual'])) $lineItem->setQuantityAnnual($data['quantityAnnual']);
-            if (isset($data['quantityPerBatch'])) $lineItem->setQuantityPerBatch($data['quantityPerBatch']);
-            if (isset($data['unitPrice'])) $lineItem->setUnitPrice($data['unitPrice']);
-            if (isset($data['nrePrice'])) $lineItem->setNrePrice($data['nrePrice']);
-            if (isset($data['currency'])) $lineItem->setCurrency($data['currency']);
-            if (isset($data['leadTimeDays'])) $lineItem->setLeadTimeDays($data['leadTimeDays']);
-            if (isset($data['technology'])) $lineItem->setTechnology($data['technology']);
-            if (isset($data['componentCount'])) $lineItem->setComponentCount($data['componentCount']);
-            if (isset($data['specifications'])) $lineItem->setSpecifications($data['specifications']);
-            if (isset($data['notes'])) $lineItem->setNotes($data['notes']);
-            if (isset($data['status'])) $lineItem->setStatus($data['status']);
-            
-            if (isset($data['requiresXray'])) $lineItem->setRequiresXray($data['requiresXray']);
-            if (isset($data['requiresAoi'])) $lineItem->setRequiresAoi($data['requiresAoi']);
-            if (isset($data['requiresFunctionalTest'])) $lineItem->setRequiresFunctionalTest($data['requiresFunctionalTest']);
-            if (isset($data['requiresConformalCoating'])) $lineItem->setRequiresConformalCoating($data['requiresConformalCoating']);
-            
+            $this->applyLineItemData($lineItem, $data, true);
+
             $lineItem->setUpdatedAt(new \DateTime());
             
             $this->entityManager->flush();
@@ -283,35 +290,48 @@ class RfqVersioningService
     
     /**
      * Get line items for an RFQ
+     *
+     * @return list<RfqLineItem>
      */
     public function getLineItems(RFQ $rfq): array
     {
+        /** @var list<RfqLineItem> */
         return $this->lineItemRepository->findByRfq($rfq);
     }
     
     /**
      * Get version history for an RFQ
+     *
+     * @return list<array<string, mixed>>
      */
     public function getVersionHistory(RFQ $rfq): array
     {
+        /** @var list<array<string, mixed>> */
         return $this->versionRepository->getVersionHistory($rfq);
     }
     
     /**
      * Get full versions with snapshots
+     *
+     * @return list<RfqVersion>
      */
     public function getVersions(RFQ $rfq): array
     {
+        /** @var list<RfqVersion> */
         return $this->versionRepository->findByRfq($rfq);
     }
     
     // Private helpers
     
+    /**
+     * @return list<LineItemSnapshot>
+     */
     private function captureLineItems(RFQ $rfq): array
     {
+        /** @var list<RfqLineItem> $lineItems */
         $lineItems = $this->lineItemRepository->findByRfq($rfq);
-        
-        return array_map(function (RfqLineItem $item) {
+
+        return array_map(function (RfqLineItem $item): array {
             return [
                 'lineNumber' => $item->getLineNumber(),
                 'partNumber' => $item->getPartNumber(),
@@ -332,28 +352,52 @@ class RfqVersioningService
     private function generateRevisionCode(int $versionNumber): string
     {
         // Use letters A, B, C, ... for revisions up to 26, then AA, AB, etc.
+        // The two-letter scheme mathematically caps at 26*26 = 676 revisions;
+        // chr() would raise a ValueError beyond that, so the documented
+        // capacity is enforced explicitly.
+        if ($versionNumber < 1 || $versionNumber > 676) {
+            throw new \OutOfRangeException(sprintf(
+                'RFQ revision codes support version numbers 1-676, got %d',
+                $versionNumber
+            ));
+        }
+
         if ($versionNumber <= 26) {
             return chr(64 + $versionNumber); // A=1, B=2, etc.
         }
-        
+
         $first = intdiv($versionNumber - 1, 26);
         $second = (($versionNumber - 1) % 26) + 1;
-        
+        // The 1-676 capacity check bounds $first to 1..25; intdiv ranges are
+        // not statically derivable, hence the identity clamp for analysis.
+        $first = max(1, min(25, $first));
+
         return chr(64 + $first) . chr(64 + $second);
     }
     
+    /**
+     * @param list<LineItemSnapshot> $oldItems
+     * @param list<LineItemSnapshot> $newItems
+     * @return list<LineItemChange>
+     */
     private function compareLineItems(array $oldItems, array $newItems): array
     {
         $changes = [];
-        
+
         // Index by line number
         $oldByLine = [];
         foreach ($oldItems as $item) {
+            if ($item['lineNumber'] === null) {
+                continue; // unnumbered snapshots cannot be diffed line-by-line
+            }
             $oldByLine[$item['lineNumber']] = $item;
         }
-        
+
         $newByLine = [];
         foreach ($newItems as $item) {
+            if ($item['lineNumber'] === null) {
+                continue;
+            }
             $newByLine[$item['lineNumber']] = $item;
         }
         
@@ -407,6 +451,58 @@ class RfqVersioningService
         return $changes;
     }
     
+    /**
+     * Apply request data onto a line item. Scalar values are coerced to the
+     * setter types (mirroring weak casts); non-numeric input for numeric
+     * fields degrades to null instead of raising a TypeError.
+     *
+     * @param array<string|int, mixed> $data
+     */
+    private function applyLineItemData(RfqLineItem $lineItem, array $data, bool $includeStatus = false): void
+    {
+        if (isset($data['partNumber'])) $lineItem->setPartNumber($this->nullableString($data['partNumber']));
+        if (isset($data['customerPartNumber'])) $lineItem->setCustomerPartNumber($this->nullableString($data['customerPartNumber']));
+        if (isset($data['description'])) $lineItem->setDescription($this->nullableString($data['description']));
+        if (isset($data['quantityAnnual'])) $lineItem->setQuantityAnnual($this->nullableInt($data['quantityAnnual']));
+        if (isset($data['quantityPerBatch'])) $lineItem->setQuantityPerBatch($this->nullableInt($data['quantityPerBatch']));
+        if (isset($data['unitPrice'])) $lineItem->setUnitPrice($this->nullableString($data['unitPrice']));
+        if (isset($data['nrePrice'])) $lineItem->setNrePrice($this->nullableString($data['nrePrice']));
+        if (isset($data['currency'])) $lineItem->setCurrency($this->nullableString($data['currency']));
+        if (isset($data['leadTimeDays'])) $lineItem->setLeadTimeDays($this->nullableInt($data['leadTimeDays']));
+        if (isset($data['technology'])) $lineItem->setTechnology($this->nullableString($data['technology']));
+        if (isset($data['componentCount'])) $lineItem->setComponentCount($this->nullableInt($data['componentCount']));
+        if (isset($data['specifications'])) $lineItem->setSpecifications($this->nullableString($data['specifications']));
+        if (isset($data['notes'])) $lineItem->setNotes($this->nullableString($data['notes']));
+        if ($includeStatus && isset($data['status'])) $lineItem->setStatus($this->nullableString($data['status']));
+
+        // Boolean flags
+        if (isset($data['requiresXray'])) $lineItem->setRequiresXray(boolval($data['requiresXray']));
+        if (isset($data['requiresAoi'])) $lineItem->setRequiresAoi(boolval($data['requiresAoi']));
+        if (isset($data['requiresFunctionalTest'])) $lineItem->setRequiresFunctionalTest(boolval($data['requiresFunctionalTest']));
+        if (isset($data['requiresConformalCoating'])) $lineItem->setRequiresConformalCoating(boolval($data['requiresConformalCoating']));
+    }
+
+    /**
+     * Coerce a raw value to ?string (null passes through, scalars are
+     * stringified, non-scalars degrade to null).
+     */
+    private function nullableString(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return is_scalar($value) ? (string) $value : null;
+    }
+
+    /**
+     * Coerce a raw value to ?int; non-numeric input degrades to null.
+     */
+    private function nullableInt(mixed $value): ?int
+    {
+        return is_numeric($value) ? (int) $value : null;
+    }
+
     private function updateRfqTotalValue(RFQ $rfq): void
     {
         // getTotalValue() returns float; setEstimatedValue() expects a string.
@@ -419,6 +515,7 @@ class RfqVersioningService
     
     private function resequenceLineItems(RFQ $rfq): void
     {
+        /** @var list<RfqLineItem> $lineItems */
         $lineItems = $this->lineItemRepository->findByRfq($rfq);
         
         $lineNumber = 1;
