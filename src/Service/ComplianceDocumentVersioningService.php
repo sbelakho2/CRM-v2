@@ -135,6 +135,8 @@ class ComplianceDocumentVersioningService
     
     /**
      * Get all versions for a document
+     *
+     * @return list<ComplianceDocumentVersion>
      */
     public function getVersions(ComplianceDocument $document): array
     {
@@ -143,6 +145,8 @@ class ComplianceDocumentVersioningService
     
     /**
      * Get version history (summary)
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getVersionHistory(ComplianceDocument $document): array
     {
@@ -200,6 +204,8 @@ class ComplianceDocumentVersioningService
     
     /**
      * Compare two versions
+     *
+     * @return array{older: array<string, mixed>, newer: array<string, mixed>, changes: array{file_changed: bool, expiry_changed: bool, days_between: int|null}}
      */
     public function compareVersions(
         ComplianceDocumentVersion $older,

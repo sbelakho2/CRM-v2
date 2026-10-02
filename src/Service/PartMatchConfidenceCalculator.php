@@ -34,14 +34,16 @@ class PartMatchConfidenceCalculator
      * @param string $requestedMpn The MPN from the BOM
      * @param string|null $requestedManufacturer The manufacturer from the BOM (if provided)
      * @param string|null $requestedDescription The description from the BOM (if provided)
-     * @param array $apiResult The result from the distributor API
-     * 
+     * @param array<string, mixed> $apiResult The result from the distributor API
+     *
      * @return array{
      *   score: int,
      *   level: string,
-     *   reasons: array,
-     *   warnings: array,
-     *   requiresReview: bool
+     *   reasons: list<string>,
+     *   warnings: list<string>,
+     *   requiresReview: bool,
+     *   requestedMpn: string,
+     *   matchedMpn: mixed
      * }
      */
     public function calculateConfidence(
@@ -53,11 +55,12 @@ class PartMatchConfidenceCalculator
         $score = 0;
         $reasons = [];
         $warnings = [];
-        
+
         // 1. MPN Matching (max 50 points)
+        $mpnRaw = $apiResult['mpn'] ?? '';
         $mpnScore = $this->scoreMpnMatch(
-            $requestedMpn, 
-            $apiResult['mpn'] ?? ''
+            $requestedMpn,
+            is_scalar($mpnRaw) ? (string) $mpnRaw : ''
         );
         $score += $mpnScore['points'];
         $reasons = array_merge($reasons, $mpnScore['reasons']);
@@ -65,9 +68,10 @@ class PartMatchConfidenceCalculator
         
         // 2. Manufacturer Matching (max 25 points)
         if ($requestedManufacturer) {
+            $mfrRaw = $apiResult['manufacturer'] ?? '';
             $mfrScore = $this->scoreManufacturerMatch(
                 $requestedManufacturer,
-                $apiResult['manufacturer'] ?? ''
+                is_scalar($mfrRaw) ? (string) $mfrRaw : ''
             );
             $score += $mfrScore['points'];
             $reasons = array_merge($reasons, $mfrScore['reasons']);
@@ -87,16 +91,20 @@ class PartMatchConfidenceCalculator
         if ($requestedDescription) {
             $returnedDescription = $apiResult['description'] ?? '';
             // Safeguard: ensure description is a string
-            if (!is_string($returnedDescription)) {
-                $returnedDescription = is_array($returnedDescription) ? implode(' ', array_filter($returnedDescription, 'is_string')) : (string) $returnedDescription;
+            if (is_array($returnedDescription)) {
+                $returnedDescription = implode(' ', array_filter($returnedDescription, 'is_string'));
+            } elseif (is_scalar($returnedDescription)) {
+                $returnedDescription = (string) $returnedDescription;
+            } else {
+                $returnedDescription = '';
             }
-            
+
             // Before standard description matching, check if the API result's
             // description/title contains the MPN itself — this is a strong signal
             // for Alibaba results where titles like "C0603C104K4RAC7411 ICs Electronic Component"
             // wouldn't match BOM descriptions like "100nF 0603" but ARE the right part
-            $normalizedMpn = strtolower(preg_replace('/[\s\-_\.]+/', '', $requestedMpn));
-            $normalizedDesc = strtolower(preg_replace('/[\s\-_\.]+/', '', $returnedDescription));
+            $normalizedMpn = strtolower(preg_replace('/[\s\-_\.]+/', '', $requestedMpn) ?? '');
+            $normalizedDesc = strtolower(preg_replace('/[\s\-_\.]+/', '', $returnedDescription) ?? '');
             $mpnInDescription = str_contains($normalizedDesc, $normalizedMpn);
             
             $descScore = $this->scoreDescriptionMatch(
@@ -149,6 +157,8 @@ class PartMatchConfidenceCalculator
     
     /**
      * Score MPN matching (0-50 points)
+     *
+     * @return array{points: int, reasons: list<string>, warnings: list<string>}
      */
     private function scoreMpnMatch(string $requested, string $returned): array
     {
@@ -198,6 +208,8 @@ class PartMatchConfidenceCalculator
     
     /**
      * Score manufacturer matching (0-25 points)
+     *
+     * @return array{points: int, reasons: list<string>}
      */
     private function scoreManufacturerMatch(string $requested, string $returned): array
     {
@@ -290,6 +302,8 @@ class PartMatchConfidenceCalculator
     
     /**
      * Score description matching (0-15 points)
+     *
+     * @return array{points: int, reasons: list<string>, warnings: list<string>}
      */
     private function scoreDescriptionMatch(string $requested, string $returned): array
     {
@@ -330,7 +344,9 @@ class PartMatchConfidenceCalculator
     
     /**
      * Score data quality indicators (0-10 points)
-      * @param array<string|int, mixed> $apiResult
+     *
+     * @param array<string, mixed> $apiResult
+     * @return array{points: int, reasons: list<string>}
      */
     private function scoreDataQuality(array $apiResult): array
     {
@@ -378,7 +394,8 @@ class PartMatchConfidenceCalculator
         }
         
         // Alibaba-specific: verified supplier is a quality signal
-        if (!empty($apiResult['supplier_type']) && str_contains($apiResult['supplier_type'], 'Verified')) {
+        $supplierType = $apiResult['supplier_type'] ?? '';
+        if (is_string($supplierType) && $supplierType !== '' && str_contains($supplierType, 'Verified')) {
             $points += 1;
             $reasons[] = 'Verified supplier';
         }
@@ -405,11 +422,11 @@ class PartMatchConfidenceCalculator
         $normalized = strtoupper(trim($mpn));
         
         // Remove common separators and whitespace
-        $normalized = preg_replace('/[\s\-_\.\/\\\\]+/', '', $normalized);
+        $normalized = preg_replace('/[\s\-_\.\/\\\\]+/', '', $normalized) ?? '';
         
         // Remove common suffixes that indicate packaging (keep base part number)
         // But be careful not to remove significant suffixes
-        $normalized = preg_replace('/\(.*?\)$/', '', $normalized);
+        $normalized = preg_replace('/\(.*?\)$/', '', $normalized) ?? '';
         
         return $normalized;
     }
@@ -430,11 +447,13 @@ class PartMatchConfidenceCalculator
     
     /**
      * Extract key terms from a description
+     *
+     * @return list<string>
      */
     private function extractKeyTerms(string $description): array
     {
         // Convert to lowercase and split on non-alphanumeric
-        $words = preg_split('/[^a-zA-Z0-9]+/', strtolower($description));
+        $words = preg_split('/[^a-zA-Z0-9]+/', strtolower($description)) ?: [];
         
         // Filter out common stop words and short terms
         $stopWords = ['the', 'and', 'for', 'with', 'from', 'this', 'that', 'are', 'was', 'is', 'a', 'an'];
@@ -461,8 +480,9 @@ class PartMatchConfidenceCalculator
     
     /**
      * Check if manual review is required
-      * @param array<string|int, mixed> $warnings
- * @param array<string|int, mixed> $apiResult
+     *
+     * @param list<string> $warnings
+     * @param array<string, mixed> $apiResult
      */
     private function requiresManualReview(string $level, array $warnings, array $apiResult): bool
     {
@@ -486,10 +506,13 @@ class PartMatchConfidenceCalculator
         
         // Check for high unit price (>$100) - could indicate wrong part
         $pricing = $apiResult['pricing'] ?? [];
-        if (!empty($pricing)) {
+        if (is_array($pricing) && $pricing !== []) {
             $minPrice = PHP_FLOAT_MAX;
             foreach ($pricing as $break) {
-                $minPrice = min($minPrice, $break['price'] ?? PHP_FLOAT_MAX);
+                $breakPrice = is_array($break) && isset($break['price']) && is_numeric($break['price'])
+                    ? (float) $break['price']
+                    : PHP_FLOAT_MAX;
+                $minPrice = min($minPrice, $breakPrice);
             }
             if ($minPrice > 100) {
                 return true;
@@ -501,6 +524,8 @@ class PartMatchConfidenceCalculator
     
     /**
      * Generate variants of an MPN for fuzzy searching
+     *
+     * @return list<string>
      */
     public function generateMpnVariants(string $mpn): array
     {

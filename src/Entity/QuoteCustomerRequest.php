@@ -30,7 +30,7 @@ class QuoteCustomerRequest
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Quote::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]

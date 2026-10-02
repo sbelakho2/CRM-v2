@@ -16,13 +16,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 180, unique: true)]
     private ?string $email = null;
 
+    /** @var array<int, string> */
     #[ORM\Column]
-    /** @var array<string, mixed>|list<mixed> $roles */
     private array $roles = [];
 
     #[ORM\Column]
@@ -85,6 +85,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     // History-preserving: no cascade remove/orphanRemoval — deleting a user
     // would cascade-destroy their activities. Users are deactivated, not deleted.
+    /** @var Collection<int, Activity> */
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: Activity::class, cascade: ['persist'])]
     private Collection $activities;
 
@@ -120,21 +121,24 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     public function getUserIdentifier(): string
     {
-        return (string) $this->email;
+        if ($this->email === null || $this->email === '') {
+            throw new \LogicException('User has no email address; cannot resolve user identifier.');
+        }
+
+        return $this->email;
     }
 
     /**
      * @see UserInterface
      */
+    /** @return list<string> */
     public function getRoles(): array
     {
-        $roles = $this->roles;
         // guarantee every user at least has ROLE_USER
-        $roles[] = 'ROLE_USER';
-
-        return array_unique($roles);
+        return array_values(array_unique([...$this->roles, 'ROLE_USER']));
     }
 
+    /** @param array<int, string> $roles */
     public function setRoles(array $roles): self
     {
         $this->roles = $roles;
@@ -146,7 +150,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     public function getPassword(): string
     {
-        return $this->password;
+        return $this->password ?? '';
     }
 
     public function setPassword(string $password): self

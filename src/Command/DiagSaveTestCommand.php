@@ -83,7 +83,9 @@ class DiagSaveTestCommand extends Command
                 ['T1_' . $stamp . '%', 'T3_' . $stamp . '%']
             );
             foreach ($rows as $r) {
-                $output->writeln("  DB: id={$r['id']} name={$r['name']}");
+                $rowId = is_scalar($r['id'] ?? null) ? (string) $r['id'] : '';
+                $rowName = is_scalar($r['name'] ?? null) ? (string) $r['name'] : '';
+                $output->writeln('  DB: id=' . $rowId . ' name=' . $rowName);
             }
         } finally {
             // ALWAYS roll back — a diagnostic must never leave rows behind,

@@ -33,7 +33,7 @@ class GuidanceNotificationService
      * Add a guidance notification to the session
      * @param string $type Type of notification (success, warning, info, tip)
      * @param string $messageKey Translation key for the message
-     * @param array $messageParams Parameters for the translation
+     * @param array<string, mixed> $messageParams Parameters for the translation
      * @param string|null $actionUrl URL for the action button
      * @param string|null $actionLabelKey Translation key for the action button label
      * @param string|null $dismissKey Unique key to identify this notification type for auto-dismissal
@@ -47,13 +47,15 @@ class GuidanceNotificationService
         ?string $dismissKey = null
     ): void {
         $session = $this->requestStack->getSession();
+        /** @var list<array{type: string, message: string, actionUrl: string|null, actionLabel: string|null, dismissKey: string|null, timestamp: int}> $notifications */
         $notifications = $session->get(self::SESSION_KEY, []);
-        
+
         // Translate message and label
         $message = $this->translator->trans($messageKey, $messageParams);
         $actionLabel = $actionLabelKey ? $this->translator->trans($actionLabelKey) : null;
-        
+
         // Check if this notification was permanently dismissed
+        /** @var list<string> $dismissedNotifications */
         $dismissedNotifications = $session->get('dismissed_guidance', []);
         if ($dismissKey !== null && in_array($dismissKey, $dismissedNotifications)) {
             // This notification was permanently dismissed, don't show it again
@@ -89,6 +91,7 @@ class GuidanceNotificationService
     public function autoDismissNotifications(string $dismissKey): void
     {
         $session = $this->requestStack->getSession();
+        /** @var list<array{type: string, message: string, actionUrl: string|null, actionLabel: string|null, dismissKey: string|null, timestamp: int}> $notifications */
         $notifications = $session->get(self::SESSION_KEY, []);
 
         $notifications = array_filter($notifications, function($notification) use ($dismissKey) {
@@ -103,9 +106,13 @@ class GuidanceNotificationService
     /**
      * Get and clear all guidance notifications
      */
+    /**
+     * @return list<array{type: string, message: string, actionUrl: string|null, actionLabel: string|null, dismissKey: string|null, timestamp: int}>
+     */
     public function getGuidanceNotifications(): array
     {
         $session = $this->requestStack->getSession();
+        /** @var list<array{type: string, message: string, actionUrl: string|null, actionLabel: string|null, dismissKey: string|null, timestamp: int}> $notifications */
         $notifications = $session->get(self::SESSION_KEY, []);
         $session->remove(self::SESSION_KEY);
         return $notifications;
@@ -361,13 +368,14 @@ class GuidanceNotificationService
             ->groupBy('c.id', 'c.name')
             ->setMaxResults(3);
 
+        /** @var list<array{id: int|string, name: string|null, expiring_count: int|string}> $results */
         $results = $qb->getQuery()->getResult();
 
         foreach ($results as $result) {
-            $companyId = $result['id'];
-            $companyName = $result['name'];
-            $count = $result['expiring_count'];
-            
+            $companyId = (string) $result['id'];
+            $companyName = (string) $result['name'];
+            $count = (string) $result['expiring_count'];
+
             $this->addGuidance(
                 'warning',
                 "⚠️ {$count} compliance document(s) expiring soon for {$companyName}",
@@ -748,7 +756,7 @@ class GuidanceNotificationService
         $thirtyDaysFromNow = new \DateTime('+30 days');
         
         $qb = $this->em->createQueryBuilder();
-        $upcomingRfqs = $qb->select('r')
+        $upcomingRfqsQuery = $qb->select('r')
             ->from('App\Entity\RFQ', 'r')
             ->where('r.sopDate IS NOT NULL')
             ->andWhere('r.sopDate BETWEEN :now AND :thirtyDays')
@@ -756,12 +764,19 @@ class GuidanceNotificationService
             ->setParameter('now', new \DateTime())
             ->setParameter('thirtyDays', $thirtyDaysFromNow)
             ->setParameter('completed', ['Won', 'Lost'])
-            ->setMaxResults(3)
+            ->setMaxResults(3);
+
+        /** @var list<\App\Entity\RFQ> $upcomingRfqs */
+        $upcomingRfqs = $upcomingRfqsQuery
             ->getQuery()
             ->getResult();
 
         foreach ($upcomingRfqs as $rfq) {
-            $daysLeft = (new \DateTime())->diff($rfq->getSopDate())->days;
+            $sopDate = $rfq->getSopDate();
+            if ($sopDate === null) {
+                continue; // filtered in DQL as NOT NULL, but a null here previously crashed diff()
+            }
+            $daysLeft = (new \DateTime())->diff($sopDate)->days;
             $companyName = $rfq->getCompany() ? $rfq->getCompany()->getName() : 'Unknown';
             
             $this->addGuidance(

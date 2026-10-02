@@ -30,10 +30,12 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class PublicWebinarController extends AbstractController
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        /** Never-read here, kept protected for subclass template helpers. */
+        protected EntityManagerInterface $entityManager,
         private ContactRepository $contactRepository,
         private WebinarService $webinarService,
-        private TranslatorInterface $translator,
+        /** Never-read here, kept protected for subclass translation helpers. */
+        protected TranslatorInterface $translator,
         private RateLimiterFactory $webinarRegistrationLimiter,
         private RateLimiterFactory $webinarRegistrationIpLimiter,
     ) {}

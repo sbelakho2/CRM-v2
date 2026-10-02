@@ -140,7 +140,7 @@ class MouserApiClient
                 $variants = $this->confidenceCalculator->generateMpnVariants($partNumber);
                 $attemptCount = 0;
                 foreach ($variants as $variant) {
-                    if (!is_string($variant) || $variant === $partNumber) continue;
+                    if ($variant === $partNumber) continue;
                     if ($attemptCount >= self::MAX_VARIANT_ATTEMPTS) break;
                     if ($this->isRateLimited()) break; // Stop if we hit rate limit
                     

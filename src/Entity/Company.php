@@ -118,7 +118,7 @@ class Company
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $name = null;
@@ -127,13 +127,13 @@ class Company
     private ?string $sector = null; // Automotive, Industrial, Aerospace, Rail, Renewables, Power Electronics
 
     #[ORM\Column(length: 10)]
-    private ?string $accountTier = self::TIER_C; // A, B, C
+    private string $accountTier = self::TIER_C; // A, B, C
 
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $region = null; // TAC, TFZ, AFZ Kenitra, Casablanca/Midparc, Bouskoura
 
     #[ORM\Column(length: 50)]
-    private ?string $pipelineStage = self::STAGE_PROSPECT; // Prospect, MQL, SQL, SQO, Proposal, Award
+    private string $pipelineStage = self::STAGE_PROSPECT; // Prospect, MQL, SQL, SQO, Proposal, Award
 
     #[ORM\Column(length: 30, options: ['default' => 'approved'])]
     private string $companyStatus = self::STATUS_APPROVED; // discovered, approved, active
@@ -185,27 +185,34 @@ class Company
     // deliberately absent so no code path can cascade-destroy CRM history
     // (contacts, activities, RFQs, compliance records, ...). Companies are
     // archived (archivedAt), never hard-deleted through the CRM UI.
+    /** @var Collection<int, Contact> */
     #[ORM\OneToMany(mappedBy: 'company', targetEntity: Contact::class, cascade: ['persist'])]
     private Collection $contacts;
 
+    /** @var Collection<int, Activity> */
     #[ORM\OneToMany(mappedBy: 'company', targetEntity: Activity::class, cascade: ['persist'])]
     private Collection $activities;
 
+    /** @var Collection<int, RFQ> */
     #[ORM\OneToMany(mappedBy: 'company', targetEntity: RFQ::class, cascade: ['persist'])]
     private Collection $rfqs;
 
     #[ORM\OneToOne(mappedBy: 'company', targetEntity: SupplierPortal::class, cascade: ['persist'])]
     private ?SupplierPortal $supplierPortal = null;
 
+    /** @var Collection<int, ComplianceDocument> */
     #[ORM\OneToMany(mappedBy: 'company', targetEntity: ComplianceDocument::class, cascade: ['persist'])]
     private Collection $complianceDocuments;
 
+    /** @var Collection<int, PortalCandidate> */
     #[ORM\OneToMany(mappedBy: 'company', targetEntity: PortalCandidate::class, cascade: ['persist'])]
     private Collection $portalCandidates;
 
+    /** @var Collection<int, OnboardingPack> */
     #[ORM\OneToMany(mappedBy: 'company', targetEntity: OnboardingPack::class, cascade: ['persist'])]
     private Collection $onboardingPacks;
 
+    /** @var Collection<int, CompanyCanonical> */
     #[ORM\OneToMany(mappedBy: 'company', targetEntity: CompanyCanonical::class, cascade: ['persist'])]
     private Collection $companyCanonicals;
 

@@ -19,9 +19,14 @@ use Symfony\Component\Yaml\Yaml;
  * Usage:
  *   $verdict = $engine->evaluate($domain, $companyName, $snippet, $title);
  *   if ($verdict->isRejected()) { // skip }
+ *
+ * @phpstan-type CompetitorRule array{name?: string, pattern?: string, action?: string, weight?: int, description?: string|null}
+ * @phpstan-type PositiveRule array{name?: string, pattern?: string, weight?: int, family?: string|null}
+ * @phpstan-type RulePackShape array{version?: string|null, blocked_domains?: list<string>, competitor_patterns?: list<CompetitorRule>, wrong_type_patterns?: list<CompetitorRule>, junk_name_patterns?: list<string>, positive_patterns?: list<PositiveRule>}
  */
 class RuleEngine
 {
+    /** @var RulePackShape */
     private array $rulePack = [];
     private bool $loaded = false;
 
@@ -46,7 +51,10 @@ class RuleEngine
             return;
         }
 
-        $this->rulePack = Yaml::parseFile($path);
+        $parsed = Yaml::parseFile($path);
+        /** @var RulePackShape $rulePack */
+        $rulePack = is_array($parsed) ? $parsed : [];
+        $this->rulePack = $rulePack;
         $this->loaded = true;
 
         $this->logger->debug('Rule pack loaded', [
@@ -246,6 +254,8 @@ class RuleEngine
 
     /**
      * Get stats about the loaded rule pack.
+     *
+     * @return array<string, int|string>
      */
     public function getStats(): array
     {

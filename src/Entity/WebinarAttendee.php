@@ -14,7 +14,7 @@ class WebinarAttendee
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Webinar::class, inversedBy: 'attendees')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]

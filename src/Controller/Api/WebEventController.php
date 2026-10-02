@@ -40,11 +40,11 @@ class WebEventController extends AbstractController
         $token = $request->headers->get('X-CSRF-Token');
         if (!$token) {
             /** @var array<string, mixed>|null $body */
-            /** @var array<string, mixed>|null $body */
             $body = json_decode($request->getContent(), true);
-            $token = is_array($body) ? ($body['_token'] ?? null) : null;
+            $bodyToken = is_array($body) ? ($body['_token'] ?? null) : null;
+            $token = is_string($bodyToken) ? $bodyToken : null;
         }
-        if (!$this->isCsrfTokenValid('api_web_event', (string) $token)) {
+        if (!$this->isCsrfTokenValid('api_web_event', $token ?? '')) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
         }
 
@@ -60,10 +60,9 @@ class WebEventController extends AbstractController
 
         try {
             /** @var array<string, mixed>|null $data */
-            /** @var array<string, mixed>|null $data */
             $data = json_decode($request->getContent(), true);
             
-            if (!$data || !isset($data['url'])) {
+            if (!is_array($data) || !isset($data['url']) || !is_string($data['url']) || $data['url'] === '') {
                 return new JsonResponse(['error' => 'Invalid payload'], 400);
             }
             
@@ -87,7 +86,7 @@ class WebEventController extends AbstractController
                 $this->abmResolver->processWebEvent([
                     'ip' => $webEvent->getIpAddress(),
                     'url' => $webEvent->getUrl(),
-                    'timestamp' => $webEvent->getTimestamp()->format('Y-m-d H:i:s'),
+                    'timestamp' => $webEvent->getTimestamp()?->format('Y-m-d H:i:s') ?? '',
                     'user_agent' => $webEvent->getUserAgent(),
                     'referer' => $webEvent->getReferer()
                 ]);
@@ -119,21 +118,21 @@ class WebEventController extends AbstractController
      */
     private function getClientIp(Request $request): string
     {
-        $ipAddress = $request->getClientIp();
+        $ipAddress = $request->getClientIp() ?? '';
         
         // For GDPR compliance, anonymize last octet for IPv4 (/24)
-        if (filter_var($ipAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        if ($ipAddress !== '' && filter_var($ipAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
             $parts = explode('.', $ipAddress);
             $parts[3] = '0';
             return implode('.', $parts);
         }
         
         // For IPv6, anonymize the last 16 bits (keep the first 7 hex groups)
-        if (filter_var($ipAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        if ($ipAddress !== '' && filter_var($ipAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
             $packed = inet_pton($ipAddress);
             $mask = inet_pton('ffff:ffff:ffff:ffff:ffff:ffff:ffff:0000');
             if ($packed !== false && $mask !== false) {
-                return inet_ntop($packed & $mask);
+                return inet_ntop($packed & $mask) ?: '::';
             }
             // Fall back to a safe masked form when binary conversion is unavailable
             return '::';

@@ -86,6 +86,7 @@ class AdminDatasetController extends AbstractController
         $datasets = [];
         foreach ($tables as $table) {
             $class = $table['class'];
+            /** @var list<array{versionId: int|string|null, lastUpdated: \DateTimeInterface|string|null, rowCount: int|string}> $rows */
             $rows = $this->entityManager->getRepository($class)
                 ->createQueryBuilder('t')
                 ->select('t.versionId', 'MAX(t.createdAt) AS lastUpdated', 'COUNT(t.id) AS rowCount')
@@ -141,13 +142,13 @@ class AdminDatasetController extends AbstractController
     #[Route('/import', name: 'admin_dataset_import', methods: ['POST'])]
     public function import(Request $request): Response
     {
-        if (!$this->isCsrfTokenValid('admin_dataset_import', $request->request->get('_csrf_token'))) {
+        if (!$this->isCsrfTokenValid('admin_dataset_import', $request->request->getString('_csrf_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
         // 1. Validate file upload
         $datasetFile = $request->files->get('dataset_file');
-        if (!$datasetFile) {
+        if (!$datasetFile instanceof UploadedFile) {
             $this->addFlash('error', 'admin_dataset.flash.error.upload_file');
             return $this->redirectToRoute('admin_dataset_import_form');
         }
@@ -163,8 +164,9 @@ class AdminDatasetController extends AbstractController
         }
         
         // 2. Get import parameters
-        $datasetType = $request->request->get('dataset_type', 'fx_rate');
-        $signature = $request->request->get('signature');
+        $datasetType = $request->request->getString('dataset_type', 'fx_rate');
+        $signatureRaw = $request->request->get('signature');
+        $signature = is_string($signatureRaw) ? $signatureRaw : null;
         $createSnapshot = (bool) $request->request->get('create_snapshot', true);
         
         // 3. Validate dataset type
@@ -192,7 +194,7 @@ class AdminDatasetController extends AbstractController
         // Signature: uploaded signature FILE (server path) or pasted sha256
         // HASH; one of them must match the uploaded file byte-for-byte.
         $signatureFile = $request->files->get('signature_file');
-        $signaturePath = $signatureFile !== null
+        $signaturePath = $signatureFile instanceof UploadedFile
             ? $signatureFile->getPathname()
             : ($signature !== null && $signature !== '' && is_file($signature) ? $signature : null);
 
@@ -217,7 +219,6 @@ class AdminDatasetController extends AbstractController
                     $signature,
                     $description
                 ),
-                default => throw new \RuntimeException('Unknown dataset type.'),
             };
         } catch (\Exception $e) {
             $this->addFlash('error', 'admin_dataset.flash.error.import_failed');
@@ -242,7 +243,7 @@ class AdminDatasetController extends AbstractController
     #[Route('/{datasetType}/rollback', name: 'admin_dataset_rollback', methods: ['POST'])]
     public function rollback(string $datasetType, Request $request): Response
     {
-        if (!$this->isCsrfTokenValid('admin_dataset_rollback_' . $datasetType, $request->request->get('_csrf_token'))) {
+        if (!$this->isCsrfTokenValid('admin_dataset_rollback_' . $datasetType, $request->request->getString('_csrf_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
@@ -254,8 +255,8 @@ class AdminDatasetController extends AbstractController
         }
         
         // 2. Get target version
-        $targetVersion = $request->request->get('target_version');
-        if (!$targetVersion) {
+        $targetVersion = $request->request->getString('target_version');
+        if ($targetVersion === '') {
             $this->addFlash('error', 'admin_dataset.flash.error.specify_version');
             return $this->redirectToRoute('admin_dataset_index');
         }
@@ -302,6 +303,7 @@ class AdminDatasetController extends AbstractController
         $datasetType = $request->query->get('type');
         
         // 2. Build version history queries for each dataset type
+        /** @var list<array{versionId: int|string, createdAt: \DateTimeInterface, rowCount: int|string}> $tariffHistory */
         $tariffHistory = $this->entityManager->getRepository(TariffRate::class)
             ->createQueryBuilder('t')
             ->select('t.versionId', 't.createdAt', 'COUNT(t.id) as rowCount')
@@ -310,7 +312,8 @@ class AdminDatasetController extends AbstractController
             ->orderBy('t.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
-        
+
+        /** @var list<array{versionId: int|string, createdAt: \DateTimeInterface, rowCount: int|string}> $freightHistory */
         $freightHistory = $this->entityManager->getRepository(FreightTable::class)
             ->createQueryBuilder('f')
             ->select('f.versionId', 'f.createdAt', 'COUNT(f.id) as rowCount')
@@ -319,7 +322,8 @@ class AdminDatasetController extends AbstractController
             ->orderBy('f.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
-        
+
+        /** @var list<array{versionId: int|string, createdAt: \DateTimeInterface, rowCount: int|string}> $fxHistory */
         $fxHistory = $this->entityManager->getRepository(FxRate::class)
             ->createQueryBuilder('fx')
             ->select('fx.versionId', 'fx.createdAt', 'COUNT(fx.id) as rowCount')
@@ -366,7 +370,7 @@ class AdminDatasetController extends AbstractController
         $combinedHistory = array_merge($tariffMapped, $freightMapped, $fxMapped);
         
         // 4. Sort by import date descending
-        usort($combinedHistory, fn($a, $b) => ($b['created_at'] ?? new \DateTime('1970-01-01')) <=> ($a['created_at'] ?? new \DateTime('1970-01-01')));
+        usort($combinedHistory, fn($a, $b) => $b['created_at'] <=> $a['created_at']);
         
         // 5. Apply type filter if specified
         if ($datasetType) {

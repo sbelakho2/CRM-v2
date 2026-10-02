@@ -27,7 +27,8 @@ class TariffRateRepository extends ServiceEntityRepository
     ): ?TariffRate {
         $date = $date ?? new \DateTime();
 
-        return $this->createQueryBuilder('t')
+        /** @var TariffRate|null $result */
+        $result = $this->createQueryBuilder('t')
             ->where('t.hsCode = :hsCode')
             ->andWhere('t.originCountry = :origin')
             ->andWhere('t.destinationCountry = :destination')
@@ -43,18 +44,25 @@ class TariffRateRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
      * Get all rates for a destination country
+          *
+     * @return list<TariffRate>
      */
     public function findByDestination(string $destinationCountry): array
     {
-        return $this->createQueryBuilder('t')
+        /** @var list<TariffRate> $results */
+        $results = $this->createQueryBuilder('t')
             ->where('t.destinationCountry = :destination')
             ->setParameter('destination', $destinationCountry)
             ->orderBy('t.hsCode', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 }

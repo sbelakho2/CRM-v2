@@ -221,14 +221,8 @@ class CsvExportService
                         $line->requiresReview() ? 'Yes' : 'No',
                         $line->getLifecycleStatus(),
                         $line->getLifecycleWarning(),
-                        implode('; ', array_map(
-                            static fn (mixed $r): string => is_scalar($r) ? (string) $r : '',
-                            $line->getConfidenceReasons() ?? []
-                        )),
-                        implode('; ', array_map(
-                            static fn (mixed $r): string => is_scalar($r) ? (string) $r : '',
-                            $line->getConfidenceWarnings() ?? []
-                        )),
+                        implode('; ', $line->getConfidenceReasons() ?? []),
+                        implode('; ', $line->getConfidenceWarnings() ?? []),
                     ]);
                 }
 

@@ -215,7 +215,9 @@ final class SitemapPageDiscovery
 
     /**
      * Follow a sitemap index (recurse into sub-sitemaps, max 5).
-      * @param array<string|int, mixed> $sitemapLocs
+     *
+     * @param array<\SimpleXMLElement> $sitemapLocs
+     * @return list<array{loc: string, priority: float}>
      */
     private function parseSitemapIndex(array $sitemapLocs, string $baseUrl): array
     {
@@ -310,7 +312,8 @@ final class SitemapPageDiscovery
 
         foreach ($urls as $entry) {
             $url = $entry['loc'];
-            $path = strtolower(parse_url($url, PHP_URL_PATH) ?? '');
+            $urlPath = parse_url($url, PHP_URL_PATH);
+            $path = strtolower(is_string($urlPath) ? $urlPath : '');
 
             // Skip low-value pages
             $skip = false;
@@ -405,11 +408,12 @@ final class SitemapPageDiscovery
     private function normalizeDomain(string $domain): string
     {
         $domain = strtolower(trim($domain));
-        $domain = preg_replace('#^https?://#', '', $domain);
-        $domain = preg_replace('#/.*$#', '', $domain);
+        $domain = preg_replace('#^https?://#', '', $domain) ?? $domain;
+        $domain = preg_replace('#/.*$#', '', $domain) ?? $domain;
         if (!str_starts_with($domain, 'www.')) {
             // Don't add www — many sites don't use it
         }
+
         return $domain;
     }
 }

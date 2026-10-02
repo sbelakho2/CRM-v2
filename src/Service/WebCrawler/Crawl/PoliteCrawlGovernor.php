@@ -221,9 +221,10 @@ final class PoliteCrawlGovernor
     private function normalizeDomain(string $domain): string
     {
         $domain = strtolower(trim($domain));
-        $domain = preg_replace('#^https?://#', '', $domain);
-        $domain = preg_replace('#/.*$#', '', $domain);
-        $domain = preg_replace('#^www\.#', '', $domain);
+        $domain = preg_replace('#^https?://#', '', $domain) ?? $domain;
+        $domain = preg_replace('#/.*$#', '', $domain) ?? $domain;
+        $domain = preg_replace('#^www\.#', '', $domain) ?? $domain;
+
         return $domain;
     }
 

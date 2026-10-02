@@ -25,9 +25,11 @@ class EmailCampaignService
     public function __construct(
         private ManagerRegistry $managerRegistry,
         private EntityManagerInterface $entityManager,
-        private EmailCampaignRepository $campaignRepository,
+        /** Never-read here, kept protected for subclass campaign queries. */
+        protected EmailCampaignRepository $campaignRepository,
         private EmailSendRepository $sendRepository,
-        private MailerInterface $mailer,
+        /** Never-read here, kept protected for subclass mail integrations. */
+        protected MailerInterface $mailer,
         private UrlGeneratorInterface $urlGenerator,
         private EmailTrackingSigner $trackingSigner,
         private LoggerInterface $logger,
@@ -105,6 +107,11 @@ class EmailCampaignService
             // claimExistingTouch cleared the identity map: re-fetch the row
             // in its freshly-claimed SENDING state.
             $send = $this->sendRepository->find($existingId);
+            if ($send === null) {
+                // Row vanished between claim and re-fetch (concurrent purge):
+                // treat as in-progress rather than crashing on a null send.
+                return CampaignSendResult::alreadyInProgress();
+            }
         } else {
             // No row yet: create the send record in 'queued' state —
             // reflects reality until the transport accepts the message.
@@ -123,8 +130,16 @@ class EmailCampaignService
                 // A concurrent worker won the race for this touch. After a
                 // failed flush the ORM manager may be closed: re-fetch
                 // through a reset manager rather than reusing it.
-                $this->entityManager = $this->managerRegistry->resetManager();
-                $this->sendRepository = $this->entityManager->getRepository(EmailSend::class);
+                $resetManager = $this->managerRegistry->resetManager();
+                if (!$resetManager instanceof EntityManagerInterface) {
+                    return CampaignSendResult::alreadyInProgress();
+                }
+                $this->entityManager = $resetManager;
+                $resetRepository = $this->entityManager->getRepository(EmailSend::class);
+                if (!$resetRepository instanceof EmailSendRepository) {
+                    return CampaignSendResult::alreadyInProgress();
+                }
+                $this->sendRepository = $resetRepository;
 
                 $winner = $this->sendRepository->findTouch(
                     (int) $campaign->getId(),
@@ -209,8 +224,14 @@ class EmailCampaignService
         try {
             $this->entityManager->flush();
         } catch (UniqueConstraintViolationException) {
-            $this->entityManager = $this->managerRegistry->resetManager();
-            $this->sendRepository = $this->entityManager->getRepository(EmailSend::class);
+            $resetManager = $this->managerRegistry->resetManager();
+            if ($resetManager instanceof EntityManagerInterface) {
+                $this->entityManager = $resetManager;
+            }
+            $resetRepository = $this->entityManager->getRepository(EmailSend::class);
+            if ($resetRepository instanceof EmailSendRepository) {
+                $this->sendRepository = $resetRepository;
+            }
 
             return CampaignSendResult::alreadyInProgress();
         }
@@ -459,12 +480,16 @@ class EmailCampaignService
             // defaults → branded fallback.
             $content = $this->resolveCampaignContent($campaign, $contact, $touchNumber, $send);
 
+            $toAddress = $contact->getEmail();
+            if ($toAddress === null || $toAddress === '') {
+                throw new \RuntimeException('Contact has no email address; campaign email cannot be delivered.');
+            }
             $email = (new Email())
                 ->from(new \Symfony\Component\Mime\Address(
                     $content['from_email'],
                     $content['from_name']
                 ))
-                ->to($contact->getEmail())
+                ->to($toAddress)
                 ->subject($content['subject'])
                 ->html($this->personalize($content['body_html'], $contact, $campaign, $touchNumber, $send));
 
@@ -476,11 +501,12 @@ class EmailCampaignService
             $headers->addTextHeader('X-Touch-Number', (string)$touchNumber);
             
             // For Mailgun: Add custom variables (available in webhooks as 'user-variables')
-            $headers->addTextHeader('X-Mailgun-Variables', json_encode([
+            $mailgunVars = json_encode([
                 'email_send_id' => $send->getId(),
                 'campaign_id' => $campaign->getId(),
                 'touch_number' => $touchNumber
-            ]));
+            ]);
+            $headers->addTextHeader('X-Mailgun-Variables', $mailgunVars ?: '{}');
 
             $sentMessage = $this->mailerTransport->send($email);
 
@@ -536,6 +562,7 @@ class EmailCampaignService
      */
     private function resolveCampaignContent(EmailCampaign $campaign, Contact $contact, int $touchNumber, EmailSend $send): array
     {
+        /** @var array{subject: string|null, body_html: string|null, from_email: string|null, from_name: string|null} $defaults */
         $defaults = [
             'subject' => $campaign->getSubject(),
             'body_html' => $campaign->getBodyHtml(),
@@ -545,8 +572,9 @@ class EmailCampaignService
 
         // 2. Touch template overrides/extends campaign defaults.
         $touchTemplates = $campaign->getTouchTemplates();
-        $templateId = $touchTemplates[$touchNumber]['template_id'] ?? null;
-        if ($templateId !== null) {
+        $touchTemplate = $touchTemplates[$touchNumber] ?? null;
+        $templateId = is_array($touchTemplate) ? ($touchTemplate['template_id'] ?? null) : null;
+        if (is_numeric($templateId)) {
             $template = $this->entityManager->find(\App\Entity\EmailTemplate::class, (int) $templateId);
             if ($template !== null) {
                 $defaults['subject'] = $template->getSubjectLine() ?? $defaults['subject'];
@@ -567,8 +595,8 @@ class EmailCampaignService
 
         $abTest = $this->abTestService?->getCurrentAbTest($campaign);
         if ($abTest !== null && !empty($abTest['variants'])) {
-            $testPercentage = (float) ($abTest['test_percentage'] ?? 20);
-            $variantKeys = array_values(array_keys($abTest['variants']));
+            $testPercentage = (float) $abTest['test_percentage'];
+            $variantKeys = array_keys($abTest['variants']);
             $perVariant = $testPercentage / max(1, count($variantKeys));
 
             $bucket = crc32((string) $contact->getId()) % 10000; // 0..9999
@@ -584,10 +612,17 @@ class EmailCampaignService
 
             if ($variant !== 'control') {
                 try {
+                    /** @var array<string, mixed> $config */
                     $config = $this->abTestService->getVariantConfiguration($campaign, $variant);
-                    $defaults['subject'] = $config['subject'] ?? $defaults['subject'];
-                    $defaults['body_html'] = $config['body_html'] ?? $defaults['body_html'];
-                    $defaults['from_name'] = $config['from_name'] ?? $defaults['from_name'];
+                    if (isset($config['subject']) && is_string($config['subject'])) {
+                        $defaults['subject'] = $config['subject'];
+                    }
+                    if (isset($config['body_html']) && is_string($config['body_html'])) {
+                        $defaults['body_html'] = $config['body_html'];
+                    }
+                    if (isset($config['from_name']) && is_string($config['from_name'])) {
+                        $defaults['from_name'] = $config['from_name'];
+                    }
                 } catch (\InvalidArgumentException) {
                     $variant = 'control';
                 }
@@ -606,7 +641,7 @@ class EmailCampaignService
         return [
             'subject' => $subject,
             'body_html' => $defaults['body_html'] ?? $this->generateEmailContent($campaign, $contact, $touchNumber, $send),
-            'from_email' => $defaults['from_email'] ?? ($_ENV['MAILER_FROM_ADDRESS'] ?? 'noreply@starzelectronics.site'),
+            'from_email' => $defaults['from_email'] ?? $this->mailerFromAddressFromEnv(),
             'from_name' => $defaults['from_name'] ?? 'Starz Electronics',
             'variant' => $variant,
         ];
@@ -618,12 +653,12 @@ class EmailCampaignService
      */
     private function personalize(string $body, Contact $contact, EmailCampaign $campaign, int $touchNumber, EmailSend $send): string
     {
-        $companyName = $contact->getCompany() ? $contact->getCompany()->getName() : '';
+        $companyName = $contact->getCompany()?->getName();
         $firstName = $contact->getFirstName() ?? 'there';
 
         $personalized = str_replace(
             ['{{first_name}}', '{{last_name}}', '{{email}}', '{{company}}', '{{campaign_name}}', '{{touch_number}}'],
-            [$firstName, $contact->getLastName() ?? '', $contact->getEmail() ?? '', $companyName, $campaign->getName(), (string) $touchNumber],
+            [$firstName, $contact->getLastName() ?? '', $contact->getEmail() ?? '', $companyName ?? '', $campaign->getName() ?? '', (string) $touchNumber],
             $body
         );
 
@@ -781,11 +816,19 @@ class EmailCampaignService
             $params['campaign'] = $campaignId;
         }
 
+        $baseUrl = $_ENV['APP_BASE_URL'] ?? 'https://crm.starz-morocco.com';
         return sprintf(
             '%s/email/unsubscribe?%s',
-            rtrim($_ENV['APP_BASE_URL'] ?? 'https://crm.starz-morocco.com', '/'),
+            rtrim(is_string($baseUrl) && $baseUrl !== '' ? $baseUrl : 'https://crm.starz-morocco.com', '/'),
             http_build_query($params)
         );
+    }
+
+    private function mailerFromAddressFromEnv(): string
+    {
+        $from = $_ENV['MAILER_FROM_ADDRESS'] ?? 'noreply@starzelectronics.site';
+
+        return is_string($from) && $from !== '' ? $from : 'noreply@starzelectronics.site';
     }
 
     /**
@@ -795,11 +838,11 @@ class EmailCampaignService
     {
         $secret = $_ENV['APP_SECRET'] ?? $_SERVER['APP_SECRET'] ?? getenv('APP_SECRET');
 
-        if (!$secret) {
+        if (!is_string($secret) || $secret === '') {
             throw new \RuntimeException('APP_SECRET is not configured — unsubscribe tokens cannot be signed.');
         }
 
-        return (string) $secret;
+        return $secret;
     }
 
     /**
@@ -846,6 +889,8 @@ class EmailCampaignService
 
     /**
      * Get campaign performance metrics
+     *
+     * @return array{total_sent: int, opened: int, clicked: int, replied: int, bounced: int, open_rate: int|float, click_rate: int|float, reply_rate: int|float, bounce_rate: int|float}
      */
     public function getCampaignMetrics(EmailCampaign $campaign): array
     {
@@ -911,6 +956,9 @@ class EmailCampaignService
      *    replied-stop. Cadence/archival are re-checked per contact by the
      *    send policy at delivery time.
      */
+    /**
+     * @return list<Contact>
+     */
     public function getContactsForNextTouch(EmailCampaign $campaign, int $touchNumber): array
     {
         if ($touchNumber < 1) {
@@ -947,11 +995,16 @@ class EmailCampaignService
                ->setParameter('sent', EmailSend::STATUS_SENT);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<Contact> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
     }
 
     /**
      * Get touch-sequence progress for contact (derived from touchCount)
+     *
+     * @return array<int, bool|array{sent: \DateTimeInterface|null, opened: bool, clicked: bool, replied: bool}>
      */
     public function getContactProgress(Contact $contact, EmailCampaign $campaign): array
     {
@@ -961,18 +1014,21 @@ class EmailCampaignService
         $touches = array_fill(1, $touchCount, false);
         
         $qb = $this->entityManager->createQueryBuilder();
-        $sends = $qb->select('s')
+        $sendsQuery = $qb->select('s')
             ->from(EmailSend::class, 's')
             ->where('s.campaign = :campaign')
             ->andWhere('s.contact = :contact')
             ->setParameter('campaign', $campaign)
-            ->setParameter('contact', $contact)
+            ->setParameter('contact', $contact);
+
+        /** @var list<EmailSend> $sends */
+        $sends = $sendsQuery
             ->getQuery()
             ->getResult();
 
         foreach ($sends as $send) {
             $touchNum = $send->getTouchNumber();
-            if ($touchNum >= 1 && $touchNum <= $touchCount) {
+            if ($touchNum !== null && $touchNum >= 1 && $touchNum <= $touchCount) {
                 $touches[$touchNum] = [
                     'sent' => $send->getSentAt(),
                     'opened' => $send->isOpened(),

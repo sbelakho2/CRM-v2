@@ -21,7 +21,8 @@ class AsmCurveRepository extends ServiceEntityRepository
      */
     public function findActiveCost(int $componentCount): ?AsmCurve
     {
-        return $this->createQueryBuilder('ac')
+        /** @var AsmCurve|null $result */
+        $result = $this->createQueryBuilder('ac')
             ->andWhere('ac.componentCountMin <= :count')
             ->andWhere('ac.componentCountMax IS NULL OR ac.componentCountMax >= :count')
             ->andWhere('ac.isActive = :active')
@@ -31,21 +32,26 @@ class AsmCurveRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
      * Find all active curves
      * 
-     * @return AsmCurve[]
+     * @return list<AsmCurve>
      */
     public function findAllActive(): array
     {
-        return $this->createQueryBuilder('ac')
+        /** @var list<AsmCurve> $results */
+        $results = $this->createQueryBuilder('ac')
             ->andWhere('ac.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('ac.componentCountMin', 'ASC')
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 }

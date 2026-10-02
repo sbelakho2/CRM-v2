@@ -60,7 +60,7 @@ class RFQ
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class, inversedBy: 'rfqs')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
@@ -81,7 +81,7 @@ class RFQ
     private ?\DateTimeInterface $rfqDate = null;
 
     #[ORM\Column(length: 50)]
-    private ?string $type = self::TYPE_STANDARD; // NPI, Framework Agreement, Standard RFQ
+    private string $type = self::TYPE_STANDARD; // NPI, Framework Agreement, Standard RFQ
 
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $ndaSent = false;
@@ -93,7 +93,7 @@ class RFQ
     private bool $ndaExecuted = false;
 
     #[ORM\Column(length: 50)]
-    private ?string $status = self::STATUS_PENDING; // Pending, Submitted, Won, Lost, In Review
+    private string $status = self::STATUS_PENDING; // Pending, Submitted, Won, Lost, In Review
 
     #[ORM\Column(type: 'decimal', precision: 15, scale: 2, nullable: true)]
     private ?string $estimatedValue = null;
@@ -147,9 +147,11 @@ class RFQ
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
 
+    /** @var Collection<int, RfqLineItem> */
     #[ORM\OneToMany(mappedBy: 'rfq', targetEntity: RfqLineItem::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $lineItems;
 
+    /** @var Collection<int, RfqVersion> */
     #[ORM\OneToMany(mappedBy: 'rfq', targetEntity: RfqVersion::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $versions;
 

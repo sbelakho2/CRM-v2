@@ -18,7 +18,7 @@ class AuditLog
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 100)]
     private ?string $entityType = null;
@@ -36,12 +36,15 @@ class AuditLog
     #[ORM\Column(length: 45, nullable: true)]
     private ?string $ipAddress = null;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $oldValues = null;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $newValues = null;
 
+    /** @var list<string>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $changedFields = null;
 
@@ -126,33 +129,39 @@ class AuditLog
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getOldValues(): ?array
     {
         return $this->oldValues;
     }
 
+    /** @param array<string, mixed>|null $oldValues */
     public function setOldValues(?array $oldValues): static
     {
         $this->oldValues = $oldValues;
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getNewValues(): ?array
     {
         return $this->newValues;
     }
 
+    /** @param array<string, mixed>|null $newValues */
     public function setNewValues(?array $newValues): static
     {
         $this->newValues = $newValues;
         return $this;
     }
 
+    /** @return list<string>|null */
     public function getChangedFields(): ?array
     {
         return $this->changedFields;
     }
 
+    /** @param list<string>|null $changedFields */
     public function setChangedFields(?array $changedFields): static
     {
         $this->changedFields = $changedFields;

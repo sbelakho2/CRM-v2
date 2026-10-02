@@ -34,7 +34,8 @@ class EmailTemplateService
 
     /**
      * Create a new email template
-      * @param array<string|int, mixed> $personalizationTokens
+     *
+     * @param list<string> $personalizationTokens
      */
     public function createTemplate(
         string $name,
@@ -66,7 +67,8 @@ class EmailTemplateService
 
     /**
      * Update an existing template
-      * @param array<string|int, mixed> $personalizationTokens
+     *
+     * @param list<string>|null $personalizationTokens
      */
     public function updateTemplate(
         EmailTemplate $template,
@@ -132,9 +134,9 @@ class EmailTemplateService
     {
         $clone = new EmailTemplate();
         $clone->setName($newName);
-        $clone->setSubjectLine($source->getSubjectLine());
+        $clone->setSubjectLine($source->getSubjectLine() ?? '');
         $clone->setPreviewText($source->getPreviewText());
-        $clone->setBodyHtml($source->getBodyHtml());
+        $clone->setBodyHtml($source->getBodyHtml() ?? '');
         $clone->setBodyText($source->getBodyText());
         $clone->setCategory($source->getCategory());
         $clone->setPersonalizationTokens($source->getPersonalizationTokens() ?? []);
@@ -150,6 +152,8 @@ class EmailTemplateService
 
     /**
      * Get all active templates
+     *
+     * @return list<EmailTemplate>
      */
     public function getActiveTemplates(): array
     {
@@ -158,6 +162,8 @@ class EmailTemplateService
 
     /**
      * Get templates by category
+     *
+     * @return list<EmailTemplate>
      */
     public function getTemplatesByCategory(string $category): array
     {
@@ -166,6 +172,8 @@ class EmailTemplateService
 
     /**
      * Search templates by name
+     *
+     * @return list<EmailTemplate>
      */
     public function searchTemplates(string $query): array
     {
@@ -174,19 +182,19 @@ class EmailTemplateService
 
     /**
      * Validate personalization tokens in template content
-     * 
-     * @return array Array of validation errors (empty if valid)
+     *
+     * @return list<string> Array of validation errors (empty if valid)
      */
     public function validatePersonalizationTokens(EmailTemplate $template): array
     {
         $errors = [];
         $allowedTokens = $template->getPersonalizationTokens() ?? [];
-        
+
         // Extract tokens from subject line
-        $subjectTokens = $this->extractTokens($template->getSubjectLine());
-        
+        $subjectTokens = $this->extractTokens($template->getSubjectLine() ?? '');
+
         // Extract tokens from body HTML
-        $bodyTokens = $this->extractTokens($template->getBodyHtml());
+        $bodyTokens = $this->extractTokens($template->getBodyHtml() ?? '');
         
         // Combine all used tokens
         $usedTokens = array_unique(array_merge($subjectTokens, $bodyTokens));
@@ -207,13 +215,13 @@ class EmailTemplateService
      * All user-supplied values are HTML-escaped before injection into the
      * email body to prevent XSS attacks via personalization token values.
      * 
-     * @param array $data Associative array of token values
-     * @return array ['subject' => string, 'html' => string, 'text' => string]
+     * @param array<string, mixed> $data Associative array of token values
+     * @return array{subject: string, html: string, text: string, previewText: string|null}
      */
     public function renderTemplate(EmailTemplate $template, array $data): array
     {
-        $subject = $this->replaceTokens($template->getSubjectLine(), $data, false);
-        $html = $this->replaceTokens($template->getBodyHtml(), $data, true);
+        $subject = $this->replaceTokens($template->getSubjectLine() ?? '', $data, false);
+        $html = $this->replaceTokens($template->getBodyHtml() ?? '', $data, true);
         $text = $this->replaceTokens($template->getBodyText() ?? '', $data, false);
 
         return [
@@ -226,6 +234,8 @@ class EmailTemplateService
 
     /**
      * Generate preview with sample data
+     *
+     * @return array{subject: string, html: string, text: string, previewText: string|null}
      */
     public function generatePreview(EmailTemplate $template): array
     {
@@ -236,11 +246,13 @@ class EmailTemplateService
     /**
      * Extract personalization tokens from text
      * Returns array of token names (without curly braces)
+     *
+     * @return list<string>
      */
     private function extractTokens(string $text): array
     {
         preg_match_all('/\{\{([a-zA-Z0-9_.]+)\}\}/', $text, $matches);
-        return $matches[1] ?? [];
+        return $matches[1];
     }
 
     /**
@@ -254,34 +266,43 @@ class EmailTemplateService
      * to preserve intended formatting.
      *
      * @param string $text The template text containing {{token}} placeholders
-     * @param array $data Associative array of token => value pairs
+     * @param array<string, mixed> $data Associative array of token => value pairs
      * @param bool $escapeForHtml Whether to HTML-escape values (true for HTML body)
      * @return string The text with tokens replaced
      */
     private function replaceTokens(string $text, array $data, bool $escapeForHtml = true): string
     {
         $result = $text;
-        
+
         foreach ($data as $key => $value) {
             // Support dot notation (e.g., contact.firstName)
             $token = '{{' . $key . '}}';
-            
+
             // HTML-escape values when injecting into HTML body to prevent XSS
-            $replacement = $escapeForHtml 
-                ? htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
-                : (string) $value;
-            
+            $replacement = $escapeForHtml
+                ? htmlspecialchars(self::scalarToString($value), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+                : self::scalarToString($value);
+
             $result = str_replace($token, $replacement, $result);
         }
-        
+
         // Remove any unreplaced tokens (prevents {{malicious_code}} from being rendered)
-        $result = preg_replace('/\{\{[a-zA-Z0-9_.]+\}\}/', '', $result);
-        
-        return $result;
+        return preg_replace('/\{\{[a-zA-Z0-9_.]+\}\}/', '', $result) ?? $result;
+    }
+
+    /**
+     * Weak-mode string coercion for scalar token values; non-scalars (which
+     * previously hit a TypeError under strict_types) become an empty string.
+     */
+    private static function scalarToString(mixed $value): string
+    {
+        return is_scalar($value) ? (string) $value : '';
     }
 
     /**
      * Generate sample data for preview
+     *
+     * @return array<string, string>
      */
     private function generateSampleData(EmailTemplate $template): array
     {
@@ -347,32 +368,34 @@ class EmailTemplateService
         $html = strip_tags($html, '<' . implode('><', $allowedTags) . '>');
         
         // Remove dangerous attributes (onclick, onerror, etc.) — case-insensitive
-        $html = preg_replace('/\son\w+="[^"]*"/i', '', $html);
-        $html = preg_replace('/\son\w+=\'[^\']*\'/i', '', $html);
+        $html = preg_replace('/\son\w+="[^"]*"/i', '', $html) ?? $html;
+        $html = preg_replace('/\son\w+=\'[^\']*\'/i', '', $html) ?? $html;
         
         // Also remove event handlers without quotes (e.g., onclick=alert(1))
-        $html = preg_replace('/\son\w+\s*=\s*[^\s>]+/i', '', $html);
+        $html = preg_replace('/\son\w+\s*=\s*[^\s>]+/i', '', $html) ?? $html;
         
         // Remove javascript: protocol from href attributes
-        $html = preg_replace('/href="javascript:[^"]*"/i', 'href="#"', $html);
-        $html = preg_replace('/href=\'javascript:[^\']*\'/i', "href='#'", $html);
+        $html = preg_replace('/href="javascript:[^"]*"/i', 'href="#"', $html) ?? $html;
+        $html = preg_replace('/href=\'javascript:[^\']*\'/i', "href='#'", $html) ?? $html;
         
         // Remove data: URIs from src attributes (can be used for XSS)
-        $html = preg_replace('/src="data:[^"]*"/i', 'src=""', $html);
-        $html = preg_replace("/src='data:[^']*'/i", "src=''", $html);
+        $html = preg_replace('/src="data:[^"]*"/i', 'src=""', $html) ?? $html;
+        $html = preg_replace("/src='data:[^']*'/i", "src=''", $html) ?? $html;
         
         // Remove <iframe>, <script>, <object>, <embed>, <style> that may have survived strip_tags
-        $html = preg_replace('/<script[^>]*>.*?<\/script>/is', '', $html);
-        $html = preg_replace('/<iframe[^>]*>.*?<\/iframe>/is', '', $html);
-        $html = preg_replace('/<object[^>]*>.*?<\/object>/is', '', $html);
-        $html = preg_replace('/<embed[^>]*>.*?<\/embed>/is', '', $html);
-        $html = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $html);
+        $html = preg_replace('/<script[^>]*>.*?<\/script>/is', '', $html) ?? $html;
+        $html = preg_replace('/<iframe[^>]*>.*?<\/iframe>/is', '', $html) ?? $html;
+        $html = preg_replace('/<object[^>]*>.*?<\/object>/is', '', $html) ?? $html;
+        $html = preg_replace('/<embed[^>]*>.*?<\/embed>/is', '', $html) ?? $html;
+        $html = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $html) ?? $html;
         
         return $html;
     }
 
     /**
      * Get template statistics
+     *
+     * @return array{campaignCount: int, emailsSent: int, firstUsed: \DateTimeInterface|null, lastUsed: \DateTimeInterface|null, tokenCount: int}
      */
     public function getTemplateStats(EmailTemplate $template): array
     {
@@ -393,13 +416,16 @@ class EmailTemplateService
         ->getSingleScalarResult();
 
         // Get usage date range
-        $usageRange = $this->entityManager->createQuery(
+        $usageRangeQuery = $this->entityManager->createQuery(
             'SELECT MIN(ec.createdAt) as firstUsed, MAX(ec.createdAt) as lastUsed 
              FROM App\Entity\EmailCampaign ec 
              WHERE ec.template = :template'
         )
-        ->setParameter('template', $template)
-        ->getOneOrNullResult();
+        ->setParameter('template', $template);
+
+        /** @var array{firstUsed: \DateTimeInterface|null, lastUsed: \DateTimeInterface|null}|null $usageRange */
+        $usageRange = $usageRangeQuery
+            ->getOneOrNullResult();
 
         return [
             'campaignCount' => (int) $campaignCount,
@@ -425,7 +451,7 @@ class EmailTemplateService
             'personalizationTokens' => $template->getPersonalizationTokens(),
         ];
 
-        return json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        return json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) ?: '{}';
     }
 
     /**
@@ -436,18 +462,26 @@ class EmailTemplateService
         /** @var array<string, mixed>|null $data */
         $data = json_decode($json, true);
         
-        if (!$data) {
+        if (!is_array($data) || $data === []) {
             throw new \InvalidArgumentException('Invalid JSON data');
         }
 
+        $importedName = self::scalarToString($data['name'] ?? '');
+        $tokens = $data['personalizationTokens'] ?? [];
+        $subjectLine = self::scalarToString($data['subjectLine'] ?? '');
+        $bodyHtml = self::scalarToString($data['bodyHtml'] ?? '');
+        $bodyText = isset($data['bodyText']) && is_string($data['bodyText']) ? $data['bodyText'] : null;
+        $previewText = isset($data['previewText']) && is_string($data['previewText']) ? $data['previewText'] : null;
+        $category = self::scalarToString($data['category'] ?? 'general');
+
         return $this->createTemplate(
-            name: $newName ?? ($data['name'] . ' (Imported)'),
-            subjectLine: $data['subjectLine'] ?? '',
-            bodyHtml: $data['bodyHtml'] ?? '',
-            bodyText: $data['bodyText'] ?? null,
-            previewText: $data['previewText'] ?? null,
-            category: $data['category'] ?? 'general',
-            personalizationTokens: $data['personalizationTokens'] ?? [],
+            name: $newName ?? ($importedName . ' (Imported)'),
+            subjectLine: $subjectLine,
+            bodyHtml: $bodyHtml,
+            bodyText: $bodyText,
+            previewText: $previewText,
+            category: $category !== '' ? $category : 'general',
+            personalizationTokens: is_array($tokens) ? array_values(array_filter($tokens, 'is_string')) : [],
             isActive: true
         );
     }

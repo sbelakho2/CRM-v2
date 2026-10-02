@@ -22,6 +22,9 @@ final class DirectorySeed
         public readonly ?string $snippet = null,
     ) {}
 
+    /**
+     * @return array{company_name: string, domain: string|null, country: string|null, source_directory: string, source_url: string, sector: string|null, snippet: string|null}
+     */
     public function toArray(): array
     {
         return [

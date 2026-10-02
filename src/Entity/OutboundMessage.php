@@ -34,7 +34,7 @@ class OutboundMessage
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Contact::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
@@ -159,6 +159,7 @@ class OutboundMessage
     /**
      * Full decision trace JSON (arms chosen, priors, decay, scores)
      */
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $decisionTrace = null;
 
@@ -465,7 +466,9 @@ class OutboundMessage
     public function isControlGroup(): bool { return $this->isControlGroup; }
     public function setIsControlGroup(bool $isControl): self { $this->isControlGroup = $isControl; return $this; }
 
+    /** @return array<string, mixed>|null */
     public function getDecisionTrace(): ?array { return $this->decisionTrace; }
+    /** @param array<string, mixed>|null $trace */
     public function setDecisionTrace(?array $trace): self { $this->decisionTrace = $trace; return $this; }
 
     // ==================== FUNNEL TRACKING GETTERS/SETTERS ====================

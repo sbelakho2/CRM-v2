@@ -19,24 +19,32 @@ class OutboundMessageRepository extends ServiceEntityRepository
 
     /**
      * Find messages by status
+          *
+     * @return list<OutboundMessage>
      */
     public function findByStatus(string $status, int $limit = 100): array
     {
-        return $this->createQueryBuilder('m')
+        /** @var list<OutboundMessage> $results */
+        $results = $this->createQueryBuilder('m')
             ->where('m.status = :status')
             ->setParameter('status', $status)
             ->orderBy('m.createdAt', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find messages needing outcome recording for Thompson Sampling
+          *
+     * @return list<OutboundMessage>
      */
     public function findNeedingOutcomeRecording(int $limit = 100): array
     {
-        return $this->createQueryBuilder('m')
+        /** @var list<OutboundMessage> $results */
+        $results = $this->createQueryBuilder('m')
             ->where('m.outcomeRecorded = false')
             ->andWhere('m.subjectArm IS NOT NULL')
             ->andWhere('m.status IN (:statuses)')
@@ -51,6 +59,8 @@ class OutboundMessageRepository extends ServiceEntityRepository
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
@@ -71,6 +81,8 @@ class OutboundMessageRepository extends ServiceEntityRepository
 
     /**
      * Get statistics for a bandit arm
+     *
+     * @return array{total: int, successes: int, failures: int, pending: int}
      */
     public function getArmStatistics(BanditArm $arm): array
     {
@@ -92,13 +104,18 @@ class OutboundMessageRepository extends ServiceEntityRepository
                 OutboundMessage::STATUS_FAILED,
             ]);
 
+        /** @var array<string, int|string|null> $result */
         $result = $qb->getQuery()->getSingleResult();
 
+        $total = is_numeric($result['total'] ?? null) ? (int) $result['total'] : 0;
+        $successes = is_numeric($result['successes'] ?? null) ? (int) $result['successes'] : 0;
+        $failures = is_numeric($result['failures'] ?? null) ? (int) $result['failures'] : 0;
+
         return [
-            'total' => (int) $result['total'],
-            'successes' => (int) $result['successes'],
-            'failures' => (int) $result['failures'],
-            'pending' => (int) $result['total'] - (int) $result['successes'] - (int) $result['failures'],
+            'total' => $total,
+            'successes' => $successes,
+            'failures' => $failures,
+            'pending' => $total - $successes - $failures,
         ];
     }
 

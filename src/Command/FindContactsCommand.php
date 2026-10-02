@@ -98,16 +98,15 @@ HELP
         $io->section('Google Dork Search URLs');
         
         $domain = $this->extractDomain($company->getWebsite());
-        if ($domain) {
+        if ($domain && $company->getName() !== null) {
             $io->writeln("Searching for emails at domain: <info>{$domain}</info>");
             $io->newLine();
-            
+
             $emailResults = $this->googleDork->findContactEmails($company->getName(), $domain);
-            
+
             if (!empty($emailResults)) {
                 foreach ($emailResults as $result) {
-                    $io->writeln("• <info>{$result['title']}</info>");
-                    $io->writeln("  {$result['url']}");
+                    $io->writeln("• <info>{$result}</info>");
                     $io->newLine();
                 }
             } else {

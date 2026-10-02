@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Company;
+use App\Entity\User;
 use App\Form\CompanyType;
 use App\Repository\ActivityRepository;
 use App\Repository\CompanyRepository;
@@ -80,7 +81,7 @@ class CompanyController extends AbstractController
         }
 
         if ($region) {
-            $this->applyRegionFilter($qb, $region);
+            $this->applyRegionFilter($qb, (string) $region);
         }
 
         if ($search) {
@@ -206,14 +207,15 @@ class CompanyController extends AbstractController
     #[Route('/{id}/delete', name: 'app_company_delete', methods: ['POST'])]
     public function delete(Request $request, Company $company): Response
     {
-        if ($this->isCsrfTokenValid('delete' . $company->getId(), $request->request->get('_token'))) {
+        $user = $this->getUser();
+        if ($this->isCsrfTokenValid('delete' . $company->getId(), $request->request->getString('_token')) && $user instanceof User) {
             // Companies are NEVER hard-deleted: their contacts, activities,
             // RFQs, quotes and compliance history would cascade away with
             // them. "Delete" archives instead; a super-admin can restore or
             // purge later through explicit maintenance tooling.
             $company->archive(
-                $this->getUser(),
-                (string) $request->request->get('reason', 'Archived from company list')
+                $user,
+                $request->request->getString('reason', 'Archived from company list')
             );
             $this->entityManager->flush();
 
@@ -234,7 +236,7 @@ class CompanyController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function restore(Request $request, Company $company): Response
     {
-        if ($this->isCsrfTokenValid('restore' . $company->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('restore' . $company->getId(), $request->request->getString('_token'))) {
             $company->restore();
             $this->entityManager->flush();
 
@@ -288,7 +290,7 @@ class CompanyController extends AbstractController
         }
 
         if ($region) {
-            $this->applyRegionFilter($qb, $region);
+            $this->applyRegionFilter($qb, (string) $region);
         }
 
         if ($search) {
@@ -314,6 +316,9 @@ class CompanyController extends AbstractController
         ]);
     }
 
+    /**
+     * @return array{0: list<array{value: string, label: string}>, 1: array<string, string>}
+     */
     private function buildSectorOptions(): array
     {
         $sectorKeys = [
@@ -354,7 +359,7 @@ class CompanyController extends AbstractController
     #[Route('/{id}/approve', name: 'app_company_approve', methods: ['POST'])]
     public function approve(Request $request, Company $company): Response
     {
-        if ($this->isCsrfTokenValid('approve' . $company->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('approve' . $company->getId(), $request->request->getString('_token'))) {
             $company->setCompanyStatus(Company::STATUS_APPROVED);
             $this->entityManager->flush();
 
@@ -370,7 +375,7 @@ class CompanyController extends AbstractController
     #[Route('/{id}/activate', name: 'app_company_activate', methods: ['POST'])]
     public function activate(Request $request, Company $company): Response
     {
-        if ($this->isCsrfTokenValid('activate' . $company->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('activate' . $company->getId(), $request->request->getString('_token'))) {
             $company->setCompanyStatus(Company::STATUS_ACTIVE);
             $this->entityManager->flush();
 
@@ -386,7 +391,7 @@ class CompanyController extends AbstractController
     #[Route('/approve-all', name: 'app_company_approve_all', methods: ['POST'])]
     public function approveAll(Request $request): Response
     {
-        if ($this->isCsrfTokenValid('approve_all', $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('approve_all', $request->request->getString('_token'))) {
             $discovered = $this->companyRepository->findBy(['companyStatus' => Company::STATUS_DISCOVERED]);
             foreach ($discovered as $company) {
                 $company->setCompanyStatus(Company::STATUS_APPROVED);
@@ -444,6 +449,7 @@ class CompanyController extends AbstractController
 
         $qb->orderBy('c.name', 'ASC');
 
+        /** @var list<Company> $companies */
         $companies = $qb->getQuery()->getResult();
 
         // Generate export file
@@ -497,6 +503,7 @@ class CompanyController extends AbstractController
 
         $qb->orderBy('c.createdAt', 'DESC');
 
+        /** @var list<Company> $companies */
         $companies = $qb->getQuery()->getResult();
 
         $filepath = $this->exportService->exportDiscoveredCompanies($companies, $format);
@@ -608,11 +615,14 @@ class CompanyController extends AbstractController
             }
         }
 
-        $rows = $this->companyRepository->createQueryBuilder('cr')
+        $rowsQuery = $this->companyRepository->createQueryBuilder('cr')
             ->select('DISTINCT cr.region AS region, cr.country AS country')
             ->andWhere('(cr.region IS NOT NULL AND cr.region <> :empty) OR (cr.country IS NOT NULL AND cr.country <> :empty)')
             ->setParameter('empty', '')
-            ->orderBy('cr.region', 'ASC')
+            ->orderBy('cr.region', 'ASC');
+
+        /** @var list<array{region: string|null, country: string|null}> $rows */
+        $rows = $rowsQuery
             ->getQuery()
             ->getArrayResult();
 

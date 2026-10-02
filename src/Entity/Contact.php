@@ -28,7 +28,7 @@ class Contact
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class, inversedBy: 'contacts')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
@@ -70,9 +70,11 @@ class Contact
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
 
+    /** @var Collection<int, Activity> */
     #[ORM\OneToMany(mappedBy: 'contact', targetEntity: Activity::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $activities;
 
+    /** @var Collection<int, EmailCampaign> */
     #[ORM\ManyToMany(targetEntity: EmailCampaign::class, inversedBy: 'contacts')]
     #[ORM\JoinTable(name: 'contact_email_campaigns')]
     private Collection $emailCampaigns;

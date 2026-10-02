@@ -14,7 +14,7 @@ class AbmHit
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
@@ -42,6 +42,7 @@ class AbmHit
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $pageViews = null;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $firmographicData = null; // JSON
 
@@ -136,11 +137,13 @@ class AbmHit
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getFirmographicData(): ?array
     {
         return $this->firmographicData;
     }
 
+    /** @param array<string, mixed>|null $firmographicData */
     public function setFirmographicData(?array $firmographicData): self
     {
         $this->firmographicData = $firmographicData;

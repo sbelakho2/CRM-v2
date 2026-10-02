@@ -18,12 +18,15 @@ class QuoteAcceptanceRepository extends ServiceEntityRepository
 
     public function findLatestForQuote(\App\Entity\Quote $quote): ?QuoteAcceptance
     {
-        return $this->createQueryBuilder('a')
+        /** @var QuoteAcceptance|null $result */
+        $result = $this->createQueryBuilder('a')
             ->andWhere('a.quote = :quote')
             ->setParameter('quote', $quote)
             ->orderBy('a.acceptedAt', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 }

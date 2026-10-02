@@ -79,8 +79,9 @@ HELP
         }
         
         // Single pair mode
-        if ($pair = $input->getOption('single')) {
-            return $this->fetchSinglePair($io, $pair);
+        $singlePair = $input->getOption('single');
+        if (is_string($singlePair) && $singlePair !== '') {
+            return $this->fetchSinglePair($io, $singlePair);
         }
         
         // Full fetch

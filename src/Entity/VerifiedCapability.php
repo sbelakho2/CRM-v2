@@ -23,7 +23,7 @@ class VerifiedCapability
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 50)]
     private ?string $site = null; // e.g. 'Tanger', 'Casablanca', 'company-wide'

@@ -37,9 +37,10 @@ class TestScrapingSearchCommand extends Command
 
         /** @var string $query */
         $query = $input->getArgument('query');
-        /** @var mixed $region */
+        /** @var string|null $region VALUE_OPTIONAL string option */
         $region = $input->getOption('region');
-        $maxResults = (int) $input->getOption('max');
+        $maxOption = $input->getOption('max');
+        $maxResults = is_numeric($maxOption) ? (int) $maxOption : 20;
 
         $io->title('Scraping Search Provider Test');
         $io->section("Query: {$query}");

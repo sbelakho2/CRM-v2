@@ -14,7 +14,7 @@ class PcbCurve
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(type: 'integer')]
     private ?int $layers = null;

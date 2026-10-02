@@ -137,6 +137,7 @@ class ComplianceDeduplicateKeysCommand extends Command
     private function findDuplicateSets(): array
     {
         /** @var array<int, array<string, mixed>> $rows */
+        /** @var list<array{company_id: int|string, document_key: int|string}> $rows */
         $rows = $this->entityManager->getConnection()->fetchAllAssociative(
             'SELECT company_id, document_key
              FROM compliance_documents
@@ -147,7 +148,10 @@ class ComplianceDeduplicateKeysCommand extends Command
         );
 
         return array_map(
-            static fn (array $r): array => ['company_id' => (int) $r['company_id'], 'document_key' => (string) $r['document_key']],
+            static fn (array $r): array => [
+                'company_id' => is_numeric($r['company_id']) ? (int) $r['company_id'] : 0,
+                'document_key' => (string) $r['document_key'],
+            ],
             $rows
         );
     }
@@ -157,7 +161,8 @@ class ComplianceDeduplicateKeysCommand extends Command
      */
     private function loadSet(int $companyId, string $documentKey): array
     {
-        return $this->entityManager->getRepository(ComplianceDocument::class)->createQueryBuilder('d')
+        /** @var list<ComplianceDocument> $documents */
+        $documents = $this->entityManager->getRepository(ComplianceDocument::class)->createQueryBuilder('d')
             ->andWhere('d.company = :companyId')
             ->andWhere('d.documentKey = :key')
             ->setParameter('companyId', $companyId)
@@ -165,12 +170,17 @@ class ComplianceDeduplicateKeysCommand extends Command
             ->orderBy('d.id', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $documents;
     }
 
     /**
      * Deterministic, data-preserving priority: the row that carries the
      * most real compliance evidence wins.
       * @param array<string|int, mixed> $rows
+     */
+    /**
+     * @param list<ComplianceDocument> $rows
      */
     private function pickWinner(array $rows): ComplianceDocument
     {

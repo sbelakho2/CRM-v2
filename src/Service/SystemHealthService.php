@@ -39,8 +39,10 @@ class SystemHealthService
     public function getDetails(): array
     {
         $item = $this->cacheApp->getItem(self::CACHE_KEY.'.details');
-        if ($item->isHit() && is_array($item->get())) {
-            return $item->get();
+        $cached = $item->get();
+        if ($item->isHit() && is_array($cached)) {
+            /** @var array<string, string> $cached */
+            return $cached;
         }
 
         $details = $this->probeDetails();
@@ -58,8 +60,10 @@ class SystemHealthService
     {
         $item = $this->cacheApp->getItem(self::CACHE_KEY);
 
-        if ($item->isHit() && is_string($item->get())) {
-            return $item->get();
+        $cached = $item->get();
+        if ($item->isHit() && is_string($cached)
+            && in_array($cached, [self::STATUS_HEALTHY, self::STATUS_DEGRADED], true)) {
+            return $cached;
         }
 
         $status = $this->probe();
@@ -70,6 +74,9 @@ class SystemHealthService
         return $status;
     }
 
+    /**
+     * @return self::STATUS_*
+     */
     private function probe(): string
     {
         $details = $this->probeDetails();
@@ -91,7 +98,7 @@ class SystemHealthService
         if (($details['workers'] ?? null) === 'unknown') {
             try {
                 $hasRun = $this->connection->fetchOne('SELECT COUNT(*) FROM worker_heartbeats');
-                if ((int) $hasRun > 0) {
+                if (is_numeric($hasRun) && (int) $hasRun > 0) {
                     return self::STATUS_DEGRADED;
                 }
             } catch (\Throwable) {
@@ -134,19 +141,22 @@ class SystemHealthService
         // 'unknown' for messenger DEGRADES the aggregate (this app expects
         // workers), unlike fx where absence of FX data is a valid state.
         try {
-            $failed = (int) $this->connection->fetchOne(
+            $failedRaw = $this->connection->fetchOne(
                 "SELECT COUNT(*) FROM messenger_messages WHERE queue_name = 'failed'"
             );
+            $failed = is_numeric($failedRaw) ? (int) $failedRaw : 0;
             // Live backlog excludes the failed queue (those are parked for
             // inspection, not evidence of a dead worker).
-            $oldestQueuedAgeMinutes = $this->connection->fetchOne(
+            $oldestQueuedRaw = $this->connection->fetchOne(
                 "SELECT TIMESTAMPDIFF(MINUTE, MIN(created_at), NOW()) FROM messenger_messages WHERE queue_name <> 'failed'"
             );
-            $queuedDepth = (int) $this->connection->fetchOne(
+            $oldestQueuedAgeMinutes = is_numeric($oldestQueuedRaw) ? (int) $oldestQueuedRaw : 0;
+            $queuedDepthRaw = $this->connection->fetchOne(
                 "SELECT COUNT(*) FROM messenger_messages WHERE queue_name <> 'failed'"
             );
+            $queuedDepth = is_numeric($queuedDepthRaw) ? (int) $queuedDepthRaw : 0;
 
-            if ($failed > 100 || $queuedDepth > 1000 || ((int) $oldestQueuedAgeMinutes > 30 && $queuedDepth > 0)) {
+            if ($failed > 100 || $queuedDepth > 1000 || ($oldestQueuedAgeMinutes > 30 && $queuedDepth > 0)) {
                 $details['messenger'] = self::STATUS_DEGRADED;
             } else {
                 $details['messenger'] = self::STATUS_HEALTHY;
@@ -171,10 +181,10 @@ class SystemHealthService
                     'SELECT TIMESTAMPDIFF(SECOND, MAX(last_run_at), NOW()) FROM worker_heartbeats WHERE name = :name',
                     ['name' => $workerName]
                 );
-                if ($age !== null && (int) $age > 900) {
+                if (is_numeric($age) && (int) $age > 900) {
                     $details['workers'] = self::STATUS_DEGRADED;
                 }
-                $maxAge = max($maxAge, $age === null ? 0 : (int) $age);
+                $maxAge = max($maxAge, is_numeric($age) ? (int) $age : 0);
             }
         } catch (\Throwable) {
             $details['workers'] = 'unknown';
@@ -183,10 +193,10 @@ class SystemHealthService
         // FX rate freshness (only meaningful once FX data exists).
         try {
             $newest = $this->connection->fetchOne('SELECT MAX(created_at) FROM fx_rates');
-            if ($newest === null) {
+            if (!is_string($newest) || $newest === '') {
                 $details['fx'] = 'unknown';
             } else {
-                $ageDays = (time() - strtotime((string) $newest)) / 86400;
+                $ageDays = (time() - strtotime($newest)) / 86400;
                 $details['fx'] = ($ageDays > 7) ? self::STATUS_DEGRADED : self::STATUS_HEALTHY;
             }
         } catch (\Throwable) {

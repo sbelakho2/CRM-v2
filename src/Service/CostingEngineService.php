@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\Quote;
+use App\Entity\PcbCurve;
+use App\Entity\AsmCurve;
+use App\Entity\NreTable;
 use App\Repository\PcbCurveRepository;
 use App\Repository\AsmCurveRepository;
 use App\Repository\NreTableRepository;
@@ -61,26 +64,43 @@ class CostingEngineService
      *   pricePerSqcm: float
      * }
      */
+    /**
+     * @param array{width?: int|float, height?: int|float, layers?: int, material?: string, surfaceFinish?: string, qty?: int|float|string} $pcbSpec
+     *
+     * @return array{
+     *   unitCost: float,
+     *   setupCost: float,
+     *   totalCost: float,
+     *   areaPerBoard: float,
+     *   pricePerSqcm: float
+     * }
+     */
     public function calculatePcbCost(array $pcbSpec): array
     {
         // 1. Calculate board area (convert mm² to cm²)
         $width = $pcbSpec['width'] ?? 100;
         $height = $pcbSpec['height'] ?? 100;
         $areaPerBoard = ($width / 10) * ($height / 10);
-        
+
         // 2. Query PcbCurve for base price
         $layers = $pcbSpec['layers'] ?? 2;
+        /** @var PcbCurve|null $curve */
         $curve = $this->pcbCurveRepository->createQueryBuilder('p')
-            ->where('p.layerCount = :layers')
+            ->where('p.layers = :layers')
             ->setParameter('layers', $layers)
             ->orderBy('p.asof', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
-        
-        // Default pricing if no curve found
-        $basePricePerSqcm = $curve?->getPricePerSqcm() ?? 0.15;
-        $setupCostBase = $curve?->getSetupCost() ?? 150.00;
+
+        // Default pricing if no curve found. The entity stores cost per m²
+        // (costPerM2): 1 m² = 10 000 cm². (The previous getPricePerSqcm()/
+        // getSetupCost() calls target methods that never existed on PcbCurve,
+        // so any found curve row crashed the engine at runtime.)
+        $basePricePerSqcm = $curve !== null && $curve->getCostPerM2() !== null
+            ? ((float) $curve->getCostPerM2()) / 10000.0
+            : 0.15;
+        $setupCostBase = 150.00; // PcbCurve has no setup-cost column; documented default
         
         // 3. Apply complexity multipliers
         $multiplier = 1.0;
@@ -134,14 +154,14 @@ class CostingEngineService
 
     /**
      * Calculate assembly (SMT/THT) cost
-     * 
-     * @param array $asmSpec - Assembly specification
+     *
+     * @param array{componentCount?: int, sideCount?: int, packageComplexity?: array<string, int|float>, qty?: int|float|string} $asmSpec Assembly specification:
      *   - componentCount: int
      *   - sideCount: int (1 or 2)
      *   - packageComplexity: array (package types with counts)
      *     - ['0402' => 50, '0603' => 30, 'BGA-256' => 2, 'QFN-64' => 5]
      *   - qty: int
-     * 
+     *
      * @return array{
      *   unitCost: float,
      *   setupCost: float,
@@ -152,14 +172,19 @@ class CostingEngineService
     public function calculateAsmCost(array $asmSpec): array
     {
         // 1. Query AsmCurve for base price
+        /** @var AsmCurve|null $curve */
         $curve = $this->asmCurveRepository->createQueryBuilder('a')
             ->orderBy('a.asof', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
         
-        $basePricePerComponent = $curve?->getPricePerComponent() ?? 0.05;
-        $setupCostBase = $curve?->getSetupCost() ?? 250.00;
+        // (The previous getPricePerComponent()/getSetupCost() calls target
+        // methods that never existed on AsmCurve — a found curve row crashed.)
+        $basePricePerComponent = $curve !== null && $curve->getCostPerUnit() !== null
+            ? (float) $curve->getCostPerUnit()
+            : 0.05;
+        $setupCostBase = 250.00; // AsmCurve has no setup-cost column; documented default
         
         // 2. Apply package complexity multipliers
         $packageMultipliers = [
@@ -231,8 +256,8 @@ class CostingEngineService
 
     /**
      * Calculate NRE (Non-Recurring Engineering) costs
-     * 
-     * @param array $nreItems - NRE items to include
+     *
+     * @param array{stencil?: bool, fixture?: bool, programming?: bool, firstArticle?: bool} $nreItems NRE items to include:
      *   - stencil: bool (SMT stencil required)
      *   - fixture: bool (Test fixture required)
      *   - programming: bool (Firmware programming required)
@@ -253,18 +278,23 @@ class CostingEngineService
         $items = ['stencil', 'fixture', 'programming', 'firstArticle'];
         
         foreach ($items as $item) {
+            /** @var NreTable|null $rate */
             $rate = $this->nreTableRepository->createQueryBuilder('n')
-                ->where('n.itemType = :type')
+                ->where('n.serviceType = :type')
                 ->setParameter('type', strtoupper($item))
                 ->orderBy('n.asof', 'DESC')
                 ->setMaxResults(1)
                 ->getQuery()
                 ->getOneOrNullResult();
-            
+
             // Default costs if not found in database
             $defaults = self::DEFAULT_NRE_COSTS;
-            
-            $nreRates[$item] = $rate?->getCost() ?? $defaults[$item];
+
+            // (getCost() never existed on NreTable — the flat-fee column is
+            // a decimal string; the previous code crashed whenever a row was
+            // found.)
+            $flatFee = $rate?->getFlatFee();
+            $nreRates[$item] = $flatFee !== null ? (float) $flatFee : $defaults[$item];
         }
         
         // 2. Calculate total NRE based on requested items
@@ -374,17 +404,17 @@ class CostingEngineService
 
     /**
      * Get total manufacturing cost (PCB + ASM + NRE)
-     * 
-     * @param array $pcbSpec - PCB specification
-     * @param array $asmSpec - Assembly specification
-     * @param array $nreItems - NRE items
+     *
+     * @param array{width?: int|float, height?: int|float, layers?: int, material?: string, surfaceFinish?: string, qty?: int|float|string} $pcbSpec PCB specification
+     * @param array{componentCount?: int, sideCount?: int, packageComplexity?: array<string, int|float>, qty?: int|float|string} $asmSpec Assembly specification
+     * @param array{stencil?: bool, fixture?: bool, programming?: bool, firstArticle?: bool} $nreItems NRE items
      * 
      * @return array{
      *   pcbCost: float,
      *   asmCost: float,
      *   nreCost: float,
      *   totalMfgCost: float,
-     *   breakdown: array
+     *   breakdown: array<string, mixed>
      * }
      */
     public function getTotalMfgCost(array $pcbSpec, array $asmSpec, array $nreItems): array

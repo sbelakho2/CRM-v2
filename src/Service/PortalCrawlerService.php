@@ -63,8 +63,8 @@ class PortalCrawlerService
      * 
      * @param string $companyName - Company name
      * @param string|null $domain - Known domain (optional)
-     * 
-     * @return array - Array of discovered portals
+     *
+     * @return list<array{url: string, vendor: string, companyName: string}>
      */
     public function discoverPortals(string $companyName, ?string $domain = null): array
     {
@@ -72,7 +72,7 @@ class PortalCrawlerService
         if (!$domain) {
             // Note: Google search API integration would go here
             // For now, construct likely domain from company name
-            $cleanName = strtolower(preg_replace('/[^a-z0-9]/i', '', $companyName));
+            $cleanName = strtolower(preg_replace('/[^a-z0-9]/i', '', $companyName) ?? '');
             $domain = "$cleanName.com";
         }
         
@@ -130,7 +130,7 @@ class PortalCrawlerService
      * 
      * @return array{
      *   allowed: bool,
-     *   disallowedPaths: array,
+     *   disallowedPaths: list<string>,
      *   crawlDelay: int|null,
      *   userAgent: string
      * }
@@ -234,7 +234,9 @@ class PortalCrawlerService
                 // Make absolute URL if relative
                 if (!str_starts_with($tosUrl, 'http')) {
                     $parsedUrl = parse_url($portalUrl);
-                    $baseUrl = "{$parsedUrl['scheme']}://{$parsedUrl['host']}";
+                    $baseUrl = is_array($parsedUrl) && isset($parsedUrl['scheme'], $parsedUrl['host'])
+                        ? "{$parsedUrl['scheme']}://{$parsedUrl['host']}"
+                        : $portalUrl;
                     $tosUrl = ltrim($tosUrl, '/');
                     $tosUrl = "$baseUrl/$tosUrl";
                 }
@@ -281,14 +283,14 @@ class PortalCrawlerService
         // Fully implemented helper method
         
         // Remove protocol if present
-        $domain = preg_replace('#^https?://#i', '', $domain);
-        
+        $domain = preg_replace('#^https?://#i', '', $domain) ?? $domain;
+
         // Remove trailing slash
         $domain = rtrim($domain, '/');
-        
+
         // Remove www prefix
-        $domain = preg_replace('#^www\.#i', '', $domain);
-        
+        $domain = preg_replace('#^www\.#i', '', $domain) ?? $domain;
+
         // Force lowercase
         $domain = strtolower($domain);
         
@@ -342,9 +344,9 @@ class PortalCrawlerService
     /**
      * Create or update SupplierPortal entity
      * 
-     * @param array $portalData - Portal data from discovery
+     * @param array{url: string, vendor?: string} $portalData Portal data from discovery
      * @param int $companyId - Company ID
-     * 
+     *
      * @return SupplierPortal
      */
     public function createPortal(array $portalData, int $companyId): SupplierPortal
@@ -377,17 +379,20 @@ class PortalCrawlerService
 
         // Vendor classification is recorded on the evidence snapshot for the
         // candidate (SupplierPortal has no vendor column).
+        /** @var array<string, mixed> $evidence */
         $evidence = json_decode($candidate->getEvidenceSnapshot() ?? '{}', true) ?? [];
         $evidence['vendor'] = $portalData['vendor'] ?? 'CUSTOM';
-        $candidate->setEvidenceSnapshot(json_encode($evidence));
+        $candidate->setEvidenceSnapshot(json_encode($evidence) ?: null);
 
         // robots.txt + TOS review on the candidate model
         try {
             $parsedUrl = parse_url($portalData['url']);
-            $domain = $parsedUrl['host'] ?? $canonicalUrl;
+            $domain = is_array($parsedUrl) && isset($parsedUrl['host'])
+                ? $parsedUrl['host']
+                : $canonicalUrl;
 
             $robotsCheck = $this->checkRobotsTxt($domain);
-            $candidate->setHasRobotsTxt((bool) ($robotsCheck['allowed'] ?? true));
+            $candidate->setHasRobotsTxt((bool) $robotsCheck['allowed']);
 
             $tosData = $this->reviewTos($portalData['url']);
             if (!empty($tosData['tosUrl'])) {
@@ -458,8 +463,8 @@ class PortalCrawlerService
      * Merge duplicate company domains
      * 
      * @param int $primaryId - Primary CompanyCanonical ID to keep
-     * @param array $duplicateIds - Array of duplicate IDs to merge
-     * 
+     * @param list<int> $duplicateIds Array of duplicate IDs to merge
+     *
      * @return int - Number of merged records
      */
     public function mergeDuplicates(int $primaryId, array $duplicateIds): int

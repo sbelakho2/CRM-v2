@@ -31,6 +31,9 @@ class TrackerImportService
      * collected (the row is skipped), but a mid-import crash rolls everything
      * back so no partial set of companies is ever committed.
      */
+    /**
+     * @return array{processed: int, imported: int, updated: int, skipped: int, errors: list<string>}
+     */
     public function importFromCsv(string $csvFilePath): array
     {
         if (!file_exists($csvFilePath)) {
@@ -78,7 +81,10 @@ class TrackerImportService
                         );
                     }
                     // Map CSV row to array with headers as keys
-                    $row = array_combine($headers, $data);
+                    $row = array_combine(
+                        array_map(static fn($h) => (string) $h, $headers),
+                        $data
+                    );
                     
                     // Skip empty rows
                     if (empty($row['Company']) && empty($row['Company Name']) && empty($row['company_name'])) {
@@ -120,13 +126,12 @@ class TrackerImportService
     private function importCompanyRow(array $row): string
     {
         // Normalize column names (support different variations from actual Tracker.xlsx)
-        $companyName = $row['Company'] 
-            ?? $row['Company Name'] 
-            ?? $row['company_name'] 
-            ?? $row['name'] 
-            ?? null;
+        $companyName = $this->csvString($row['Company'] ?? null)
+            ?? $this->csvString($row['Company Name'] ?? null)
+            ?? $this->csvString($row['company_name'] ?? null)
+            ?? $this->csvString($row['name'] ?? null);
 
-        if (!$companyName) {
+        if ($companyName === null) {
             throw new \InvalidArgumentException("Company name is required");
         }
 
@@ -142,13 +147,13 @@ class TrackerImportService
         }
 
         // Map common column variations from actual Tracker.xlsx format
-        $sector = $row['Sector'] ?? $row['sector'] ?? $row['Industry'] ?? null;
-        $location = $row['Physical Site (Morocco) / Region'] ?? $row['Location'] ?? $row['location'] ?? $row['Physical Site'] ?? $row['Region'] ?? null;
-        $website = $row['Website (Verified)'] ?? $row['Website'] ?? $row['website'] ?? $row['URL'] ?? null;
-        $tier = $row['Priority (A/B/C)'] ?? $row['Priority'] ?? $row['Tier'] ?? $row['tier'] ?? $row['Account Tier'] ?? null;
-        $stage = $row['Status'] ?? $row['Stage'] ?? $row['stage'] ?? $row['Pipeline Stage'] ?? null;
-        $portalUrl = $row['Contact URL / Supplier Portal'] ?? $row['Portal URL'] ?? $row['portal_url'] ?? $row['Supplier Portal'] ?? null;
-        $notes = $row['Source / Notes'] ?? $row['Notes'] ?? $row['notes'] ?? $row['Source Notes'] ?? null;
+        $sector = $this->csvString($row['Sector'] ?? $row['sector'] ?? $row['Industry'] ?? null);
+        $location = $this->csvString($row['Physical Site (Morocco) / Region'] ?? $row['Location'] ?? $row['location'] ?? $row['Physical Site'] ?? $row['Region'] ?? null);
+        $website = $this->csvString($row['Website (Verified)'] ?? $row['Website'] ?? $row['website'] ?? $row['URL'] ?? null);
+        $tier = $this->csvString($row['Priority (A/B/C)'] ?? $row['Priority'] ?? $row['Tier'] ?? $row['tier'] ?? $row['Account Tier'] ?? null);
+        $stage = $this->csvString($row['Status'] ?? $row['Stage'] ?? $row['stage'] ?? $row['Pipeline Stage'] ?? null);
+        $portalUrl = $this->csvString($row['Contact URL / Supplier Portal'] ?? $row['Portal URL'] ?? $row['portal_url'] ?? $row['Supplier Portal'] ?? null);
+        $notes = $this->csvString($row['Source / Notes'] ?? $row['Notes'] ?? $row['notes'] ?? $row['Source Notes'] ?? null);
 
         // Set company data
         if ($sector) {
@@ -215,20 +220,20 @@ class TrackerImportService
         $portal->setPortalUrl($portalUrl);
 
         // Check if registered
-        $registered = $row['Portal Registered'] ?? $row['Registered'] ?? null;
-        if ($registered && in_array(strtolower($registered), ['yes', 'true', '1', 'registered'])) {
+        $registered = $this->csvString($row['Portal Registered'] ?? $row['Registered'] ?? null);
+        if ($registered !== null && in_array(strtolower($registered), ['yes', 'true', '1', 'registered'], true)) {
             $portal->setRegistered(true);
         }
 
         // Portal ID
-        $portalId = $row['Portal ID'] ?? $row['Account ID'] ?? null;
-        if ($portalId) {
+        $portalId = $this->csvString($row['Portal ID'] ?? $row['Account ID'] ?? null);
+        if ($portalId !== null) {
             $portal->setPortalId($portalId);
         }
 
         // Dates
-        $submittedDate = $row['Submitted Date'] ?? $row['Portal Submitted'] ?? null;
-        if ($submittedDate) {
+        $submittedDate = $this->csvString($row['Submitted Date'] ?? $row['Portal Submitted'] ?? null);
+        if ($submittedDate !== null) {
             try {
                 $portal->setSubmittedDate(new \DateTime($submittedDate));
             } catch (\Exception $e) {
@@ -236,8 +241,8 @@ class TrackerImportService
             }
         }
 
-        $approvalDate = $row['Approval Date'] ?? $row['Portal Approved'] ?? null;
-        if ($approvalDate) {
+        $approvalDate = $this->csvString($row['Approval Date'] ?? $row['Portal Approved'] ?? null);
+        if ($approvalDate !== null) {
             try {
                 $portal->setApprovalDate(new \DateTime($approvalDate));
             } catch (\Exception $e) {
@@ -246,17 +251,35 @@ class TrackerImportService
         }
 
         // Buyer contact
-        $buyerName = $row['Buyer Name'] ?? $row['Portal Contact'] ?? null;
-        if ($buyerName) {
+        $buyerName = $this->csvString($row['Buyer Name'] ?? $row['Portal Contact'] ?? null);
+        if ($buyerName !== null) {
             $portal->setBuyerName($buyerName);
         }
 
-        $buyerEmail = $row['Buyer Email'] ?? $row['Portal Contact Email'] ?? null;
-        if ($buyerEmail) {
+        $buyerEmail = $this->csvString($row['Buyer Email'] ?? $row['Portal Contact Email'] ?? null);
+        if ($buyerEmail !== null) {
             $portal->setBuyerEmail($buyerEmail);
         }
 
         $this->em->persist($portal);
+    }
+
+    /**
+     * Coerce a CSV cell to a non-empty string, or null when blank.
+     */
+    private function csvString(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        if (is_string($value)) {
+            return $value !== '' ? $value : null;
+        }
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        return null;
     }
 
     /**
@@ -282,6 +305,9 @@ class TrackerImportService
         ];
 
         $handle = fopen($outputPath, 'w');
+        if ($handle === false) {
+            throw new \RuntimeException("Could not open file for writing: {$outputPath}");
+        }
         fputcsv($handle, $headers, ',', '"', '\\');
         
         // Add example row

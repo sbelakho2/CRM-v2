@@ -62,20 +62,23 @@ class SupplierPortalController extends AbstractController
         $suppliers = $this->trackerData->getSuppliers();
         $stats = $this->trackerData->getStatistics();
 
-        $q = trim((string) $request->query->get('q', ''));
-        $status = mb_strtolower(trim((string) $request->query->get('status', '')));
+        $q = trim($request->query->getString('q', ''));
+        $status = mb_strtolower(trim($request->query->getString('status', '')));
 
         if ('' !== $q || '' !== $status) {
-            $suppliers = array_values(array_filter($suppliers, static function (array $supplier) use ($q, $status): bool {
-                if ('' !== $status && mb_strtolower((string) ($supplier['status'] ?? '')) !== $status) {
+            $scalarString = static function (mixed $value): string {
+                return is_scalar($value) ? (string) $value : '';
+            };
+            $suppliers = array_values(array_filter($suppliers, static function (array $supplier) use ($q, $status, $scalarString): bool {
+                if ('' !== $status && mb_strtolower($scalarString($supplier['status'] ?? '')) !== $status) {
                     return false;
                 }
                 if ('' !== $q) {
                     $haystack = mb_strtolower(implode(' ', array_filter([
-                        (string) ($supplier['name'] ?? ''),
-                        (string) ($supplier['region'] ?? ''),
-                        (string) ($supplier['contact_name'] ?? ''),
-                        (string) ($supplier['email'] ?? ''),
+                        $scalarString($supplier['name'] ?? ''),
+                        $scalarString($supplier['region'] ?? ''),
+                        $scalarString($supplier['contact_name'] ?? ''),
+                        $scalarString($supplier['email'] ?? ''),
                     ])));
                     if (!str_contains($haystack, mb_strtolower($q))) {
                         return false;
@@ -126,14 +129,14 @@ class SupplierPortalController extends AbstractController
     public function discover(Request $request): Response
     {
         // 1. Get company name and domain from request
-        if (!$this->isCsrfTokenValid('supplier_portal_discover', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('supplier_portal_discover', $request->request->getString('_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token');
         }
 
-        $companyName = $request->request->get('company_name');
-        $domain = $request->request->get('domain');
+        $companyName = $request->request->getString('company_name');
+        $domain = $request->request->getString('domain') ?: null;
         
-        if (!$companyName) {
+        if ($companyName === '') {
             $this->addFlash('error', $this->translator->trans('supplier_portal.flash.provide_company'));
             return $this->redirectToRoute('supplier_portal_index');
         }
@@ -155,10 +158,9 @@ class SupplierPortalController extends AbstractController
             }
             
             foreach ($discoveredPortals as $portalData) {
-                $portal = $this->portalCrawler->createPortal($portalData, $companyId);
-                if ($portal) {
-                    $createdCount++;
-                }
+                // createPortal() always persists and returns a portal.
+                $this->portalCrawler->createPortal($portalData, $companyId);
+                $createdCount++;
             }
             
             $this->addFlash('success', $this->translator->trans('supplier_portal.flash.portals_discovered', ['%count%' => $createdCount]));
@@ -178,7 +180,7 @@ class SupplierPortalController extends AbstractController
     public function onboard(int $id, Request $request): Response
     {
         // 1. Get company ID from request
-        if (!$this->isCsrfTokenValid('supplier_portal_onboard', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('supplier_portal_onboard', $request->request->getString('_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token');
         }
 
@@ -188,12 +190,12 @@ class SupplierPortalController extends AbstractController
         }
         
         // 2. Get pack type
-        $packType = $request->request->get('pack_type', 'FULL'); // FULL, QUICK, CUSTOM
+        $packType = $request->request->getString('pack_type', 'FULL'); // FULL, QUICK, CUSTOM
         if (!in_array($packType, ['FULL', 'QUICK', 'CUSTOM'], true)) {
             $this->addFlash('error', $this->translator->trans('supplier_portal.flash.invalid_pack_type'));
             return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
         }
-        $customFields = $request->request->all('custom_fields') ?? [];
+        $customFields = $request->request->all('custom_fields');
         
         try {
             // 3. Generate onboarding pack
@@ -225,13 +227,13 @@ class SupplierPortalController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function submit(int $id, Request $request): Response
     {
-        if (!$this->isCsrfTokenValid('supplier_portal_submit_' . $id, $request->request->get('_csrf_token'))) {
+        if (!$this->isCsrfTokenValid('supplier_portal_submit_' . $id, $request->request->getString('_csrf_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
         // 1. Get pack ID and credentials
-        $packId = $request->request->get('pack_id');
-        if (!$packId) {
+        $packId = $request->request->getString('pack_id');
+        if ($packId === '') {
             $this->addFlash('error', $this->translator->trans('supplier_portal.flash.pack_id_required'));
             return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
         }

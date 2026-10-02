@@ -50,7 +50,8 @@ class RegistrationController extends AbstractController
         if ($request->isMethod('POST')) {
             $clientIp = $request->getClientIp() ?? 'unknown';
             $submitted = $request->request->all($form->getName());
-            $email = trim((string) ($submitted['email'] ?? ''));
+            $submittedEmail = $submitted['email'] ?? '';
+            $email = trim(is_scalar($submittedEmail) ? (string) $submittedEmail : '');
 
             $emailLimiter = $registrationLimiter->create('registration_' . md5(strtolower($email)));
             if (!$emailLimiter->consume()->isAccepted()) {
@@ -71,7 +72,8 @@ class RegistrationController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $plain = $form->get('plainPassword')->getData();
-            $hashed = $passwordHasher->hashPassword($user, $plain);
+            $plainPassword = is_string($plain) ? $plain : '';
+            $hashed = $passwordHasher->hashPassword($user, $plainPassword);
             $user->setPassword($hashed);
             // default role
             $user->setRoles(['ROLE_USER']);
@@ -89,9 +91,10 @@ class RegistrationController extends AbstractController
             $verificationUrl = $uriSigner->sign($verificationUrl);
 
             try {
+                $mailerFrom = $_ENV['MAILER_FROM_ADDRESS'] ?? null;
                 $emailMessage = (new Email())
-                    ->from($_ENV['MAILER_FROM_ADDRESS'] ?? 'noreply@starzelectronics.site')
-                    ->to($user->getEmail())
+                    ->from(is_string($mailerFrom) && $mailerFrom !== '' ? $mailerFrom : 'noreply@starzelectronics.site')
+                    ->to($user->getEmail() ?? '')
                     ->subject('Verify your email - STARZ Morocco CRM')
                     ->html($this->renderView('emails/verification.html.twig', [
                         'user' => $user,
@@ -177,9 +180,10 @@ class RegistrationController extends AbstractController
                 $verificationUrl = $uriSigner->sign($verificationUrl);
 
                 try {
+                    $mailerFrom = $_ENV['MAILER_FROM_ADDRESS'] ?? null;
                     $emailMessage = (new Email())
-                        ->from($_ENV['MAILER_FROM_ADDRESS'] ?? 'noreply@starzelectronics.site')
-                        ->to($user->getEmail())
+                        ->from(is_string($mailerFrom) && $mailerFrom !== '' ? $mailerFrom : 'noreply@starzelectronics.site')
+                        ->to($user->getEmail() ?? '')
                         ->subject('Verify your email - STARZ Morocco CRM')
                         ->html($this->renderView('emails/verification.html.twig', [
                             'user' => $user,

@@ -9,7 +9,7 @@ namespace App\Service\WebCrawler\QualityGate;
  */
 final class GoldenDatasetReport
 {
-    /** @var list<array> */
+/** @var list<array{name: string, domain: string, expected: string, actual: string, correct: bool, category: string, reject_gate: string|null, gates: array<string, array{passed: bool, detail: string}>}> */
     private array $results;
     private int $total;
     private int $correct;
@@ -27,7 +27,7 @@ final class GoldenDatasetReport
      *   correct: bool,
      *   category: string,
      *   reject_gate: ?string,
-     *   gates: array,
+     *   gates: array<string, array{passed: bool, detail: string}>,
      * }> $results
      */
     public function __construct(array $results)
@@ -52,12 +52,12 @@ final class GoldenDatasetReport
 
             if ($actualPass && $expectedPass) {
                 $this->truePositives++;
-            } elseif ($actualPass && !$expectedPass) {
-                $this->falsePositives++;
-            } elseif (!$actualPass && !$expectedPass) {
+            } elseif ($actualPass) {
+                $this->falsePositives++;  // accepted but expected a reject
+            } elseif (!$expectedPass) {
                 $this->trueNegatives++;
             } else {
-                $this->falseNegatives++;
+                $this->falseNegatives++;  // rejected but expected a pass
             }
         }
     }
@@ -153,7 +153,7 @@ final class GoldenDatasetReport
     // ── Failures ──────────────────────────────────────
 
     /**
-     * @return list<array> Only entries where actual ≠ expected.
+     * @return list<array{name: string, domain: string, expected: string, actual: string, correct: bool, category: string, reject_gate: string|null, gates: array<string, array{passed: bool, detail: string}>}> Only entries where actual ≠ expected.
      */
     public function getFailures(): array
     {
@@ -161,7 +161,7 @@ final class GoldenDatasetReport
     }
 
     /**
-     * @return list<array> All results.
+     * @return list<array{name: string, domain: string, expected: string, actual: string, correct: bool, category: string, reject_gate: string|null, gates: array<string, array{passed: bool, detail: string}>}> All results.
      */
     public function getResults(): array
     {
@@ -217,7 +217,7 @@ final class GoldenDatasetReport
     }
 
     /**
-     * @return array Serializable summary.
+     * @return array{total: int, correct: int, accuracy: float, precision: float, recall: float, f1: float, tp: int, fp: int, tn: int, fn: int, failures: list<array{name: string, domain: string, expected: string, actual: string, correct: bool, category: string, reject_gate: string|null, gates: array<string, array{passed: bool, detail: string}>}>} Serializable summary.
      */
     public function toArray(): array
     {

@@ -175,6 +175,8 @@ class HeadlessBrowserService
 
     /**
      * Fetch page with static HTTP client
+     *
+     * @return array{html: string, method: string, success: bool, error: string|null, status_code?: int, proxy: string|null}
      */
     private function fetchStatic(string $url, ?string $proxy = null): array
     {
@@ -200,7 +202,7 @@ class HeadlessBrowserService
                 $options['proxy'] = $proxy;
             }
             
-            $this->urlGuard->assertAllowed($url);
+            ($this->urlGuard ?? new SafeOutboundUrlGuard())->assertAllowed($url);
             $response = $this->httpClient->request('GET', $url, $options);
             
             $statusCode = $response->getStatusCode();
@@ -237,6 +239,8 @@ class HeadlessBrowserService
 
     /**
      * Fetch page with Symfony Panther (headless Chrome)
+     *
+     * @return array{html: string, method: string, success: bool, error: string|null, proxy: string|null}
      */
     private function fetchWithPanther(string $url, ?string $proxy = null): array
     {
@@ -248,7 +252,10 @@ class HeadlessBrowserService
             $height = rand(800, 1080);
             
             // Navigate to URL
-            $this->urlGuard->assertAllowed($url);
+            ($this->urlGuard ?? new SafeOutboundUrlGuard())->assertAllowed($url);
+            if (!method_exists($client, 'request') || !method_exists($client, 'getCrawler')) {
+                throw new \RuntimeException('Panther client does not expose the expected API');
+            }
             $crawler = $client->request('GET', $url);
             
             // Wait for page to load
@@ -261,7 +268,15 @@ class HeadlessBrowserService
             usleep(rand(500000, 1500000)); // 0.5-1.5 seconds
             
             // Get the rendered HTML
-            $html = $client->getCrawler()->html();
+            $pantherCrawler = $client->getCrawler();
+            if (!is_object($pantherCrawler) || !method_exists($pantherCrawler, 'html')) {
+                throw new \RuntimeException('Panther crawler does not expose html()');
+            }
+            $renderedHtml = $pantherCrawler->html();
+            if (!is_string($renderedHtml)) {
+                throw new \RuntimeException('Panther crawler returned non-string HTML');
+            }
+            $html = $renderedHtml;
             
             return [
                 'html' => $html,
@@ -322,14 +337,25 @@ class HeadlessBrowserService
 
     /**
      * Try to accept cookie consent dialog
+     *
+     * @param object $client Symfony Panther client (optional runtime dependency).
      */
-    private function acceptCookies($client): void
+    private function acceptCookies(object $client): void
     {
         try {
+            if (!method_exists($client, 'getCrawler') || !method_exists($client, 'click')) {
+                return; // unexpected client implementation
+            }
             foreach (self::COOKIE_ACCEPT_SELECTORS as $selector) {
                 try {
                     $crawler = $client->getCrawler();
+                    if (!is_object($crawler) || !method_exists($crawler, 'filter')) {
+                        return;
+                    }
                     $button = $crawler->filter($selector);
+                    if (!$button instanceof \Symfony\Component\DomCrawler\Crawler) {
+                        return;
+                    }
                     
                     if ($button->count() > 0) {
                         $client->click($button->link());
@@ -359,12 +385,7 @@ class HeadlessBrowserService
             
             // If we have an existing client and need to change proxy, quit it first
             if ($this->pantherClient !== null) {
-                try {
-                    $this->pantherClient->quit();
-                } catch (\Exception $e) {
-                    // Ignore
-                }
-                $this->pantherClient = null;
+                $this->shutdown();
             }
             
             $chromeOptions = [
@@ -382,15 +403,19 @@ class HeadlessBrowserService
                 $chromeOptions[] = '--proxy-server=' . $this->formatProxyForChrome($proxy);
             }
             
-            // Create client with Chrome in headless mode
-            $this->pantherClient = \Symfony\Component\Panther\Client::createChromeClient(
-                null, // Use default chromedriver
-                $chromeOptions,
-                [
-                    'connection_timeout_in_ms' => self::BROWSER_TIMEOUT * 1000,
-                    'request_timeout_in_ms' => self::BROWSER_TIMEOUT * 1000,
-                ]
-            );
+            // Create client with Chrome in headless mode. Panther is an
+            // optional runtime dependency (guarded by class_exists in the
+            // constructor), so the factory is resolved through is_callable.
+            $factory = ['\Symfony\Component\Panther\Client', 'createChromeClient'];
+            if (!is_callable($factory)) {
+                throw new \RuntimeException('Symfony Panther is not installed');
+            }
+            /** @var object $pantherClient */
+            $pantherClient = $factory(null, $chromeOptions, [
+                'connection_timeout_in_ms' => self::BROWSER_TIMEOUT * 1000,
+                'request_timeout_in_ms' => self::BROWSER_TIMEOUT * 1000,
+            ]);
+            $this->pantherClient = $pantherClient;
         }
         
         return $this->pantherClient;
@@ -421,7 +446,7 @@ class HeadlessBrowserService
         $host = $parsed['host'] ?? $url;
         
         // Remove www prefix
-        return preg_replace('/^www\./', '', strtolower($host));
+        return preg_replace('/^www\./', '', strtolower($host)) ?? $host;
     }
     
     /**
@@ -468,6 +493,8 @@ class HeadlessBrowserService
     
     /**
      * Get scraping statistics
+     *
+     * @return array{headless_available: bool, proxy_enabled: bool, proxy_stats: array{total_proxies: int, available_proxies: int, blacklisted_proxies: int, enabled: bool, strategy: string, health: list<array{proxy: string, successes: int, failures: int, success_rate: float|null, blacklisted: bool}>}|null, failsafe_domains: array<string, array{domain: string, can_scrape: bool, paused: bool, pause_reason: string|null, cooldown_until: int|null, cooldown_remaining: int|null, consecutive_failures: int, recent_successes: int, recent_failures: int, success_rate: float|null, '403_count': int, last_success: int|null, last_failure: int|null}>, failsafe_alerts: list<array{domain: string, type: string, message: string, timestamp: int, datetime: string}>}
      */
     public function getScrapingStats(): array
     {
@@ -487,7 +514,9 @@ class HeadlessBrowserService
     {
         if ($this->pantherClient !== null) {
             try {
-                $this->pantherClient->quit();
+                if (method_exists($this->pantherClient, 'quit')) {
+                    $this->pantherClient->quit();
+                }
             } catch (\Exception $e) {
                 // Ignore shutdown errors
             }

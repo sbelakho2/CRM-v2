@@ -15,7 +15,7 @@ class TariffRate
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 20)]
     private ?string $hsCode = null; // HS tariff code (e.g., 8541.10)

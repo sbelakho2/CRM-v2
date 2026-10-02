@@ -23,7 +23,7 @@ class BanditArm
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 50)]
     private ?string $armType = null; // 'subject_line', 'template', 'send_time'

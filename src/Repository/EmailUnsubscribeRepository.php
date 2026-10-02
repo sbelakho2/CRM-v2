@@ -36,43 +36,54 @@ class EmailUnsubscribeRepository extends ServiceEntityRepository
      */
     public function findByEmail(string $email): ?EmailUnsubscribe
     {
-        return $this->createQueryBuilder('e')
+        /** @var EmailUnsubscribe|null $result */
+        $result = $this->createQueryBuilder('e')
             ->andWhere('e.email = :email')
             ->setParameter('email', $email)
             ->orderBy('e.unsubscribedAt', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
      * Get unsubscribe statistics by reason
+     *
+     * @return list<array{reason: mixed, count: int|string}>
      */
     public function getUnsubscribeStatsByReason(): array
     {
-        return $this->createQueryBuilder('e')
+        /** @var list<array{reason: mixed, count: int|string}> $result */
+        $result = $this->createQueryBuilder('e')
             ->select('e.reason, COUNT(e.id) as count')
             ->groupBy('e.reason')
             ->orderBy('count', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Get recent unsubscribes
      *
-     * @return EmailUnsubscribe[]
+     * @return list<EmailUnsubscribe>
      */
     public function findRecent(int $days = 30, int $limit = 50): array
     {
         $since = new \DateTime("-{$days} days");
 
-        return $this->createQueryBuilder('e')
+        /** @var list<EmailUnsubscribe> $result */
+        $result = $this->createQueryBuilder('e')
             ->andWhere('e.unsubscribedAt >= :since')
             ->setParameter('since', $since)
             ->orderBy('e.unsubscribedAt', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

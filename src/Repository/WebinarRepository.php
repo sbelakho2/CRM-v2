@@ -18,17 +18,20 @@ class WebinarRepository extends ServiceEntityRepository
 
     public function countAttendeesBetween(\DateTime $start, \DateTime $end): int
     {
-        return $this->createQueryBuilder('w')
+        /** @var int|float|string|null $result */
+        $result = $this->createQueryBuilder('w')
             ->select('SUM(w.attendedCount)')
             ->where('w.scheduledDate >= :start')
             ->andWhere('w.scheduledDate <= :end')
             ->setParameter('start', $start)
             ->setParameter('end', $end)
             ->getQuery()
-            ->getSingleScalarResult() ?? 0;
+            ->getSingleScalarResult();
+
+        return (int) ($result ?? 0);
     }
 
-    /** @return list<App\Entity\Webinar> */
+    /** @return list<Webinar> */
     public function findUpcoming(?string $language = null): array
     {
         $qb = $this->createQueryBuilder('w')
@@ -41,10 +44,13 @@ class WebinarRepository extends ServiceEntityRepository
                ->setParameter('language', $language);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<Webinar> $results */
+        $results = $qb->getQuery()->getResult();
+
+        return $results;
     }
 
-    /** @return list<App\Entity\Webinar> */
+    /** @return list<Webinar> */
     public function findPast(?string $language = null): array
     {
         $qb = $this->createQueryBuilder('w')
@@ -57,6 +63,9 @@ class WebinarRepository extends ServiceEntityRepository
                ->setParameter('language', $language);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<Webinar> $results */
+        $results = $qb->getQuery()->getResult();
+
+        return $results;
     }
 }

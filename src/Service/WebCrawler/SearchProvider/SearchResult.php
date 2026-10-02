@@ -9,6 +9,9 @@ namespace App\Service\WebCrawler\SearchProvider;
  */
 final class SearchResult
 {
+    /**
+     * @param array<string, mixed> $metadata
+     */
     public function __construct(
         private readonly string $url,
         private readonly string $title,
@@ -46,6 +49,8 @@ final class SearchResult
 
     /**
      * Provider-specific metadata (e.g. Google CSE 'pagemap', ranking position).
+     *
+     * @return array<string, mixed>
      */
     public function getMetadata(): array
     {
@@ -64,12 +69,17 @@ final class SearchResult
 
         // Strip www.
         $host = preg_replace('/^www\./', '', $host);
+        if ($host === null) {
+            return '';
+        }
 
         return strtolower($host);
     }
 
     /**
      * Convert to the legacy array format used by GoogleDorkService.
+     *
+     * @return array{link: string, title: string, snippet: string, displayLink: string, formattedUrl: string, ...<string, mixed>}
      */
     public function toLegacyArray(): array
     {

@@ -15,11 +15,12 @@ class HtsMapRule
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 100)]
     private ?string $category = null;
 
+    /** @var list<string>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $keywords = null; // JSON array of keywords
 
@@ -84,11 +85,13 @@ class HtsMapRule
         return $this;
     }
 
+    /** @return list<string>|null */
     public function getKeywords(): ?array
     {
         return $this->keywords;
     }
 
+    /** @param list<string>|null $keywords */
     public function setKeywords(?array $keywords): self
     {
         $this->keywords = $keywords;

@@ -9,6 +9,9 @@ namespace App\Service\WebCrawler\Pipeline;
  */
 final class PageClassification
 {
+    /**
+     * @param array<string, int> $scores
+     */
     public function __construct(
         private readonly string $category,
         private readonly float $confidence,

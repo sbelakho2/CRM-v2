@@ -15,7 +15,7 @@ class CaseStudy
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $title = null;
@@ -43,7 +43,7 @@ class CaseStudy
     private bool $anonymized = false;
 
     #[ORM\Column(length: 5)]
-    private ?string $language = self::LANGUAGE_EN; // EN or FR
+    private string $language = self::LANGUAGE_EN; // EN or FR
 
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $pdfPath = null;

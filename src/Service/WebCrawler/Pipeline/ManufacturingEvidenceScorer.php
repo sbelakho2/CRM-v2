@@ -281,10 +281,10 @@ final class ManufacturingEvidenceScorer
         foreach (self::NON_TARGET_SECTORS as $sector => $tokens) {
             $score = 0;
 
-            foreach ($tokens['high'] ?? [] as $token) {
+            foreach ($tokens['high'] as $token) {
                 $score += min(self::MAX_KEYWORD_HITS, mb_substr_count($text, $token)) * self::WEIGHT_HIGH;
             }
-            foreach ($tokens['medium'] ?? [] as $token) {
+            foreach ($tokens['medium'] as $token) {
                 $score += min(self::MAX_KEYWORD_HITS, mb_substr_count($text, $token)) * self::WEIGHT_MEDIUM;
             }
 
@@ -300,6 +300,9 @@ final class ManufacturingEvidenceScorer
         return null;
     }
 
+    /**
+     * @param array{cap: int, high?: list<string>, medium?: list<string>, low?: list<string>, certs?: list<string>} $family
+     */
     private function scoreFamily(array $family, string $text): int
     {
         $cap = $family['cap'];

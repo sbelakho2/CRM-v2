@@ -59,7 +59,9 @@ class CommandCenterController extends AbstractController
     {
         $data = $this->commandCenter->getCommandCenterData();
         $regionLabels = $this->countryService->getRegionOptions();
-        foreach (array_keys($data['lead_inflow']['by_region'] ?? []) as $region) {
+        $leadInflow = $data['lead_inflow'] ?? null;
+        $byRegion = is_array($leadInflow) ? ($leadInflow['by_region'] ?? []) : [];
+        foreach (is_array($byRegion) ? array_keys($byRegion) : [] as $region) {
             if ($region && !isset($regionLabels[$region])) {
                 $regionLabels[$region] = strtoupper((string) $region);
             }
@@ -81,13 +83,16 @@ class CommandCenterController extends AbstractController
             ->getQuery()->getSingleScalarResult();
 
         // Open quotes and their total value
-        $openQuotes = $em->getRepository(Quote::class)->createQueryBuilder('q')
+        $openQuotesQuery = $em->getRepository(Quote::class)->createQueryBuilder('q')
             ->select('q.id, q.quoteNumber, q.totalCost, q.currency, q.status, q.createdAt')
             ->where('q.status IN (:statuses)')
             ->andWhere('q.archivedAt IS NULL')
             ->setParameter('statuses', ['draft', 'pending_review', 'sent'])
             ->orderBy('q.totalCost', 'DESC')
-            ->setMaxResults(20)
+            ->setMaxResults(20);
+
+        /** @var list<array{totalCost: int|float|string|null, currency: string|null}> $openQuotes */
+        $openQuotes = $openQuotesQuery
             ->getQuery()->getResult();
 
         // Sum in a single display currency: quotes are captured in mixed
@@ -154,7 +159,7 @@ class CommandCenterController extends AbstractController
             ->getQuery()->getSingleScalarResult();
 
         // Open/click/reply rates for sent emails (last 30 days)
-        $emailEngagement = $em->getRepository(EmailSend::class)->createQueryBuilder('e')
+        $emailEngagementQuery = $em->getRepository(EmailSend::class)->createQueryBuilder('e')
             ->select(
                 'COUNT(e.id) AS total',
                 'SUM(CASE WHEN e.opened = true THEN 1 ELSE 0 END) AS opened',
@@ -164,7 +169,10 @@ class CommandCenterController extends AbstractController
             ->where('e.sentAt >= :month')
             ->setParameter('month', new \DateTime('-30 days'))
             ->andWhere('e.status = :status')
-            ->setParameter('status', EmailSend::STATUS_SENT)
+            ->setParameter('status', EmailSend::STATUS_SENT);
+
+        /** @var array<string, int|string|null> $emailEngagement */
+        $emailEngagement = $emailEngagementQuery
             ->getQuery()->getSingleResult();
 
         $totalSent = (int) ($emailEngagement['total'] ?? 0);
@@ -290,17 +298,20 @@ class CommandCenterController extends AbstractController
     public function analyzeLeads(): JsonResponse
     {
         // Get pending leads with high scores
-        $leads = $this->entityManager->getRepository(Lead::class)
+        $leadsQuery = $this->entityManager->getRepository(Lead::class)
             ->createQueryBuilder('l')
             ->where('l.reviewStatus = :status')
             ->andWhere('l.leadScore >= :minScore')
             ->setParameter('status', 'pending')
             ->setParameter('minScore', 50)
             ->orderBy('l.leadScore', 'DESC')
-            ->setMaxResults(20)
+            ->setMaxResults(20);
+
+        /** @var list<Lead> $leads */
+        $leads = $leadsQuery
             ->getQuery()
             ->getResult();
-        
+
         $analyses = $this->salesAnalyst->analyzeMultipleLeads($leads);
         
         return new JsonResponse([

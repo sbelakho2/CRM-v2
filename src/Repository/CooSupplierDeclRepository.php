@@ -21,7 +21,8 @@ class CooSupplierDeclRepository extends ServiceEntityRepository
      */
     public function findBySupplierAndMpn(string $supplierName, string $mpn): ?CooSupplierDecl
     {
-        return $this->createQueryBuilder('csd')
+        /** @var CooSupplierDecl|null $result */
+        $result = $this->createQueryBuilder('csd')
             ->andWhere('csd.supplierName = :supplier')
             ->andWhere('csd.mpn = :mpn')
             ->andWhere('csd.expiresAt IS NULL OR csd.expiresAt > :now')
@@ -32,16 +33,19 @@ class CooSupplierDeclRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
      * Find all verified declarations
-     * 
-     * @return CooSupplierDecl[]
+     *
+     * @return list<CooSupplierDecl>
      */
     public function findVerified(): array
     {
-        return $this->createQueryBuilder('csd')
+        /** @var list<CooSupplierDecl> $result */
+        $result = $this->createQueryBuilder('csd')
             ->andWhere('csd.isVerified = :verified')
             ->andWhere('csd.expiresAt IS NULL OR csd.expiresAt > :now')
             ->setParameter('verified', true)
@@ -50,5 +54,7 @@ class CooSupplierDeclRepository extends ServiceEntityRepository
 
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

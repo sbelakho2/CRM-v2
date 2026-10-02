@@ -33,6 +33,7 @@ class EmailCampaignRepository extends ServiceEntityRepository
             return [];
         }
 
+        /** @var list<array{campaign_id: int|string, total_sent: int|string, opened: int|string, clicked: int|string, replied: int|string, bounced: int|string}> $rows */
         $rows = $this->createQueryBuilder('c')
             ->select('c.id AS campaign_id')
             ->addSelect('COALESCE(SUM(CASE WHEN s.status IN (:deliveredStatuses) THEN 1 ELSE 0 END), 0) AS total_sent')

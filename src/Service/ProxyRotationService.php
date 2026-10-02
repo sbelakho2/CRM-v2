@@ -36,9 +36,16 @@ class ProxyRotationService
     private const BLACKLIST_DURATION_SECONDS = 600; // 10 minutes
     private const RATE_LIMIT_REQUESTS_PER_MINUTE = 20;
     
+    /** @var list<string> */
     private array $proxies = [];
+
+    /** @var array<string, array{successes: int, failures: int, consecutive_failures: int}> */
     private array $proxyHealth = []; // Track success/failure per proxy
+
+    /** @var array<string, array{since: int, reason: string}> */
     private array $blacklist = []; // Temporarily disabled proxies
+
+    /** @var array<string, list<int>> */
     private array $requestTimes = []; // For rate limiting
     private int $currentIndex = 0;
     private string $strategy;
@@ -51,9 +58,20 @@ class ProxyRotationService
         ?bool $enabled = null
     ) {
         // Load from environment if not provided
-        $proxyList ??= $_ENV['PROXY_LIST'] ?? '';
-        $this->strategy = $strategy ?? ($_ENV['PROXY_STRATEGY'] ?? self::STRATEGY_ROUND_ROBIN);
-        $this->enabled = $enabled ?? (($_ENV['PROXY_ENABLED'] ?? 'false') === 'true');
+        if ($proxyList === null) {
+            $envList = $_ENV['PROXY_LIST'] ?? null;
+            $proxyList = is_string($envList) ? $envList : '';
+        }
+        if ($strategy === null) {
+            $envStrategy = $_ENV['PROXY_STRATEGY'] ?? null;
+            $strategy = is_string($envStrategy) ? $envStrategy : self::STRATEGY_ROUND_ROBIN;
+        }
+        $this->strategy = $strategy;
+        if ($enabled === null) {
+            $envEnabled = $_ENV['PROXY_ENABLED'] ?? null;
+            $enabled = $envEnabled === 'true';
+        }
+        $this->enabled = $enabled;
         
         $this->parseProxyList($proxyList);
         
@@ -124,7 +142,7 @@ class ProxyRotationService
         if (!isset($this->proxyHealth[$proxy])) {
             $this->proxyHealth[$proxy] = ['successes' => 0, 'failures' => 0, 'consecutive_failures' => 0];
         }
-        
+
         $this->proxyHealth[$proxy]['successes']++;
         $this->proxyHealth[$proxy]['consecutive_failures'] = 0;
         
@@ -164,9 +182,9 @@ class ProxyRotationService
 
     /**
      * Get HTTP client options for using a proxy
-     * 
+     *
      * @param string $proxy Proxy URL
-     * @return array Options suitable for Symfony HttpClient
+     * @return array{proxy: string, timeout: int, verify_peer: bool, verify_host: bool} Options suitable for Symfony HttpClient
      */
     public function getHttpClientOptions(string $proxy): array
     {
@@ -180,6 +198,8 @@ class ProxyRotationService
 
     /**
      * Get proxy statistics
+     *
+     * @return array{total_proxies: int, available_proxies: int, blacklisted_proxies: int, enabled: bool, strategy: string, health: list<array{proxy: string, successes: int, failures: int, success_rate: float|null, blacklisted: bool}>}
      */
     public function getStats(): array
     {
@@ -189,8 +209,8 @@ class ProxyRotationService
             'blacklisted_proxies' => count($this->blacklist),
             'enabled' => $this->enabled,
             'strategy' => $this->strategy,
-            'health' => array_map(function($proxy) {
-                $health = $this->proxyHealth[$proxy] ?? ['successes' => 0, 'failures' => 0];
+            'health' => array_map(function(string $proxy) {
+                $health = $this->proxyHealth[$proxy] ?? ['successes' => 0, 'failures' => 0, 'consecutive_failures' => 0];
                 return [
                     'proxy' => $this->maskProxy($proxy),
                     'successes' => $health['successes'],
@@ -249,31 +269,43 @@ class ProxyRotationService
         $this->logger->info('Loaded proxy pool', ['count' => count($this->proxies)]);
     }
 
+    /**
+     * @return list<string>
+     */
     private function getAvailableProxies(): array
     {
         $this->cleanupBlacklist();
-        
-        return array_filter($this->proxies, fn($proxy) => !isset($this->blacklist[$proxy]));
+
+        return array_values(array_filter($this->proxies, fn(string $proxy): bool => !isset($this->blacklist[$proxy])));
     }
 
+    /**
+     * @param list<string> $available
+     */
     private function selectRoundRobin(array $available): string
     {
         $this->currentIndex = ($this->currentIndex + 1) % count($available);
-        return array_values($available)[$this->currentIndex];
+        return $available[$this->currentIndex];
     }
 
+    /**
+     * @param list<string> $available
+     */
     private function selectRandom(array $available): string
     {
-        return $available[array_rand($available)];
+        return $available[(int) array_rand($available)];
     }
 
+    /**
+     * @param list<string> $available
+     */
     private function selectWeighted(array $available): string
     {
         // Weight by success rate (higher = more likely to be selected)
         $weights = [];
         
         foreach ($available as $proxy) {
-            $health = $this->proxyHealth[$proxy] ?? ['successes' => 0, 'failures' => 0];
+            $health = $this->proxyHealth[$proxy] ?? ['successes' => 0, 'failures' => 0, 'consecutive_failures' => 0];
             $total = $health['successes'] + $health['failures'];
             
             // New proxies get neutral weight
@@ -297,7 +329,9 @@ class ProxyRotationService
         }
         
         // Fallback
-        return array_key_first($available);
+        $firstKey = array_key_first($available);
+
+        return $firstKey !== null ? $available[$firstKey] : '';
     }
 
     private function blacklistProxy(string $proxy, string $reason = ''): void
@@ -354,7 +388,7 @@ class ProxyRotationService
         
         // Cleanup old timestamps
         $oneMinuteAgo = time() - 60;
-        $this->requestTimes[$proxy] = array_filter($this->requestTimes[$proxy], fn($t) => $t >= $oneMinuteAgo);
+        $this->requestTimes[$proxy] = array_values(array_filter($this->requestTimes[$proxy], fn(int $t): bool => $t >= $oneMinuteAgo));
     }
 
     /**
@@ -362,6 +396,6 @@ class ProxyRotationService
      */
     private function maskProxy(string $proxy): string
     {
-        return preg_replace('/\/\/([^:]+):([^@]+)@/', '//***:***@', $proxy);
+        return preg_replace('/\/\/([^:]+):([^@]+)@/', '//***:***@', $proxy) ?? $proxy;
     }
 }

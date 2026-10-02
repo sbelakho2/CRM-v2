@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\QuoteCustomerRequest;
+use App\Entity\User;
 use App\Repository\QuoteCustomerRequestRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -56,6 +57,7 @@ class QuoteRequestController extends AbstractController
         // ROLE_USER accounts share the request queue.
         $requests = $qb->getQuery()->getResult();
 
+        /** @var list<array{status: string, cnt: int|string}> $counts */
         $counts = $this->repository->createQueryBuilder('r')
             ->select('r.status, COUNT(r.id) AS cnt')
             ->groupBy('r.status')
@@ -78,7 +80,7 @@ class QuoteRequestController extends AbstractController
     public function updateStatus(QuoteCustomerRequest $requestEntity, Request $request): Response
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
-        if (!$this->isCsrfTokenValid('quote_request_status' . $requestEntity->getId(), $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('quote_request_status' . $requestEntity->getId(), $request->request->getString('_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
@@ -90,10 +92,13 @@ class QuoteRequestController extends AbstractController
         $status = (string) $request->request->get('status');
         $notes = $request->request->get('resolution_notes');
 
+        $user = $this->getUser();
+        $actorEmail = $user instanceof User ? $user->getEmail() : null;
+
         try {
             $requestEntity->transitionTo(
                 $status,
-                method_exists($this->getUser(), 'getEmail') ? (string) $this->getUser()->getEmail() : null,
+                $actorEmail,
                 is_string($notes) && $notes !== '' ? $notes : null
             );
             $this->entityManager->flush();

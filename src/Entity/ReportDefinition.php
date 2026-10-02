@@ -55,7 +55,7 @@ class ReportDefinition
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
     
     #[ORM\Column(length: 255)]
     private ?string $name = null;
@@ -64,27 +64,28 @@ class ReportDefinition
     private ?string $description = null;
     
     #[ORM\Column(length: 50)]
-    private ?string $reportType = self::TYPE_TABLE;
+    protected ?string $reportType = self::TYPE_TABLE;
     
     #[ORM\Column(length: 50)]
     private ?string $dataSource = null;
     
+    /** @var array<array-key, mixed> $columns */
     #[ORM\Column(type: Types::JSON)]
-    /** @var array<string, mixed>|list<mixed> $columns */
     private array $columns = [];
     
+    /** @var array<array-key, mixed> $filters */
     #[ORM\Column(type: Types::JSON)]
-    /** @var array<string, mixed>|list<mixed> $filters */
     private array $filters = [];
     
+    /** @var array<array-key, mixed> $groupBy */
     #[ORM\Column(type: Types::JSON)]
-    /** @var array<string, mixed>|list<mixed> $groupBy */
     private array $groupBy = [];
     
+    /** @var array<array-key, mixed> $orderBy */
     #[ORM\Column(type: Types::JSON)]
-    /** @var array<string, mixed>|list<mixed> $orderBy */
     private array $orderBy = [];
     
+    /** @var array<array-key, mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $chartConfig = null;
     
@@ -115,15 +116,18 @@ class ReportDefinition
      * isFavorite is retained as a derived "featured" flag for migration
      * compatibility only.
      */
+    /** @var list<int>|null */
     #[ORM\Column(type: 'json', nullable: true)]
-    private ?array $favoritedBy = [];
+    protected ?array $favoritedBy = [];
     
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $category = null;
     
+    /** @var list<string>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $accessRoles = null;
     
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $scheduledDelivery = null;
     
@@ -204,55 +208,65 @@ class ReportDefinition
         return $this;
     }
     
+    /** @return array<array-key, mixed> */
     public function getColumns(): array
     {
         return $this->columns;
     }
     
+    /** @param array<array-key, mixed> $columns */
     public function setColumns(array $columns): static
     {
         $this->columns = $columns;
         return $this;
     }
     
+    /** @return array<array-key, mixed> */
     public function getFilters(): array
     {
         return $this->filters;
     }
     
+    /** @param array<array-key, mixed> $filters */
     public function setFilters(array $filters): static
     {
         $this->filters = $filters;
         return $this;
     }
     
+    /** @return array<array-key, mixed> */
     public function getGroupBy(): array
     {
         return $this->groupBy;
     }
     
+    /** @param array<array-key, mixed> $groupBy */
     public function setGroupBy(array $groupBy): static
     {
         $this->groupBy = $groupBy;
         return $this;
     }
     
+    /** @return array<array-key, mixed> */
     public function getOrderBy(): array
     {
         return $this->orderBy;
     }
     
+    /** @param array<array-key, mixed> $orderBy */
     public function setOrderBy(array $orderBy): static
     {
         $this->orderBy = $orderBy;
         return $this;
     }
     
+    /** @return array<array-key, mixed>|null */
     public function getChartConfig(): ?array
     {
         return $this->chartConfig;
     }
     
+    /** @param array<array-key, mixed>|null $chartConfig */
     public function setChartConfig(?array $chartConfig): static
     {
         $this->chartConfig = $chartConfig;
@@ -338,17 +352,19 @@ class ReportDefinition
     public function toggleFavoriteBy(User $user): self
     {
         $ids = $this->favoritedBy ?? [];
-        $key = array_search($user->getId(), $ids, false);
+        $userId = $user->getId();
+        $key = $userId !== null ? array_search($userId, $ids, false) : false;
         if ($key !== false) {
             unset($ids[$key]);
-        } else {
-            $ids[] = $user->getId();
+        } elseif ($userId !== null) {
+            $ids[] = $userId;
         }
         $this->favoritedBy = array_values($ids);
 
         return $this;
     }
 
+    /** @return list<int> */
     public function getFavoritedBy(): array
     {
         return $this->favoritedBy ?? [];
@@ -371,22 +387,26 @@ class ReportDefinition
         return $this;
     }
     
+    /** @return list<string>|null */
     public function getAccessRoles(): ?array
     {
         return $this->accessRoles;
     }
     
+    /** @param list<string>|null $accessRoles */
     public function setAccessRoles(?array $accessRoles): static
     {
         $this->accessRoles = $accessRoles;
         return $this;
     }
     
+    /** @return array<string, mixed>|null */
     public function getScheduledDelivery(): ?array
     {
         return $this->scheduledDelivery;
     }
     
+    /** @param array<string, mixed>|null $scheduledDelivery */
     public function setScheduledDelivery(?array $scheduledDelivery): static
     {
         $this->scheduledDelivery = $scheduledDelivery;
@@ -502,6 +522,7 @@ class ReportDefinition
         };
     }
     
+    /** @return array<string, string> */
     public static function getReportTypes(): array
     {
         return [
@@ -515,6 +536,7 @@ class ReportDefinition
         ];
     }
     
+    /** @return array<string, string> */
     public static function getDataSources(): array
     {
         return [
@@ -530,6 +552,7 @@ class ReportDefinition
         ];
     }
     
+    /** @return array<string, string> */
     public static function getAggregationTypes(): array
     {
         return [
@@ -541,6 +564,7 @@ class ReportDefinition
         ];
     }
     
+    /** @return array<string, string> */
     public static function getDateRangePresets(): array
     {
         return [

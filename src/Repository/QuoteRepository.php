@@ -18,23 +18,31 @@ class QuoteRepository extends ServiceEntityRepository
 
     /**
      * Find quotes by company
+     *
+     * @return list<Quote>
      */
     public function findByCompany(int $companyId): array
     {
-        return $this->createQueryBuilder('q')
+        /** @var list<Quote> $result */
+        $result = $this->createQueryBuilder('q')
             ->where('q.company = :companyId')
             ->setParameter('companyId', $companyId)
             ->orderBy('q.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find quotes pending review (failed auto-publish)
+     *
+     * @return list<Quote>
      */
     public function findPendingReview(): array
     {
-        return $this->createQueryBuilder('q')
+        /** @var list<Quote> $result */
+        $result = $this->createQueryBuilder('q')
             ->where('q.status = :status')
             ->andWhere('q.autoPublished = :autoPublished')
             ->setParameter('status', 'pending_review')
@@ -42,6 +50,8 @@ class QuoteRepository extends ServiceEntityRepository
             ->orderBy('q.createdAt', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
@@ -49,13 +59,16 @@ class QuoteRepository extends ServiceEntityRepository
      */
     public function findWithBomLines(int $id): ?Quote
     {
-        return $this->createQueryBuilder('q')
+        /** @var Quote|null $result */
+        $result = $this->createQueryBuilder('q')
             ->leftJoin('q.bomLines', 'b')
             ->addSelect('b')
             ->where('q.id = :id')
             ->setParameter('id', $id)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**

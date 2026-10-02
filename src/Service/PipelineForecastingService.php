@@ -7,7 +7,7 @@ namespace App\Service;
 use App\Entity\Company;
 use App\Entity\RFQ;
 use App\Repository\CompanyRepository;
-use App\Repository\RfqRepository;
+use App\Repository\RFQRepository;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -49,14 +49,19 @@ class PipelineForecastingService
     ];
     
     private CompanyRepository $companyRepository;
-    private RfqRepository $rfqRepository;
-    private LoggerInterface $logger;
-    
+    private RFQRepository $rfqRepository;
+
+    /**
+     * Not read yet; kept for future failure diagnostics and for subclasses.
+     */
+    protected LoggerInterface $logger;
+
+    /** @var array<string, float> */
     private array $customProbabilities = [];
     
     public function __construct(
         CompanyRepository $companyRepository,
-        RfqRepository $rfqRepository,
+        RFQRepository $rfqRepository,
         LoggerInterface $logger
     ) {
         $this->companyRepository = $companyRepository;
@@ -66,7 +71,8 @@ class PipelineForecastingService
     
     /**
      * Set custom stage probabilities based on historical data
-      * @param array<string|int, mixed> $probabilities
+     *
+     * @param array<string, float> $probabilities
      */
     public function setCustomProbabilities(array $probabilities): void
     {
@@ -92,6 +98,16 @@ class PipelineForecastingService
     
     /**
      * Calculate weighted pipeline value for all deals
+     *
+     * @return array{
+     *     total_unweighted: int|float,
+     *     total_weighted: int|float,
+     *     by_stage: array<string, array{count: int, unweighted: int|float, weighted: int|float, probability: float}>,
+     *     by_quarter: array<string, array{count: int, unweighted: int|float, weighted: int|float}>,
+     *     by_rep: array<string, array{count: int, unweighted: int|float, weighted: int|float}>,
+     *     by_sector: array<string, array{count: int, unweighted: int|float, weighted: int|float}>,
+     *     deals: list<array{company_id: int, company_name: string|null, stage: string, deal_value: float, base_probability: float, time_decay: float, tier_multiplier: float, adjusted_probability: float, weighted_value: int|float}>
+     * }
      */
     public function calculateWeightedPipeline(): array
     {
@@ -143,36 +159,35 @@ class PipelineForecastingService
             $pipeline['total_weighted'] += $weightedValue;
             
             // Update by stage
-            $pipeline['by_stage'][$stage]['count']++;
-            $pipeline['by_stage'][$stage]['unweighted'] += $dealValue;
-            $pipeline['by_stage'][$stage]['weighted'] += $weightedValue;
+            $stageStats = $pipeline['by_stage'][$stage];
+            $stageStats['count']++;
+            $stageStats['unweighted'] += $dealValue;
+            $stageStats['weighted'] += $weightedValue;
+            $pipeline['by_stage'][$stage] = $stageStats;
             
             // Update by quarter (expected close)
             $quarter = $this->determineExpectedCloseQuarter($company);
-            if (!isset($pipeline['by_quarter'][$quarter])) {
-                $pipeline['by_quarter'][$quarter] = ['count' => 0, 'unweighted' => 0, 'weighted' => 0];
-            }
-            $pipeline['by_quarter'][$quarter]['count']++;
-            $pipeline['by_quarter'][$quarter]['unweighted'] += $dealValue;
-            $pipeline['by_quarter'][$quarter]['weighted'] += $weightedValue;
-            
+            $quarterStats = $pipeline['by_quarter'][$quarter] ?? ['count' => 0, 'unweighted' => 0, 'weighted' => 0];
+            $quarterStats['count']++;
+            $quarterStats['unweighted'] += $dealValue;
+            $quarterStats['weighted'] += $weightedValue;
+            $pipeline['by_quarter'][$quarter] = $quarterStats;
+
             // Update by rep (Company has no ownerRep; default to Unassigned)
             $rep = 'Unassigned';
-            if (!isset($pipeline['by_rep'][$rep])) {
-                $pipeline['by_rep'][$rep] = ['count' => 0, 'unweighted' => 0, 'weighted' => 0];
-            }
-            $pipeline['by_rep'][$rep]['count']++;
-            $pipeline['by_rep'][$rep]['unweighted'] += $dealValue;
-            $pipeline['by_rep'][$rep]['weighted'] += $weightedValue;
-            
+            $repStats = $pipeline['by_rep'][$rep] ?? ['count' => 0, 'unweighted' => 0, 'weighted' => 0];
+            $repStats['count']++;
+            $repStats['unweighted'] += $dealValue;
+            $repStats['weighted'] += $weightedValue;
+            $pipeline['by_rep'][$rep] = $repStats;
+
             // Update by sector
             $sector = $company['sector'] ?? 'Other';
-            if (!isset($pipeline['by_sector'][$sector])) {
-                $pipeline['by_sector'][$sector] = ['count' => 0, 'unweighted' => 0, 'weighted' => 0];
-            }
-            $pipeline['by_sector'][$sector]['count']++;
-            $pipeline['by_sector'][$sector]['unweighted'] += $dealValue;
-            $pipeline['by_sector'][$sector]['weighted'] += $weightedValue;
+            $sectorStats = $pipeline['by_sector'][$sector] ?? ['count' => 0, 'unweighted' => 0, 'weighted' => 0];
+            $sectorStats['count']++;
+            $sectorStats['unweighted'] += $dealValue;
+            $sectorStats['weighted'] += $weightedValue;
+            $pipeline['by_sector'][$sector] = $sectorStats;
             
             // Store individual deal info
             $pipeline['deals'][] = [
@@ -199,6 +214,8 @@ class PipelineForecastingService
     
     /**
      * Forecast revenue for specific time period
+     *
+     * @return array{period_months: int, end_date: string, best_case: int|float, expected: int|float, worst_case: int|float, committed: int|float, confidence_range: array{low: int|float, mid: int|float, high: int|float}}
      */
     public function forecastRevenue(int $months = 3): array
     {
@@ -247,10 +264,14 @@ class PipelineForecastingService
      * (stage-at-close history is not tracked). Stages without any closed
      * RFQs fall back to the default probabilities.
      */
+    /**
+     * @return array{period_start: string, rates: array<string, float>, based_on: array{won: int, closed: int}, note: string}
+     */
     public function calculateConversionRates(?\DateTime $since = null): array
     {
         $since ??= (new \DateTime())->modify('-90 days');
 
+        /** @var array<int, array{pipelineStage: string|null, status: string, total: int|string}> $closed */
         $closed = $this->rfqRepository->createQueryBuilder('r')
             ->select('c.pipelineStage, r.status, COUNT(r.id) AS total')
             ->join('r.company', 'c')
@@ -288,7 +309,7 @@ class PipelineForecastingService
                 $rates[$stage] = round($perStage[$stage]['won'] / $perStage[$stage]['total'], 4);
                 $dataStages++;
             } else {
-                $rates[$stage] = self::DEFAULT_STAGE_PROBABILITIES[$stage] ?? 0.0;
+                $rates[$stage] = self::DEFAULT_STAGE_PROBABILITIES[$stage];
             }
         }
 
@@ -307,6 +328,8 @@ class PipelineForecastingService
     
     /**
      * Get pipeline velocity metrics
+     *
+     * @return array{average_deal_value: int|float, average_cycle_days: int, win_rate: int|float, deals_in_pipeline: int, monthly_velocity: int|float}
      */
     public function getPipelineVelocity(): array
     {
@@ -378,6 +401,7 @@ class PipelineForecastingService
      */
     private function calculateAverageCycleDays(): int
     {
+        /** @var array<int, array{decisionDate: \DateTimeInterface|null, createdAt: \DateTimeInterface|null, rfqDate: \DateTimeInterface|null}> $closedRfqs */
         $closedRfqs = $this->rfqRepository->createQueryBuilder('r')
             ->select('r.decisionDate, r.createdAt, r.rfqDate')
             ->where('r.status IN (:statuses)')
@@ -407,6 +431,8 @@ class PipelineForecastingService
     
     /**
      * Get at-risk deals (stalled or decaying)
+     *
+     * @return list<array{company: Company|null, company_name: string|null, stage: string|null, deal_value: float, time_decay: float, risk_level: string, days_in_stage: int, recommendation: string}>
      */
     public function getAtRiskDeals(int $limit = 20): array
     {
@@ -437,7 +463,7 @@ class PipelineForecastingService
                     'time_decay' => $timeDecay,
                     'risk_level' => $this->calculateRiskLevel($timeDecay),
                     'days_in_stage' => $this->getDaysInCurrentStage($company),
-                    'recommendation' => $this->getRiskRecommendation($timeDecay, $stage),
+                    'recommendation' => $this->getRiskRecommendation($timeDecay, $stage ?? ''),
                 ];
             }
         }
@@ -451,13 +477,14 @@ class PipelineForecastingService
         $companyIds = array_map(fn(array $r): int => (int) $r['row']['id'], $atRiskRows);
         $entitiesById = [];
         if (!empty($companyIds)) {
+            /** @var list<Company> $entities */
             $entities = $this->companyRepository->createQueryBuilder('c')
                 ->where('c.id IN (:ids)')
                 ->setParameter('ids', $companyIds)
                 ->getQuery()
                 ->getResult();
             foreach ($entities as $entity) {
-                $entitiesById[$entity->getId()] = $entity;
+                $entitiesById[$entity->getId() ?? 0] = $entity;
             }
         }
         
@@ -480,6 +507,8 @@ class PipelineForecastingService
     
     /**
      * Generate forecast summary for reporting
+     *
+     * @return array{generated_at: string, pipeline_summary: array{total_deals: int, total_unweighted: int|float, total_weighted: int|float}, forecast_summary: array{period_months: int, end_date: string, best_case: int|float, expected: int|float, worst_case: int|float, committed: int|float, confidence_range: array{low: int|float, mid: int|float, high: int|float}}, velocity_metrics: array{average_deal_value: int|float, average_cycle_days: int, win_rate: int|float, deals_in_pipeline: int, monthly_velocity: int|float}, at_risk_count: int, top_at_risk: list<array{company: string|null, value: int|float, risk: string}>, stage_breakdown: array<string, array{count: int, unweighted: int|float, weighted: int|float, probability: float}>}
      */
     public function generateForecastSummary(): array
     {
@@ -517,10 +546,13 @@ class PipelineForecastingService
      */
     private function getPipelineCompanyRows(): array
     {
-        return $this->companyRepository->createQueryBuilder('c')
+        /** @var array<int, array{id: int, name: string|null, pipelineStage: string|null, accountTier: string|null, sector: string|null, updatedAt: \DateTimeInterface|null}> $rows */
+        $rows = $this->companyRepository->createQueryBuilder('c')
             ->select('c.id, c.name, c.pipelineStage, c.accountTier, c.sector, c.updatedAt')
             ->getQuery()
             ->getResult();
+
+        return $rows;
     }
 
     /**
@@ -579,7 +611,7 @@ class PipelineForecastingService
     private function getTierMultiplier(array $companyRow): float
     {
         $tier = $companyRow['accountTier'];
-        return self::TIER_MULTIPLIERS[$tier] ?? 1.0;
+        return self::TIER_MULTIPLIERS[$tier ?? ''] ?? 1.0;
     }
 
     /**

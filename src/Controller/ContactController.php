@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Contact;
+use App\Entity\User;
 use App\Form\ContactType;
 use App\Repository\ContactRepository;
 use App\Service\ExportService;
@@ -68,6 +69,7 @@ class ContactController extends AbstractController
         $qb->setMaxResults($limit)
            ->setFirstResult(($page - 1) * $limit);
 
+        /** @var list<Contact> $contacts */
         $contacts = $qb->getQuery()->getResult();
 
         // Get filter options
@@ -75,6 +77,7 @@ class ContactController extends AbstractController
         
         // Get companies for dropdown (bounded; the currently-filtered
         // company is always included so the filter keeps working)
+        /** @var list<\App\Entity\Company> $companies */
         $companies = $this->entityManager->getRepository(\App\Entity\Company::class)
             ->createQueryBuilder('c')
             ->orderBy('c.name', 'ASC')
@@ -189,10 +192,12 @@ class ContactController extends AbstractController
     #[Route('/{id}/delete', name: 'app_contact_delete', methods: ['POST'])]
     public function delete(Request $request, Contact $contact): Response
     {
-        if ($this->isCsrfTokenValid('delete' . $contact->getId(), $request->request->get('_token'))) {
+        /** @var User|null $user - contact listing is ROLE_USER-gated. */
+        $user = $this->getUser();
+        if ($this->isCsrfTokenValid('delete' . $contact->getId(), $request->request->getString('_token')) && $user instanceof User) {
             // Contacts anchor engagement history (email sends, outbound
             // messages, activities): archive instead of hard-deleting.
-            $contact->archive($this->getUser(), 'Archived from contacts list');
+            $contact->archive($user, 'Archived from contacts list');
             $this->entityManager->flush();
 
             $this->addFlash('success', $this->translator->trans('contact.flash.deleted'));
@@ -234,6 +239,7 @@ class ContactController extends AbstractController
 
         $qb->orderBy('c.createdAt', 'DESC');
 
+        /** @var list<Contact> $contacts */
         $contacts = $qb->getQuery()->getResult();
 
         // Generate export file

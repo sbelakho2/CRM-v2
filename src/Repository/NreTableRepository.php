@@ -21,7 +21,8 @@ class NreTableRepository extends ServiceEntityRepository
      */
     public function findActiveByServiceType(string $serviceType): ?NreTable
     {
-        return $this->createQueryBuilder('nt')
+        /** @var NreTable|null $result */
+        $result = $this->createQueryBuilder('nt')
             ->andWhere('nt.serviceType = :type')
             ->andWhere('nt.isActive = :active')
             ->setParameter('type', $serviceType)
@@ -30,21 +31,26 @@ class NreTableRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
      * Find all active NRE fees
      * 
-     * @return NreTable[]
+     * @return list<NreTable>
      */
     public function findAllActive(): array
     {
-        return $this->createQueryBuilder('nt')
+        /** @var list<NreTable> $result */
+        $result = $this->createQueryBuilder('nt')
             ->andWhere('nt.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('nt.serviceType', 'ASC')
 
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

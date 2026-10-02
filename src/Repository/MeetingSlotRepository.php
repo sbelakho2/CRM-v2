@@ -36,13 +36,16 @@ class MeetingSlotRepository extends ServiceEntityRepository
     
     /**
      * Find available slots for a user within a date range
+          *
+     * @return list<MeetingSlot>
      */
     public function findAvailableByUser(User $user, ?DateTimeImmutable $start = null, ?DateTimeImmutable $end = null): array
     {
         $start = $start ?? new DateTimeImmutable();
         $end = $end ?? $start->modify('+30 days');
         
-        return $this->createQueryBuilder('s')
+        /** @var list<MeetingSlot> $results */
+        $results = $this->createQueryBuilder('s')
             ->andWhere('s.owner = :user')
             ->andWhere('s.status = :status')
             ->andWhere('s.startTime >= :start')
@@ -54,10 +57,14 @@ class MeetingSlotRepository extends ServiceEntityRepository
             ->orderBy('s.startTime', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
     
     /**
      * Find booked meetings for a user
+     *
+     * @return list<MeetingSlot>
      */
     public function findBookedByUser(User $user, bool $upcomingOnly = true): array
     {
@@ -72,16 +79,22 @@ class MeetingSlotRepository extends ServiceEntityRepository
             $qb->andWhere('s.startTime >= :now')
                ->setParameter('now', new DateTimeImmutable());
         }
-        
-        return $qb->getQuery()->getResult();
+
+        /** @var list<MeetingSlot> $results */
+        $results = $qb->getQuery()->getResult();
+
+        return $results;
     }
     
     /**
      * Find all slots for a user within a date range
+          *
+     * @return list<MeetingSlot>
      */
     public function findByUserAndDateRange(User $user, DateTimeImmutable $start, DateTimeImmutable $end): array
     {
-        return $this->createQueryBuilder('s')
+        /** @var list<MeetingSlot> $results */
+        $results = $this->createQueryBuilder('s')
             ->andWhere('s.owner = :user')
             ->andWhere('s.startTime >= :start')
             ->andWhere('s.startTime <= :end')
@@ -91,41 +104,56 @@ class MeetingSlotRepository extends ServiceEntityRepository
             ->orderBy('s.startTime', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
     
     /**
      * Find slot by booking token
+          *
+     * @return MeetingSlot|null
      */
     public function findByBookingToken(string $token): ?MeetingSlot
     {
-        return $this->createQueryBuilder('s')
+        /** @var MeetingSlot|null $result */
+        $result = $this->createQueryBuilder('s')
             ->andWhere('s.bookingToken = :token')
             ->setParameter('token', $token)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
     
     /**
      * Find slot by cancellation token
+          *
+     * @return MeetingSlot|null
      */
     public function findByCancellationToken(string $token): ?MeetingSlot
     {
-        return $this->createQueryBuilder('s')
+        /** @var MeetingSlot|null $result */
+        $result = $this->createQueryBuilder('s')
             ->andWhere('s.cancellationToken = :token')
             ->setParameter('token', $token)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
     
     /**
      * Find today's meetings for a user
+          *
+     * @return list<MeetingSlot>
      */
     public function findTodayByUser(User $user): array
     {
         $today = new DateTimeImmutable('today');
         $tomorrow = $today->modify('+1 day');
         
-        return $this->createQueryBuilder('s')
+        /** @var list<MeetingSlot> $results */
+        $results = $this->createQueryBuilder('s')
             ->andWhere('s.owner = :user')
             ->andWhere('s.startTime >= :today')
             ->andWhere('s.startTime < :tomorrow')
@@ -137,17 +165,22 @@ class MeetingSlotRepository extends ServiceEntityRepository
             ->orderBy('s.startTime', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
     
     /**
      * Find upcoming meetings needing reminders
+          *
+     * @return list<MeetingSlot>
      */
     public function findNeedingReminders(int $hoursAhead = 24): array
     {
         $now = new DateTimeImmutable();
         $cutoff = $now->modify("+{$hoursAhead} hours");
         
-        return $this->createQueryBuilder('s')
+        /** @var list<MeetingSlot> $results */
+        $results = $this->createQueryBuilder('s')
             ->andWhere('s.status = :status')
             ->andWhere('s.reminderSent = false')
             ->andWhere('s.startTime >= :now')
@@ -158,10 +191,14 @@ class MeetingSlotRepository extends ServiceEntityRepository
             ->orderBy('s.startTime', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
     
     /**
      * Find slots with conflicts
+     *
+     * @return list<MeetingSlot>
      */
     public function findConflicts(User $user, DateTimeImmutable $start, DateTimeImmutable $end, ?int $excludeId = null): array
     {
@@ -179,12 +216,17 @@ class MeetingSlotRepository extends ServiceEntityRepository
             $qb->andWhere('s.id != :excludeId')
                ->setParameter('excludeId', $excludeId);
         }
-        
-        return $qb->getQuery()->getResult();
+
+        /** @var list<MeetingSlot> $results */
+        $results = $qb->getQuery()->getResult();
+
+        return $results;
     }
     
     /**
      * Get statistics for a user
+     *
+     * @return array{available: int, bookedUpcoming: int, totalBooked: int, thisWeek: int, byType: array<string, int>}
      */
     public function getStatistics(User $user): array
     {
@@ -192,6 +234,7 @@ class MeetingSlotRepository extends ServiceEntityRepository
         $weekStart = new DateTimeImmutable('monday this week');
         $weekEnd = $weekStart->modify('+7 days');
 
+        /** @var array<string, int|string|null> $result */
         $result = $this->createQueryBuilder('s')
             ->select('
                 SUM(CASE WHEN s.status = :available AND s.startTime >= :now THEN 1 ELSE 0 END) as available,
@@ -220,9 +263,21 @@ class MeetingSlotRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
 
+        /** @var array<int, array<string, mixed>> $byType */
+        $byType = $this->createQueryBuilder('s')
+            ->select('s.meetingType, COUNT(s.id) as count')
+            ->andWhere('s.owner = :user')
+            ->andWhere('s.status = :booked')
+            ->setParameter('user', $user)
+            ->setParameter('booked', MeetingSlot::STATUS_BOOKED)
+            ->groupBy('s.meetingType')
+            ->getQuery()
+            ->getResult();
+
         $typeStats = [];
         foreach ($byType as $row) {
-            $typeStats[$row['meetingType']] = (int) $row['count'];
+            $meetingType = is_string($row['meetingType'] ?? null) ? $row['meetingType'] : 'unknown';
+            $typeStats[$meetingType] = is_numeric($row['count'] ?? null) ? (int) $row['count'] : 0;
         }
 
         return [
@@ -236,7 +291,9 @@ class MeetingSlotRepository extends ServiceEntityRepository
     
     /**
      * Generate recurring slots
-      * @param array<string|int, mixed> $weekdays
+     *
+     * @param list<int> $weekdays
+     * @return list<MeetingSlot>
      */
     public function generateRecurringSlots(
         User $owner,
@@ -256,10 +313,15 @@ class MeetingSlotRepository extends ServiceEntityRepository
         $existingSlots = $this->findByUserAndDateRange($owner, $rangeStart, $rangeEnd);
         $conflictIndex = [];
         foreach ($existingSlots as $existing) {
-            $dateKey = $existing->getStartTime()->format('Y-m-d');
+            $existingStart = $existing->getStartTime();
+            $existingEnd = $existing->getEndTime();
+            if ($existingStart === null || $existingEnd === null) {
+                continue; // half-configured slot cannot overlap anything
+            }
+            $dateKey = $existingStart->format('Y-m-d');
             $conflictIndex[$dateKey][] = [
-                'start' => $existing->getStartTime(),
-                'end' => $existing->getEndTime(),
+                'start' => $existingStart,
+                'end' => $existingEnd,
             ];
         }
 
@@ -309,7 +371,8 @@ class MeetingSlotRepository extends ServiceEntityRepository
 
     /**
      * Persist and flush a batch of slots generated by generateRecurringSlots.
-      * @param array<string|int, mixed> $slots
+     *
+     * @param list<MeetingSlot> $slots
      */
     public function saveBatch(array $slots): void
     {
@@ -327,7 +390,8 @@ class MeetingSlotRepository extends ServiceEntityRepository
     {
         $cutoff = new DateTimeImmutable("-{$daysOld} days");
         
-        return $this->createQueryBuilder('s')
+        /** @var int $affected */
+        $affected = $this->createQueryBuilder('s')
             ->delete()
             ->andWhere('s.endTime < :cutoff')
             ->andWhere('s.status IN (:statuses)')
@@ -335,5 +399,7 @@ class MeetingSlotRepository extends ServiceEntityRepository
             ->setParameter('statuses', [MeetingSlot::STATUS_AVAILABLE, MeetingSlot::STATUS_CANCELLED])
             ->getQuery()
             ->execute();
+
+        return $affected;
     }
 }

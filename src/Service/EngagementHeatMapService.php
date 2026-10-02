@@ -27,9 +27,17 @@ class EngagementHeatMapService
 
     public function __construct(
         private CompanyRepository $companyRepository,
-        private ActivityRepository $activityRepository,
+
+        /**
+         * Not read yet; kept for future direct activity queries.
+         */
+        protected ActivityRepository $activityRepository,
         private EmailSendRepository $emailSendRepository,
-        private EntityManagerInterface $entityManager,
+
+        /**
+         * Not read yet; kept for future persistence hooks.
+         */
+        protected EntityManagerInterface $entityManager,
         private ?CacheItemPoolInterface $cache = null
     ) {}
 
@@ -39,9 +47,9 @@ class EngagementHeatMapService
      * @param int $limit Number of companies to return (default 20)
      * @param bool $useCache Whether to use cached results
      * 
-     * @return array<array{
-     *   id: int,
-     *   name: string,
+     * @return list<array{
+     *   id: int|null,
+     *   name: string|null,
      *   score: int,
      *   color: string,
      *   activities_count: int,
@@ -52,11 +60,16 @@ class EngagementHeatMapService
     public function getTopCompaniesByEngagement(int $limit = 20, bool $useCache = true): array
     {
         // Try to get from cache
+        $cacheItem = null;
         if ($useCache && $this->cache) {
-            $cacheItem = $this->cache->getItem(self::CACHE_KEY . '_' . $limit);
-            if ($cacheItem->isHit()) {
-                return $cacheItem->get();
+            $candidateItem = $this->cache->getItem(self::CACHE_KEY . '_' . $limit);
+            if ($candidateItem->isHit()) {
+                /** @var list<array{id: int, name: string, score: int, color: string, activities_count: int, email_opens: int, recent_activity_days: int|null}> $cached */
+                $cached = $candidateItem->get();
+
+                return $cached;
             }
+            $cacheItem = $candidateItem;
         }
 
         // Get companies - prioritize those with activities, but include others too
@@ -68,6 +81,7 @@ class EngagementHeatMapService
             ->addOrderBy('c.id', 'ASC') // Fallback ordering for companies without activities
             ->setMaxResults(50); // Limit to top 50 to speed up processing
 
+        /** @var list<\App\Entity\Company> $companies */
         $companies = $qb->getQuery()->getResult();
         
         $engagementData = [];
@@ -94,7 +108,7 @@ class EngagementHeatMapService
         $result = array_slice($engagementData, 0, $limit);
 
         // Cache the result
-        if ($useCache && $this->cache) {
+        if ($useCache && $this->cache && $cacheItem !== null) {
             $cacheItem->set($result);
             $cacheItem->expiresAfter(self::CACHE_TTL);
             $this->cache->save($cacheItem);
@@ -112,7 +126,7 @@ class EngagementHeatMapService
      * - Recent activity bonus: 20 points if activity in last 7 days
      * - Pipeline stage bonus: 10 points if in active stages
      */
-    private function calculateEngagementScore($company): int
+    private function calculateEngagementScore(\App\Entity\Company $company): int
     {
         $score = 0;
 
@@ -142,7 +156,7 @@ class EngagementHeatMapService
     /**
      * Get count of activities for a company
      */
-    private function getActivitiesCount($company): int
+    private function getActivitiesCount(\App\Entity\Company $company): int
     {
         return count($company->getActivities());
     }
@@ -150,7 +164,7 @@ class EngagementHeatMapService
     /**
      * Get number of email opens for a company
      */
-    private function getEmailOpens($company): int
+    private function getEmailOpens(\App\Entity\Company $company): int
     {
         try {
             $contacts = $company->getContacts();
@@ -158,6 +172,7 @@ class EngagementHeatMapService
 
             foreach ($contacts as $contact) {
                 // Get email sends for this contact using query builder to avoid field errors
+                /** @var list<\App\Entity\EmailSend> $emailSends */
                 $emailSends = $this->emailSendRepository->createQueryBuilder('e')
                     ->where('e.contact = :contact')
                     ->setParameter('contact', $contact)
@@ -181,7 +196,7 @@ class EngagementHeatMapService
     /**
      * Get days since last activity for a company
      */
-    private function getDaysSinceLastActivity($company): ?int
+    private function getDaysSinceLastActivity(\App\Entity\Company $company): ?int
     {
         $activities = $company->getActivities();
         
@@ -197,7 +212,7 @@ class EngagementHeatMapService
             }
         }
 
-        if (!$lastActivity) {
+        if (!$lastActivity instanceof \DateTimeInterface) {
             return null;
         }
 

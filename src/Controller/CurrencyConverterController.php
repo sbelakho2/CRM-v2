@@ -53,15 +53,19 @@ class CurrencyConverterController extends AbstractController
     public function convert(Request $request): JsonResponse
     {
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        if (!$this->isCsrfTokenValid('currency_converter_convert', $data['_csrf_token'] ?? '')) {
+
+        $csrfToken = $data['_csrf_token'] ?? '';
+        if (!$this->isCsrfTokenValid('currency_converter_convert', is_scalar($csrfToken) ? (string) $csrfToken : '')) {
             return $this->json(['error' => 'Invalid CSRF token.'], 403);
         }
 
-        $amount = (float) ($data['amount'] ?? 0);
-        $from = strtoupper(trim($data['from'] ?? 'USD'));
-        $to = strtoupper(trim($data['to'] ?? 'USD'));
+        $amountRaw = $data['amount'] ?? 0;
+        $amount = is_scalar($amountRaw) ? (float) $amountRaw : 0.0;
+        $fromRaw = $data['from'] ?? 'USD';
+        $from = strtoupper(trim(is_scalar($fromRaw) ? (string) $fromRaw : 'USD'));
+        $toRaw = $data['to'] ?? 'USD';
+        $to = strtoupper(trim(is_scalar($toRaw) ? (string) $toRaw : 'USD'));
 
         if ($amount <= 0) {
             return $this->json(['error' => 'Amount must be greater than zero'], 400);
@@ -113,9 +117,10 @@ class CurrencyConverterController extends AbstractController
     public function refreshRates(Request $request): JsonResponse
     {
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        if (!$this->isCsrfTokenValid('currency_converter_refresh', $data['_csrf_token'] ?? '')) {
+
+        $csrfToken = $data['_csrf_token'] ?? '';
+        if (!$this->isCsrfTokenValid('currency_converter_refresh', is_scalar($csrfToken) ? (string) $csrfToken : '')) {
             return $this->json(['error' => 'Invalid CSRF token.'], 403);
         }
 
@@ -168,6 +173,8 @@ class CurrencyConverterController extends AbstractController
 
     /**
      * Full currency list with human-readable labels
+     *
+     * @return array<string, string>
      */
     private function getCurrencyList(): array
     {

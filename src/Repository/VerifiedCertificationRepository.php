@@ -24,6 +24,7 @@ class VerifiedCertificationRepository extends ServiceEntityRepository
      */
     public function findClaimableStandards(): array
     {
+        /** @var list<VerifiedCertification> $rows */
         $rows = $this->createQueryBuilder('c')
             ->andWhere('c.status = :verified')
             ->setParameter('verified', 'verified')
@@ -32,8 +33,9 @@ class VerifiedCertificationRepository extends ServiceEntityRepository
 
         $standards = [];
         foreach ($rows as $row) {
-            if ($row->isClaimable()) {
-                $standards[] = $row->getStandard();
+            $standard = $row->getStandard();
+            if ($row->isClaimable() && $standard !== null) {
+                $standards[] = $standard;
             }
         }
 

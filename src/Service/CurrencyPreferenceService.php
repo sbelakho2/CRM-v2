@@ -23,7 +23,11 @@ class CurrencyPreferenceService
             }
         }
 
-        $fallbackCurrency = $fallback ?? ($_ENV['DEFAULT_CURRENCY'] ?? 'USD');
+        $fallbackCurrency = $fallback ?? null;
+        if ($fallbackCurrency === null) {
+            $envCurrency = $_ENV['DEFAULT_CURRENCY'] ?? null;
+            $fallbackCurrency = is_string($envCurrency) && $envCurrency !== '' ? $envCurrency : 'USD';
+        }
 
         return strtoupper($fallbackCurrency);
     }

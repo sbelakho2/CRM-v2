@@ -19,26 +19,30 @@ class EmailTemplateRepository extends ServiceEntityRepository
     /**
      * Find active templates
      *
-     * @return EmailTemplate[]
+     * @return list<EmailTemplate>
      */
     public function findActive(): array
     {
-        return $this->createQueryBuilder('e')
+        /** @var list<EmailTemplate> $results */
+        $results = $this->createQueryBuilder('e')
             ->andWhere('e.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('e.name', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find templates by category
      *
-     * @return EmailTemplate[]
+     * @return list<EmailTemplate>
      */
     public function findByCategory(string $category): array
     {
-        return $this->createQueryBuilder('e')
+        /** @var list<EmailTemplate> $results */
+        $results = $this->createQueryBuilder('e')
             ->andWhere('e.category = :category')
             ->andWhere('e.isActive = :active')
             ->setParameter('category', $category)
@@ -46,21 +50,26 @@ class EmailTemplateRepository extends ServiceEntityRepository
             ->orderBy('e.name', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Search templates by name or description
      *
-     * @return EmailTemplate[]
+     * @return list<EmailTemplate>
      */
     public function searchByName(string $query): array
     {
-        return $this->createQueryBuilder('e')
+        /** @var list<EmailTemplate> $results */
+        $results = $this->createQueryBuilder('e')
             ->andWhere('e.name LIKE :query OR e.description LIKE :query')
             ->setParameter('query', '%' . addcslashes($query, '%_') . '%')
             ->orderBy('e.name', 'ASC')
             ->setMaxResults(20)
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 }

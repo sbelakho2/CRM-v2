@@ -23,7 +23,7 @@ class SpintaxTemplate
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $name = null;
@@ -48,6 +48,8 @@ class SpintaxTemplate
 
     /**
      * Available variables like ["first_name", "company_name", "app_name"]
+     *
+     * @var array<int|string, mixed>
      */
     #[ORM\Column(type: 'json')]
     private array $availableVariables = ['first_name', 'company_name'];
@@ -148,11 +150,13 @@ class SpintaxTemplate
         return $this;
     }
 
+    /** @return array<int|string, mixed> */
     public function getAvailableVariables(): array
     {
         return $this->availableVariables;
     }
 
+    /** @param array<int|string, mixed> $availableVariables */
     public function setAvailableVariables(array $availableVariables): self
     {
         $this->availableVariables = $availableVariables;

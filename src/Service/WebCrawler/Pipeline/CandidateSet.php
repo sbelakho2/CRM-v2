@@ -12,6 +12,9 @@ namespace App\Service\WebCrawler\Pipeline;
  * entries keyed by URL, since each search result is a different company
  * profile page that needs separate seed extraction.
  */
+/**
+ * @implements \IteratorAggregate<string, array{domain: string, name: string, url: string, title: string, snippet: string, query_type: string}>
+ */
 final class CandidateSet implements \Countable, \IteratorAggregate
 {
     /**
@@ -100,6 +103,9 @@ final class CandidateSet implements \Countable, \IteratorAggregate
         return empty($this->candidates);
     }
 
+    /**
+     * @return \ArrayIterator<string, array{domain: string, name: string, url: string, title: string, snippet: string, query_type: string}>
+     */
     public function getIterator(): \ArrayIterator
     {
         return new \ArrayIterator($this->candidates);

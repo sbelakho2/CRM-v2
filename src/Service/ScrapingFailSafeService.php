@@ -22,6 +22,10 @@ use Symfony\Contracts\Cache\ItemInterface;
  * - Domain-specific cooldown periods
  * - Alert generation for admin review
  * - Manual resume capabilities
+ *
+ * @phpstan-type FailureEntry array{time: int, code: int, reason: string}
+ * @phpstan-type DomainStats array{successes: list<int>, failures: list<FailureEntry>, consecutive_failures: int, paused: bool, pause_reason: string|null, paused_at: int|null, cooldown_until: int|null, '403_count': int, last_success: int|null, last_failure: int|null}
+ * @phpstan-type Alert array{domain: string, type: string, message: string, timestamp: int, datetime: string}
  */
 class ScrapingFailSafeService
 {
@@ -37,13 +41,20 @@ class ScrapingFailSafeService
     public const ALERT_HIGH_FAILURE_RATE = 'high_failure_rate';
     public const ALERT_403_SPIKE = '403_spike';
     
+    /** @var array<string, DomainStats> */
     private array $domainStats = []; // In-memory tracking
+
+    /** @var list<Alert> */
     private array $alerts = [];
-    
+
     public function __construct(
         private LoggerInterface $logger,
         private CacheInterface $cache,
-        private ?EntityManagerInterface $entityManager = null
+
+        /**
+         * Not read yet; kept for future persistence of fail-safe state.
+         */
+        protected ?EntityManagerInterface $entityManager = null
     ) {}
 
     /**
@@ -181,6 +192,8 @@ class ScrapingFailSafeService
 
     /**
      * Get status for a domain
+     *
+     * @return array{domain: string, can_scrape: bool, paused: bool, pause_reason: string|null, cooldown_until: int|null, cooldown_remaining: int|null, consecutive_failures: int, recent_successes: int, recent_failures: int, success_rate: float|null, '403_count': int, last_success: int|null, last_failure: int|null}
      */
     public function getDomainStatus(string $domain): array
     {
@@ -197,8 +210,8 @@ class ScrapingFailSafeService
             'paused' => $stats['paused'],
             'pause_reason' => $stats['pause_reason'],
             'cooldown_until' => $stats['cooldown_until'],
-            'cooldown_remaining' => $stats['cooldown_until'] 
-                ? max(0, $stats['cooldown_until'] - time()) 
+            'cooldown_remaining' => $stats['cooldown_until'] !== null
+                ? max(0, $stats['cooldown_until'] - time())
                 : null,
             'consecutive_failures' => $stats['consecutive_failures'],
             'recent_successes' => $recentSuccesses,
@@ -212,6 +225,8 @@ class ScrapingFailSafeService
 
     /**
      * Get status for all tracked domains
+     *
+     * @return array<string, array{domain: string, can_scrape: bool, paused: bool, pause_reason: string|null, cooldown_until: int|null, cooldown_remaining: int|null, consecutive_failures: int, recent_successes: int, recent_failures: int, success_rate: float|null, '403_count': int, last_success: int|null, last_failure: int|null}>
      */
     public function getAllDomainsStatus(): array
     {
@@ -219,6 +234,7 @@ class ScrapingFailSafeService
         
         // Get from cache - we store a list of all domains
         try {
+            /** @var list<string> $domains */
             $domains = $this->cache->get(self::CACHE_PREFIX . 'domain_list', function(ItemInterface $item) {
                 $item->expiresAfter(3600);
                 return [];
@@ -236,14 +252,19 @@ class ScrapingFailSafeService
 
     /**
      * Get pending alerts
+     *
+     * @return list<Alert>
      */
     public function getAlerts(): array
     {
         try {
-            return $this->cache->get(self::CACHE_PREFIX . 'alerts', function(ItemInterface $item) {
+            /** @var list<Alert> $alerts */
+            $alerts = $this->cache->get(self::CACHE_PREFIX . 'alerts', function(ItemInterface $item) {
                 $item->expiresAfter(3600);
                 return [];
             });
+
+            return $alerts;
         } catch (\Exception $e) {
             return $this->alerts;
         }
@@ -271,7 +292,8 @@ class ScrapingFailSafeService
         $this->alerts = [];
         
         try {
-            $domains = $this->cache->get(self::CACHE_PREFIX . 'domain_list', fn() => []);
+            /** @var list<string> $domains */
+            $domains = $this->cache->get(self::CACHE_PREFIX . 'domain_list', fn(): array => []);
             foreach ($domains as $domain) {
                 $this->cache->delete(self::CACHE_PREFIX . 'stats_' . $domain);
             }
@@ -289,13 +311,17 @@ class ScrapingFailSafeService
         // Extract domain from URL if full URL provided
         if (preg_match('/^https?:\/\//', $domain)) {
             $parsed = parse_url($domain);
-            $domain = $parsed['host'] ?? $domain;
+            $host = $parsed['host'] ?? null;
+            $domain = is_string($host) && $host !== '' ? $host : $domain;
         }
         
         // Remove www prefix
-        return preg_replace('/^www\./', '', strtolower($domain));
+        return preg_replace('/^www\./', '', strtolower($domain)) ?? $domain;
     }
 
+    /**
+     * @return DomainStats
+     */
     private function getStats(string $domain): array
     {
         // Try memory first
@@ -305,6 +331,7 @@ class ScrapingFailSafeService
         
         // Try cache
         try {
+            /** @var DomainStats $stats */
             $stats = $this->cache->get(
                 self::CACHE_PREFIX . 'stats_' . $domain,
                 function(ItemInterface $item) {
@@ -319,6 +346,9 @@ class ScrapingFailSafeService
         }
     }
 
+    /**
+     * @param DomainStats $stats
+     */
     private function saveStats(string $domain, array $stats): void
     {
         $this->domainStats[$domain] = $stats;
@@ -335,7 +365,8 @@ class ScrapingFailSafeService
             );
             
             // Track domain in list
-            $domains = $this->cache->get(self::CACHE_PREFIX . 'domain_list', fn() => []);
+            /** @var list<string> $domains */
+            $domains = $this->cache->get(self::CACHE_PREFIX . 'domain_list', fn(): array => []);
             if (!in_array($domain, $domains, true)) {
                 $domains[] = $domain;
                 $this->cache->delete(self::CACHE_PREFIX . 'domain_list');
@@ -352,6 +383,9 @@ class ScrapingFailSafeService
         }
     }
 
+    /**
+     * @return DomainStats
+     */
     private function getDefaultStats(): array
     {
         return [
@@ -368,19 +402,26 @@ class ScrapingFailSafeService
         ];
     }
 
+    /**
+     * @param DomainStats $stats
+     * @return DomainStats
+     */
     private function cleanOldData(array $stats): array
     {
         $cutoff = time() - self::RATE_WINDOW_SECONDS;
         
         // Clean successes
-        $stats['successes'] = array_filter($stats['successes'], fn($t) => $t >= $cutoff);
+        $stats['successes'] = array_values(array_filter($stats['successes'], fn(int $t): bool => $t >= $cutoff));
         
         // Clean failures
-        $stats['failures'] = array_filter($stats['failures'], fn($f) => $f['time'] >= $cutoff);
+        $stats['failures'] = array_values(array_filter($stats['failures'], fn(array $f): bool => $f['time'] >= $cutoff));
         
         return $stats;
     }
 
+    /**
+     * @param DomainStats $stats
+     */
     private function checkCircuitBreaker(string $domain, array $stats, int $httpCode): bool
     {
         // Check 1: Consecutive failures
@@ -393,7 +434,7 @@ class ScrapingFailSafeService
         // Check 2: 403 spike (immediate trigger on 403)
         if ($httpCode === 403) {
             // Count recent 403s
-            $recent403s = count(array_filter($stats['failures'], fn($f) => $f['code'] === 403));
+            $recent403s = count(array_filter($stats['failures'], fn(array $f): bool => $f['code'] === 403));
             if ($recent403s >= 2) {
                 $this->triggerCooldown($domain, self::ALERT_403_SPIKE, 
                     "403 spike: {$recent403s} in last 5 minutes");

@@ -19,44 +19,51 @@ class AbmHitRepository extends ServiceEntityRepository
 
     /**
      * Find hits by company
-     * 
-     * @return AbmHit[]
+     *
+     * @return list<AbmHit>
      */
     public function findByCompany(Company $company, int $limit = 100): array
     {
-        return $this->createQueryBuilder('ah')
+        /** @var list<AbmHit> $result */
+        $result = $this->createQueryBuilder('ah')
             ->andWhere('ah.company = :company')
             ->setParameter('company', $company)
             ->orderBy('ah.timestamp', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find unidentified hits
-     * 
-     * @return AbmHit[]
+     *
+     * @return list<AbmHit>
      */
     public function findUnidentified(int $limit = 100): array
     {
-        return $this->createQueryBuilder('ah')
+        /** @var list<AbmHit> $result */
+        $result = $this->createQueryBuilder('ah')
             ->andWhere('ah.isIdentified = :identified')
             ->setParameter('identified', false)
             ->orderBy('ah.timestamp', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find hits without playbook trigger
-     * 
-     * @return AbmHit[]
+     *
+     * @return list<AbmHit>
      */
     public function findPendingPlaybook(int $limit = 100): array
     {
-        return $this->createQueryBuilder('ah')
+        /** @var list<AbmHit> $result */
+        $result = $this->createQueryBuilder('ah')
             ->andWhere('ah.isIdentified = :identified')
             ->andWhere('ah.playbookTriggered = :triggered')
             ->setParameter('identified', true)
@@ -65,10 +72,14 @@ class AbmHitRepository extends ServiceEntityRepository
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Count hits per day
+     *
+     * @return list<array<string, mixed>>
      */
     public function countHitsPerDay(\DateTimeInterface $startDate, \DateTimeInterface $endDate): array
     {

@@ -12,9 +12,9 @@ use Doctrine\Persistence\ManagerRegistry;
  * @extends ServiceEntityRepository<Task>
  *
  * @method Task|null find($id, $lockMode = null, $lockVersion = null)
- * @method Task|null findOneBy(array $criteria, array $orderBy = null)
- * @method Task[]    findAll()
- * @method Task[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ * @method Task|null findOneBy(array<string, mixed> $criteria, array<string, string>|null $orderBy = null)
+ * @method list<Task> findAll()
+ * @method list<Task> findBy(array<string, mixed> $criteria, array<string, string>|null $orderBy = null, ?int $limit = null, ?int $offset = null)
  */
 class TaskRepository extends ServiceEntityRepository
 {
@@ -43,6 +43,8 @@ class TaskRepository extends ServiceEntityRepository
 
     /**
      * Find tasks for a user (assigned to or created by)
+     *
+     * @return list<Task>
      */
     public function findByUser(User $user, ?string $status = null, int $limit = 50): array
     {
@@ -59,11 +61,16 @@ class TaskRepository extends ServiceEntityRepository
                ->setParameter('status', $status);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<Task> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
     }
 
     /**
      * Find tasks grouped by status for kanban view
+     *
+     * @return array<string, list<Task>>
      */
     public function findGroupedByStatus(?User $user = null): array
     {
@@ -82,6 +89,7 @@ class TaskRepository extends ServiceEntityRepository
                ->setParameter('user', $user);
         }
 
+        /** @var list<Task> $tasks */
         $tasks = $qb->getQuery()->getResult();
 
         $grouped = [];
@@ -98,6 +106,8 @@ class TaskRepository extends ServiceEntityRepository
 
     /**
      * Find overdue tasks
+     *
+     * @return list<Task>
      */
     public function findOverdue(?User $user = null): array
     {
@@ -114,11 +124,16 @@ class TaskRepository extends ServiceEntityRepository
                ->setParameter('user', $user);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<Task> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
     }
 
     /**
      * Find tasks due today
+     *
+     * @return list<Task>
      */
     public function findDueToday(?User $user = null): array
     {
@@ -141,11 +156,16 @@ class TaskRepository extends ServiceEntityRepository
                ->setParameter('user', $user);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<Task> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
     }
 
     /**
      * Find tasks due this week
+     *
+     * @return list<Task>
      */
     public function findDueThisWeek(?User $user = null): array
     {
@@ -168,11 +188,16 @@ class TaskRepository extends ServiceEntityRepository
                ->setParameter('user', $user);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<Task> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
     }
 
     /**
      * Find tasks by company
+     *
+     * @return list<Task>
      */
     public function findByCompany(Company $company, ?string $status = null): array
     {
@@ -187,17 +212,23 @@ class TaskRepository extends ServiceEntityRepository
                ->setParameter('status', $status);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<Task> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
     }
 
     /**
      * Find tasks needing reminders
+     *
+     * @return list<Task>
      */
     public function findPendingReminders(): array
     {
         $now = new \DateTime();
 
-        return $this->createQueryBuilder('t')
+        /** @var list<Task> $result */
+        $result = $this->createQueryBuilder('t')
             ->where('t.reminderAt IS NOT NULL')
             ->andWhere('t.reminderAt <= :now')
             ->andWhere('t.reminderSent = false')
@@ -207,10 +238,14 @@ class TaskRepository extends ServiceEntityRepository
             ->setParameter('completedStatuses', [Task::STATUS_DONE, Task::STATUS_CANCELLED])
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Get task statistics for a user
+     *
+     * @return array{total: int, by_status: array<string, int>, overdue: int, due_today: int, due_this_week: int}
      */
     public function getStatistics(?User $user = null): array
     {
@@ -241,6 +276,7 @@ class TaskRepository extends ServiceEntityRepository
                ->setParameter('user', $user);
         }
 
+        /** @var list<array{status: string, count: int|string, overdueCnt: int|string|float|null, dueTodayCnt: int|string|float|null, dueWeekCnt: int|string|float|null}> $results */
         $results = $qb->getQuery()->getResult();
 
         $stats = [
@@ -265,7 +301,11 @@ class TaskRepository extends ServiceEntityRepository
         return $stats;
     }
 
-    private function countOverdue(?User $user = null): int
+    /**
+     * Kept for API parity with findOverdue()/the stats buckets; retained as
+     * protected so subclasses (and future callers) can use it.
+     */
+    protected function countOverdue(?User $user = null): int
     {
         $qb = $this->createQueryBuilder('t')
             ->select('COUNT(t.id)')
@@ -280,10 +320,17 @@ class TaskRepository extends ServiceEntityRepository
                ->setParameter('user', $user);
         }
 
-        return (int) $qb->getQuery()->getSingleScalarResult();
+        /** @var int|string|null $count */
+        $count = $qb->getQuery()->getSingleScalarResult();
+
+        return (int) $count;
     }
 
-    private function countDueToday(?User $user = null): int
+    /**
+     * Kept for API parity with findDueToday()/the stats buckets; retained as
+     * protected so subclasses (and future callers) can use it.
+     */
+    protected function countDueToday(?User $user = null): int
     {
         $today = new \DateTime('today');
         $tomorrow = new \DateTime('tomorrow');
@@ -303,10 +350,17 @@ class TaskRepository extends ServiceEntityRepository
                ->setParameter('user', $user);
         }
 
-        return (int) $qb->getQuery()->getSingleScalarResult();
+        /** @var int|string|null $count */
+        $count = $qb->getQuery()->getSingleScalarResult();
+
+        return (int) $count;
     }
 
-    private function countDueThisWeek(?User $user = null): int
+    /**
+     * Kept for API parity with findDueThisWeek()/the stats buckets; retained as
+     * protected so subclasses (and future callers) can use it.
+     */
+    protected function countDueThisWeek(?User $user = null): int
     {
         $today = new \DateTime('today');
         $endOfWeek = new \DateTime('sunday this week 23:59:59');
@@ -326,21 +380,25 @@ class TaskRepository extends ServiceEntityRepository
                ->setParameter('user', $user);
         }
 
-        return (int) $qb->getQuery()->getSingleScalarResult();
+        /** @var int|string|null $count */
+        $count = $qb->getQuery()->getSingleScalarResult();
+
+        return (int) $count;
     }
 
     /**
      * Update task sort orders for kanban drag-drop
-      * @param array<string|int, mixed> $taskOrders
+     *
+     * @param list<array{id: int|string, sortOrder: int|string, status?: string}> $taskOrders
      */
     public function updateSortOrders(array $taskOrders): void
     {
         $em = $this->getEntityManager();
-        
+
         foreach ($taskOrders as $order) {
             $task = $this->find($order['id']);
             if ($task) {
-                $task->setSortOrder($order['sortOrder']);
+                $task->setSortOrder((int) $order['sortOrder']);
                 if (isset($order['status'])) {
                     try {
                         $task->transitionTo($order['status']);
@@ -356,10 +414,13 @@ class TaskRepository extends ServiceEntityRepository
 
     /**
      * Find recurring tasks that need to be duplicated
+     *
+     * @return list<Task>
      */
     public function findRecurringTasksToDuplicate(): array
     {
-        return $this->createQueryBuilder('t')
+        /** @var list<Task> $result */
+        $result = $this->createQueryBuilder('t')
             ->where('t.isRecurring = true')
             ->andWhere('t.status = :done')
             ->andWhere('t.archivedAt IS NULL')
@@ -367,12 +428,17 @@ class TaskRepository extends ServiceEntityRepository
             ->setParameter('done', Task::STATUS_DONE)
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Explicitly fetch archived tasks (admin archive browser). Live
      * repository paths exclude archived rows; this is the only query that
      * surfaces them.
+     */
+    /**
+     * @return list<Task>
      */
     public function findArchived(?User $user = null): array
     {
@@ -385,11 +451,16 @@ class TaskRepository extends ServiceEntityRepository
                ->setParameter('user', $user);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<Task> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
     }
 
     /**
      * Search tasks by title or description
+     *
+     * @return list<Task>
      */
     public function search(string $query, ?User $user = null, int $limit = 20): array
     {
@@ -405,6 +476,9 @@ class TaskRepository extends ServiceEntityRepository
                ->setParameter('user', $user);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<Task> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
     }
 }

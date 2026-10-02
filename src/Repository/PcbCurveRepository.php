@@ -21,7 +21,8 @@ class PcbCurveRepository extends ServiceEntityRepository
      */
     public function findActiveCost(int $layers, float $areaM2): ?PcbCurve
     {
-        return $this->createQueryBuilder('pc')
+        /** @var PcbCurve|null $result */
+        $result = $this->createQueryBuilder('pc')
             ->andWhere('pc.layers = :layers')
             ->andWhere('pc.areaM2 <= :area')
             ->andWhere('pc.isActive = :active')
@@ -32,16 +33,19 @@ class PcbCurveRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
      * Find all active curves
      * 
-     * @return PcbCurve[]
+     * @return list<PcbCurve>
      */
     public function findAllActive(): array
     {
-        return $this->createQueryBuilder('pc')
+        /** @var list<PcbCurve> $results */
+        $results = $this->createQueryBuilder('pc')
             ->andWhere('pc.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('pc.layers', 'ASC')
@@ -49,5 +53,7 @@ class PcbCurveRepository extends ServiceEntityRepository
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 }

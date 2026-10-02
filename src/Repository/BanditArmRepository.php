@@ -18,23 +18,31 @@ class BanditArmRepository extends ServiceEntityRepository
 
     /**
      * Find active arms by type
+     *
+     * @return list<BanditArm>
      */
     public function findActiveByType(string $armType): array
     {
-        return $this->createQueryBuilder('a')
+        /** @var list<BanditArm> $result */
+        $result = $this->createQueryBuilder('a')
             ->where('a.armType = :type')
             ->andWhere('a.active = true')
             ->setParameter('type', $armType)
             ->orderBy('a.totalTrials', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Get bandit statistics by arm type
+     *
+     * @return array{arm_count: int, total_trials: int, total_successes: int, overall_rate: float, convergence: float}
      */
     public function getStatsByType(string $armType): array
     {
+        /** @var array<string, int|string|float|null> $result */
         $result = $this->createQueryBuilder('a')
             ->select('SUM(a.totalTrials) as totalTrials, SUM(a.totalSuccesses) as totalSuccesses, COUNT(a.id) as armCount')
             ->where('a.armType = :type')

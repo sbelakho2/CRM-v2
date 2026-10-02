@@ -35,12 +35,15 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
 
     public function findOneByEmailCaseInsensitive(string $email): ?User
     {
-        return $this->createQueryBuilder('u')
+        /** @var User|null $result */
+        $result = $this->createQueryBuilder('u')
             ->where('LOWER(u.email) = LOWER(:email)')
             ->setParameter('email', $email)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
@@ -50,16 +53,19 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
      * Uses JSON_CONTAINS which is MySQL-specific. For cross-DB compatibility,
      * consider extracting roles into a dedicated join table.
      *
-     * @return User[]
+     * @return list<User>
      */
     public function findByRole(string $role): array
     {
-        return $this->createQueryBuilder('u')
+        /** @var list<User> $result */
+        $result = $this->createQueryBuilder('u')
             ->where("JSON_CONTAINS(u.roles, :role) = 1")
             ->andWhere('u.active = true')
             ->setParameter('role', json_encode($role))
             ->orderBy('u.email', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

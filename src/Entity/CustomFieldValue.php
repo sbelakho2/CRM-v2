@@ -16,7 +16,7 @@ class CustomFieldValue
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: CustomFieldDefinition::class, inversedBy: 'values')]
     #[ORM\JoinColumn(name: 'field_definition_id', nullable: false, onDelete: 'CASCADE')]
@@ -44,6 +44,7 @@ class CustomFieldValue
     #[ORM\Column(nullable: true)]
     private ?bool $booleanValue = null;
 
+    /** @var array<int|string, mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $jsonValue = null;
 
@@ -107,7 +108,7 @@ class CustomFieldValue
         }
 
         if (!$this->fieldDefinition) {
-            $this->textValue = (string) $value;
+            $this->textValue = is_scalar($value) || $value instanceof \Stringable ? (string) $value : '';
             return $this;
         }
 
@@ -144,7 +145,7 @@ class CustomFieldValue
                 break;
 
             default:
-                $this->textValue = (string) $value;
+                $this->textValue = is_scalar($value) || $value instanceof \Stringable ? (string) $value : '';
         }
 
         return $this;
@@ -162,18 +163,20 @@ class CustomFieldValue
         }
 
         if (!$this->fieldDefinition) {
-            return (string) $value;
+            return is_scalar($value) || $value instanceof \Stringable ? (string) $value : '';
         }
 
         return match($this->fieldDefinition->getFieldType()) {
             CustomFieldDefinition::TYPE_DATE => $value instanceof \DateTimeInterface ? $value->format('M j, Y') : '',
             CustomFieldDefinition::TYPE_DATETIME => $value instanceof \DateTimeInterface ? $value->format('M j, Y g:i A') : '',
             CustomFieldDefinition::TYPE_BOOLEAN => $value ? 'Yes' : 'No',
-            CustomFieldDefinition::TYPE_CURRENCY => '$' . number_format((float) $value, 2),
-            CustomFieldDefinition::TYPE_PERCENTAGE => number_format((float) $value, 2) . '%',
-            CustomFieldDefinition::TYPE_MULTISELECT => is_array($value) ? implode(', ', $value) : (string) $value,
-            CustomFieldDefinition::TYPE_URL => $value,
-            default => (string) $value,
+            CustomFieldDefinition::TYPE_CURRENCY => '$' . number_format(is_numeric($value) ? (float) $value : 0.0, 2),
+            CustomFieldDefinition::TYPE_PERCENTAGE => number_format(is_numeric($value) ? (float) $value : 0.0, 2) . '%',
+            CustomFieldDefinition::TYPE_MULTISELECT => is_array($value)
+                ? implode(', ', array_map(static fn ($v): string => is_scalar($v) || $v instanceof \Stringable ? (string) $v : '', $value))
+                : (is_scalar($value) || $value instanceof \Stringable ? (string) $value : ''),
+            CustomFieldDefinition::TYPE_URL => is_string($value) ? $value : '',
+            default => is_scalar($value) || $value instanceof \Stringable ? (string) $value : '',
         };
     }
 
@@ -272,11 +275,13 @@ class CustomFieldValue
         return $this;
     }
 
+    /** @return array<int|string, mixed>|null */
     public function getJsonValue(): ?array
     {
         return $this->jsonValue;
     }
 
+    /** @param array<int|string, mixed>|null $jsonValue */
     public function setJsonValue(?array $jsonValue): static
     {
         $this->jsonValue = $jsonValue;

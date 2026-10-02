@@ -2,6 +2,7 @@
 
 namespace App\Twig;
 
+use App\Entity\Company;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
@@ -33,13 +34,16 @@ class SafeEntityExtension extends AbstractExtension
      */
     public function safeCompanyName(mixed $entity, string $fallback = 'N/A'): string
     {
-        if (!$entity || !method_exists($entity, 'getCompany')) {
+        if (!is_object($entity) || !method_exists($entity, 'getCompany')) {
             return $fallback;
         }
 
         try {
             $company = $entity->getCompany();
-            return $company?->getName() ?? $fallback;
+            if (!$company instanceof Company) {
+                return $fallback;
+            }
+            return $company->getName() ?? $fallback;
         } catch (\Doctrine\ORM\EntityNotFoundException) {
             return $fallback;
         }
@@ -52,12 +56,16 @@ class SafeEntityExtension extends AbstractExtension
      */
     public function safeCompanyId(mixed $entity): ?int
     {
-        if (!$entity || !method_exists($entity, 'getCompany')) {
+        if (!is_object($entity) || !method_exists($entity, 'getCompany')) {
             return null;
         }
 
         try {
-            return $entity->getCompany()?->getId();
+            $company = $entity->getCompany();
+            if (!$company instanceof Company) {
+                return null;
+            }
+            return $company->getId();
         } catch (\Doctrine\ORM\EntityNotFoundException) {
             return null;
         }

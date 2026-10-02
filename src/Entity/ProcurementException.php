@@ -15,7 +15,7 @@ class ProcurementException
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: BomLine::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -25,7 +25,7 @@ class ProcurementException
     private ?string $exceptionType = null; // NO_STOCK, OBSOLETE, NO_API, PRICE_SPIKE, etc.
 
     #[ORM\Column(length: 20)]
-    private ?string $severity = 'MEDIUM'; // CRITICAL, HIGH, MEDIUM, LOW
+    protected ?string $severity = 'MEDIUM'; // CRITICAL, HIGH, MEDIUM, LOW
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $message = null;
@@ -33,6 +33,7 @@ class ProcurementException
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $recommendation = null;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $metadata = null;
 
@@ -111,11 +112,13 @@ class ProcurementException
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getMetadata(): ?array
     {
         return $this->metadata;
     }
 
+    /** @param array<string, mixed>|null $metadata */
     public function setMetadata(?array $metadata): self
     {
         $this->metadata = $metadata;

@@ -18,48 +18,65 @@ class InboxMessageRepository extends ServiceEntityRepository
 
     /**
      * Find messages pending human review
+     *
+     * @return list<InboxMessage>
      */
     public function findPendingReview(int $limit = 50): array
     {
-        return $this->createQueryBuilder('m')
+        /** @var list<InboxMessage> $results */
+        $results = $this->createQueryBuilder('m')
             ->where('m.requiresHumanReview = true')
             ->andWhere('m.humanReviewedAt IS NULL')
             ->orderBy('m.receivedAt', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find by classification
+     *
+     * @return list<InboxMessage>
      */
     public function findByClassification(string $classification, int $limit = 100): array
     {
-        return $this->createQueryBuilder('m')
+        /** @var list<InboxMessage> $results */
+        $results = $this->createQueryBuilder('m')
             ->where('m.classification = :classification')
             ->setParameter('classification', $classification)
             ->orderBy('m.receivedAt', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find by sender email
+     *
+     * @return list<InboxMessage>
      */
     public function findByFromEmail(string $email): array
     {
-        return $this->createQueryBuilder('m')
+        /** @var list<InboxMessage> $results */
+        $results = $this->createQueryBuilder('m')
             ->where('m.fromEmail = :email')
             ->setParameter('email', $email)
             ->orderBy('m.receivedAt', 'DESC')
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Get classification statistics
+     *
+     * @return array{total: int, pending_review: int, by_classification: array<string, array{count: int, avg_confidence: float}>}
      */
     public function getClassificationStats(): array
     {
@@ -73,6 +90,7 @@ class InboxMessageRepository extends ServiceEntityRepository
             ->setParameter('pendingReview', true)
             ->groupBy('m.classification');
 
+        /** @var array<int, array<string, mixed>> $results */
         $results = $qb->getQuery()->getResult();
 
         $stats = [
@@ -82,13 +100,16 @@ class InboxMessageRepository extends ServiceEntityRepository
         ];
 
         foreach ($results as $row) {
-            $classification = $row['classification'] ?? 'UNKNOWN';
+            $classification = is_string($row['classification'] ?? null) ? $row['classification'] : 'UNKNOWN';
+            $total = is_numeric($row['total'] ?? null) ? (int) $row['total'] : 0;
+            $avgConfidence = is_numeric($row['avgConfidence'] ?? null) ? (float) $row['avgConfidence'] : 0.0;
+            $pendingCount = is_numeric($row['pendingCount'] ?? null) ? (int) $row['pendingCount'] : 0;
             $stats['by_classification'][$classification] = [
-                'count' => (int) $row['total'],
-                'avg_confidence' => round((float) ($row['avgConfidence'] ?? 0), 2),
+                'count' => $total,
+                'avg_confidence' => round($avgConfidence, 2),
             ];
-            $stats['total'] += (int) $row['total'];
-            $stats['pending_review'] += (int) ($row['pendingCount'] ?? 0);
+            $stats['total'] += $total;
+            $stats['pending_review'] += $pendingCount;
         }
 
         return $stats;

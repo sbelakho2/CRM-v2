@@ -35,10 +35,13 @@ class CustomFieldValueRepository extends ServiceEntityRepository
 
     /**
      * Find all values for an entity
+     *
+     * @return list<CustomFieldValue>
      */
     public function findByEntity(string $entityType, int $entityId): array
     {
-        return $this->createQueryBuilder('v')
+        /** @var list<CustomFieldValue> $result */
+        $result = $this->createQueryBuilder('v')
             ->join('v.fieldDefinition', 'f')
             ->where('v.entityType = :entityType')
             ->andWhere('v.entityId = :entityId')
@@ -49,18 +52,26 @@ class CustomFieldValueRepository extends ServiceEntityRepository
             ->orderBy('f.sortOrder', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find values as a key-value map
+     *
+     * @return array<string, CustomFieldValue>
      */
     public function findAsMap(string $entityType, int $entityId): array
     {
         $values = $this->findByEntity($entityType, $entityId);
-        
+
         $map = [];
         foreach ($values as $value) {
-            $map[$value->getFieldDefinition()->getFieldKey()] = $value;
+            $definition = $value->getFieldDefinition();
+            if ($definition === null) {
+                continue;
+            }
+            $map[$definition->getFieldKey() ?? ''] = $value;
         }
 
         return $map;
@@ -71,7 +82,8 @@ class CustomFieldValueRepository extends ServiceEntityRepository
      */
     public function findValue(CustomFieldDefinition $field, string $entityType, int $entityId): ?CustomFieldValue
     {
-        return $this->createQueryBuilder('v')
+        /** @var CustomFieldValue|null $result */
+        $result = $this->createQueryBuilder('v')
             ->where('v.fieldDefinition = :field')
             ->andWhere('v.entityType = :entityType')
             ->andWhere('v.entityId = :entityId')
@@ -80,6 +92,8 @@ class CustomFieldValueRepository extends ServiceEntityRepository
             ->setParameter('entityId', $entityId)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
@@ -116,13 +130,17 @@ class CustomFieldValueRepository extends ServiceEntityRepository
         $allDefinitions = $definitionRepo->findBy(['entityType' => $entityType, 'isActive' => true]);
         $definitionsByKey = [];
         foreach ($allDefinitions as $def) {
-            $definitionsByKey[$def->getFieldKey()] = $def;
+            $definitionsByKey[$def->getFieldKey() ?? ''] = $def;
         }
 
         $existingValues = $this->findByEntity($entityType, $entityId);
         $valuesByFieldKey = [];
         foreach ($existingValues as $ev) {
-            $valuesByFieldKey[$ev->getFieldDefinition()->getFieldKey()] = $ev;
+            $definition = $ev->getFieldDefinition();
+            if ($definition === null) {
+                continue;
+            }
+            $valuesByFieldKey[$definition->getFieldKey() ?? ''] = $ev;
         }
 
         foreach ($fieldValues as $fieldKey => $value) {
@@ -152,7 +170,8 @@ class CustomFieldValueRepository extends ServiceEntityRepository
      */
     public function deleteByEntity(string $entityType, int $entityId): int
     {
-        return $this->createQueryBuilder('v')
+        /** @var int $affected */
+        $affected = $this->createQueryBuilder('v')
             ->delete()
             ->where('v.entityType = :entityType')
             ->andWhere('v.entityId = :entityId')
@@ -160,10 +179,14 @@ class CustomFieldValueRepository extends ServiceEntityRepository
             ->setParameter('entityId', $entityId)
             ->getQuery()
             ->execute();
+
+        return $affected;
     }
 
     /**
      * Search entities by custom field value
+     *
+     * @return list<int|string>
      */
     public function searchByFieldValue(CustomFieldDefinition $field, string $searchValue): array
     {
@@ -203,11 +226,16 @@ class CustomFieldValueRepository extends ServiceEntityRepository
                    ->setParameter('search', '%' . $searchValue . '%');
         }
 
-        return array_column($qb->getQuery()->getResult(), 'entityId');
+        /** @var list<array{entityId: int|string}> $rows */
+        $rows = $qb->getQuery()->getResult();
+
+        return array_column($rows, 'entityId');
     }
 
     /**
      * Get unique values for a field (for filter dropdowns)
+     *
+     * @return list<array{value: mixed}>
      */
     public function getUniqueValues(CustomFieldDefinition $field, int $limit = 100): array
     {
@@ -220,7 +248,8 @@ class CustomFieldValueRepository extends ServiceEntityRepository
             default => 'v.textValue',
         };
 
-        return $this->createQueryBuilder('v')
+        /** @var list<array{value: mixed}> $result */
+        $result = $this->createQueryBuilder('v')
             ->select("DISTINCT $column as value")
             ->where('v.fieldDefinition = :field')
             ->andWhere("$column IS NOT NULL")
@@ -228,5 +257,7 @@ class CustomFieldValueRepository extends ServiceEntityRepository
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

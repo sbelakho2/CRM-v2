@@ -26,6 +26,8 @@ class KPITrackingService
 
     /**
      * Get 90-day KPIs dashboard data
+     *
+     * @return array{pipeline_value: float, pipeline_value_currency: string, rfq_count: int, npi_awards: int, framework_agreements: int, portal_signups: int, webinar_attendees: int}
      */
     public function get90DayKPIs(): array
     {
@@ -120,6 +122,8 @@ class KPITrackingService
     /**
      * Get sector breakdown statistics
      * Optimized: uses 2 aggregate queries instead of N queries per sector
+     *
+     * @return array<string, array{company_count: mixed, active_rfqs: mixed, pipeline_value: float}>
      */
     public function getSectorBreakdown(): array
     {
@@ -133,6 +137,7 @@ class KPITrackingService
 
         // Pipeline value per sector: sum of totalCost for quotes whose
         // company sector matches, limited to sent/approved/accepted quotes.
+        /** @var array<int, array{sector: string|null, totalCost: string|null, currency: string|null}> $quoteRows */
         $quoteRows = $this->quoteRepository->createQueryBuilder('q')
             ->select('c.sector, q.totalCost, q.currency')
             ->join('q.company', 'c')
@@ -146,14 +151,14 @@ class KPITrackingService
         $pipelineValues = [];
         foreach ($quoteRows as $row) {
             $sector = $row['sector'];
-            if (!$sector) {
+            if ($sector === null || $sector === '') {
                 continue;
             }
-            $amount = (float) $row['totalCost'];
+            $amount = (float) ($row['totalCost'] ?? '0');
             if ($amount <= 0) {
                 continue;
             }
-            $sourceCurrency = $row['currency'] ?: $displayCurrency;
+            $sourceCurrency = $row['currency'] !== null && $row['currency'] !== '' ? $row['currency'] : $displayCurrency;
             $pipelineValues[$sector] = ($pipelineValues[$sector] ?? 0.0)
                 + $this->currencyConverter->convert($amount, $sourceCurrency, $displayCurrency);
         }
@@ -173,6 +178,8 @@ class KPITrackingService
     /**
      * Get pipeline stage distribution
      * Optimized: uses 1 aggregate query instead of 6 separate queries
+     *
+     * @return array<string, mixed>
      */
     public function getPipelineStageDistribution(): array
     {
@@ -192,6 +199,8 @@ class KPITrackingService
     /**
      * Get weekly activity metrics
      * Optimized: uses 1 aggregate query instead of 4 separate queries
+     *
+     * @return array{calls_made: mixed, emails_sent: mixed, meetings_held: mixed, portal_signups: mixed}
      */
     public function getWeeklyMetrics(): array
     {
@@ -212,11 +221,14 @@ class KPITrackingService
     /**
      * Get team performance metrics: activity volume per user over the last
      * 90 days, classified by role where possible.
+     *
+     * @return array{field_reps: list<array{user_id: int, name: string, activities_90d: int}>, digital_reps: list<array{user_id: int, name: string, activities_90d: int}>}
      */
     public function getTeamPerformance(): array
     {
         $start = new \DateTime('-90 days');
 
+        /** @var array<int, array{id: int|string, firstName: string|null, lastName: string|null, roles: list<mixed>|null, cnt: int|string}> $rows */
         $rows = $this->activityRepository->createQueryBuilder('a')
             ->select('u.id, u.firstName, u.lastName, u.roles, COUNT(a.id) as cnt')
             ->join('a.user', 'u')

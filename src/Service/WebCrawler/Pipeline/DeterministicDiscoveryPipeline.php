@@ -90,6 +90,7 @@ final class DeterministicDiscoveryPipeline
         // 4–7. Classify, score, verify, extract for each domain
         $results = [];
         $passCount = 0;
+        /** @var list<\App\Service\WebCrawler\Seed\DirectorySeed> $directorySeeds */
         $directorySeeds = [];
 
         foreach ($crawledDomains as $domain => $crawledDomain) {
@@ -137,7 +138,7 @@ final class DeterministicDiscoveryPipeline
                         $sector,
                     );
                     if (!empty($seeds)) {
-                        $directorySeeds = array_merge($directorySeeds, $seeds);
+                        $directorySeeds = array_merge($directorySeeds, array_values($seeds));
                         $this->logger->info('[Pipeline] Extracted {n} seeds from directory {d}', [
                             'n' => \count($seeds),
                             'd' => $domain,

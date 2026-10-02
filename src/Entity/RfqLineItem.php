@@ -26,7 +26,7 @@ class RfqLineItem
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
     
     #[ORM\ManyToOne(targetEntity: RFQ::class, inversedBy: 'lineItems')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]

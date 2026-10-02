@@ -21,7 +21,8 @@ class PackagingFactorRepository extends ServiceEntityRepository
      */
     public function findActiveByCategory(string $category): ?PackagingFactor
     {
-        return $this->createQueryBuilder('p')
+        /** @var PackagingFactor|null $result */
+        $result = $this->createQueryBuilder('p')
             ->where('p.category = :category')
             ->andWhere('p.isActive = :active')
             ->setParameter('category', $category)
@@ -30,19 +31,26 @@ class PackagingFactorRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
      * Find all active packaging factors
+     *
+     * @return list<PackagingFactor>
      */
     public function findAllActive(): array
     {
-        return $this->createQueryBuilder('p')
+        /** @var list<PackagingFactor> $result */
+        $result = $this->createQueryBuilder('p')
             ->where('p.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('p.category', 'ASC')
 
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

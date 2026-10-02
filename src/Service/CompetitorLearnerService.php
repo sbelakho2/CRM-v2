@@ -123,6 +123,8 @@ class CompetitorLearnerService
 
     /**
      * Initialize seed competitors in database
+     *
+     * @return list<LearnedCompetitor>
      */
     public function seedCompetitors(): array
     {
@@ -166,7 +168,7 @@ class CompetitorLearnerService
      * @param string $content The scraped page content
      * @param string $sourceUrl The URL where content was scraped from
      * @param string $discoverySource The discovery source type
-     * @return array Newly discovered or updated competitors
+     * @return list<array{competitor: LearnedCompetitor, action: string}> Newly discovered or updated competitors
      */
     public function learnFromContent(
         string $content,
@@ -207,9 +209,9 @@ class CompetitorLearnerService
             $competitor = new LearnedCompetitor();
             $competitor->setDomain($potential['domain']);
             $competitor->setName($potential['name']);
-            $competitor->setFullName($potential['fullName'] ?? $potential['name']);
+            $competitor->setFullName($potential['name']);
             $competitor->setTier(3); // Start at lowest tier
-            $competitor->setIndustry($potential['industry'] ?? LearnedCompetitor::INDUSTRY_EMS);
+            $competitor->setIndustry($potential['industry']);
             $competitor->setDiscoverySource($discoverySource);
             $competitor->setDiscoveryContext("Discovered from: $sourceUrl");
             $competitor->setConfidenceScore(30); // Low initial confidence
@@ -238,6 +240,9 @@ class CompetitorLearnerService
 
     /**
      * Extract potential competitors from content
+     *
+     * @param string $sourceUrl Unused (kept for signature stability/log context in callers)
+     * @return list<array{domain: string, name: string, industry: string, keywords: list<string>}>
      */
     private function extractPotentialCompetitors(string $content, string $sourceUrl): array
     {
@@ -314,7 +319,7 @@ class CompetitorLearnerService
     private function domainToCompanyName(string $domain): string
     {
         // Remove TLD
-        $name = preg_replace('/\.[a-z]{2,}$/', '', $domain);
+        $name = preg_replace('/\.[a-z]{2,}$/', '', $domain) ?? $domain;
         
         // Convert hyphens to spaces
         $name = str_replace('-', ' ', $name);
@@ -369,6 +374,8 @@ class CompetitorLearnerService
 
     /**
      * Extract keywords near a domain mention
+     *
+     * @return list<string>
      */
     private function extractKeywordsNearMention(string $content, string $domain): array
     {
@@ -397,24 +404,32 @@ class CompetitorLearnerService
             }
         }
         
-        return array_unique($keywords);
+        return array_values(array_unique($keywords));
     }
 
     /**
      * Learn from Google Dork search results
-      * @param array<string|int, mixed> $searchResults
+     *
+     * @param array<int|string, mixed> $searchResults
+     * @return list<array{competitor: LearnedCompetitor, action: string}>
      */
     public function learnFromGoogleResults(array $searchResults): array
     {
         $discovered = [];
         
         foreach ($searchResults as $result) {
-            if (empty($result['snippet']) && empty($result['title'])) {
+            if (!is_array($result)) {
+                continue;
+            }
+            $title = is_string($result['title'] ?? null) ? $result['title'] : '';
+            $snippet = is_string($result['snippet'] ?? null) ? $result['snippet'] : '';
+            if ($snippet === '' && $title === '') {
                 continue;
             }
             
-            $content = ($result['title'] ?? '') . ' ' . ($result['snippet'] ?? '');
-            $sourceUrl = $result['link'] ?? 'google_search';
+            $content = $title . ' ' . $snippet;
+            $rawLink = $result['link'] ?? null;
+            $sourceUrl = is_string($rawLink) && $rawLink !== '' ? $rawLink : 'google_search';
             
             $found = $this->learnFromContent(
                 $content,
@@ -431,6 +446,8 @@ class CompetitorLearnerService
     /**
      * Get all learned competitors as a detection map
      * Returns format compatible with CompetitorDetectionService
+     *
+     * @return array<int, array<string, string|null>>
      */
     public function getCompetitorDetectionMap(): array
     {
@@ -444,7 +461,7 @@ class CompetitorLearnerService
         
         foreach ($competitors as $competitor) {
             $tier = $competitor->getTier();
-            $map[$tier][$competitor->getDomain()] = $competitor->getName();
+            $map[$tier][$competitor->getDomain() ?? ''] = $competitor->getName();
         }
         
         return $map;
@@ -496,8 +513,14 @@ class CompetitorLearnerService
         foreach ($duplicate->getAliases() as $alias) {
             $primary->addAlias($alias);
         }
-        $primary->addAlias($duplicate->getDomain());
-        $primary->addAlias($duplicate->getName());
+        $duplicateDomain = $duplicate->getDomain();
+        if (is_string($duplicateDomain) && $duplicateDomain !== '') {
+            $primary->addAlias($duplicateDomain);
+        }
+        $duplicateName = $duplicate->getName();
+        if (is_string($duplicateName) && $duplicateName !== '') {
+            $primary->addAlias($duplicateName);
+        }
         
         // Merge keywords
         foreach ($duplicate->getKeywords() as $keyword) {
@@ -526,6 +549,8 @@ class CompetitorLearnerService
 
     /**
      * Get statistics about learned competitors
+     *
+     * @return array{byTier: array<int|string, int>, byIndustry: array<int|string, int>, total: int, verified: int, highConfidence: int}
      */
     public function getStatistics(): array
     {

@@ -22,7 +22,8 @@ class WebinarService
         private WebinarRepository $webinarRepository,
         private WebinarAttendeeRepository $webinarAttendeeRepository,
         private \Psr\Log\LoggerInterface $logger,
-        private MailerInterface $mailer,
+        /** Never-read here, kept protected for subclass mail integrations. */
+        protected MailerInterface $mailer,
         private string $mailerFromAddress,
         private string $mailerFromName
     ) {}
@@ -65,7 +66,7 @@ class WebinarService
                     'SELECT id FROM webinar_attendees WHERE webinar_id = :wid AND email = :email',
                     ['wid' => $webinar->getId(), 'email' => $email]
                 );
-                if ($existingId !== null && $existingId !== false) {
+                if (is_numeric($existingId)) {
                     return (int) $existingId;
                 }
 
@@ -86,10 +87,12 @@ class WebinarService
                 }
 
                 if ($max !== null && $max > 0) {
-                    $liveCount = (int) $conn->fetchOne(
+                    /** @var int|string $liveCountRaw COUNT(*) always returns a value */
+                    $liveCountRaw = $conn->fetchOne(
                         'SELECT COUNT(*) FROM webinar_attendees WHERE webinar_id = :wid',
                         ['wid' => $webinar->getId()]
                     );
+                    $liveCount = (int) $liveCountRaw;
                     if ($liveCount >= $max) {
                         throw new \RuntimeException('This webinar is full.');
                     }
@@ -177,9 +180,12 @@ class WebinarService
     {
         if (!$attendee->isAttended()) {
             $attendee->setAttended(true);
-            
+
             // Increment attended count
             $webinar = $attendee->getWebinar();
+            if ($webinar === null) {
+                return;
+            }
             $webinar->setAttendedCount($webinar->getAttendedCount() + 1);
 
             $this->entityManager->persist($attendee);
@@ -204,11 +210,15 @@ class WebinarService
     public function sendFollowUpEmail(WebinarAttendee $attendee): void
     {
         $webinar = $attendee->getWebinar();
-        
+        $attendeeEmail = $attendee->getEmail();
+        if ($webinar === null || $attendeeEmail === null || $attendeeEmail === '') {
+            return;
+        }
+
         $email = (new TemplatedEmail())
             ->from(new Address($this->mailerFromAddress, $this->mailerFromName))
-            ->to($attendee->getEmail())
-            ->subject('Thank you for attending: ' . $webinar->getTitle())
+            ->to($attendeeEmail)
+            ->subject('Thank you for attending: ' . ($webinar->getTitle() ?? ''))
             ->htmlTemplate('emails/webinar_followup.html.twig')
             ->context([
                 'attendee' => $attendee,
@@ -223,6 +233,8 @@ class WebinarService
 
     /**
      * Get upcoming webinars
+     *
+     * @return list<Webinar>
      */
     public function getUpcomingWebinars(?string $language = null): array
     {
@@ -231,6 +243,8 @@ class WebinarService
 
     /**
      * Get past webinars
+     *
+     * @return list<Webinar>
      */
     public function getPastWebinars(?string $language = null): array
     {
@@ -239,6 +253,8 @@ class WebinarService
 
     /**
      * Get webinar statistics
+     *
+     * @return array{registered: int, attended: int, attendance_rate: float|int, follow_ups_sent: int, follow_up_rate: float|int}
      */
     public function getWebinarStats(Webinar $webinar): array
     {
@@ -264,6 +280,8 @@ class WebinarService
 
     /**
      * Get attendees who need follow-up
+     *
+     * @return list<WebinarAttendee>
      */
     public function getAttendeesNeedingFollowUp(Webinar $webinar): array
     {
@@ -275,10 +293,14 @@ class WebinarService
      */
     private function sendConfirmationEmail(WebinarAttendee $attendee): void
     {
+        $attendeeEmail = $attendee->getEmail();
+        if ($attendeeEmail === null || $attendeeEmail === '') {
+            throw new \RuntimeException('Attendee has no email address; confirmation cannot be sent.');
+        }
         $email = (new TemplatedEmail())
             ->from(new Address($this->mailerFromAddress, $this->mailerFromName))
-            ->to($attendee->getEmail())
-            ->subject('Webinar Registration Confirmation - ' . $attendee->getWebinar()->getTitle())
+            ->to($attendeeEmail)
+            ->subject('Webinar Registration Confirmation - ' . ($attendee->getWebinar()?->getTitle() ?? ''))
             ->htmlTemplate('emails/webinar_registration.html.twig')
             ->context([
                 'attendee' => $attendee,

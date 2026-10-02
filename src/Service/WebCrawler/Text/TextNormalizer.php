@@ -94,7 +94,10 @@ class TextNormalizer
 
         // 1. Unicode NFKC normalization
         if (function_exists('normalizer_normalize')) {
-            $text = \Normalizer::normalize($text, \Normalizer::FORM_KC) ?: $text;
+            $normalized = \Normalizer::normalize($text, \Normalizer::FORM_KC);
+            if (is_string($normalized) && $normalized !== '') {
+                $text = $normalized;
+            }
         }
 
         // 2. HTML entity decode (double-pass for nested entities like &amp;amp;)
@@ -142,12 +145,12 @@ class TextNormalizer
         $domain = strtolower(trim($domain, " \t\n\r\0\x0B."));
 
         // Strip www.
-        $domain = preg_replace('/^www\./', '', $domain);
+        $domain = preg_replace('/^www\./', '', $domain) ?? $domain;
 
         // IDN punycode → Unicode if intl extension available
         if (function_exists('idn_to_utf8')) {
             $unicode = idn_to_utf8($domain, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
-            if ($unicode !== false) {
+            if (is_string($unicode) && $unicode !== '') {
                 $domain = $unicode;
             }
         }

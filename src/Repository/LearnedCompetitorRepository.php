@@ -26,10 +26,13 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
 
     /**
      * Find all active competitors by tier
+          *
+     * @return list<LearnedCompetitor>
      */
     public function findActiveByTier(int $tier): array
     {
-        return $this->createQueryBuilder('c')
+        /** @var list<LearnedCompetitor> $results */
+        $results = $this->createQueryBuilder('c')
             ->where('c.active = :active')
             ->andWhere('c.tier = :tier')
             ->setParameter('active', true)
@@ -38,14 +41,19 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find all active competitors
+          *
+     * @return list<LearnedCompetitor>
      */
     public function findAllActive(): array
     {
-        return $this->createQueryBuilder('c')
+        /** @var list<LearnedCompetitor> $results */
+        $results = $this->createQueryBuilder('c')
             ->where('c.active = :active')
             ->setParameter('active', true)
             ->orderBy('c.tier', 'ASC')
@@ -53,14 +61,19 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find verified competitors only
+          *
+     * @return list<LearnedCompetitor>
      */
     public function findVerified(): array
     {
-        return $this->createQueryBuilder('c')
+        /** @var list<LearnedCompetitor> $results */
+        $results = $this->createQueryBuilder('c')
             ->where('c.active = :active')
             ->andWhere('c.verified = :verified')
             ->setParameter('active', true)
@@ -69,14 +82,19 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find competitors with high confidence (>= threshold)
+          *
+     * @return list<LearnedCompetitor>
      */
     public function findHighConfidence(int $minConfidence = 70): array
     {
-        return $this->createQueryBuilder('c')
+        /** @var list<LearnedCompetitor> $results */
+        $results = $this->createQueryBuilder('c')
             ->where('c.active = :active')
             ->andWhere('c.confidenceScore >= :minConfidence')
             ->setParameter('active', true)
@@ -85,14 +103,19 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find competitors pending verification
+          *
+     * @return list<LearnedCompetitor>
      */
     public function findPendingVerification(int $minDetections = 5): array
     {
-        return $this->createQueryBuilder('c')
+        /** @var list<LearnedCompetitor> $results */
+        $results = $this->createQueryBuilder('c')
             ->where('c.active = :active')
             ->andWhere('c.verified = :verified')
             ->andWhere('c.detectionCount >= :minDetections')
@@ -103,14 +126,19 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find competitors by industry
+          *
+     * @return list<LearnedCompetitor>
      */
     public function findByIndustry(string $industry): array
     {
-        return $this->createQueryBuilder('c')
+        /** @var list<LearnedCompetitor> $results */
+        $results = $this->createQueryBuilder('c')
             ->where('c.active = :active')
             ->andWhere('c.industry = :industry')
             ->setParameter('active', true)
@@ -120,16 +148,21 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Search competitors by name or alias
+          *
+     * @return list<LearnedCompetitor>
      */
     public function searchByName(string $query): array
     {
         $query = strtolower(trim($query));
         
-        return $this->createQueryBuilder('c')
+        /** @var list<LearnedCompetitor> $results */
+        $results = $this->createQueryBuilder('c')
             ->where('c.active = :active')
             ->andWhere('LOWER(c.name) LIKE :query OR LOWER(c.domain) LIKE :query OR LOWER(c.fullName) LIKE :query')
             ->setParameter('active', true)
@@ -138,10 +171,14 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Get competitor statistics
+     *
+     * @return array{byTier: array<int|string, int>, byIndustry: array<int|string, int>, total: int, verified: int, highConfidence: int}
      */
     public function getStatistics(): array
     {
@@ -173,8 +210,9 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
         ];
 
         foreach ($results as $row) {
-            $tier = $row['tier'];
-            $industry = $row['industry'];
+            $tier = is_scalar($row['tier'] ?? null) ? (string) $row['tier'] : 'unknown';
+            $industry = is_string($row['industry'] ?? null) ? $row['industry'] : 'unknown';
+            $count = is_numeric($row['count'] ?? null) ? (int) $row['count'] : 0;
 
             if (!isset($stats['byTier'][$tier])) {
                 $stats['byTier'][$tier] = 0;
@@ -183,11 +221,11 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
                 $stats['byIndustry'][$industry] = 0;
             }
 
-            $stats['byTier'][$tier] += (int) $row['count'];
-            $stats['byIndustry'][$industry] += (int) $row['count'];
-            $stats['total'] += (int) $row['count'];
-            $stats['verified'] = (int) ($row['verifiedCount'] ?? 0);
-            $stats['highConfidence'] = (int) ($row['highConfidenceCount'] ?? 0);
+            $stats['byTier'][$tier] += $count;
+            $stats['byIndustry'][$industry] += $count;
+            $stats['total'] += $count;
+            $stats['verified'] += is_numeric($row['verifiedCount'] ?? null) ? (int) $row['verifiedCount'] : 0;
+            $stats['highConfidence'] += is_numeric($row['highConfidenceCount'] ?? null) ? (int) $row['highConfidenceCount'] : 0;
         }
 
         return $stats;
@@ -195,12 +233,15 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
 
     /**
      * Find recently discovered competitors
+          *
+     * @return list<LearnedCompetitor>
      */
     public function findRecentlyDiscovered(int $days = 7, int $limit = 20): array
     {
         $since = new \DateTime("-{$days} days");
         
-        return $this->createQueryBuilder('c')
+        /** @var list<LearnedCompetitor> $results */
+        $results = $this->createQueryBuilder('c')
             ->where('c.firstDetectedAt >= :since')
             ->andWhere('c.active = :active')
             ->setParameter('since', $since)
@@ -209,24 +250,33 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find most frequently detected competitors
+          *
+     * @return list<LearnedCompetitor>
      */
     public function findMostFrequent(int $limit = 20): array
     {
-        return $this->createQueryBuilder('c')
+        /** @var list<LearnedCompetitor> $results */
+        $results = $this->createQueryBuilder('c')
             ->where('c.active = :active')
             ->setParameter('active', true)
             ->orderBy('c.detectionCount', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Get competitors as map for quick lookup (domain => entity)
+     *
+     * @return array<string, LearnedCompetitor>
      */
     public function getCompetitorMap(): array
     {
@@ -234,7 +284,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
         $map = [];
         
         foreach ($competitors as $competitor) {
-            $map[$competitor->getDomain()] = $competitor;
+            $map[$competitor->getDomain() ?? ''] = $competitor;
         }
         
         return $map;

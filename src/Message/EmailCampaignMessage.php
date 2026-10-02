@@ -19,6 +19,7 @@ class EmailCampaignMessage
 {
     public function __construct(
         private int $campaignId,
+        /** @var list<int> */
         private array $recipientIds,
         private int $touchNumber = 1,
         private int $retryAttempt = 1,
@@ -29,6 +30,7 @@ class EmailCampaignMessage
         return $this->campaignId;
     }
 
+    /** @return list<int> */
     public function getRecipientIds(): array
     {
         return $this->recipientIds;

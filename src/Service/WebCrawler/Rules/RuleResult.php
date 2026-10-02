@@ -17,6 +17,7 @@ final class RuleResult
     ) {
     }
 
+    /** @return array{rule: string, type: string, action: string, weight: int, matched: string, description: string|null} */
     public function toArray(): array
     {
         return [

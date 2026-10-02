@@ -19,32 +19,38 @@ class BomLineRepository extends ServiceEntityRepository
     /**
      * Find BOM lines by Quote ID
      *
-     * @return BomLine[]
+     * @return list<BomLine>
      */
     public function findByQuote(int $quoteId): array
     {
-        return $this->createQueryBuilder('b')
+        /** @var list<BomLine> $results */
+        $results = $this->createQueryBuilder('b')
             ->andWhere('b.quote = :quoteId')
             ->setParameter('quoteId', $quoteId)
             ->orderBy('b.lineNumber', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find lines with procurement exceptions
      *
-     * @return BomLine[]
+     * @return list<BomLine>
      */
     public function findWithExceptions(int $quoteId): array
     {
-        return $this->createQueryBuilder('b')
+        /** @var list<BomLine> $results */
+        $results = $this->createQueryBuilder('b')
             ->andWhere('b.quote = :quoteId')
             ->andWhere('b.hasException = :hasException')
             ->setParameter('quoteId', $quoteId)
             ->setParameter('hasException', true)
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
@@ -62,6 +68,8 @@ class BomLineRepository extends ServiceEntityRepository
 
     /**
      * Get coverage statistics for a quote
+     *
+     * @return array<string, int|string|null>
      */
     public function getCoverageStats(int $quoteId): array
     {
@@ -74,6 +82,9 @@ class BomLineRepository extends ServiceEntityRepository
             ->andWhere('b.quote = :quoteId')
             ->setParameter('quoteId', $quoteId);
 
-        return $qb->getQuery()->getSingleResult();
+        /** @var array<string, int|string|null> $row */
+        $row = $qb->getQuery()->getSingleResult();
+
+        return $row;
     }
 }

@@ -19,15 +19,20 @@ class ComplianceDocumentVersionRepository extends ServiceEntityRepository
     
     /**
      * Find all versions for a document
+     *
+     * @return list<ComplianceDocumentVersion>
      */
     public function findByDocument(ComplianceDocument $document): array
     {
-        return $this->createQueryBuilder('v')
+        /** @var list<ComplianceDocumentVersion> $results */
+        $results = $this->createQueryBuilder('v')
             ->where('v.document = :document')
             ->setParameter('document', $document)
             ->orderBy('v.versionNumber', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
     
     /**
@@ -35,7 +40,8 @@ class ComplianceDocumentVersionRepository extends ServiceEntityRepository
      */
     public function findCurrentVersion(ComplianceDocument $document): ?ComplianceDocumentVersion
     {
-        return $this->createQueryBuilder('v')
+        /** @var ComplianceDocumentVersion|null $result */
+        $result = $this->createQueryBuilder('v')
             ->where('v.document = :document')
             ->andWhere('v.isCurrent = true')
             ->setParameter('document', $document)
@@ -43,6 +49,8 @@ class ComplianceDocumentVersionRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
     
     /**
@@ -62,15 +70,20 @@ class ComplianceDocumentVersionRepository extends ServiceEntityRepository
     
     /**
      * Get version history summary for a document
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getVersionHistory(ComplianceDocument $document): array
     {
-        return $this->createQueryBuilder('v')
+        /** @var array<int, array<string, mixed>> $results */
+        $results = $this->createQueryBuilder('v')
             ->select('v.versionNumber', 'v.fileName', 'v.status', 'v.uploadedAt', 'v.uploadedBy', 'v.approvedBy', 'v.approvedAt', 'v.isCurrent')
             ->where('v.document = :document')
             ->setParameter('document', $document)
             ->orderBy('v.versionNumber', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 }

@@ -7,6 +7,7 @@ use Doctrine\Migrations\DependencyFactory;
 use Doctrine\Migrations\MigratorConfiguration;
 use Doctrine\Migrations\Version\Version;
 use Doctrine\ORM\Tools\SchemaValidator;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -67,7 +68,7 @@ class SafeMigrateCommand extends Command
 
             return Command::SUCCESS;
         }
-        foreach ($pending as $migration) {
+        foreach ($pending->getItems() as $migration) {
             $io->writeln(sprintf('  · %s', (string) $migration->getVersion()));
         }
 
@@ -124,12 +125,13 @@ class SafeMigrateCommand extends Command
         // ── 5. Verify restoration byte-for-byte ───────
         if ($preservationDone && $this->columnExists('compliance_documents', 'sha256_hash')) {
             $io->section('Step 5/6 · Verifying restored legacy compliance values');
-            $mismatches = (int) $this->connection->fetchOne(
+            $rawMismatches = $this->connection->fetchOne(
                 "SELECT COUNT(*) FROM compliance_legacy_preserved p
                  JOIN compliance_documents d ON d.id = p.document_id
                  WHERE (p.sha256_hash IS NOT NULL AND p.sha256_hash <> '' AND (d.sha256_hash IS NULL OR d.sha256_hash <> p.sha256_hash))
                     OR (p.version_id IS NOT NULL AND p.version_id <> '' AND (d.version_id IS NULL OR d.version_id <> p.version_id))"
             );
+            $mismatches = is_numeric($rawMismatches) ? (int) $rawMismatches : 0;
 
             if ($mismatches > 0) {
                 $io->error(sprintf(
@@ -154,6 +156,9 @@ class SafeMigrateCommand extends Command
         }
 
         $em = $this->managerRegistry->getManager();
+        if (!$em instanceof EntityManagerInterface) {
+            throw new \RuntimeException('Default entity manager is not an ORM entity manager.');
+        }
         $validator = new SchemaValidator($em);
         $mappingErrors = $validator->validateMapping();
         if ($mappingErrors !== []) {

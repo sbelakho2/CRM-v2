@@ -39,9 +39,17 @@ class FreightPricingService
     private const INSURANCE_RATE = 0.005; // 0.5%
 
     public function __construct(
-        private EntityManagerInterface $entityManager,
+
+        /**
+         * Not read yet; kept for future persistence of computed rates.
+         */
+        protected EntityManagerInterface $entityManager,
         private FreightTableRepository $freightTableRepository,
-        private RoutePreferenceRepository $routePreferenceRepository,
+
+        /**
+         * Not read yet; kept for future route-preference lookups.
+         */
+        protected RoutePreferenceRepository $routePreferenceRepository,
         private RouteSelectionService $routeSelectionService,
         private CurrencyPreferenceService $currencyPreferenceService,
         private ?LoggerInterface $logger = null
@@ -64,7 +72,9 @@ class FreightPricingService
      *   ratePerUnit: float,
      *   insurance: float,
      *   totalCost: float,
-     *   breakdown: array
+     *   transitDays: int|null,
+     *   carrier: string|null,
+     *   breakdown: array<string, mixed>
      * }
      */
     public function calculateFreight(
@@ -97,6 +107,7 @@ class FreightPricingService
         $originPort = $laneParts[0];
         $destinationPort = implode('-', array_slice($laneParts, 1));
         
+        /** @var \App\Entity\FreightTable|null $freightRate */
         $freightRate = $this->freightTableRepository->createQueryBuilder('ft')
             ->where('ft.originPort = :origin')
             ->andWhere('ft.destinationPort = :dest')
@@ -223,11 +234,12 @@ class FreightPricingService
      * @param \DateTime|null $asofDate - As-of date (defaults to today)
      * 
      * @return array{
-     *   ratePerKg: float|null,
-     *   ratePerCbm: float|null,
-     *   flatRate: float|null,
+     *   costPerUnit: float,
+     *   currency: string|null,
      *   containerType: string|null,
-     *   asof: \DateTime
+     *   transitDays: int|null,
+     *   carrier: string|null,
+     *   effectiveDate: \DateTimeInterface|null
      * }
      */
     public function getFreightRate(
@@ -245,6 +257,7 @@ class FreightPricingService
         
         [$originPort, $destinationPort] = $laneParts;
         
+        /** @var \App\Entity\FreightTable|null $freightRate */
         $freightRate = $this->freightTableRepository->createQueryBuilder('ft')
             ->where('ft.originPort = :origin')
             ->andWhere('ft.destinationPort = :dest')
@@ -281,7 +294,7 @@ class FreightPricingService
      * @param float $volumeM3 - Shipment volume
      * @param float $goodsValue - Goods value
      * 
-     * @return array - Array of route comparisons sorted by total cost
+     * @return list<array{laneCode: string, mode: string, rank: int|null, freight_cost: float, insurance: float, total_cost: float}> Array of route comparisons sorted by total cost
      */
     public function compareRoutePricing(
         string $destinationCountry,
@@ -305,24 +318,24 @@ class FreightPricingService
         
         foreach ($routes as $route) {
             try {
-                $laneCode = $route->getLaneCode();
+                $laneCode = (string) $route->getLaneCode();
+                if ($laneCode === '') {
+                    throw new \RuntimeException('Route preference has an empty lane code');
+                }
                 $cost = $this->calculateFreight($laneCode, $mode, $weightKg, $volumeM3, $goodsValue);
                 
                 $comparisons[] = [
                     'laneCode' => $laneCode,
-                    'routeCode' => $route->getRouteCode(),
                     'mode' => $mode,
                     'rank' => $route->getRank(),
                     'freight_cost' => $cost['freightCost'],
                     'insurance' => $cost['insurance'],
                     'total_cost' => $cost['totalCost'],
-                    'transit_days' => $route->getTransitDays()
                 ];
             } catch (\Throwable $e) {
                 // Skip routes without pricing — but log each skip so silent
                 // route dropouts are visible in the logs.
                 $this->logger?->warning('Route skipped in freight comparison (no pricing)', [
-                    'route_code' => $route->getRouteCode(),
                     'lane_code' => $route->getLaneCode(),
                     'mode' => $mode,
                     'destination' => $destinationCountry,
@@ -332,7 +345,7 @@ class FreightPricingService
         }
         
         // 4. Sort by total cost
-        usort($comparisons, fn($a, $b) => $a['total_cost'] <=> $b['total_cost']);
+        usort($comparisons, fn(array $a, array $b) => $a['total_cost'] <=> $b['total_cost']);
         
         return $comparisons;
     }
@@ -344,7 +357,7 @@ class FreightPricingService
      * @param float $weightKg - Shipment weight
      * @param float $volumeM3 - Shipment volume
      * 
-     * @return array - Simplified freight estimate
+     * @return array{estimatedFreight: float, estimatedInsurance: float, totalEstimate: float, mode: string, routeCode: string, transitDays: int|string|null, currency: string|null, note?: string} Simplified freight estimate
      */
     public function quickEstimate(
         string $destinationCountry,
@@ -364,7 +377,7 @@ class FreightPricingService
             $mode = $route['mode'];
             
             // 3. Calculate freight (assume $10k goods value)
-            $laneCode = $route['origin_port'] . '-' . $route['destination_port'];
+            $laneCode = ($route['origin_port'] ?? '') . '-' . ($route['destination_port'] ?? '');
             $cost = $this->calculateFreight($laneCode, $mode, $weightKg, $volumeM3, 10000);
             
             // 4. Return simplified estimate
@@ -373,9 +386,9 @@ class FreightPricingService
                 'estimatedInsurance' => $cost['insurance'],
                 'totalEstimate' => $cost['totalCost'],
                 'mode' => $mode,
-                'routeCode' => $route['route_code'],
+                'routeCode' => (string) ($route['route_code'] ?? ''),
                 'transitDays' => $route['transit_days'],
-                'currency' => $route['currency']
+                'currency' => $route['currency'] ?? $this->currencyPreferenceService->getDisplayCurrency(),
             ];
         } catch (\Exception $e) {
             // Fallback to generic estimate if no route found

@@ -33,6 +33,9 @@ use Doctrine\ORM\EntityManagerInterface;
  *   - FCL: flat rate per container (20GP / 40GP / 40HQ by volume)
  *
  * Used by: Landed-Cost Estimator, Quote Co-Pilot, FreightPricingService
+ *
+ * @phpstan-type RouteCandidate array{route_code: string|null, mode: string, origin_port: string|null, destination_port: string|null, transit_days: int, freight_cost: float, freight_currency: string, container_type: string|null, rank: int|null, base_currency: string, total_landed_cost: float|null, unresolved_reason: string|null, duty_amount?: float, duty_basis?: string, freight_cost_base?: float, currency?: string}
+ * @phpstan-type RankedRoute array{route_code: string|null, mode: string, origin_port: string|null, destination_port: string|null, transit_days: int, freight_cost: float, freight_currency: string, container_type: string|null, rank: int|null, base_currency: string, total_landed_cost: float|null, unresolved_reason: string|null, duty_amount?: float, duty_basis?: string, freight_cost_base?: float, currency?: string, duty_unresolved_candidates: list<RouteCandidate>}
  */
 class RouteSelectionService
 {
@@ -49,7 +52,11 @@ class RouteSelectionService
     ];
 
     public function __construct(
-        private EntityManagerInterface $entityManager,
+
+        /**
+         * Not read yet; kept for future DQL joins on route queries.
+         */
+        protected EntityManagerInterface $entityManager,
         private RoutePreferenceRepository $routePreferenceRepository,
         private FreightTableRepository $freightTableRepository,
         private CurrencyPreferenceService $currencyPreferenceService,
@@ -68,7 +75,7 @@ class RouteSelectionService
      * @param float $weightKg Total weight in kilograms
      * @param float $volumeM3 Total volume in cubic meters
      * @param string|null $origin Origin country code (default: 'MA' for Morocco)
-     * @return array Selected route: route_code, mode, origin_port,
+     * @return RankedRoute Selected route: route_code, mode, origin_port,
      *               destination_port, transit_days, freight_cost,
      *               total_landed_cost, currency (+ duty_unresolved_candidates)
      */
@@ -127,12 +134,18 @@ class RouteSelectionService
 
         if ($ranked === []) {
             if ($unresolved !== []) {
-                $reasons = array_unique(array_column($unresolved, 'unresolved_reason'));
+                $reasons = array_unique(array_map(
+                    static fn (array $c): string => (string) $c['unresolved_reason'],
+                    $unresolved
+                ));
                 throw new \RuntimeException(sprintf(
                     'Routes exist to %s but landed cost cannot be ranked (%s). Candidates: %s',
                     $destinationCountry,
                     implode(', ', $reasons),
-                    implode(', ', array_column($unresolved, 'route_code'))
+                    implode(', ', array_map(
+                        static fn (array $c): string => (string) $c['route_code'],
+                        $unresolved
+                    ))
                 ));
             }
 
@@ -176,7 +189,7 @@ class RouteSelectionService
     /**
      * Get all available routes for destination (ranked), honoring origin.
      *
-     * @return RoutePreference[] Active routes to $destinationCountry from
+     * @return list<RoutePreference> Active routes to $destinationCountry from
      *                          $origin's eligible ports, ordered by rank ASC.
      */
     public function rankRoutes(string $destinationCountry, ?string $origin = 'MA'): array
@@ -204,10 +217,13 @@ class RouteSelectionService
         }
         $qb->andWhere($expr->orX(...$ors));
 
-        return $qb
+        /** @var list<RoutePreference> $routes */
+        $routes = $qb
             ->orderBy('r.rank', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $routes;
     }
 
     /**
@@ -222,7 +238,7 @@ class RouteSelectionService
      *
      * @return array{cost: float, base_cost: float, rate_per_unit: float,
      *               currency: string, transit_days: int, container_type: ?string,
-     *               carrier: ?string, effective_date: ?string, surcharges: array}
+     *               carrier: ?string, effective_date: ?string, surcharges: array<string, float>}
      */
     public function getFreightCost(string $routeCode, string $mode, float $weightKg, float $volumeM3): array
     {
@@ -301,6 +317,7 @@ class RouteSelectionService
      *        Without them (or without tariff data), candidates report
      *        duty_basis=unresolved, total_landed_cost=null and sort AFTER
      *        every ranked candidate — "duty unknown" is never zero duty.
+     * @return list<RouteCandidate>
      */
     public function compareRoutes(
         string $destinationCountry,
@@ -363,7 +380,7 @@ class RouteSelectionService
      * it 1:1 against another currency.
      *
      * @param array{0: string, 1: float, 2: float, 3: string}|null $dutyInputs
-     * @return array|null null when the lane has no applicable freight rate;
+     * @return RouteCandidate|null null when the lane has no applicable freight rate;
      *                    otherwise a candidate row whose total_landed_cost is
      *                    null + unresolved_reason set when it cannot be ranked.
      */
@@ -390,7 +407,7 @@ class RouteSelectionService
             'mode' => $mode,
             'origin_port' => $laneDetails['origin_port'],
             'destination_port' => $laneDetails['destination_port'],
-            'transit_days' => $freightCost['transit_days'] ?? 7,
+            'transit_days' => $freightCost['transit_days'],
             'freight_cost' => $freightCost['cost'],
             'freight_currency' => $freightCost['currency'],
             'container_type' => $freightCost['container_type'] ?? null,
@@ -414,10 +431,8 @@ class RouteSelectionService
                     $destinationCountry,
                     $origin
                 );
-                if (isset($duty['dutyAmount'])) {
-                    $dutyAmount = (float) $duty['dutyAmount'];
-                    $dutyBasis = $duty['method'] ?? 'MFN';
-                }
+                $dutyAmount = (float) $duty['dutyAmount'];
+                $dutyBasis = $duty['method'];
             } catch (\Throwable) {
                 // tariff data unavailable: stays unresolved
             }
@@ -434,7 +449,7 @@ class RouteSelectionService
         }
 
         // ── Currency normalization: FAIL CLOSED for ranking ──
-        $rateCurrency = strtoupper((string) ($freightCost['currency'] ?? 'USD'));
+        $rateCurrency = strtoupper($freightCost['currency']);
         try {
             $freightNormalized = $this->currencyConverter->convertOrFail((float) $freightCost['cost'], $rateCurrency, $baseCurrency);
             $dutyNormalized = $this->currencyConverter->convertOrFail($dutyAmount, $baseCurrency, $baseCurrency);
@@ -558,8 +573,8 @@ class RouteSelectionService
         $ports = explode('-', $laneCode);
 
         return [
-            'origin_port' => $ports[0] ?? null,
-            'destination_port' => $ports[count($ports) - 1] ?? null,
+            'origin_port' => $ports[0],
+            'destination_port' => $ports[count($ports) - 1],
             'transit_ports' => array_slice($ports, 1, -1),
         ];
     }

@@ -49,8 +49,9 @@ use Doctrine\ORM\EntityManagerInterface;
  * @phpstan-import-type BomStats from \App\Service\PricingEngine
  * @phpstan-import-type ConfidenceInfo from \App\Service\PricingEngine
  * @phpstan-import-type PriceBreak from \App\Service\PricingEngine
- * @phpstan-type ParsedBomLine array{lineNumber: int, designator: string, mpn: string, manufacturer: string, quantity: int, description: string, value: string, package: string, supplier: string, supplier_pn: string, category: string, remark: string}
- * @phpstan-type BomInputLine array{lineNumber?: int, designator?: string, mpn: string, original_mpn?: string|null, manufacturer?: string|null, description?: string|null, quantity: int, value?: string, package?: string, supplier?: string, supplier_pn?: string, category?: string, remark?: string|null, stock_quantity?: int}
+ * @phpstan-import-type BomLine from \App\Service\BOMParser as ParserBomLine
+ * @phpstan-import-type OrderBomLine from \App\Service\BOMParser as ParserOrderBomLine
+ * @phpstan-import-type BomLine from \App\Service\PricingEngine as EngineBomLine
  * @phpstan-type PricedBomLine array{lineNumber?: int, designator?: string, mpn: string, manufacturer?: string|null, description?: string|null, quantity: int, value?: string, package?: string, supplier?: string, supplier_pn?: string, category?: string, remark?: string|null, stock_quantity?: int|null, firm_quantity?: bool|int, total_price?: int|float, unit_price?: int|float|null, leadtime_days?: int, status?: string, extended_price?: int|float|null, source?: string|null, confidence?: ConfidenceInfo, alternatives?: list<array<string, mixed>>, lifecycle_warning?: string|null, search_url?: string|null, product_url?: string|null, currency?: string|null, pricing?: list<PriceBreak>, moq?: int, pack_quantity?: int|null, multiple_quantity?: int|null, requested_quantity?: int, effective_quantity?: int, quantity_adjusted?: bool, quantity_adjustment_reason?: string|null, bom_price_capped?: bool, risk_analysis?: mixed, alt_mpn_used?: string|null, alt_mpn_savings_pct?: int|float, manual_notes?: string|null, alibaba_supplier?: string, alibaba_raw_description?: string, waterfall_info?: array{triggered: bool, reason?: string|null, sources_checked?: list<int|string>}, matched_mpn?: string|null, stock?: int|null, _source_url?: string|null, supplier_type?: mixed, trade_assurance?: mixed, shipping_from?: mixed, _fallback_method?: mixed, _original_mpn?: mixed, _fallback_mpn?: mixed, _fallback_keyword?: mixed}
  */
 class QuoteCoPilotService
@@ -103,11 +104,9 @@ class QuoteCoPilotService
     ): array {
         // 1. Parse BOM file
         $bomLines = $this->bomParser->parse($bomFilePath);
-        /** @var list<ParsedBomLine> $bomLines */
         $bomLines = $this->bomParser->consolidate($bomLines);
 
         // Validate BOM
-        /** @var list<string> $validationErrors */
         $validationErrors = $this->bomParser->validate($bomLines);
         if (!empty($validationErrors)) {
             throw new \RuntimeException('BOM validation failed: ' . implode(', ', $validationErrors));
@@ -146,7 +145,12 @@ class QuoteCoPilotService
         $this->entityManager->flush(); // Get quote ID
         
         // 3. Process BOM through API waterfall
-        $result = $this->pricingEngine->processBOM($bomLines);
+        // BOMParser declares stock_quantity as int|null while PricingEngine
+        // expects int (or absent); empty(null) and empty(absent) are handled
+        // identically downstream, so the narrowing is safe.
+        /** @var list<EngineBomLine> $engineLines */
+        $engineLines = $bomLines;
+        $result = $this->pricingEngine->processBOM($engineLines);
         $processedLines = $result['lines'];
         $stats = $result['stats'];
         
@@ -250,7 +254,7 @@ class QuoteCoPilotService
      * 
      * @param string $bomFilePath Path to the BOM file
      * @param string|null $extension Optional file extension (for uploaded files without extension in temp path)
-     * @return array<int, ParsedBomLine> Array of parsed BOM lines with keys: designator, mpn, manufacturer, qty, description, value
+     * @return list<ParserBomLine> Array of parsed BOM lines with keys: designator, mpn, manufacturer, qty, description, value
      */
     public function parseBom(string $bomFilePath, ?string $extension = null): array
     {
@@ -261,13 +265,12 @@ class QuoteCoPilotService
     /**
      * Round all BOM line quantities up to the nearest multiple.
      *
-     * @param array<int, BomInputLine> $bomData    Parsed BOM data (from parseBom())
+     * @param list<ParserBomLine> $bomData    Parsed BOM data (from parseBom())
      * @param int   $orderMultiple  Round quantities to this multiple (e.g. 10)
-     * @return array<int, BomInputLine>  BOM data with quantities rounded up
+     * @return list<ParserOrderBomLine>  BOM data with quantities rounded up
      */
     public function applyOrderMultiple(array $bomData, int $orderMultiple): array
     {
-        /** @var array<int, BomInputLine> */
         return $this->bomParser->applyOrderMultiple($bomData, $orderMultiple);
     }
 
@@ -277,12 +280,11 @@ class QuoteCoPilotService
      * Used when the BOM lists per-board quantities and the user wants to order
      * multiple boards (e.g., BOM qty=2, board_count=10 → final qty=20).
      *
-     * @param array<int, BomInputLine> $bomData
-     * @return array<int, BomInputLine>
+     * @param list<ParserBomLine> $bomData
+     * @return list<ParserBomLine>
      */
     public function applyBoardCount(array $bomData, int $boardCount): array
     {
-        /** @var array<int, BomInputLine> */
         return $this->bomParser->applyBoardCount($bomData, $boardCount);
     }
 
@@ -293,7 +295,7 @@ class QuoteCoPilotService
      * Alibaba/DigiKey/Mouser/Nexar waterfall with confidence scoring,
      * alt-MPN fallback, qty-aware re-evaluation, and BOM-price ceiling.
      * 
-     * @param array<int, BomInputLine> $bomData - Parsed BOM data (from BOMParser::parse())
+     * @param list<ParserBomLine>|list<array{mpn: string, original_mpn?: string|null, manufacturer?: string|null, description?: string|null, quantity: int, lineNumber?: int, stock_quantity?: int}> $bomData - Parsed BOM data (from BOMParser::parse() or regenerateQuote()'s entity-derived partial lines)
      * @param int $quoteId - Quote ID
      * @param array{providers?: list<string>} $options - Options: ['providers' => ['alibaba','mouser','digikey','nexar']]
      *
@@ -312,12 +314,18 @@ class QuoteCoPilotService
             throw new \RuntimeException('Quote not found');
         }
 
-        // Consolidate duplicate MPNs (same logic as CLI command)
-        /** @var list<BomInputLine> $bomLines */
-        $bomLines = $this->bomParser->consolidate($bomData);
+        // Consolidate duplicate MPNs (same logic as CLI command).
+        // regenerateQuote() may feed entity-derived partial lines; consolidate()
+        // reads only mpn/description/designator/quantity (+ optional enrichments
+        // guarded by empty()) so absent keys are safe.
+        /** @var list<ParserBomLine> $parserLines */
+        $parserLines = $bomData;
+        $bomLines = $this->bomParser->consolidate($parserLines);
 
         // ── Run the REAL PricingEngine waterfall ──
-        $result = $this->pricingEngine->processBOM($bomLines, $options);
+        /** @var list<EngineBomLine> $engineLines */
+        $engineLines = $bomLines;
+        $result = $this->pricingEngine->processBOM($engineLines, $options);
         $processedLines = $result['lines'];
         $stats = $result['stats'];
 
@@ -529,7 +537,7 @@ class QuoteCoPilotService
             // absent key and a null value identically via ?? / empty().
             $entry = [
                 'mpn' => $bomLine->getMpn() ?? '',
-                'original_mpn' => $bomLine->getOriginalMpn() ?? $bomLine->getMpn(),
+                'original_mpn' => $bomLine->getOriginalMpn() ?? $bomLine->getMpn() ?? '',
                 'manufacturer' => $bomLine->getManufacturer(),
                 'description' => $bomLine->getDescription() ?? $bomLine->getBomDescription(),
                 'quantity' => $bomLine->getQuantity() ?? 1,

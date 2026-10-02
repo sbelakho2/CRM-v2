@@ -25,7 +25,7 @@ class EmailTemplate
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $name = null;
@@ -51,6 +51,7 @@ class EmailTemplate
     #[ORM\Column]
     private bool $isActive = true;
 
+    /** @var list<string>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $personalizationTokens = null; // List of available tokens
 
@@ -176,11 +177,13 @@ class EmailTemplate
         return $this;
     }
 
+    /** @return list<string>|null */
     public function getPersonalizationTokens(): ?array
     {
         return $this->personalizationTokens;
     }
 
+    /** @param list<string>|null $personalizationTokens */
     public function setPersonalizationTokens(?array $personalizationTokens): self
     {
         $this->personalizationTokens = $personalizationTokens;

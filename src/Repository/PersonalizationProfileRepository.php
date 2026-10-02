@@ -55,10 +55,13 @@ class PersonalizationProfileRepository extends ServiceEntityRepository
 
     /**
      * Find high-engagement profiles
+          *
+     * @return list<PersonalizationProfile>
      */
     public function findHighEngagement(int $minOpens = 5, int $minReplies = 1): array
     {
-        return $this->createQueryBuilder('p')
+        /** @var list<PersonalizationProfile> $results */
+        $results = $this->createQueryBuilder('p')
             ->where('p.emailsOpened >= :minOpens')
             ->andWhere('p.emailsReplied >= :minReplies')
             ->setParameter('minOpens', $minOpens)
@@ -67,23 +70,32 @@ class PersonalizationProfileRepository extends ServiceEntityRepository
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find profiles with embeddings (for similarity search)
+          *
+     * @return list<PersonalizationProfile>
      */
     public function findWithEmbeddings(): array
     {
-        return $this->createQueryBuilder('p')
+        /** @var list<PersonalizationProfile> $results */
+        $results = $this->createQueryBuilder('p')
             ->where('p.featureEmbedding IS NOT NULL')
             ->andWhere('p.emailsOpened > 0')
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Get profiles by preferred tone
+          *
+     * @return list<PersonalizationProfile>
      */
     public function findByPreferredTone(string $tone): array
     {
@@ -92,6 +104,8 @@ class PersonalizationProfileRepository extends ServiceEntityRepository
 
     /**
      * Get aggregate statistics
+     *
+     * @return array<string, int|float|string|null>
      */
     public function getStatistics(): array
     {
@@ -103,7 +117,10 @@ class PersonalizationProfileRepository extends ServiceEntityRepository
                 SUM(p.emailsOpened) as totalOpens,
                 SUM(p.emailsReplied) as totalReplies
             ');
-        
-        return $qb->getQuery()->getSingleResult();
+
+        /** @var array<string, int|float|string|null> $row */
+        $row = $qb->getQuery()->getSingleResult();
+
+        return $row;
     }
 }

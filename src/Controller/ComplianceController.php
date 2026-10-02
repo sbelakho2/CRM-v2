@@ -91,13 +91,13 @@ class ComplianceController extends AbstractController
             'xls' => 'application/vnd.ms-excel',
             'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ];
-        $extension = strtolower(pathinfo($document->getFilePath(), PATHINFO_EXTENSION));
+        $extension = strtolower(pathinfo($document->getFilePath() ?? '', PATHINFO_EXTENSION));
 
         $response = new BinaryFileResponse($filePath);
         $response->headers->set('Content-Type', $contentTypes[$extension] ?? 'application/octet-stream');
         $response->headers->set(
             'Content-Disposition',
-            'attachment; filename="' . basename($document->getFilePath()) . '"'
+            'attachment; filename="' . basename($document->getFilePath() ?? '') . '"'
         );
         $response->headers->set('X-Content-Type-Options', 'nosniff');
 
@@ -107,8 +107,8 @@ class ComplianceController extends AbstractController
     #[Route('/document/{id}/delete', name: 'app_compliance_delete', methods: ['POST'])]
     public function deleteDocument(Request $request, ComplianceDocument $document): Response
     {
-        if ($this->isCsrfTokenValid('delete'.$document->getId(), $request->request->get('_token'))) {
-            $companyId = $document->getCompany()->getId();
+        if ($this->isCsrfTokenValid('delete'.$document->getId(), $request->request->getString('_token'))) {
+            $companyId = $document->getCompany()?->getId();
 
             // Reset the checklist row. The physical file is deliberately KEPT
             // when version records reference it: version history must never
@@ -148,17 +148,19 @@ class ComplianceController extends AbstractController
     #[Route('/document/{id}/upload', name: 'app_compliance_upload', methods: ['POST'])]
     public function uploadDocument(Request $request, ComplianceDocument $document): Response
     {
-        if (!$this->isCsrfTokenValid('upload'.$document->getId(), $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('upload'.$document->getId(), $request->request->getString('_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
         $file = $request->files->get('file');
-        if (!$file) {
+        if (!$file instanceof \Symfony\Component\HttpFoundation\File\UploadedFile) {
             $this->addFlash('danger', $this->translator->trans('compliance.error.no_file'));
-            return $this->redirectToRoute('app_compliance_company', ['id' => $document->getCompany()->getId()]);
+            return $this->redirectToRoute('app_compliance_company', ['id' => $document->getCompany()?->getId()]);
         }
 
-        $uploadDir = $this->getParameter('kernel.project_dir').'/var/uploads/compliance';
+        /** @var string $projectDir */
+        $projectDir = $this->getParameter('kernel.project_dir');
+        $uploadDir = $projectDir.'/var/uploads/compliance';
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0775, true);
         }
@@ -232,9 +234,10 @@ class ComplianceController extends AbstractController
             // and deleting bytes would leave version history pointing at
             // nothing. Retention/purge is a separate explicit mechanism.
 
+            $uploadCompany = $document->getCompany();
             $this->guidanceService->afterComplianceDocumentUploaded(
-                (string) $document->getCompany()->getName(),
-                (int) $document->getCompany()->getId()
+                $uploadCompany?->getName() ?? '',
+                (int) $uploadCompany?->getId()
             );
 
             $this->addFlash('success', $this->translator->trans('compliance.flash.document_uploaded', [
@@ -250,13 +253,13 @@ class ComplianceController extends AbstractController
             $this->addFlash('danger', $this->translator->trans('compliance.error.upload_failed'));
         }
 
-        return $this->redirectToRoute('app_compliance_company', ['id' => $document->getCompany()->getId()]);
+        return $this->redirectToRoute('app_compliance_company', ['id' => $document->getCompany()?->getId()]);
     }
 
     #[Route('/document/{id}/toggle-required', name: 'app_compliance_toggle_required', methods: ['POST'])]
     public function toggleRequired(Request $request, ComplianceDocument $document): Response
     {
-        if ($this->isCsrfTokenValid('toggle'.$document->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('toggle'.$document->getId(), $request->request->getString('_token'))) {
             $document->setRequired(!$document->isRequired());
             $this->entityManager->flush();
 
@@ -264,7 +267,7 @@ class ComplianceController extends AbstractController
         }
 
         return $this->redirectToRoute('app_compliance_company', [
-            'id' => $document->getCompany()->getId()
+            'id' => $document->getCompany()?->getId()
         ]);
     }
     
@@ -277,9 +280,9 @@ class ComplianceController extends AbstractController
     #[Route('/document/{id}/snooze', name: 'app_compliance_snooze', methods: ['POST'])]
     public function snoozeDocument(Request $request, ComplianceDocument $document): Response
     {
-        if ($this->isCsrfTokenValid('snooze'.$document->getId(), $request->request->get('_token'))) {
-            $days = (int) $request->request->get('days', 7);
-            $reason = $request->request->get('reason', '');
+        if ($this->isCsrfTokenValid('snooze'.$document->getId(), $request->request->getString('_token'))) {
+            $days = $request->request->getInt('days', 7);
+            $reason = $request->request->getString('reason', '');
             
             // Validate days (min 1, max 90)
             $days = max(1, min(90, $days));
@@ -293,13 +296,13 @@ class ComplianceController extends AbstractController
             
             $this->addFlash('success', $this->translator->trans('compliance.flash.alerts_snoozed', [
                 '%days%' => $days,
-                '%until%' => $document->getSnoozedUntil()->format('M j, Y'),
+                '%until%' => $document->getSnoozedUntil()?->format('M j, Y') ?? '',
             ]));
         }
         
         // Redirect back to company compliance page
         return $this->redirectToRoute('app_compliance_company', [
-            'id' => $document->getCompany()->getId()
+            'id' => $document->getCompany()?->getId()
         ]);
     }
     
@@ -309,7 +312,7 @@ class ComplianceController extends AbstractController
     #[Route('/document/{id}/unsnooze', name: 'app_compliance_unsnooze', methods: ['POST'])]
     public function unsnoozeDocument(Request $request, ComplianceDocument $document): Response
     {
-        if ($this->isCsrfTokenValid('unsnooze'.$document->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('unsnooze'.$document->getId(), $request->request->getString('_token'))) {
             $document->clearSnooze();
             $this->entityManager->flush();
             
@@ -318,7 +321,7 @@ class ComplianceController extends AbstractController
         
         // Redirect back to company compliance page
         return $this->redirectToRoute('app_compliance_company', [
-            'id' => $document->getCompany()->getId()
+            'id' => $document->getCompany()?->getId()
         ]);
     }
 
@@ -340,6 +343,7 @@ class ComplianceController extends AbstractController
                 ->setParameter('sector', $sector);
         }
 
+        /** @var list<\App\Entity\Company> $companies */
         $companies = $queryBuilder->getQuery()->getResult();
 
         $complianceData = [];
@@ -366,6 +370,9 @@ class ComplianceController extends AbstractController
         ]);
     }
 
+    /**
+     * @return array{0: list<array{value: string, label: string}>, 1: array<string, string>}
+     */
     private function buildSectorOptions(): array
     {
         $sectorKeys = [
@@ -403,7 +410,7 @@ class ComplianceController extends AbstractController
     #[Route('/company/{id}/generate-pack', name: 'app_compliance_generate_pack', methods: ['POST'])]
     public function generatePack(Request $request, Company $company): Response
     {
-        if ($this->isCsrfTokenValid('generate'.$company->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('generate'.$company->getId(), $request->request->getString('_token'))) {
             // Reconciliation is idempotent and non-destructive: uploaded
             // files, expiry dates, approval status and document versions are
             // preserved. Never delete existing document rows here.
@@ -427,7 +434,9 @@ class ComplianceController extends AbstractController
             return null;
         }
 
-        $base = realpath($this->getParameter('kernel.project_dir').'/var/uploads/compliance');
+        /** @var string $projectDir */
+        $projectDir = $this->getParameter('kernel.project_dir');
+        $base = realpath($projectDir.'/var/uploads/compliance');
         if ($base === false) {
             return null;
         }

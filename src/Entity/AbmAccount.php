@@ -28,7 +28,7 @@ class AbmAccount
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $accountName = null;
@@ -40,13 +40,13 @@ class AbmAccount
     private ?string $icpTier = null; // Tier1, Tier2, Tier3
 
     #[ORM\Column(nullable: true)]
-    private ?int $engagementScore = 0;
+    protected ?int $engagementScore = 0;
 
     #[ORM\Column(nullable: true)]
-    private ?int $totalVisits = 0;
+    protected ?int $totalVisits = 0;
 
     #[ORM\Column(nullable: true)]
-    private ?int $totalPageViews = 0;
+    protected ?int $totalPageViews = 0;
 
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $firstSeenAt = null;
@@ -54,6 +54,7 @@ class AbmAccount
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $lastActivityAt = null;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $metadata = null;
 
@@ -67,6 +68,7 @@ class AbmAccount
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Company $company = null;
 
+    /** @var Collection<int, AbmHit> */
     #[ORM\OneToMany(mappedBy: 'abmAccount', targetEntity: AbmHit::class, cascade: ['persist'])]
     private Collection $abmHits;
 
@@ -185,11 +187,13 @@ class AbmAccount
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getMetadata(): ?array
     {
         return $this->metadata;
     }
 
+    /** @param array<string, mixed>|null $metadata */
     public function setMetadata(?array $metadata): self
     {
         $this->metadata = $metadata;

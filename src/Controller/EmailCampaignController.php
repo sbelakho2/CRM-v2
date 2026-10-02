@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\EmailCampaign;
+use App\Entity\User;
 use App\Entity\EmailSend;
 use App\Entity\Contact;
 use App\Form\EmailCampaignType;
@@ -54,6 +55,7 @@ class EmailCampaignController extends AbstractController
             $qb->andWhere('c.language = :language')->setParameter('language', $language);
         }
 
+        /** @var list<EmailCampaign> $campaigns */
         $campaigns = $qb->getQuery()->getResult();
 
         // Batch metrics for all campaigns in a single aggregate query
@@ -83,10 +85,13 @@ class EmailCampaignController extends AbstractController
             $this->entityManager->flush();
 
             // Provide guidance for campaign workflow
-            $this->guidanceService->afterEmailCampaignCreated(
-                $campaign->getId(),
-                $campaign->getName()
-            );
+            $campaignId = $campaign->getId();
+            if ($campaignId !== null) {
+                $this->guidanceService->afterEmailCampaignCreated(
+                    $campaignId,
+                    $campaign->getName() ?? ''
+                );
+            }
 
             $this->addFlash('success', $this->translator->trans('email_campaign.flash.created'));
             return $this->redirectToRoute('app_email_campaign_show', ['id' => $campaign->getId()]);
@@ -111,8 +116,9 @@ class EmailCampaignController extends AbstractController
         // Get sends grouped by touch number (recipient contacts joined in
         // one query instead of lazy-loading each send's contact)
         $sendsByTouch = [];
-        foreach ($this->emailSendRepository->findByCampaignWithContact($campaign->getId()) as $send) {
-            $touchNum = $send->getTouchNumber();
+        $campaignId = (int) $campaign->getId();
+        foreach ($this->emailSendRepository->findByCampaignWithContact($campaignId) as $send) {
+            $touchNum = $send->getTouchNumber() ?? 0;
             if (!isset($sendsByTouch[$touchNum])) {
                 $sendsByTouch[$touchNum] = [];
             }
@@ -205,10 +211,11 @@ class EmailCampaignController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function delete(Request $request, EmailCampaign $campaign): Response
     {
-        if ($this->isCsrfTokenValid('delete'.$campaign->getId(), $request->request->get('_token'))) {
+        $user = $this->getUser();
+        if ($this->isCsrfTokenValid('delete'.$campaign->getId(), $request->request->getString('_token')) && $user instanceof User) {
             // Campaigns carry send/open/click/reply/bounce history: they are
             // archived, never hard-deleted.
-            $campaign->archive($this->getUser(), 'Archived from campaigns list');
+            $campaign->archive($user, 'Archived from campaigns list');
             $this->entityManager->flush();
 
             $this->addFlash('success', $this->translator->trans('email_campaign.flash.deleted'));
@@ -229,7 +236,7 @@ class EmailCampaignController extends AbstractController
             return $this->redirectToRoute('app_email_campaign_show', ['id' => $campaign->getId()]);
         }
 
-        if ($this->isCsrfTokenValid('toggle'.$campaign->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('toggle'.$campaign->getId(), $request->request->getString('_token'))) {
             // Transition methods enforce lifecycle invariants (archived is
             // never re-activatable; pause/activate keep status coherent).
             $campaign->isActive() ? $campaign->pause() : $campaign->activate();
@@ -254,17 +261,20 @@ class EmailCampaignController extends AbstractController
 
         if ($request->isMethod('POST')) {
             // CSRF validation for mass email send
-            $csrfToken = $request->request->get('_token');
+            $csrfToken = $request->request->getString('_token');
             if (!$this->isCsrfTokenValid('campaign_send' . $campaign->getId(), $csrfToken)) {
                 throw $this->createAccessDeniedException('Invalid CSRF token');
             }
 
             // Handle both form-encoded and JSON payloads
-            $contentType = $request->headers->get('Content-Type', '');
-            if (str_contains($contentType, 'application/json')) {
+            $contentType = $request->headers->get('Content-Type');
+            if (str_contains($contentType ?? '', 'application/json')) {
+                /** @var array<string, mixed> $data */
                 $data = json_decode($request->getContent(), true) ?? [];
-                $contactIds = $data['contacts'] ?? [];
-                $touchNumber = (int) ($data['touch_number'] ?? 1);
+                /** @var list<mixed> $contactIds */
+                $contactIds = is_array($data['contacts'] ?? null) ? $data['contacts'] : [];
+                $touchNumberRaw = $data['touch_number'] ?? 1;
+                $touchNumber = is_scalar($touchNumberRaw) ? (int) $touchNumberRaw : 1;
             } else {
                 $contactIds = $request->request->all('contacts');
                 $touchNumber = (int) $request->request->get('touch_number', 1);
@@ -297,7 +307,7 @@ class EmailCampaignController extends AbstractController
             }
 
             // Provide guidance after sending campaign
-            $this->guidanceService->afterEmailCampaignSent($campaign->getId(), $sentCount);
+            $this->guidanceService->afterEmailCampaignSent((int) $campaign->getId(), $sentCount);
 
             $this->addFlash('success', $this->translator->trans('email_campaign.flash.sent_count', ['%count%' => $sentCount]));
             if ($skippedCount > 0 || $failedCount > 0) {
@@ -371,8 +381,9 @@ class EmailCampaignController extends AbstractController
     {
         /** @var string|int|float|bool|null $sig */
         $sig = $request->query->get('sig');
+        $signature = is_string($sig) ? $sig : null;
 
-        if (!$send->isOpened() && $send->getId() && $this->trackingSigner->verifyOpen($send->getId(), $sig)) {
+        if (!$send->isOpened() && $send->getId() && $this->trackingSigner->verifyOpen($send->getId(), $signature)) {
             $this->campaignService->markOpened($send);
         }
 
@@ -389,8 +400,9 @@ class EmailCampaignController extends AbstractController
         $url = (string)$request->query->get('url', '/');
         /** @var string|int|float|bool|null $sig */
         $sig = $request->query->get('sig');
+        $signature = is_string($sig) ? $sig : null;
 
-        $isSigned = $send->getId() && $this->trackingSigner->verifyClick($send->getId(), $url, $sig);
+        $isSigned = $send->getId() && $this->trackingSigner->verifyClick($send->getId(), $url, $signature);
 
         // Without a valid signature, allow only relative URLs or same-host absolute URLs.
         // This prevents using this endpoint as an open redirect.
@@ -428,7 +440,7 @@ class EmailCampaignController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function markReplied(EmailSend $send, Request $request): Response
     {
-        if (!$this->isCsrfTokenValid('mark_replied' . $send->getId(), $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('mark_replied' . $send->getId(), $request->request->getString('_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token');
         }
 
@@ -437,14 +449,14 @@ class EmailCampaignController extends AbstractController
         $this->addFlash('success', $this->translator->trans('email_campaign.flash.replied'));
         
         // Redirect back to campaign show page
-        return $this->redirectToRoute('app_email_campaign_show', ['id' => $send->getCampaign()->getId()]);
+        return $this->redirectToRoute('app_email_campaign_show', ['id' => (int) $send->getCampaign()?->getId()]);
     }
 
     #[Route('/send/{id}/mark-bounced', name: 'app_email_send_mark_bounced', methods: ['POST'])]
     #[IsGranted('ROLE_USER')]
     public function markBounced(EmailSend $send, Request $request): Response
     {
-        if (!$this->isCsrfTokenValid('mark_bounced' . $send->getId(), $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('mark_bounced' . $send->getId(), $request->request->getString('_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token');
         }
 
@@ -453,6 +465,6 @@ class EmailCampaignController extends AbstractController
         $this->addFlash('success', $this->translator->trans('email_campaign.flash.bounced'));
         
         // Redirect back to campaign show page
-        return $this->redirectToRoute('app_email_campaign_show', ['id' => $send->getCampaign()->getId()]);
+        return $this->redirectToRoute('app_email_campaign_show', ['id' => (int) $send->getCampaign()?->getId()]);
     }
 }

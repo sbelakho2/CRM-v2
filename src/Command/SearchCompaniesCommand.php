@@ -71,13 +71,13 @@ HELP
         
         /** @var string $query */
         $query = $input->getArgument('query');
-        $limit = (int)$input->getOption('limit');
-        /** @var mixed $import */
-        $import = $input->getOption('import');
-        /** @var mixed $sector */
-        $sector = $input->getOption('sector');
-        /** @var mixed $location */
-        $location = $input->getOption('location');
+        $limitOpt = $input->getOption('limit');
+        $limit = is_numeric($limitOpt) ? (int) $limitOpt : 10;
+        $import = (bool) $input->getOption('import');
+        $sectorOpt = $input->getOption('sector');
+        $sector = is_string($sectorOpt) && $sectorOpt !== '' ? $sectorOpt : null;
+        $locationOpt = $input->getOption('location');
+        $location = is_string($locationOpt) && $locationOpt !== '' ? $locationOpt : null;
         /** @var mixed $dryRun */
         $dryRun = $input->getOption('dry-run');
 
@@ -112,8 +112,8 @@ HELP
 
         try {
             // Perform search — use location if provided, otherwise generic
-            if ($sector) {
-                $results = $this->googleSearchService->searchBySector($sector, $location ?: 'all', $limit);
+            if ($sector !== null) {
+                $results = $this->googleSearchService->searchBySector($sector, $location ?? 'all', $limit);
             } else {
                 if ($limit > 10) {
                     $clamped = min($limit, 50);
@@ -170,6 +170,9 @@ HELP
         }
     }
 
+    /**
+     * @param list<array{title: string, link: string, snippet: string, displayLink: string, formattedUrl: string, htmlSnippet: string, cacheId: string|null, pagemap: array<array-key, mixed>}> $results
+     */
     private function importLeads(array $results, string $source, ?string $location, ?string $sector, SymfonyStyle $io): int
     {
         $imported = 0;
@@ -209,10 +212,13 @@ HELP
             }
 
             // Extract additional info from pagemap if available
-            if (isset($result['pagemap']['organization'])) {
-                $org = $result['pagemap']['organization'][0] ?? [];
-                if (isset($org['name'])) {
-                    $lead->setCompanyName($org['name']);
+            $pagemap = $result['pagemap'];
+            $organization = is_array($pagemap['organization'] ?? null) ? $pagemap['organization'] : [];
+            $firstOrg = $organization[0] ?? null;
+            if (is_array($firstOrg)) {
+                $orgName = $firstOrg['name'] ?? null;
+                if (is_string($orgName) && $orgName !== '') {
+                    $lead->setCompanyName($orgName);
                 }
             }
 
@@ -235,7 +241,8 @@ HELP
     private function cleanCompanyName(string $title): string
     {
         // Remove common suffixes from title
-        $title = preg_replace('/\s*[-|]\s*.+$/', '', $title);
+        $title = preg_replace('/\s*[-|]\s*.+$/', '', $title) ?? $title;
+
         return trim($title);
     }
 

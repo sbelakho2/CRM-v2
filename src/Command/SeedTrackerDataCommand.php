@@ -52,6 +52,7 @@ class SeedTrackerDataCommand extends Command
 
             $spreadsheet = IOFactory::load($trackerFile);
             $worksheet = $spreadsheet->getActiveSheet();
+            /** @var list<list<mixed>> $rows */
             $rows = $worksheet->toArray();
 
             // Skip header row
@@ -62,14 +63,19 @@ class SeedTrackerDataCommand extends Command
                 if (empty($row[0])) continue; // Skip empty rows
 
                 $company = new Company();
-                $company->setName($row[1] ?? 'Unknown');
-                $company->setWebsite($row[3] ?? null);
-                $company->setRegion($row[2] ?? null);
+                $name = $row[1] ?? 'Unknown';
+                $company->setName(is_scalar($name) ? (string) $name : 'Unknown');
+                $website = $row[3] ?? null;
+                $company->setWebsite(is_scalar($website) ? (string) $website : null);
+                $region = $row[2] ?? null;
+                $company->setRegion(is_scalar($region) ? (string) $region : null);
 
                 $portal = new SupplierPortal();
                 $portal->setCompany($company);
-                $portal->setPortalUrl($row[7] ?? null);
-                $portal->setNotes($row[8] ?? null);
+                $portalUrl = $row[7] ?? null;
+                $portal->setPortalUrl(is_scalar($portalUrl) ? (string) $portalUrl : null);
+                $notes = $row[8] ?? null;
+                $portal->setNotes(is_scalar($notes) ? (string) $notes : null);
 
                 $this->entityManager->persist($company);
                 $this->entityManager->persist($portal);

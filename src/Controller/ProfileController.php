@@ -23,6 +23,9 @@ class ProfileController extends AbstractController
     public function index(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $passwordHasher, TranslatorInterface $translator, UserRepository $userRepository): Response
     {
         $user = $this->getUser();
+        if (!$user instanceof \App\Entity\User) {
+            throw $this->createAccessDeniedException('Authentication required.');
+        }
 
         $form = $this->createForm(ChangePasswordType::class);
         $form->handleRequest($request);
@@ -48,7 +51,7 @@ class ProfileController extends AbstractController
         if ($preferenceForm->isSubmitted() && $preferenceForm->isValid()) {
             $em->flush();
             $preferredLocale = $user->getPreferredLocale();
-            if ($preferredLocale) {
+            if ($preferredLocale !== null && $preferredLocale !== '') {
                 $request->setLocale($preferredLocale);
                 if ($request->hasSession()) {
                     $request->getSession()->set('_locale', $preferredLocale);
@@ -61,7 +64,11 @@ class ProfileController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             // Verify current password
             $currentPassword = $form->get('currentPassword')->getData();
-            
+            if (!is_string($currentPassword) || $currentPassword === '') {
+                $this->addFlash('error', 'profile.flash.current_password_incorrect');
+                return $this->redirectToRoute('profile_index');
+            }
+
             if (!$passwordHasher->isPasswordValid($user, $currentPassword)) {
                 $this->addFlash('error', 'profile.flash.current_password_incorrect');
                 return $this->redirectToRoute('profile_index');
@@ -69,6 +76,10 @@ class ProfileController extends AbstractController
 
             // Update password
             $newPassword = $form->get('newPassword')->getData();
+            if (!is_string($newPassword) || $newPassword === '') {
+                // Form validation (NotBlank) makes this unreachable in practice.
+                return $this->redirectToRoute('profile_index');
+            }
             $hashedPassword = $passwordHasher->hashPassword($user, $newPassword);
             $user->setPassword($hashedPassword);
             

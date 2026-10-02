@@ -25,7 +25,7 @@ class RfqVersion
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
     
     #[ORM\ManyToOne(targetEntity: RFQ::class, inversedBy: 'versions')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -47,6 +47,7 @@ class RfqVersion
     #[ORM\Column(type: 'decimal', precision: 15, scale: 2, nullable: true)]
     private ?string $estimatedValue = null;
     
+    /** @var list<array<string, mixed>>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $lineItemsSnapshot = null;
     
@@ -153,11 +154,13 @@ class RfqVersion
         return $this;
     }
     
+    /** @return list<array<string, mixed>>|null */
     public function getLineItemsSnapshot(): ?array
     {
         return $this->lineItemsSnapshot;
     }
     
+    /** @param list<array<string, mixed>>|null $lineItemsSnapshot */
     public function setLineItemsSnapshot(?array $lineItemsSnapshot): self
     {
         $this->lineItemsSnapshot = $lineItemsSnapshot;

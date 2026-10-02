@@ -26,7 +26,7 @@ class PersonalizationArchetype
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 100)]
     private ?string $archetypeName = null;
@@ -49,13 +49,14 @@ class PersonalizationArchetype
     #[ORM\Column(length: 50)]
     private string $preferredStyle = 'concise';
 
-    #[ORM\Column(type: Types::JSON)]
     /** @var array<string, mixed>|list<mixed> $featureEmbedding */
+    #[ORM\Column(type: Types::JSON)]
     private array $featureEmbedding = [];
 
     #[ORM\Column(type: 'integer', options: ['default' => 75])]
     private int $syntheticEngagementScore = 75;
 
+    /** @var list<string>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $topicInterests = null;
 
@@ -161,11 +162,13 @@ class PersonalizationArchetype
         return $this;
     }
 
+    /** @return array<string, mixed>|list<mixed> */
     public function getFeatureEmbedding(): array
     {
         return $this->featureEmbedding;
     }
 
+    /** @param array<string, mixed>|list<mixed> $featureEmbedding */
     public function setFeatureEmbedding(array $featureEmbedding): self
     {
         $this->featureEmbedding = $featureEmbedding;
@@ -183,11 +186,13 @@ class PersonalizationArchetype
         return $this;
     }
 
+    /** @return list<string>|null */
     public function getTopicInterests(): ?array
     {
         return $this->topicInterests;
     }
 
+    /** @param list<string>|null $topicInterests */
     public function setTopicInterests(?array $topicInterests): self
     {
         $this->topicInterests = $topicInterests;

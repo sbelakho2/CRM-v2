@@ -55,8 +55,11 @@ class ComplianceDocumentRepository extends ServiceEntityRepository
         
         $qb->orderBy('d.expiryDate', 'ASC')
            ->setMaxResults($limit);
-        
-        return $qb->getQuery()->getResult();
+
+        /** @var list<ComplianceDocument> $results */
+        $results = $qb->getQuery()->getResult();
+
+        return $results;
     }
     
     /**
@@ -64,7 +67,7 @@ class ComplianceDocumentRepository extends ServiceEntityRepository
      * Useful for showing a "snoozed alerts" summary
      * 
      * @param int $limit Maximum number of results
-     * @return ComplianceDocument[]
+     * @return list<ComplianceDocument>
      */
     public function findSnoozedDocuments(int $limit = 20): array
     {
@@ -89,8 +92,11 @@ class ComplianceDocumentRepository extends ServiceEntityRepository
             ->setParameter('alertStatuses', ['Rejected', 'Expired'])
             ->orderBy('d.snoozedUntil', 'ASC')
             ->setMaxResults($limit);
-        
-        return $qb->getQuery()->getResult();
+
+        /** @var list<ComplianceDocument> $results */
+        $results = $qb->getQuery()->getResult();
+
+        return $results;
     }
     
     /**
@@ -104,6 +110,7 @@ class ComplianceDocumentRepository extends ServiceEntityRepository
         $today = new \DateTime('today');
         $warningDate = (new \DateTime())->modify('+30 days');
 
+        /** @var array<string, int|string|null> $result */
         $result = $this->createQueryBuilder('d')
             ->select('
                 SUM(CASE WHEN (d.snoozedUntil IS NULL OR d.snoozedUntil < :today) AND d.expiryDate IS NOT NULL AND d.expiryDate < :today THEN 1 ELSE 0 END) as expired,

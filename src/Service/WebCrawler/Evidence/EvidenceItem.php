@@ -15,6 +15,7 @@ final class EvidenceItem
     ) {
     }
 
+    /** @return array{family: string, signal: string, weight: int, source: string} */
     public function toArray(): array
     {
         return [

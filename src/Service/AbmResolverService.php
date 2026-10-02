@@ -44,7 +44,8 @@ class AbmResolverService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private WebEventRepository $webEventRepository,
+        /** Never-read here, kept protected for subclass event queries. */
+        protected WebEventRepository $webEventRepository,
         private AbmHitRepository $abmHitRepository,
         private AbmAccountRepository $abmAccountRepository,
         private IpMapRepository $ipMapRepository,
@@ -68,19 +69,25 @@ class AbmResolverService
      *   abmHitId: int|null,
      *   playbookTriggered: bool
      * }
+     *
+     * @param array<string, mixed> $eventData
      */
     public function processWebEvent(array $eventData): array
     {
-        $ipAddress = (string)($eventData['ip'] ?? '');
+        $ipRaw = $eventData['ip'] ?? '';
+        $ipAddress = is_scalar($ipRaw) ? (string) $ipRaw : '';
         if ($ipAddress === '') {
             throw new \InvalidArgumentException('Missing required field: ip');
         }
 
-        $url = (string)($eventData['url'] ?? '/');
-        $timestamp = (string)($eventData['timestamp'] ?? 'now');
+        $urlRaw = $eventData['url'] ?? '/';
+        $url = is_scalar($urlRaw) ? (string) $urlRaw : '/';
+        $timestampRaw = $eventData['timestamp'] ?? 'now';
+        $timestamp = is_scalar($timestampRaw) ? (string) $timestampRaw : 'now';
         $userAgent = $eventData['user_agent'] ?? $eventData['userAgent'] ?? null;
         $referer = $eventData['referer'] ?? null;
-        $method = (string)($eventData['method'] ?? 'GET');
+        $methodRaw = $eventData['method'] ?? 'GET';
+        $method = is_scalar($methodRaw) ? (string) $methodRaw : 'GET';
         $statusCode = $eventData['status_code'] ?? $eventData['statusCode'] ?? null;
 
         $webEvent = new WebEvent();
@@ -115,7 +122,7 @@ class AbmResolverService
                 }
             }
             
-            if (!$abmAccount && $resolvedData['companyName']) {
+            if (!$abmAccount) {
                 $abmAccount = $this->abmAccountRepository->findOneBy(['accountName' => $resolvedData['companyName']]);
                 if ($abmAccount !== null && $abmAccount->isArchived()) {
                     $abmAccount = null;
@@ -259,6 +266,9 @@ class AbmResolverService
         ];
     }
 
+    /**
+     * @param array{resolved: bool, companyName: string|null, isp: string|null, country: string|null, city: string|null} $resolvedData
+     */
     public function createAbmHit(WebEvent $webEvent, AbmAccount $abmAccount, array $resolvedData): AbmHit
     {
         $abmHit = new AbmHit();
@@ -268,7 +278,9 @@ class AbmResolverService
         $abmHit->setOrganizationName($abmAccount->getAccountName() ?? ($resolvedData['companyName'] ?? null));
         $abmHit->setIsIdentified(true);
         $abmHit->setPageViews(1);
-        $abmHit->setFirmographicData(is_array($abmAccount->getMetadata()) ? json_encode($abmAccount->getMetadata()) : null);
+        // firmographicData is an array column — pass the metadata through
+        // as-is (a JSON string here was a TypeError at runtime).
+        $abmHit->setFirmographicData($abmAccount->getMetadata());
         return $abmHit;
     }
 
@@ -286,8 +298,8 @@ class AbmResolverService
      * 
      * @param int $accountId - ABM account ID
      * @param int $days - Number of days to look back
-     * 
-     * @return array - Array of AbmHit entities
+     *
+     * @return list<AbmHit>
      */
     public function getRecentHits(int $accountId, int $days = 30): array
     {
@@ -323,7 +335,7 @@ class AbmResolverService
      * 
      * @return array{
      *   totalHits: int,
-     *   lastHitAt: \DateTime|null,
+     *   lastHitAt: \DateTimeInterface|null,
      *   pageviews: int,
      *   downloads: int,
      *   formSubmits: int,
@@ -369,7 +381,7 @@ class AbmResolverService
             $stats['pageviews']++;
             
             // Unique visitors (by IP)
-            $stats['uniqueVisitors'][$hit->getIpAddress()] = true;
+            $stats['uniqueVisitors'][$hit->getIpAddress() ?? ''] = true;
         }
         
         $stats['uniqueVisitors'] = count($stats['uniqueVisitors']);
@@ -399,6 +411,9 @@ class AbmResolverService
             fclose($handle);
             throw new \RuntimeException("Empty CSV file");
         }
+        // fgetcsv can yield null for empty header fields; array_combine
+        // requires int|string keys — mirror PHP's null→'' key coercion.
+        $header = array_map(static fn($v) => $v ?? '', $header);
         
         $count = 0;
         while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
@@ -423,8 +438,15 @@ class AbmResolverService
             
             // Create AbmAccount
             $account = new AbmAccount();
-            $account->setAccountName($data['company_name'] ?? $data['name']);
-            $account->setDomain($data['domain'] ?? $this->extractDomainFromCompanyName($data['company_name'] ?? $data['name']));
+            $accountName = $data['company_name'] ?? $data['name'] ?? null;
+            $account->setAccountName($accountName ?? 'Unknown');
+            $domainValue = $data['domain'] ?? null;
+            $domainResolved = is_string($domainValue) && $domainValue !== ''
+                ? $domainValue
+                : ($accountName !== null ? $this->extractDomainFromCompanyName($accountName) : null);
+            if ($domainResolved !== null) {
+                $account->setDomain($domainResolved);
+            }
             $account->setIcpTier($data['tier'] ?? 'B');
             
             // Set metadata
@@ -476,16 +498,10 @@ class AbmResolverService
             // are only two labels, so keep last two labels at minimum).
             $tld = array_pop($parts);
             $sld = array_pop($parts);
-            if ($sld === null) {
-                return null;
-            }
             // Handle two-part TLDs (co.uk, co.ma, com.sa, ...)
             while (!in_array($tld, ['com', 'net', 'org', 'co', 'gov', 'ac', 'edu'], true) && count($parts) > 0) {
                 $tld = $sld . '.' . $tld;
                 $sld = array_pop($parts);
-                if ($sld === null) {
-                    return $tld;
-                }
             }
             return $sld . '.' . $tld;
         }
@@ -497,15 +513,9 @@ class AbmResolverService
             $parts = explode('.', $domain);
             $tld = array_pop($parts);
             $sld = array_pop($parts);
-            if ($sld === null) {
-                return null;
-            }
             while (!in_array($tld, ['com', 'net', 'org', 'co', 'gov', 'ac', 'edu'], true) && count($parts) > 0) {
                 $tld = $sld . '.' . $tld;
                 $sld = array_pop($parts);
-                if ($sld === null) {
-                    return $tld;
-                }
             }
             return $sld . '.' . $tld;
         }

@@ -15,7 +15,7 @@ class FreightTable
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 100)]
     private ?string $originPort = null; // Tangier, Casablanca, etc.

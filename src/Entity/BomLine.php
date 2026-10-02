@@ -16,7 +16,7 @@ class BomLine
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Quote::class, inversedBy: 'bomLines')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -44,7 +44,7 @@ class BomLine
     private ?string $bomDescription = null; // Original description from BOM
 
     #[ORM\Column]
-    private ?int $quantity = 1;
+    protected ?int $quantity = 1;
 
     #[ORM\Column(type: 'decimal', precision: 10, scale: 4, nullable: true)]
     private ?string $unitPrice = null;
@@ -56,7 +56,7 @@ class BomLine
     private ?string $procurementSource = null; // mouser, digikey, nexar, manual
 
     #[ORM\Column(nullable: true)]
-    private ?bool $hasException = false;
+    protected ?bool $hasException = false;
 
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $exceptionReason = null;
@@ -74,9 +74,11 @@ class BomLine
     #[ORM\Column(length: 20, nullable: true)]
     private ?string $confidenceLevel = null; // HIGH, MEDIUM, LOW, VERY_LOW
     
+    /** @var list<string>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $confidenceReasons = null;
     
+    /** @var list<string>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $confidenceWarnings = null;
     
@@ -111,6 +113,7 @@ class BomLine
     private ?string $priceSourceUrl = null; // URL where the user found the price
     
     // Alternative parts storage
+    /** @var list<array<string, mixed>>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $alternativeParts = null; // Top 3-5 alternative part matches
     
@@ -125,6 +128,7 @@ class BomLine
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $supplierProductUrl = null; // Direct link to supplier's product listing
     
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $sourcingData = null; // Rich sourcing metadata (supplier info, crawl data, MOQ, etc.)
 
@@ -379,22 +383,26 @@ class BomLine
         return $this;
     }
     
+    /** @return list<string>|null */
     public function getConfidenceReasons(): ?array
     {
         return $this->confidenceReasons;
     }
     
+    /** @param list<string>|null $confidenceReasons */
     public function setConfidenceReasons(?array $confidenceReasons): self
     {
         $this->confidenceReasons = $confidenceReasons;
         return $this;
     }
     
+    /** @return list<string>|null */
     public function getConfidenceWarnings(): ?array
     {
         return $this->confidenceWarnings;
     }
     
+    /** @param list<string>|null $confidenceWarnings */
     public function setConfidenceWarnings(?array $confidenceWarnings): self
     {
         $this->confidenceWarnings = $confidenceWarnings;
@@ -587,11 +595,13 @@ class BomLine
     
     // ==================== Alternative Parts ====================
     
+    /** @return list<array<string, mixed>>|null */
     public function getAlternativeParts(): ?array
     {
         return $this->alternativeParts;
     }
     
+    /** @param list<array<string, mixed>>|null $alternativeParts */
     public function setAlternativeParts(?array $alternativeParts): self
     {
         $this->alternativeParts = $alternativeParts;
@@ -616,7 +626,8 @@ class BomLine
     
     /**
      * Add a single alternative part
-      * @param array<string|int, mixed> $alternative
+     *
+     * @param array<string, mixed> $alternative
      */
     public function addAlternativePart(array $alternative): self
     {
@@ -651,11 +662,13 @@ class BomLine
         return $this;
     }
     
+    /** @return array<string, mixed>|null */
     public function getSourcingData(): ?array
     {
         return $this->sourcingData;
     }
     
+    /** @param array<string, mixed>|null $sourcingData */
     public function setSourcingData(?array $sourcingData): self
     {
         $this->sourcingData = $sourcingData;
@@ -669,7 +682,7 @@ class BomLine
     {
         $stock = $this->sourcingData['stock'] ?? null;
 
-        if ($stock === null || $stock === '') {
+        if ($stock === null || $stock === '' || !is_scalar($stock)) {
             return null;
         }
 
@@ -725,6 +738,10 @@ class BomLine
     public function getFallbackOriginalMpn(): ?string
     {
         $data = $this->sourcingData ?? [];
-        return $data['fallback_original_mpn'] ?? null;
+        $value = $data['fallback_original_mpn'] ?? null;
+        if ($value === null) {
+            return null;
+        }
+        return is_scalar($value) ? (string) $value : null;
     }
 }

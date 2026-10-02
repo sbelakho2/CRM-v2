@@ -20,17 +20,19 @@ class GuidanceController extends AbstractController
     #[Route('/guidance/dismiss', name: 'guidance_dismiss', methods: ['POST'])]
     public function dismiss(Request $request): JsonResponse
     {
-        if (!$this->isCsrfTokenValid('guidance_dismiss', $request->request->get('_csrf_token'))) {
+        if (!$this->isCsrfTokenValid('guidance_dismiss', $request->request->getString('_csrf_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
-        $index = $request->request->get('index');
+        $index = $request->request->getInt('index', -1);
         $session = $request->getSession();
         
+        /** @var array<int, array<string, mixed>> $notifications */
         $notifications = $session->get('guidance_notifications', []);
         
         if (isset($notifications[$index])) {
-            $dismissedKey = $notifications[$index]['dismissKey'] ?? null;
+            $rawDismissedKey = $notifications[$index]['dismissKey'] ?? null;
+            $dismissedKey = is_string($rawDismissedKey) && $rawDismissedKey !== '' ? $rawDismissedKey : null;
             
             // Remove from current notifications
             unset($notifications[$index]);
@@ -39,7 +41,8 @@ class GuidanceController extends AbstractController
             $session->set('guidance_notifications', $notifications);
             
             // Permanently dismiss this notification by storing the dismissKey
-            if ($dismissedKey) {
+            if ($dismissedKey !== null) {
+                /** @var list<string> $dismissedNotifications */
                 $dismissedNotifications = $session->get('dismissed_guidance', []);
                 $dismissedNotifications[] = $dismissedKey;
                 $session->set('dismissed_guidance', $dismissedNotifications);
@@ -54,19 +57,22 @@ class GuidanceController extends AbstractController
     #[Route('/guidance/dismiss-all', name: 'guidance_dismiss_all', methods: ['POST'])]
     public function dismissAll(Request $request): JsonResponse
     {
-        if (!$this->isCsrfTokenValid('guidance_dismiss_all', $request->request->get('_csrf_token'))) {
+        if (!$this->isCsrfTokenValid('guidance_dismiss_all', $request->request->getString('_csrf_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
         $session = $request->getSession();
         
         // Get all notifications and mark their dismissKeys as permanently dismissed
+        /** @var array<int, array<string, mixed>> $notifications */
         $notifications = $session->get('guidance_notifications', []);
+        /** @var list<string> $dismissedNotifications */
         $dismissedNotifications = $session->get('dismissed_guidance', []);
         
         foreach ($notifications as $notification) {
-            if (isset($notification['dismissKey'])) {
-                $dismissedNotifications[] = $notification['dismissKey'];
+            $dismissKey = $notification['dismissKey'] ?? null;
+            if (is_string($dismissKey) && $dismissKey !== '') {
+                $dismissedNotifications[] = $dismissKey;
             }
         }
         
@@ -83,7 +89,7 @@ class GuidanceController extends AbstractController
         
         // Generate daily workflow reminders if user is logged in
         $user = $this->getUser();
-        if ($user && method_exists($user, 'getId')) {
+        if ($user instanceof \App\Entity\User) {
             // Only generate once per day per user
             $lastGenerated = $session->get('guidance_last_generated_' . $user->getId());
             $today = (new \DateTime())->format('Y-m-d');

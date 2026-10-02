@@ -60,11 +60,11 @@ class SecurityController extends AbstractController
         RateLimiterFactory $passwordResetIpLimiter
     ): Response {
         if ($request->isMethod('POST')) {
-            if (!$this->isCsrfTokenValid('forgot_password', $request->request->get('_csrf_token'))) {
+            if (!$this->isCsrfTokenValid('forgot_password', $request->request->getString('_csrf_token'))) {
                 throw $this->createAccessDeniedException('Invalid CSRF token.');
             }
 
-            $email = $request->request->get('email');
+            $email = $request->request->getString('email');
             $clientIp = $request->getClientIp() ?? 'unknown';
             
             // Rate limit by email address (prevents spamming a single target)
@@ -109,9 +109,10 @@ class SecurityController extends AbstractController
                 );
 
                 // Send email
+                $mailerFrom = $_ENV['MAILER_FROM_ADDRESS'] ?? null;
                 $emailMessage = (new Email())
-                    ->from($_ENV['MAILER_FROM_ADDRESS'] ?? 'noreply@starzelectronics.site')
-                    ->to($user->getEmail())
+                    ->from(is_string($mailerFrom) && $mailerFrom !== '' ? $mailerFrom : 'noreply@starzelectronics.site')
+                    ->to($user->getEmail() ?? '')
                     ->subject('Password Reset Request - STARZ Morocco CRM')
                     ->html($this->renderView('emails/reset_password.html.twig', [
                         'user' => $user,
@@ -161,12 +162,12 @@ class SecurityController extends AbstractController
         }
 
         if ($request->isMethod('POST')) {
-            if (!$this->isCsrfTokenValid('reset_password', $request->request->get('_csrf_token'))) {
+            if (!$this->isCsrfTokenValid('reset_password', $request->request->getString('_csrf_token'))) {
                 throw $this->createAccessDeniedException('Invalid CSRF token.');
             }
 
-            $password = $request->request->get('password');
-            $confirmPassword = $request->request->get('confirm_password');
+            $password = $request->request->getString('password');
+            $confirmPassword = $request->request->getString('confirm_password');
 
             if ($password !== $confirmPassword) {
                 $this->addFlash('error', 'Passwords do not match.');
@@ -176,8 +177,12 @@ class SecurityController extends AbstractController
             // Same canonical policy as registration/admin/change (12+ chars,
             // not in known breaches) — an account must never be able to
             // reset FROM a strong password TO a weak one.
-            $violations = $this->container->get('validator')->validate(
-                (string) $password,
+            $validator = $this->container->get('validator');
+            if (!$validator instanceof \Symfony\Component\Validator\Validator\ValidatorInterface) {
+                throw new \RuntimeException('Validator service is not available.');
+            }
+            $violations = $validator->validate(
+                $password,
                 [new \App\Validator\PasswordPolicy()]
             );
             if (count($violations) > 0) {

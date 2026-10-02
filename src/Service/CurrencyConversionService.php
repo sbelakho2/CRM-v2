@@ -106,7 +106,7 @@ class CurrencyConversionService
         // An 'unknown' source means the pair exists in no data source at all.
         // Previously this silently converted 1:1 (converting typos without
         // error); now it surfaces loudly so callers can flag the issue.
-        if (($rateInfo['source'] ?? '') === 'unknown') {
+        if ($rateInfo['source'] === 'unknown') {
             throw new \RuntimeException(sprintf(
                 'No exchange rate available for unknown currency pair: %s/%s',
                 $fromCurrency,
@@ -127,19 +127,21 @@ class CurrencyConversionService
 
     /**
      * Convert price data to target currency
-     * 
-     * @param array $pricing Pricing array with 'price' and 'currency' keys
+     *
+     * @param list<array<string, mixed>> $pricing Pricing array with 'price' and 'currency' keys
      * @param string $targetCurrency Target currency code
-     * @return array Updated pricing array with converted values
+     * @return list<array<string, mixed>> Updated pricing array with converted values
      */
     public function convertPricingToUsd(array $pricing, string $targetCurrency = 'USD'): array
     {
         $converted = [];
-        
+
         foreach ($pricing as $priceBreak) {
-            $sourceCurrency = $priceBreak['currency'] ?? 'USD';
-            $price = (float) ($priceBreak['price'] ?? 0);
-            
+            $sourceCurrencyRaw = $priceBreak['currency'] ?? 'USD';
+            $sourceCurrency = is_scalar($sourceCurrencyRaw) ? (string) $sourceCurrencyRaw : 'USD';
+            $priceRaw = $priceBreak['price'] ?? 0;
+            $price = is_scalar($priceRaw) ? (float) $priceRaw : 0.0;
+
             if ($sourceCurrency !== $targetCurrency) {
                 $conversion = $this->convert($price, $sourceCurrency, $targetCurrency);
                 
@@ -173,7 +175,8 @@ class CurrencyConversionService
      * Live rates fetched via API are automatically stored in the database
      * for future use and audit trail.
      * 
-     * @return array{rate: float, source: string, stale: bool, warning: ?string}
+     * @param list<string> $visitedCurrencies
+     * @return array{rate: float, source: string, stale: bool, warning: string|null}
      */
     public function getRate(string $fromCurrency, string $toCurrency, array &$visitedCurrencies = []): array
     {
@@ -236,7 +239,7 @@ class CurrencyConversionService
             $this->logger->warning('Using stale FX rate from database', [
                 'from' => $fromCurrency,
                 'to' => $toCurrency,
-                'age_hours' => round((time() - $fxRate->getAsof()->getTimestamp()) / 3600, 1),
+                'age_hours' => round((time() - ($fxRate->getAsof()?->getTimestamp() ?? time())) / 3600, 1),
             ]);
             return $this->formatRateResult($fxRate, 'database_direct_stale');
         }
@@ -292,6 +295,9 @@ class CurrencyConversionService
      * 
      * Returns detailed info about conversion including source APIs used
      */
+    /**
+     * @return array{amount: float, rate: float, source: string, stale: bool, warning: string|null, audit: array{original_amount: float, from_currency: string, to_currency: string, timestamp: string, live_fetch_enabled: bool, live_fetcher_available: bool}}
+     */
     public function convertWithAudit(float $amount, string $from, string $to): array
     {
         $result = $this->convert($amount, $from, $to);
@@ -310,7 +316,9 @@ class CurrencyConversionService
 
     /**
      * Check if all required currencies have fresh rates
-      * @param array<string|int, mixed> $currencies
+     *
+     * @param list<string> $currencies
+     * @return list<array{currency: string, issue: string, message: string}>
      */
     public function validateRateFreshness(array $currencies): array
     {
@@ -341,6 +349,8 @@ class CurrencyConversionService
 
     /**
      * Format rate result from FxRate entity
+     *
+     * @return array{rate: float, source: string, stale: bool, warning: string|null}
      */
     private function formatRateResult(FxRate $fxRate, string $source): array
     {
@@ -361,6 +371,8 @@ class CurrencyConversionService
      * the last resort for those known pairs — never an identity 1:1 guess for
      * unknown codes. Unknown pairs are reported via the 'unknown' source so
      * convert() can surface them as errors instead of silently converting.
+     *
+     * @return array{rate: float, source: string, stale: bool, warning: string|null}
      */
     private function getFallbackRate(string $fromCurrency, string $toCurrency): array
     {

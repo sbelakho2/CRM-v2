@@ -85,7 +85,7 @@ class ReportDefinitionRepository extends ServiceEntityRepository
                 continue;
             }
             foreach ($report->getAccessRoles() ?? [] as $grantedRole) {
-                if (is_string($grantedRole) && isset($roles[$grantedRole])) {
+                if (isset($roles[$grantedRole])) {
                     $results[] = $report;
                     break;
                 }

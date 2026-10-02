@@ -41,6 +41,7 @@ class WorkerHeartbeatRepository extends ServiceEntityRepository
      */
     public function stalenessSeconds(string $workerName): ?int
     {
+        /** @var \DateTimeInterface|null $row */
         $row = $this->createQueryBuilder('h')
             ->select('h.lastRunAt')
             ->andWhere('h.name = :name')

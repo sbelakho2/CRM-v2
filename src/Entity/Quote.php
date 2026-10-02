@@ -28,7 +28,7 @@ class Quote
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
@@ -53,10 +53,10 @@ class Quote
     private ?string $quoteNumber = null; // QTE-2025-001
 
     #[ORM\Column(length: 50)]
-    private ?string $status = self::STATUS_DRAFT; // draft, pending_review, approved, sent, accepted, rejected
+    private string $status = self::STATUS_DRAFT; // draft, pending_review, approved, sent, accepted, rejected
 
     #[ORM\Column(type: 'decimal', precision: 15, scale: 2)]
-    private ?string $totalCost = '0.00';
+    private string $totalCost = '0.00';
 
     #[ORM\Column(type: 'decimal', precision: 15, scale: 2, nullable: true)]
     private ?string $estimatedCost = null; // Internal cost to fulfil (materials+assembly+freight+duty)
@@ -65,7 +65,7 @@ class Quote
     private ?string $marginOverridePercent = null; // Optional explicit margin (e.g. won-deal actuals)
 
     #[ORM\Column(length: 10)]
-    private ?string $currency = 'USD';
+    private string $currency = 'USD';
 
     // Interactive Live Quote fields
     #[ORM\Column(length: 64, unique: true, nullable: true)]
@@ -77,11 +77,12 @@ class Quote
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $interactiveEnabled = false; // Allow quantity adjustments
 
+    /** @var list<int>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $quantityOptions = null; // Available quantity tiers [100, 500, 1000, 5000]
 
     #[ORM\Column(type: 'integer', nullable: true)]
-    private ?int $viewCount = 0; // Track customer views
+    private int $viewCount = 0; // Track customer views
 
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $lastViewedAt = null; // Last customer view
@@ -104,9 +105,11 @@ class Quote
     #[ORM\Column(length: 36, nullable: true)]
     private ?string $datasetVersionId = null; // Version of datasets used
 
+    /** @var array<string, string>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $apiVersions = null; // {mouser: "v1.2", digikey: "v3.0", etc.}
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $metadata = null; // Win prediction, processing stats, etc.
 
@@ -129,9 +132,11 @@ class Quote
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $issuingCompany = null; // 'starz_morocco', 'starz_electronics', 'starz_energies'
 
+    /** @var Collection<int, QuotePartBreakdown> */
     #[ORM\OneToMany(mappedBy: 'quote', targetEntity: QuotePartBreakdown::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $partBreakdowns;
 
+    /** @var Collection<int, BomLine> */
     #[ORM\OneToMany(mappedBy: 'quote', targetEntity: BomLine::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $bomLines;
 
@@ -358,22 +363,26 @@ class Quote
         return $this;
     }
 
+    /** @return array<string, string>|null */
     public function getApiVersions(): ?array
     {
         return $this->apiVersions;
     }
 
+    /** @param array<string, string>|null $apiVersions */
     public function setApiVersions(?array $apiVersions): self
     {
         $this->apiVersions = $apiVersions;
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getMetadata(): ?array
     {
         return $this->metadata;
     }
 
+    /** @param array<string, mixed>|null $metadata */
     public function setMetadata(?array $metadata): self
     {
         $this->metadata = $metadata;
@@ -584,11 +593,13 @@ class Quote
         return $this;
     }
 
+    /** @return list<int>|null */
     public function getQuantityOptions(): ?array
     {
         return $this->quantityOptions;
     }
 
+    /** @param list<int>|null $quantityOptions */
     public function setQuantityOptions(?array $quantityOptions): self
     {
         $this->quantityOptions = $quantityOptions;
@@ -602,7 +613,7 @@ class Quote
 
     public function incrementViewCount(): self
     {
-        $this->viewCount = ($this->viewCount ?? 0) + 1;
+        $this->viewCount = $this->viewCount + 1;
         $this->lastViewedAt = new \DateTime();
         return $this;
     }
@@ -631,7 +642,7 @@ class Quote
             return (float) $this->marginOverridePercent;
         }
 
-        $total = (float) ($this->totalCost ?? '0');
+        $total = (float) $this->totalCost;
         $cost = (float) ($this->estimatedCost ?? '0');
 
         if ($total <= 0.0 || $cost <= 0.0) {

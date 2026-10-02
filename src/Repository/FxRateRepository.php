@@ -21,7 +21,8 @@ class FxRateRepository extends ServiceEntityRepository
      */
     public function findActiveRate(string $fromCurrency, string $toCurrency): ?FxRate
     {
-        return $this->createQueryBuilder('f')
+        /** @var FxRate|null $result */
+        $result = $this->createQueryBuilder('f')
             ->where('f.fromCurrency = :from')
             ->andWhere('f.toCurrency = :to')
             ->andWhere('f.isActive = :active')
@@ -32,5 +33,7 @@ class FxRateRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 }

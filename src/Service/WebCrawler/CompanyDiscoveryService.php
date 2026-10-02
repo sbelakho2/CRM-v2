@@ -397,7 +397,7 @@ class CompanyDiscoveryService
      * @param array<int|string, mixed> $discoveredData
      * @return array<int, Company>
      */
-    private function saveDiscoveredCompanies(array $discoveredData, ?string $sector, ?string $location): array
+    public function saveDiscoveredCompanies(array $discoveredData, ?string $sector, ?string $location): array
     {
         $savedCompanies = [];
         $this->ensureEntityManagerOpen();

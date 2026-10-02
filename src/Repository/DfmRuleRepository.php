@@ -19,11 +19,12 @@ class DfmRuleRepository extends ServiceEntityRepository
     /**
      * Find active rules by type
      * 
-     * @return DfmRule[]
+     * @return list<DfmRule>
      */
     public function findActiveByType(string $ruleType): array
     {
-        return $this->createQueryBuilder('dr')
+        /** @var list<DfmRule> $result */
+        $result = $this->createQueryBuilder('dr')
             ->andWhere('dr.ruleType = :type')
             ->andWhere('dr.isActive = :active')
             ->setParameter('type', $ruleType)
@@ -31,16 +32,19 @@ class DfmRuleRepository extends ServiceEntityRepository
             ->orderBy('dr.severity', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find all critical rules
      * 
-     * @return DfmRule[]
+     * @return list<DfmRule>
      */
     public function findCriticalRules(): array
     {
-        return $this->createQueryBuilder('dr')
+        /** @var list<DfmRule> $result */
+        $result = $this->createQueryBuilder('dr')
             ->andWhere('dr.severity = :severity')
             ->andWhere('dr.isActive = :active')
             ->setParameter('severity', 'Critical')
@@ -48,16 +52,19 @@ class DfmRuleRepository extends ServiceEntityRepository
             ->orderBy('dr.ruleType', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find all active rules
      * 
-     * @return DfmRule[]
+     * @return list<DfmRule>
      */
     public function findAllActive(): array
     {
-        return $this->createQueryBuilder('dr')
+        /** @var list<DfmRule> $result */
+        $result = $this->createQueryBuilder('dr')
             ->andWhere('dr.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('dr.ruleType', 'ASC')
@@ -65,5 +72,7 @@ class DfmRuleRepository extends ServiceEntityRepository
 
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

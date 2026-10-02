@@ -69,7 +69,7 @@ class EmailComplianceService
      * 
      * @param string $htmlContent Email HTML content
      * @param EmailCampaign $campaign The campaign
-     * @return array Validation results
+     * @return array{compliant: bool, errors: list<string>, warnings: list<string>} Validation results
      */
     public function validateEmailCompliance(string $htmlContent, EmailCampaign $campaign): array
     {
@@ -121,20 +121,17 @@ class EmailComplianceService
     public function addComplianceFooter(string $htmlContent, Contact $contact, EmailCampaign $campaign): string
     {
         $unsubscribeLink = $this->consentService->generateUnsubscribeLink($contact, $campaign->getId());
+        $contactEmail = $contact->getEmail() ?? '';
 
         // Base URL for the "manage preferences" link. Never fabricate a
         // domain: use the configured DEFAULT_URI (or legacy APP_BASE_URL);
         // when none is configured the link is omitted entirely.
-        $baseUrl = rtrim(
-            (string) ($_ENV['DEFAULT_URI'] ?? $_SERVER['DEFAULT_URI'] ?? getenv('DEFAULT_URI')
-                ?? $_ENV['APP_BASE_URL'] ?? $_SERVER['APP_BASE_URL'] ?? getenv('APP_BASE_URL') ?? ''),
-            '/'
-        );
+        $baseUrl = rtrim($this->envValue('DEFAULT_URI') ?? $this->envValue('APP_BASE_URL') ?? '', '/');
         $managePreferencesLink = $baseUrl !== ''
             ? sprintf(
                 ' | <a href="%s/email/manage-preferences/%s" style="color: #0066cc; text-decoration: underline;">Manage email preferences</a>',
                 htmlspecialchars($baseUrl),
-                base64_encode($contact->getEmail())
+                base64_encode($contactEmail)
             )
             : '';
 
@@ -171,7 +168,7 @@ class EmailComplianceService
             htmlspecialchars($this->companyPhone),
             htmlspecialchars($unsubscribeLink),
             $managePreferencesLink,
-            htmlspecialchars($contact->getEmail())
+            htmlspecialchars($contactEmail)
         );
 
         // Insert footer before closing body tag
@@ -327,10 +324,10 @@ class EmailComplianceService
     /**
      * Pre-flight check before sending campaign
      * Validates consent, compliance, and deliverability
-     * 
+     *
      * @param EmailCampaign $campaign
-     * @param array $contacts
-     * @return array Validation results
+     * @param list<Contact> $contacts
+     * @return array{can_send: bool, total_contacts: int, valid_contacts: int, invalid_contacts: int, no_consent: int, suppressed: int, compliance_issues: list<string>, contact_issues: list<array{email: string|null, issue: string}>} Validation results
      */
     public function preFlightCheck(EmailCampaign $campaign, array $contacts): array
     {
@@ -389,9 +386,9 @@ class EmailComplianceService
 
     /**
      * Get compliance status report for a campaign
-     * 
+     *
      * @param EmailCampaign $campaign
-     * @return array
+     * @return array{campaign_name: string|null, compliance_status: string, validation: array{compliant: bool, errors: list<string>, warnings: list<string>}, statistics: array{total_sent: int, bounced: int, bounce_rate: float}, required_elements: array{physical_address: bool, unsubscribe_link: bool, sender_identification: bool}}
      */
     public function getComplianceReport(EmailCampaign $campaign): array
     {

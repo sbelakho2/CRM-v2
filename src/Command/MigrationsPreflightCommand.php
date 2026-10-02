@@ -53,7 +53,8 @@ class MigrationsPreflightCommand extends Command
         // ── Version20260211180000: DROP TABLE IF EXISTS estimates ──────────
         $version = 'DoctrineMigrations\\Version20260211180000';
         if (!in_array($version, $executed, true) && $this->tableExists('estimates')) {
-            $rows = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM estimates');
+            $rawRows = $this->connection->fetchOne('SELECT COUNT(*) FROM estimates');
+            $rows = is_numeric($rawRows) ? (int) $rawRows : 0;
             if ($rows > 0) {
                 $blockers[] = sprintf(
                     'Migration %s would DROP the `estimates` table which still contains %d row(s). '.
@@ -90,19 +91,21 @@ class MigrationsPreflightCommand extends Command
                 // strings coerce to 0) and can classify real history as
                 // empty. Text columns test TRIM(col) <> ''; numeric
                 // columns test col <> 0 (plus NOT NULL).
-                $dataType = (string) $this->connection->fetchOne(
+                $rawDataType = $this->connection->fetchOne(
                     'SELECT DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
                     [$table, $column]
                 );
+                $dataType = is_string($rawDataType) ? $rawDataType : '';
                 $isText = in_array($dataType, ['char', 'varchar', 'text', 'longtext', 'mediumtext', 'tinytext'], true);
                 // 0/false is the empty/default state for numeric and
                 // boolean flags; NULL is empty for nullable columns.
                 $predicate = $isText
                     ? "{$column} IS NOT NULL AND TRIM({$column}) <> ''"
                     : "{$column} IS NOT NULL AND {$column} <> 0";
-                $nonNull = (int) $this->connection->fetchOne(
+                $rawNonNull = $this->connection->fetchOne(
                     "SELECT COUNT(*) FROM {$table} WHERE {$predicate}"
                 );
+                $nonNull = is_numeric($rawNonNull) ? (int) $rawNonNull : 0;
                 if ($nonNull > 0) {
                     $hint = $table === 'compliance_documents'
                         ? ' Run app:migrations:preserve-compliance-legacy to archive the values first; they are restored automatically after the chain.'
@@ -125,9 +128,10 @@ class MigrationsPreflightCommand extends Command
         // blocker — but it deserves upgrade-path attention.
         $version = 'DoctrineMigrations\\Version20260824110000';
         if (!in_array($version, $executed, true) && $this->tableExists('webinar_attendees')) {
-            $dupes = (int) $this->connection->fetchOne(
+            $rawDupes = $this->connection->fetchOne(
                 'SELECT COUNT(*) FROM (SELECT webinar_id, email FROM webinar_attendees GROUP BY webinar_id, email HAVING COUNT(*) > 1 LIMIT 1) d'
             );
+            $dupes = is_numeric($rawDupes) ? (int) $rawDupes : 0;
             if ($dupes > 0) {
                 $io->warning('Migration DoctrineMigrations\Version20260824110000 merges duplicate webinar attendees (preservation-first). Review its merge logic against your data before upgrading.');
             }

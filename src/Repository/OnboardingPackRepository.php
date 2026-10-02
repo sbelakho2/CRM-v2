@@ -21,64 +21,76 @@ class OnboardingPackRepository extends ServiceEntityRepository
     /**
      * Find packs by company
      * 
-     * @return OnboardingPack[]
+     * @return list<OnboardingPack>
      */
     public function findByCompany(Company $company): array
     {
-        return $this->createQueryBuilder('op')
+        /** @var list<OnboardingPack> $results */
+        $results = $this->createQueryBuilder('op')
             ->andWhere('op.company = :company')
             ->setParameter('company', $company)
             ->orderBy('op.createdAt', 'DESC')
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find packs by portal candidate
      * 
-     * @return OnboardingPack[]
+     * @return list<OnboardingPack>
      */
     public function findByPortalCandidate(PortalCandidate $portalCandidate): array
     {
-        return $this->createQueryBuilder('op')
+        /** @var list<OnboardingPack> $results */
+        $results = $this->createQueryBuilder('op')
             ->andWhere('op.portalCandidate = :portal')
             ->setParameter('portal', $portalCandidate)
             ->orderBy('op.createdAt', 'DESC')
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find packs by status
      * 
-     * @return OnboardingPack[]
+     * @return list<OnboardingPack>
      */
     public function findByStatus(string $status): array
     {
-        return $this->createQueryBuilder('op')
+        /** @var list<OnboardingPack> $results */
+        $results = $this->createQueryBuilder('op')
             ->andWhere('op.status = :status')
             ->setParameter('status', $status)
             ->orderBy('op.createdAt', 'DESC')
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find ready packs for submission
      * 
-     * @return OnboardingPack[]
+     * @return list<OnboardingPack>
      */
     public function findReady(): array
     {
-        return $this->createQueryBuilder('op')
+        /** @var list<OnboardingPack> $results */
+        $results = $this->createQueryBuilder('op')
             ->andWhere('op.status = :status')
             ->setParameter('status', 'ready')
             ->orderBy('op.createdAt', 'ASC')
 
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 }

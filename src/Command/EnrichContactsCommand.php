@@ -68,12 +68,13 @@ HELP
 
         /** @var string $companyArg */
         $companyArg  = $input->getArgument('company');
-        /** @var mixed $sector */
-        $sector      = $input->getOption('sector');
-        $limit       = (int) $input->getOption('limit');
-        $maxContacts = (int) $input->getOption('max-contacts');
-        /** @var mixed $dryRun */
-        $dryRun      = $input->getOption('dry-run');
+        $sectorOpt   = $input->getOption('sector');
+        $sector      = is_string($sectorOpt) && $sectorOpt !== '' ? $sectorOpt : null;
+        $limitOpt    = $input->getOption('limit');
+        $limit       = is_numeric($limitOpt) ? (int) $limitOpt : 10;
+        $maxContactsOpt = $input->getOption('max-contacts');
+        $maxContacts = is_numeric($maxContactsOpt) ? (int) $maxContactsOpt : 10;
+        $dryRun      = (bool) $input->getOption('dry-run');
 
         if ($dryRun) {
             $io->warning('DRY RUN mode — no contacts will be saved.');
@@ -116,10 +117,10 @@ HELP
             try {
                 $result = $this->enrichmentService->enrichCompanyContacts($company, $maxContacts);
 
-                $created = $result['created'] ?? 0;
-                $updated = $result['updated'] ?? 0;
-                $skipped = $result['skipped'] ?? 0;
-                $sources = $result['sources'] ?? [];
+                $created = $result['created'];
+                $updated = $result['updated'];
+                $skipped = $result['skipped'];
+                $sources = $result['sources'];
 
                 $totalCreated += $created;
                 $totalUpdated += $updated;
@@ -132,7 +133,7 @@ HELP
                     ));
 
                     // Show contacts found
-                    foreach ($result['contacts'] ?? [] as $contact) {
+                    foreach ($result['contacts'] as $contact) {
                         $icon = $contact->isPrimaryContact() ? '★' : '•';
                         $io->writeln(sprintf(
                             '  %s <info>%s</info> — %s%s%s',
@@ -210,6 +211,7 @@ HELP
             }
             if (!$company) {
                 // Partial name match
+                /** @var list<\App\Entity\Company> $matches */
                 $matches = $this->companyRepository->createQueryBuilder('c')
                     ->where('LOWER(c.name) LIKE :name')
                     ->setParameter('name', '%' . addcslashes(mb_strtolower($companyArg), '%_') . '%')
@@ -243,7 +245,10 @@ HELP
                 ->setParameter('sector', $sector)
                 ->setMaxResults($limit);
 
-            return $qb->getQuery()->getResult();
+            /** @var list<\App\Entity\Company> $companiesInSector */
+            $companiesInSector = $qb->getQuery()->getResult();
+
+            return $companiesInSector;
         }
 
         return [];

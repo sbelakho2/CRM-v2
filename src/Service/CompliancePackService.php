@@ -41,6 +41,8 @@ class CompliancePackService
 
     /**
      * Get all required document types
+     *
+     * @return list<string>
      */
     public function getRequiredDocuments(): array
     {
@@ -49,6 +51,8 @@ class CompliancePackService
 
     /**
      * Get company's compliance pack status
+     *
+     * @return array<string, array{uploaded: bool, fileName?: string|null, uploadedAt?: \DateTimeInterface|null}>
      */
     public function getCompanyPackStatus(Company $company): array
     {
@@ -63,7 +67,11 @@ class CompliancePackService
             if (!$doc->isProvided() || $doc->getFileName() === null || $doc->getFileName() === '') {
                 continue;
             }
-            $uploaded[$doc->getDocumentType()] = [
+            $docType = $doc->getDocumentType();
+            if ($docType === null) {
+                continue; // untyped rows can never satisfy a named requirement
+            }
+            $uploaded[$docType] = [
                 'uploaded' => true,
                 'fileName' => $doc->getFileName(),
                 'uploadedAt' => $doc->getUploadedAt(),
@@ -113,6 +121,8 @@ class CompliancePackService
 
     /**
      * Get missing documents for company
+     *
+     * @return list<string>
      */
     public function getMissingDocuments(Company $company): array
     {
@@ -135,7 +145,7 @@ class CompliancePackService
             }
         }
 
-        return array_diff($requiredDocs, $uploadedTypes);
+        return array_values(array_diff($requiredDocs, $uploadedTypes));
     }
 
     /**
@@ -159,6 +169,8 @@ class CompliancePackService
 
     /**
      * Get sector-specific required documents
+     *
+     * @return list<string>
      */
     public function getSectorSpecificDocuments(string $sector): array
     {
@@ -222,6 +234,8 @@ class CompliancePackService
 
     /**
      * Get recently uploaded documents
+     *
+     * @return list<ComplianceDocument>
      */
     public function getRecentUploads(int $limit = 10): array
     {
@@ -325,6 +339,8 @@ class CompliancePackService
 
     /**
      * Get compliance statistics for company
+     *
+     * @return array{total: int, uploaded: int, approved: int, pending: int, expired: int, completion_percentage: float}
      */
     public function getComplianceStats(Company $company): array
     {

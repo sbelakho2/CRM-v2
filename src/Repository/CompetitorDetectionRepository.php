@@ -20,16 +20,19 @@ class CompetitorDetectionRepository extends ServiceEntityRepository
     /**
      * Find detections by lead.
      *
-     * @return CompetitorDetection[]
+     * @return list<CompetitorDetection>
      */
     public function findByLead(Lead $lead): array
     {
-        return $this->createQueryBuilder('d')
+        /** @var list<CompetitorDetection> $result */
+        $result = $this->createQueryBuilder('d')
             ->andWhere('d.lead = :lead')
             ->setParameter('lead', $lead)
             ->orderBy('d.competitorTier', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
@@ -37,12 +40,15 @@ class CompetitorDetectionRepository extends ServiceEntityRepository
      */
     public function leadHasCompetitor(Lead $lead): bool
     {
-        return (bool) $this->createQueryBuilder('d')
+        /** @var int|string|null $count */
+        $count = $this->createQueryBuilder('d')
             ->select('COUNT(d.id)')
             ->andWhere('d.lead = :lead')
             ->setParameter('lead', $lead)
             ->getQuery()
             ->getSingleScalarResult();
+
+        return (bool) $count;
     }
 
     /**
@@ -50,20 +56,26 @@ class CompetitorDetectionRepository extends ServiceEntityRepository
      */
     public function getTopCompetitorForLead(Lead $lead): ?CompetitorDetection
     {
-        return $this->createQueryBuilder('d')
+        /** @var CompetitorDetection|null $result */
+        $result = $this->createQueryBuilder('d')
             ->andWhere('d.lead = :lead')
             ->setParameter('lead', $lead)
             ->orderBy('d.competitorTier', 'ASC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
      * Get competitor detection statistics.
+     *
+     * @return list<array{name: mixed, domain: mixed, tier: mixed, count: int}>
      */
     public function getCompetitorStats(): array
     {
+        /** @var list<array{competitorName: mixed, competitorDomain: mixed, competitorTier: mixed, detectionCount: int|string}> $results */
         $results = $this->createQueryBuilder('d')
             ->select('d.competitorName, d.competitorDomain, d.competitorTier, COUNT(d.id) as detectionCount')
             ->groupBy('d.competitorName, d.competitorDomain, d.competitorTier')

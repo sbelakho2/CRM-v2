@@ -77,7 +77,11 @@ class LeadNurturingService
     private LeadRepository $leadRepository;
     private CompanyRepository $companyRepository;
     private ActivityRepository $activityRepository;
-    private ContactRepository $contactRepository;
+
+    /**
+     * Not read yet; kept for future contact-availability lookups.
+     */
+    protected ContactRepository $contactRepository;
     private LoggerInterface $logger;
     
     public function __construct(
@@ -98,8 +102,8 @@ class LeadNurturingService
     
     /**
      * Process nurturing rules for all active leads
-     * 
-     * @return array Summary of actions taken
+     *
+     * @return array{processed: int, stage_advanced: int, marked_dormant: int, followups_scheduled: int, scores_updated: int} Summary of actions taken
      */
     public function processAllLeads(): array
     {
@@ -139,6 +143,7 @@ class LeadNurturingService
             $offset += $batchSize;
         }
         
+        /** @var array{processed: int, stage_advanced: int, marked_dormant: int, followups_scheduled: int, scores_updated: int} $summary */
         $this->logger->info('Lead nurturing complete', $summary);
         
         return $summary;
@@ -146,6 +151,9 @@ class LeadNurturingService
     
     /**
      * Process nurturing rules for a single lead
+     *
+     * @param array{processed: int, stage_advanced: int, marked_dormant: int, followups_scheduled: int, scores_updated: int}|null $summary
+     * @return list<string>
      */
     public function processLead(Lead $lead, ?array &$summary = null): array
     {
@@ -236,14 +244,16 @@ class LeadNurturingService
             
             foreach ($activities as $activity) {
                 $type = $activity->getType();
-                if (isset(self::ENGAGEMENT_ACTIVITIES[$type])) {
+                if ($type !== null && isset(self::ENGAGEMENT_ACTIVITIES[$type])) {
                     $engagementBonus += self::ENGAGEMENT_ACTIVITIES[$type];
                 }
             }
         }
         
         // Calculate based on lead signals
+        /** @var array<int|string, mixed> $fitSignals */
         $fitSignals = $lead->getFitSignals() ?? [];
+        /** @var array<int|string, mixed> $qualityStack */
         $qualityStack = $lead->getQualityStack() ?? [];
         
         // Fit signals bonus (max 20)
@@ -254,7 +264,7 @@ class LeadNurturingService
         
         // Contact availability bonus
         $contactBonus = 0;
-        if ($lead->getContactEmailsPublic() && count($lead->getContactEmailsPublic()) > 0) {
+        if ($lead->getContactEmailsPublic() !== null && count($lead->getContactEmailsPublic()) > 0) {
             $contactBonus += 10;
         }
         if ($lead->getHasContactForm()) {
@@ -385,6 +395,8 @@ class LeadNurturingService
     
     /**
      * Check if follow-up is needed and return reason
+     *
+     * @return array{reason: string, priority: string, suggested_action: string, suggested_template: string}|null
      */
     public function checkFollowupNeeded(Lead $lead, string $stage): ?array
     {
@@ -422,8 +434,8 @@ class LeadNurturingService
     
     /**
      * Get leads that need follow-up
-     * 
-     * @return array Array of leads with follow-up recommendations
+     *
+     * @return list<array{lead: Lead, stage: string, followup: array{reason: string, priority: string, suggested_action: string, suggested_template: string}}> Array of leads with follow-up recommendations
      */
     public function getLeadsNeedingFollowup(int $limit = 50): array
     {
@@ -458,6 +470,8 @@ class LeadNurturingService
     
     /**
      * Get stalled leads (in same stage too long)
+     *
+     * @return list<array{lead: Lead, stage: string, reason: string, reactivation_suggestion: string}>
      */
     public function getStalledLeads(int $limit = 50): array
     {
@@ -486,6 +500,8 @@ class LeadNurturingService
     
     /**
      * Reactivate a dormant lead
+     *
+     * @return list<string>
      */
     public function reactivateLead(Lead $lead): array
     {
@@ -517,6 +533,8 @@ class LeadNurturingService
     
     /**
      * Get nurturing analytics summary
+     *
+     * @return array{total_leads: int, by_stage: array<string, int>, average_score: int|float, needs_followup: int, stalled: int}
      */
     public function getNurturingSummary(): array
     {
@@ -571,6 +589,10 @@ class LeadNurturingService
         
         if ($activity) {
             $date = $activity->getCreatedAt();
+            if ($date === null) {
+                return null;
+            }
+
             return $date instanceof \DateTime ? $date : \DateTime::createFromInterface($date);
         }
         

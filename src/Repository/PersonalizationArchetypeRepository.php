@@ -18,6 +18,8 @@ class PersonalizationArchetypeRepository extends ServiceEntityRepository
 
     /**
      * Find all active archetypes
+          *
+     * @return list<PersonalizationArchetype>
      */
     public function findAllActive(): array
     {
@@ -26,36 +28,49 @@ class PersonalizationArchetypeRepository extends ServiceEntityRepository
 
     /**
      * Find archetypes by industry
+          *
+     * @return list<PersonalizationArchetype>
      */
     public function findByIndustry(string $industry): array
     {
-        return $this->createQueryBuilder('a')
+        /** @var list<PersonalizationArchetype> $results */
+        $results = $this->createQueryBuilder('a')
             ->where('a.targetIndustry = :industry')
             ->andWhere('a.isActive = true')
             ->setParameter('industry', $industry)
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find archetypes by role
+          *
+     * @return list<PersonalizationArchetype>
      */
     public function findByRole(string $role): array
     {
-        return $this->createQueryBuilder('a')
+        /** @var list<PersonalizationArchetype> $results */
+        $results = $this->createQueryBuilder('a')
             ->where('a.targetRole = :role')
             ->andWhere('a.isActive = true')
             ->setParameter('role', $role)
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find archetypes matching industry and role
+          *
+     * @return list<PersonalizationArchetype>
      */
     public function findMatchingArchetypes(string $industry, string $role): array
     {
         // First try exact match
+        /** @var list<PersonalizationArchetype> $exact */
         $exact = $this->createQueryBuilder('a')
             ->where('a.targetIndustry = :industry')
             ->andWhere('a.targetRole = :role')
@@ -84,6 +99,8 @@ class PersonalizationArchetypeRepository extends ServiceEntityRepository
     /**
      * Get archetypes as "fake" profiles for similarity matching
      * Returns array with profile-like structure for compatibility
+     *
+     * @return list<array{profile: PersonalizationArchetype, similarity: float, engagementScore: int, isArchetype: true}>
      */
     public function getArchetypesAsProfiles(): array
     {

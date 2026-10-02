@@ -19,26 +19,30 @@ class EmailSegmentRepository extends ServiceEntityRepository
     /**
      * Find active segments
      *
-     * @return EmailSegment[]
+     * @return list<EmailSegment>
      */
     public function findActive(): array
     {
-        return $this->createQueryBuilder('e')
+        /** @var list<EmailSegment> $results */
+        $results = $this->createQueryBuilder('e')
             ->andWhere('e.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('e.name', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 
     /**
      * Find segments by minimum contact count
      *
-     * @return EmailSegment[]
+     * @return list<EmailSegment>
      */
     public function findByMinContactCount(int $minCount): array
     {
-        return $this->createQueryBuilder('e')
+        /** @var list<EmailSegment> $results */
+        $results = $this->createQueryBuilder('e')
             ->andWhere('e.contactCount >= :minCount')
             ->andWhere('e.isActive = :active')
             ->setParameter('minCount', $minCount)
@@ -46,5 +50,7 @@ class EmailSegmentRepository extends ServiceEntityRepository
             ->orderBy('e.contactCount', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $results;
     }
 }

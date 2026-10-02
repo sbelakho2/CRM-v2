@@ -143,27 +143,34 @@ class ReportBuilderService
     
     /**
      * Get available fields for a data source
+     *
+     * @return array<string, array{label: string, type: string, relation?: string}>
      */
     public function getFieldsForSource(string $dataSource): array
     {
         return self::SOURCE_FIELDS[$dataSource] ?? [];
     }
-    
+
     /**
      * Get all data sources with their labels
+     *
+     * @return array<string, string>
      */
     public function getDataSources(): array
     {
         return ReportDefinition::getDataSources();
     }
-    
+
     /**
      * Execute a report and return results
-      * @param array<string|int, mixed> $runtimeFilters
+     *
+     * @param array<array-key, mixed> $runtimeFilters
+     * @return array{success: bool, error?: string, data: array<int, array<string, mixed>>, meta: array<string, mixed>}
      */
     public function executeReport(ReportDefinition $report, array $runtimeFilters = []): array
     {
-        $entityClass = self::ENTITY_MAP[$report->getDataSource()] ?? null;
+        $dataSourceKey = $report->getDataSource() ?? '';
+        $entityClass = self::ENTITY_MAP[$dataSourceKey] ?? null;
         
         if (!$entityClass || !class_exists($entityClass)) {
             return [
@@ -182,7 +189,7 @@ class ReportBuilderService
         // archive-not-delete model), and calendar data is scoped to the
         // current user's own events unless the user is an admin — the report
         // builder must never become a path around either.
-        $dataSource = $report->getDataSource();
+        $dataSource = $report->getDataSource() ?? '';
         if (in_array($dataSource, ['company', 'contact', 'rfq', 'quote', 'email_campaign'], true)) {
             $qb->andWhere('e.archivedAt IS NULL');
         }
@@ -209,11 +216,14 @@ class ReportBuilderService
         
         foreach ($columns as $column) {
             if (is_array($column)) {
-                $field = (string) ($column['field'] ?? '');
-                $alias = $column['alias'] ?? null;
-                $aggregation = $column['aggregation'] ?? null;
+                $fieldRaw = $column['field'] ?? '';
+                $field = is_scalar($fieldRaw) ? (string) $fieldRaw : '';
+                $aliasRaw = $column['alias'] ?? null;
+                $alias = is_scalar($aliasRaw) ? (string) $aliasRaw : null;
+                $aggregationRaw = $column['aggregation'] ?? null;
+                $aggregation = is_scalar($aggregationRaw) ? (string) $aggregationRaw : null;
             } else {
-                $field = (string) $column;
+                $field = is_scalar($column) ? (string) $column : '';
                 $alias = null;
                 $aggregation = null;
             }
@@ -230,20 +240,20 @@ class ReportBuilderService
             // ── Aggregation functions are whitelisted to a known set ──
             // An EMPTY aggregation means "none" (what the form submits),
             // never an invalid value.
-            if ($aggregation !== null && (string) $aggregation === '') {
+            if ($aggregation !== null && $aggregation === '') {
                 $aggregation = null;
             }
             if ($aggregation !== null) {
-                $aggregation = strtolower((string) $aggregation);
+                $aggregation = strtolower($aggregation);
                 if (!in_array($aggregation, ['count', 'sum', 'avg', 'min', 'max'], true)) {
                     $warnings[] = "Skipped invalid aggregation '{$aggregation}' on field '{$field}'";
                     continue;
                 }
             }
 
-            $fieldPath = $this->resolveFieldExpression($qb, $field, $report->getDataSource(), $joinsMade);
+            $fieldPath = $this->resolveFieldExpression($qb, $field, $dataSourceKey, $joinsMade);
             if ($fieldPath === null) {
-                $warnings[] = "Skipped column '{$field}': not a valid field for data source '{$report->getDataSource()}'";
+                $warnings[] = "Skipped column '{$field}': not a valid field for data source '{$dataSourceKey}'";
                 continue;
             }
 
@@ -279,11 +289,11 @@ class ReportBuilderService
         $qb->select(implode(', ', $selectParts));
         
         // Apply stored filters
-        $this->applyFilters($qb, $report->getFilters(), $report->getDataSource());
-        
+        $this->applyFilters($qb, $report->getFilters(), $dataSourceKey);
+
         // Apply runtime filters
         if (!empty($runtimeFilters)) {
-            $this->applyFilters($qb, $runtimeFilters, $report->getDataSource());
+            $this->applyFilters($qb, $runtimeFilters, $dataSourceKey);
         }
         
         // Apply date range
@@ -293,10 +303,10 @@ class ReportBuilderService
         $groupBy = $report->getGroupBy();
         if (!empty($groupBy)) {
             foreach ($groupBy as $groupField) {
-                $groupField = (string) $groupField;
-                $expr = $this->resolveFieldExpression($qb, $groupField, $report->getDataSource(), $joinsMade);
+                $groupField = is_scalar($groupField) ? (string) $groupField : '';
+                $expr = $this->resolveFieldExpression($qb, $groupField, $dataSourceKey, $joinsMade);
                 if ($expr === null) {
-                    $warnings[] = "Skipped group-by field '{$groupField}': not valid for data source '{$report->getDataSource()}'";
+                    $warnings[] = "Skipped group-by field '{$groupField}': not valid for data source '{$dataSourceKey}'";
                     continue;
                 }
                 $qb->addGroupBy($expr);
@@ -307,10 +317,12 @@ class ReportBuilderService
         $orderBy = $report->getOrderBy();
         if (!empty($orderBy)) {
             foreach ($orderBy as $order) {
-                $field = (string) (is_array($order) ? ($order['field'] ?? '') : $order);
+                $fieldRaw = is_array($order) ? ($order['field'] ?? '') : $order;
+                $field = is_scalar($fieldRaw) ? (string) $fieldRaw : '';
                 // Direction is interpolated into DQL — only ASC|DESC survive,
                 // case-normalized.
-                $direction = strtoupper((string) (is_array($order) ? ($order['direction'] ?? 'ASC') : 'ASC'));
+                $directionRaw = is_array($order) ? ($order['direction'] ?? 'ASC') : 'ASC';
+                $direction = strtoupper(is_scalar($directionRaw) ? (string) $directionRaw : 'ASC');
                 if (!in_array($direction, ['ASC', 'DESC'], true)) {
                     $direction = 'ASC';
                 }
@@ -324,9 +336,9 @@ class ReportBuilderService
                     continue;
                 }
 
-                $expr = $this->resolveFieldExpression($qb, $field, $report->getDataSource(), $joinsMade);
+                $expr = $this->resolveFieldExpression($qb, $field, $dataSourceKey, $joinsMade);
                 if ($expr === null) {
-                    $warnings[] = "Skipped order-by field '{$field}': not valid for data source '{$report->getDataSource()}'";
+                    $warnings[] = "Skipped order-by field '{$field}': not valid for data source '{$dataSourceKey}'";
                     continue;
                 }
                 $qb->addOrderBy($expr, $direction);
@@ -388,7 +400,7 @@ class ReportBuilderService
      */
     private function ensureJoin(QueryBuilder $qb, string $dataSource, string $relation): void
     {
-        static $allowed = [
+        $allowed = [
             'company' => ['contact', 'rfq', 'quote', 'lead'],
             'assignedTo' => ['task'],
         ];
@@ -397,9 +409,11 @@ class ReportBuilderService
             return; // relation not valid for this source — field whitelist already rejected it
         }
 
-        foreach ($qb->getDQLParts()['join'] as $joins) {
-            foreach ($joins as $join) {
-                if (str_ends_with((string) $join->getAlias(), $relation)) {
+        $joinsByAlias = $qb->getDQLParts()['join'] ?? [];
+        foreach (is_array($joinsByAlias) ? $joinsByAlias : [] as $joins) {
+            foreach (is_array($joins) ? $joins : [] as $join) {
+                if ($join instanceof \Doctrine\ORM\Query\Expr\Join
+                    && str_ends_with($join->getAlias(), $relation)) {
                     return; // already joined
                 }
             }
@@ -419,6 +433,7 @@ class ReportBuilderService
      * method: whitelist validation, idempotent relation join, expression
      * build. No other code may construct "e.field" or "relation.field" paths.
      *
+     * @param array<int, string> $joinsMade
      * @return string|null the DQL expression, or null when the field is not
      *                     valid for the data source
      */
@@ -452,7 +467,7 @@ class ReportBuilderService
 
         return $fieldDef !== null
             && !str_contains($field, '.')
-            && in_array($fieldDef['type'] ?? '', ['datetime', 'date'], true);
+            && in_array($fieldDef['type'], ['datetime', 'date'], true);
     }
 
     /**
@@ -475,6 +490,15 @@ class ReportBuilderService
         'like', 'join', 'left', 'inner', 'distinct', 'asc', 'desc', 'having',
         'case', 'when', 'then', 'else', 'end', 'update', 'delete', 'insert',
     ];
+
+    /**
+     * Weak-mode string coercion for LIKE filter values: scalars stringify as
+     * PHP would; arrays/objects (previously "Array"/TypeError) become ''.
+     */
+    private static function filterValueToString(mixed $value): string
+    {
+        return is_scalar($value) ? (string) $value : '';
+    }
 
     private function sanitizeAlias(mixed $alias): ?string
     {
@@ -499,7 +523,8 @@ class ReportBuilderService
 
     /**
      * Apply filters to query
-      * @param array<string|int, mixed> $filters
+     *
+     * @param array<array-key, mixed> $filters
      */
     private function applyFilters(QueryBuilder $qb, array $filters, string $dataSource): void
     {
@@ -520,7 +545,8 @@ class ReportBuilderService
             // Unknown field: skipped (consistent with the rest of the
             // builder), never turned into DQL.
             $joinsMade = [];
-            $fieldExpr = $this->resolveFieldExpression($qb, (string) $field, $dataSource, $joinsMade);
+            $fieldRaw = $filter['field'];
+            $fieldExpr = $this->resolveFieldExpression($qb, is_scalar($fieldRaw) ? (string) $fieldRaw : '', $dataSource, $joinsMade);
             if ($fieldExpr === null) {
                 continue;
             }
@@ -541,22 +567,22 @@ class ReportBuilderService
                     
                 case 'contains':
                     $qb->andWhere("{$fieldExpr} LIKE :{$paramName}")
-                       ->setParameter($paramName, "%{$value}%");
+                       ->setParameter($paramName, '%' . self::filterValueToString($value) . '%');
                     break;
-                    
+
                 case 'not_contains':
                     $qb->andWhere("{$fieldExpr} NOT LIKE :{$paramName}")
-                       ->setParameter($paramName, "%{$value}%");
+                       ->setParameter($paramName, '%' . self::filterValueToString($value) . '%');
                     break;
-                    
+
                 case 'starts_with':
                     $qb->andWhere("{$fieldExpr} LIKE :{$paramName}")
-                       ->setParameter($paramName, "{$value}%");
+                       ->setParameter($paramName, self::filterValueToString($value) . '%');
                     break;
-                    
+
                 case 'ends_with':
                     $qb->andWhere("{$fieldExpr} LIKE :{$paramName}")
-                       ->setParameter($paramName, "%{$value}");
+                       ->setParameter($paramName, '%' . self::filterValueToString($value));
                     break;
                     
                 case 'greater_than':
@@ -631,12 +657,13 @@ class ReportBuilderService
         // other DQL path (previously it interpolated the stored dateField
         // unvalidated — another identifier-interpolation route), and the
         // field must actually BE a date/datetime field.
-        if (!$this->isValidDateField($dateField, $report->getDataSource())) {
+        $dataSourceKey = $report->getDataSource() ?? '';
+        if (!$this->isValidDateField($dateField, $dataSourceKey)) {
             return;
         }
 
         $joinsMade = [];
-        $fieldExpr = $this->resolveFieldExpression($qb, $dateField, $report->getDataSource(), $joinsMade);
+        $fieldExpr = $this->resolveFieldExpression($qb, $dateField, $dataSourceKey, $joinsMade);
         if ($fieldExpr === null) {
             return;
         }
@@ -657,6 +684,8 @@ class ReportBuilderService
     
     /**
      * Get start and end dates from preset
+     *
+     * @return array{0: \DateTimeImmutable|null, 1: \DateTimeImmutable|null}
      */
     private function getDateRangeFromPreset(string $preset, DateTimeImmutable $now, ReportDefinition $report): array
     {
@@ -705,13 +734,15 @@ class ReportBuilderService
     
     /**
      * Get quarter date range
+     *
+     * @return array{0: \DateTimeImmutable, 1: \DateTimeImmutable}
      */
     private function getQuarterDates(DateTimeImmutable $now, int $offset): array
     {
         $month = (int) $now->format('n');
         $year = (int) $now->format('Y');
-        
-        $quarter = ceil($month / 3) + $offset;
+
+        $quarter = (int) ceil($month / 3) + $offset;
         
         if ($quarter < 1) {
             $quarter = 4;
@@ -732,32 +763,36 @@ class ReportBuilderService
     
     /**
      * Format data for chart display
-      * @param array<string|int, mixed> $results
+     *
+     * @param list<array<string, mixed>> $results
+     * @return array{labels: list<string>, datasets: list<array{label: mixed, data: list<float>, backgroundColor: list<string>, borderColor: list<string>, borderWidth: int}>}
      */
     public function formatForChart(array $results, ReportDefinition $report): array
     {
         $chartConfig = $report->getChartConfig() ?? [];
         $labelField = $chartConfig['labelField'] ?? null;
         $valueField = $chartConfig['valueField'] ?? null;
-        
+
         if (!$labelField || !$valueField) {
             // Try to auto-detect from columns
             $columns = $report->getColumns();
-            if (count($columns) >= 2) {
-                $labelField = is_array($columns[0]) ? $columns[0]['field'] : $columns[0];
-                $valueField = is_array($columns[1]) ? $columns[1]['field'] : $columns[1];
+            if (isset($columns[0], $columns[1])) {
+                $labelField = is_array($columns[0]) ? ($columns[0]['field'] ?? null) : $columns[0];
+                $valueField = is_array($columns[1]) ? ($columns[1]['field'] ?? null) : $columns[1];
             }
         }
-        
+
         $labels = [];
         $values = [];
-        
-        $labelKey = str_replace('.', '_', $labelField ?? 'label');
-        $valueKey = str_replace('.', '_', $valueField ?? 'value');
-        
+
+        $labelKey = str_replace('.', '_', is_string($labelField) ? $labelField : 'label');
+        $valueKey = str_replace('.', '_', is_string($valueField) ? $valueField : 'value');
+
         foreach ($results as $row) {
-            $labels[] = $row[$labelKey] ?? 'Unknown';
-            $values[] = (float) ($row[$valueKey] ?? 0);
+            $labelValue = $row[$labelKey] ?? 'Unknown';
+            $labels[] = is_scalar($labelValue) ? (string) $labelValue : 'Unknown';
+            $rawValue = $row[$valueKey] ?? 0;
+            $values[] = is_numeric($rawValue) ? (float) $rawValue : 0.0;
         }
         
         return [
@@ -776,6 +811,8 @@ class ReportBuilderService
     
     /**
      * Generate chart colors
+     *
+     * @return list<string>
      */
     private function generateColors(int $count, bool $border = false): array
     {
@@ -805,20 +842,24 @@ class ReportBuilderService
     
     /**
      * Export report to CSV
-      * @param array<string|int, mixed> $results
+     *
+     * @param list<array<string, mixed>> $results
      */
     public function exportToCsv(array $results, ReportDefinition $report): string
     {
         if (empty($results)) {
             return '';
         }
-        
+
         $output = fopen('php://temp', 'r+');
-        
+        if ($output === false) {
+            return '';
+        }
+
         // Headers
         $headers = array_keys($results[0]);
         fputcsv($output, $headers, ',', '"', '\\');
-        
+
         // Data
         foreach ($results as $row) {
             $rowData = [];
@@ -829,24 +870,29 @@ class ReportBuilderService
                 } elseif (is_bool($value)) {
                     $value = $value ? 'Yes' : 'No';
                 } elseif (is_array($value)) {
-                    $value = json_encode($value);
+                    $value = json_encode($value) ?: '[]';
+                } elseif (!is_scalar($value)) {
+                    $value = ''; // objects/previously-crashing payloads export as empty cells
                 }
                 // OWASP formula-injection guard — the SHARED sanitizer
                 // (same one CsvExportService uses), not a third variant.
-                $rowData[] = \App\Service\CsvExportService::sanitizeCsvCell($value);
+                $sanitized = \App\Service\CsvExportService::sanitizeCsvCell($value);
+                $rowData[] = is_scalar($sanitized) || $sanitized === null ? $sanitized : '';
             }
             fputcsv($output, $rowData, ',', '"', '\\');
         }
-        
+
         rewind($output);
         $csv = stream_get_contents($output);
         fclose($output);
-        
-        return $csv;
+
+        return $csv !== false ? $csv : '';
     }
     
     /**
      * Get filter operators for field type
+     *
+     * @return array<string, string>
      */
     public function getOperatorsForFieldType(string $fieldType): array
     {
@@ -890,6 +936,8 @@ class ReportBuilderService
     
     /**
      * Get suggested reports for a data source
+     *
+     * @return list<array<string, mixed>>
      */
     public function getSuggestedReports(string $dataSource): array
     {

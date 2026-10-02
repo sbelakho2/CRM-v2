@@ -15,7 +15,7 @@ class PackagingFactor
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 100)]
     private ?string $category = null; // Resistors, Capacitors, Connectors, PCB Assemblies, etc.
@@ -26,6 +26,7 @@ class PackagingFactor
     #[ORM\Column(type: 'decimal', precision: 10, scale: 4)]
     private ?string $dm3PerUnit = null; // Volume per unit in dm³
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $palletizationRuleJson = null; // JSON: {carton_dims_cm: [36,24,24], units_per_carton: 1000, cartons_per_pallet: 60}
 
@@ -100,11 +101,13 @@ class PackagingFactor
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getPalletizationRuleJson(): ?array
     {
         return $this->palletizationRuleJson;
     }
 
+    /** @param array<string, mixed>|null $palletizationRuleJson */
     public function setPalletizationRuleJson(?array $palletizationRuleJson): self
     {
         $this->palletizationRuleJson = $palletizationRuleJson;

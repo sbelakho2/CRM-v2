@@ -25,7 +25,8 @@ class PlaybookController extends AbstractController
         private EntityManagerInterface $entityManager,
         private PlaybookRepository $playbookRepository,
         private PlaybookRunRepository $playbookRunRepository,
-        private PlaybookEngine $playbookEngine,
+        /** Never-read here, kept protected for subclass engine integrations. */
+        protected PlaybookEngine $playbookEngine,
         private GuidanceNotificationService $guidanceService,
         private TranslatorInterface $translator
     ) {}
@@ -33,12 +34,13 @@ class PlaybookController extends AbstractController
     #[Route('/', name: 'app_playbook_index', methods: ['GET'])]
     public function index(): Response
     {
+        /** @var list<Playbook> $playbooks */
         $playbooks = $this->playbookRepository->createQueryBuilder('p')
             ->andWhere('p.archivedAt IS NULL')
             ->orderBy('p.priority', 'DESC')
             ->getQuery()
             ->getResult();
-        
+
         // Calculate stats for each playbook
         $playbookStats = [];
         foreach ($playbooks as $playbook) {
@@ -46,7 +48,7 @@ class PlaybookController extends AbstractController
             $totalRuns = count($runs);
             $successfulRuns = count(array_filter($runs, fn($run) => $run->getStatus() === 'completed'));
             
-            $playbookStats[$playbook->getId()] = [
+            $playbookStats[(int) $playbook->getId()] = [
                 'total_runs' => $totalRuns,
                 'successful_runs' => $successfulRuns,
                 'success_rate' => $totalRuns > 0 ? ($successfulRuns / $totalRuns) * 100 : 0,
@@ -65,30 +67,32 @@ class PlaybookController extends AbstractController
     public function new(Request $request): Response
     {
         if ($request->isMethod('POST')) {
-            if (!$this->isCsrfTokenValid('playbook_new', $request->request->get('_token'))) {
+            if (!$this->isCsrfTokenValid('playbook_new', $request->request->getString('_token'))) {
                 throw $this->createAccessDeniedException('Invalid CSRF token');
             }
 
             $playbook = new Playbook();
-            $playbook->setName($request->request->get('name'));
-            $playbook->setDescription($request->request->get('description'));
+            $playbook->setName($request->request->getString('name'));
+            $playbook->setDescription($request->request->getString('description'));
             $playbook->setPriority((int) $request->request->get('priority', 100));
             $playbook->setIsActive($request->request->get('is_active', '1') === '1');
-            $playbook->setNotes($request->request->get('notes'));
-            
+            $notesRaw = $request->request->get('notes');
+            $playbook->setNotes(is_scalar($notesRaw) ? (string) $notesRaw : null);
+
             // Parse trigger rules
-            $triggerRules = $request->request->get('trigger_rules', '[]');
-            $playbook->setTriggerRules($triggerRules);
-            
+            $playbook->setTriggerRules($request->request->getString('trigger_rules', '[]'));
+
             // Parse actions
-            $actions = $request->request->get('actions', '[]');
-            $playbook->setActions($actions);
-            
+            $playbook->setActions($request->request->getString('actions', '[]'));
+
             $this->entityManager->persist($playbook);
             $this->entityManager->flush();
-            
+
             // Provide guidance after playbook creation
-            $this->guidanceService->afterPlaybookCreated($playbook->getId(), $playbook->getName());
+            $playbookId = $playbook->getId();
+            if ($playbookId !== null) {
+                $this->guidanceService->afterPlaybookCreated($playbookId, $playbook->getName() ?? '');
+            }
             
             $this->addFlash('success', $this->translator->trans('playbook.flash.created'));
             return $this->redirectToRoute('app_playbook_show', ['id' => $playbook->getId()]);
@@ -135,23 +139,22 @@ class PlaybookController extends AbstractController
         }
 
         if ($request->isMethod('POST')) {
-            if (!$this->isCsrfTokenValid('playbook_edit', $request->request->get('_token'))) {
+            if (!$this->isCsrfTokenValid('playbook_edit', $request->request->getString('_token'))) {
                 throw $this->createAccessDeniedException('Invalid CSRF token');
             }
 
-            $playbook->setName($request->request->get('name'));
-            $playbook->setDescription($request->request->get('description'));
+            $playbook->setName($request->request->getString('name'));
+            $playbook->setDescription($request->request->getString('description'));
             $playbook->setPriority((int) $request->request->get('priority', 100));
             $playbook->setIsActive($request->request->get('is_active', '1') === '1');
-            $playbook->setNotes($request->request->get('notes'));
-            
+            $notesRaw = $request->request->get('notes');
+            $playbook->setNotes(is_scalar($notesRaw) ? (string) $notesRaw : null);
+
             // Update trigger rules
-            $triggerRules = $request->request->get('trigger_rules', '[]');
-            $playbook->setTriggerRules($triggerRules);
-            
+            $playbook->setTriggerRules($request->request->getString('trigger_rules', '[]'));
+
             // Update actions
-            $actions = $request->request->get('actions', '[]');
-            $playbook->setActions($actions);
+            $playbook->setActions($request->request->getString('actions', '[]'));
             
             $playbook->setUpdatedAt(new \DateTime());
             
@@ -172,13 +175,18 @@ class PlaybookController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function delete(Request $request, Playbook $playbook): Response
     {
-        if (!$this->isCsrfTokenValid('playbook_delete_' . $playbook->getId(), $request->request->get('_csrf_token'))) {
+        if (!$this->isCsrfTokenValid('playbook_delete_' . $playbook->getId(), $request->request->getString('_csrf_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
+        $user = $this->getUser();
+        if (!$user instanceof \App\Entity\User) {
+            throw $this->createAccessDeniedException('Archiving requires an authenticated CRM user');
         }
 
         // Playbook execution history (runs) is CRM history: archive the
         // playbook instead of cascading its runs away.
-        $playbook->archive($this->getUser(), 'Archived from playbooks list');
+        $playbook->archive($user, 'Archived from playbooks list');
         $playbook->setIsActive(false);
         $this->entityManager->flush();
 
@@ -194,7 +202,7 @@ class PlaybookController extends AbstractController
             return new JsonResponse(['error' => 'This playbook is archived and cannot be reactivated.'], 409);
         }
 
-        if (!$this->isCsrfTokenValid('playbook_toggle_' . $playbook->getId(), $request->request->get('_csrf_token'))) {
+        if (!$this->isCsrfTokenValid('playbook_toggle_' . $playbook->getId(), $request->request->getString('_csrf_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
@@ -214,19 +222,18 @@ class PlaybookController extends AbstractController
     public function builderTriggers(Request $request, Playbook $playbook): Response
     {
         if ($request->isMethod('POST')) {
-            if (!$this->isCsrfTokenValid('playbook_builder_triggers', $request->request->get('_token'))) {
+            if (!$this->isCsrfTokenValid('playbook_builder_triggers', $request->request->getString('_token'))) {
                 throw $this->createAccessDeniedException('Invalid CSRF token');
             }
 
-            $payload = $request->request->get('trigger_rules', '[]');
-            /** @var array<string, mixed>|null $decoded */
+            $payload = $request->request->getString('trigger_rules', '[]');
             /** @var array<string, mixed>|null $decoded */
             $decoded = json_decode($payload, true);
 
             if (!is_array($decoded)) {
                 $this->addFlash('error', $this->translator->trans('playbook.flash.invalid_rules'));
             } else {
-                $playbook->setTriggerRules(json_encode($decoded));
+                $playbook->setTriggerRules(json_encode($decoded) ?: '[]');
                 $playbook->setUpdatedAt(new \DateTime());
                 $this->entityManager->flush();
                 $this->addFlash('success', $this->translator->trans('playbook.flash.updated'));
@@ -246,19 +253,18 @@ class PlaybookController extends AbstractController
     public function builderActions(Request $request, Playbook $playbook): Response
     {
         if ($request->isMethod('POST')) {
-            if (!$this->isCsrfTokenValid('playbook_builder_actions', $request->request->get('_token'))) {
+            if (!$this->isCsrfTokenValid('playbook_builder_actions', $request->request->getString('_token'))) {
                 throw $this->createAccessDeniedException('Invalid CSRF token');
             }
 
-            $payload = $request->request->get('actions', '[]');
-            /** @var array<string, mixed>|null $decoded */
+            $payload = $request->request->getString('actions', '[]');
             /** @var array<string, mixed>|null $decoded */
             $decoded = json_decode($payload, true);
 
             if (!is_array($decoded)) {
                 $this->addFlash('error', $this->translator->trans('playbook.flash.invalid_actions'));
             } else {
-                $playbook->setActions(json_encode($decoded));
+                $playbook->setActions(json_encode($decoded) ?: '[]');
                 $playbook->setUpdatedAt(new \DateTime());
                 $this->entityManager->flush();
                 $this->addFlash('success', $this->translator->trans('playbook.flash.updated'));
@@ -273,14 +279,19 @@ class PlaybookController extends AbstractController
         ]);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function decodeJsonArray(?string $value): array
     {
-        /** @var array<string, mixed>|null $decoded */
         /** @var array<string, mixed>|null $decoded */
         $decoded = json_decode($value ?? '[]', true);
         return is_array($decoded) ? $decoded : [];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function getAvailableTriggers(): array
     {
         return [
@@ -320,6 +331,9 @@ class PlaybookController extends AbstractController
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function getAvailableActions(): array
     {
         return [

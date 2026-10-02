@@ -193,10 +193,10 @@ class EmailSchedulerService
             $this->entityManager->flush();
 
             foreach ($due as $campaign) {
-                $recipientIds = array_map(
-                    static fn (Contact $contact) => $contact->getId(),
+                $recipientIds = array_values(array_map(
+                    static fn (Contact $contact) => (int) $contact->getId(),
                     $campaign->getContacts()->toArray()
-                );
+                ));
 
                 if ($recipientIds === []) {
                     $dispatched[] = ['campaign_id' => (int) $campaign->getId(), 'queued' => 0];

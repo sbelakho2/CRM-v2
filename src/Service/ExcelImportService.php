@@ -10,6 +10,7 @@ use App\Entity\SupplierPortal;
 use App\Repository\CompanyRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Worksheet\Row;
 
 class ExcelImportService
 {
@@ -20,6 +21,8 @@ class ExcelImportService
 
     /**
      * Import companies from Tracker.xlsx
+     *
+     * @return array{companies_created: int, companies_updated: int, contacts_created: int, errors: list<string>}
      */
     public function importFromTrackerExcel(string $filePath): array
     {
@@ -92,14 +95,16 @@ class ExcelImportService
 
     /**
      * Map column headers to field names
-      * @param array<string|int, mixed> $headers
+     *
+     * @param list<mixed> $headers
+     * @return array<int, string>
      */
     private function mapColumns(array $headers): array
     {
         $map = [];
-        
+
         foreach ($headers as $index => $header) {
-            $normalized = strtolower(trim($header));
+            $normalized = strtolower(trim(is_scalar($header) ? (string) $header : ''));
             
             $map[$index] = match(true) {
                 str_contains($normalized, 'company') && str_contains($normalized, 'name') => 'company_name',
@@ -126,9 +131,11 @@ class ExcelImportService
 
     /**
      * Extract row data based on column map
-      * @param array<string|int, mixed> $columnMap
+     *
+     * @param array<int, string> $columnMap
+     * @return array<string, mixed>
      */
-    private function extractRowData($row, array $columnMap): array
+    private function extractRowData(Row $row, array $columnMap): array
     {
         $data = [];
         $cellIterator = $row->getCellIterator();
@@ -147,12 +154,23 @@ class ExcelImportService
     }
 
     /**
+     * Weak-mode string coercion for spreadsheet cell values: scalars are
+     * stringified exactly as PHP would, non-scalars (which previously hit a
+     * TypeError) collapse to null.
+     */
+    private function stringOrNull(mixed $value): ?string
+    {
+        return is_scalar($value) ? (string) $value : null;
+    }
+
+    /**
      * Import or update company
-      * @param array<string|int, mixed> $data
+     *
+     * @param array<string, mixed> $data
      */
     private function importCompany(array $data): Company
     {
-        $companyName = trim($data['company_name']);
+        $companyName = trim($this->stringOrNull($data['company_name']) ?? '');
         
         // Check if company exists
         $company = $this->companyRepository->findOneBy(['name' => $companyName]);
@@ -164,29 +182,35 @@ class ExcelImportService
 
         // Update fields
         if (!empty($data['sector'])) {
-            $company->setSector($data['sector']);
+            $company->setSector($this->stringOrNull($data['sector']));
         }
         if (!empty($data['account_tier'])) {
-            $company->setAccountTier($data['account_tier']);
+            $tier = $this->stringOrNull($data['account_tier']);
+            if ($tier !== null) {
+                $company->setAccountTier($tier);
+            }
         }
         if (!empty($data['pipeline_stage'])) {
-            $company->setPipelineStage($data['pipeline_stage']);
+            $stage = $this->stringOrNull($data['pipeline_stage']);
+            if ($stage !== null) {
+                $company->setPipelineStage($stage);
+            }
         }
         if (!empty($data['region'])) {
-            $company->setRegion($data['region']);
+            $company->setRegion($this->stringOrNull($data['region']));
         }
         if (!empty($data['website'])) {
-            $company->setWebsite($data['website']);
+            $company->setWebsite($this->stringOrNull($data['website']));
         }
         if (!empty($data['google_drive'])) {
-            $company->setGoogleDriveLink($data['google_drive']);
+            $company->setGoogleDriveLink($this->stringOrNull($data['google_drive']));
         }
         // Company's real model: pipelineStage (prospecting priority) and
         // companyStatus — no phantom priority/status setters.
-        if (isset($data['priority']) && in_array($data['priority'], \App\Entity\Company::VALID_STAGES, true)) {
+        if (isset($data['priority']) && is_string($data['priority']) && in_array($data['priority'], \App\Entity\Company::VALID_STAGES, true)) {
             $company->setPipelineStage($data['priority']);
         }
-        if (isset($data['status']) && in_array($data['status'], \App\Entity\Company::VALID_STATUSES, true)) {
+        if (isset($data['status']) && is_string($data['status']) && in_array($data['status'], \App\Entity\Company::VALID_STATUSES, true)) {
             $company->setCompanyStatus($data['status']);
         }
 
@@ -200,7 +224,8 @@ class ExcelImportService
      * Deduplicates by (email + company): re-importing the same Tracker file
      * updates the existing contact instead of creating a duplicate row.
      * Only non-empty fields are written, so existing data is preserved.
-      * @param array<string|int, mixed> $data
+     *
+     * @param array<string, mixed> $data
      */
     private function importContact(Company $company, array $data): ?Contact
     {
@@ -208,7 +233,7 @@ class ExcelImportService
             return null;
         }
 
-        $email = trim($data['contact_email']);
+        $email = trim($this->stringOrNull($data['contact_email']) ?? '');
         if ($email === '') {
             return null;
         }
@@ -224,15 +249,15 @@ class ExcelImportService
         }
 
         if (!empty($data['contact_name'])) {
-            $nameParts = explode(' ', $data['contact_name'], 2);
+            $nameParts = explode(' ', $this->stringOrNull($data['contact_name']) ?? '', 2);
             $contact->setFirstName($nameParts[0]);
             $contact->setLastName($nameParts[1] ?? '');
         }
         if (!empty($data['contact_phone'])) {
-            $contact->setPhone($data['contact_phone']);
+            $contact->setPhone($this->stringOrNull($data['contact_phone']));
         }
         if (!empty($data['contact_role'])) {
-            $contact->setJobTitle($data['contact_role']);
+            $contact->setJobTitle($this->stringOrNull($data['contact_role']));
         }
 
         return $contact;
@@ -240,23 +265,24 @@ class ExcelImportService
 
     /**
      * Import supplier portal status
-      * @param array<string|int, mixed> $data
+     *
+     * @param array<string, mixed> $data
      */
     private function importSupplierPortal(Company $company, array $data): void
     {
         $portal = $company->getSupplierPortal();
-        
+
         if (!$portal) {
             $portal = new SupplierPortal();
             $portal->setCompany($company);
         }
 
-        $registered = strtolower($data['portal_registered'] ?? '') === 'yes';
+        $registered = strtolower($this->stringOrNull($data['portal_registered'] ?? '') ?? '') === 'yes';
         $portal->setRegistered($registered);
 
         if ($registered && !empty($data['portal_signup_date'])) {
             try {
-                $signupDate = new \DateTime($data['portal_signup_date']);
+                $signupDate = new \DateTime($this->stringOrNull($data['portal_signup_date']) ?? '');
                 $portal->setRegistrationDate($signupDate);
             } catch (\Exception $e) {
                 // Invalid date format, skip

@@ -49,7 +49,9 @@ class CompetitorDetectionService
 {
     // Tier 1 - Direct Competitors (North Africa - same services, same region)
     // EMS, Cable Harness, Overmolding providers in Morocco/Tunisia
-    private const TIER_1_COMPETITORS = [
+    // Public: original curated seed lists, kept available for tooling/tests and
+    // subclasses; the active pipeline reads CompetitorLearnerService instead.
+    public const TIER_1_COMPETITORS = [
         'telnet-group.com' => 'Telnet',
         'all-circuits.com' => 'All Circuits',
         'actia.com' => 'Actia',
@@ -63,7 +65,7 @@ class CompetitorDetectionService
     ];
 
     // Tier 2 - Eastern European EMS (compete for same European OEM business)
-    private const TIER_2_COMPETITORS = [
+    public const TIER_2_COMPETITORS = [
         'fideltronik.com' => 'Fideltronik',
         'videoton.hu' => 'Videoton',
         'katek.de' => 'KATEK',
@@ -78,7 +80,7 @@ class CompetitorDetectionService
     ];
 
     // Tier 3 - Global EMS (different scale, occasionally overlap)
-    private const TIER_3_COMPETITORS = [
+    public const TIER_3_COMPETITORS = [
         'flex.com' => 'Flex',
         'jabil.com' => 'Jabil',
         'celestica.com' => 'Celestica',
@@ -96,6 +98,7 @@ class CompetitorDetectionService
     ];
 
     // Cache for dynamic competitors
+    /** @var array<string, array{name: string|null, tier: int, source: string, aliases?: list<string>, confidence?: int}>|null */
     private ?array $dynamicCompetitorCache = null;
     private ?int $cacheTimestamp = null;
     private const CACHE_TTL = 300; // 5 minutes
@@ -103,7 +106,11 @@ class CompetitorDetectionService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private CompetitorDetectionRepository $detectionRepository,
-        private LeadRepository $leadRepository,
+
+        /**
+         * Not read in this class yet; kept injected for subclasses and tests.
+         */
+        protected LeadRepository $leadRepository,
         private ?LearnedCompetitorRepository $learnedCompetitorRepository,
         private LoggerInterface $logger
     ) {}
@@ -111,6 +118,8 @@ class CompetitorDetectionService
     /**
      * Detect competitors from website content/analysis
      * Now uses both static and dynamically learned competitors
+     *
+     * @return list<array{domain: string, name: string, tier: int, source: string}>
      */
     public function detectCompetitorsFromContent(Lead $lead, string $content): array
     {
@@ -121,9 +130,14 @@ class CompetitorDetectionService
         $allCompetitors = $this->getAllCompetitors();
         
         foreach ($allCompetitors as $domain => $info) {
+            // Learned competitors may carry a null name; only the domain is matchable then.
+            $competitorName = $info['name'] ?? '';
+            if ($competitorName === '' && $domain === '') {
+                continue;
+            }
             // Check for domain mention or company name
             $domainPattern = preg_quote(strtolower($domain), '/');
-            $namePattern = preg_quote(strtolower($info['name']), '/');
+            $namePattern = preg_quote(strtolower($competitorName), '/');
             
             // Also check aliases if available
             $patterns = [$domainPattern, $namePattern];
@@ -140,9 +154,9 @@ class CompetitorDetectionService
                 
                 $detectedCompetitors[] = [
                     'domain' => $domain,
-                    'name' => $info['name'],
+                    'name' => $competitorName !== '' ? $competitorName : $domain,
                     'tier' => $tier,
-                    'source' => $info['source'] ?? 'static',
+                    'source' => $info['source'],
                 ];
                 
                 // If this is a learned competitor, increment its detection count
@@ -167,6 +181,8 @@ class CompetitorDetectionService
 
     /**
      * Get all competitors (static seed list + dynamically learned)
+     *
+     * @return array<string, array{name: string|null, tier: int, source: string, aliases?: list<string>, confidence?: int}>
      */
     public function getAllCompetitors(): array
     {
@@ -191,7 +207,7 @@ class CompetitorDetectionService
             $learnedCompetitors = $this->learnedCompetitorRepository->findHighConfidence(50);
             
             foreach ($learnedCompetitors as $competitor) {
-                $domain = $competitor->getDomain();
+                $domain = $competitor->getDomain() ?? '';
                 
                 // Don't override static competitors
                 if (!isset($allCompetitors[$domain])) {
@@ -223,9 +239,11 @@ class CompetitorDetectionService
     }
 
     /**
-     * Get tier for a domain (checks both static and dynamic)
+     * Get tier for a domain (checks both static and dynamic).
+     * Protected: kept for subclass reuse; the current pipeline derives tiers
+     * from getAllCompetitors() instead.
      */
-    private function getTierForDomain(string $domain): int
+    protected function getTierForDomain(string $domain): int
     {
         $staticByTier = CompetitorLearnerService::getStaticCompetitorsByTier();
         foreach ($staticByTier as $tier => $competitors) {
@@ -247,7 +265,8 @@ class CompetitorDetectionService
 
     /**
      * Save competitor detections for a lead
-      * @param array<string|int, mixed> $competitors
+     *
+     * @param list<array{domain: string, name: string, tier: int, source?: string, detectedIn?: string, confidence?: int}> $competitors
      */
     public function saveCompetitorDetections(Lead $lead, array $competitors): void
     {
@@ -301,6 +320,8 @@ class CompetitorDetectionService
 
     /**
      * Get competitor leads by tier (for Sniper targeting)
+     *
+     * @return array{leads: list<Lead>, byCompetitor: array<string, non-empty-list<Lead>>, competitorStats: list<array{name: mixed, domain: mixed, tier: mixed, count: int}>}
      */
     public function getCompetitorLeads(?int $tier = null, int $minScore = 0, int $limit = 100): array
     {
@@ -318,20 +339,24 @@ class CompetitorDetectionService
                ->setParameter('tier', $tier);
         }
         
+        /** @var list<CompetitorDetection> $results */
         $results = $qb->getQuery()->getResult();
         
         // Group by competitor
         $grouped = [];
+        $leads = [];
         foreach ($results as $detection) {
-            $competitor = $detection->getCompetitorName();
-            if (!isset($grouped[$competitor])) {
-                $grouped[$competitor] = [];
+            $lead = $detection->getLead();
+            if ($lead === null) {
+                continue; // detection without a hydrated lead cannot be targeted
             }
-            $grouped[$competitor][] = $detection->getLead();
+            $leads[] = $lead;
+            $competitor = $detection->getCompetitorName();
+            $grouped[$competitor][] = $lead;
         }
         
         return [
-            'leads' => array_map(fn($d) => $d->getLead(), $results),
+            'leads' => $leads,
             'byCompetitor' => $grouped,
             'competitorStats' => $this->detectionRepository->getCompetitorStats(),
         ];
@@ -355,6 +380,8 @@ class CompetitorDetectionService
 
     /**
      * Get competitor statistics
+     *
+     * @return list<array{name: mixed, domain: mixed, tier: mixed, count: int}>
      */
     public function getCompetitorStats(): array
     {

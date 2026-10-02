@@ -69,7 +69,7 @@ final class PipelineMetricsCollector
     private float $runDuration = 0.0;
     private string $runId = '';
 
-    /** @var list<array{level: string, message: string, context: array}> */
+    /** @var list<array{level: string, message: string, context: array<string, mixed>}> */
     private array $warnings = [];
 
     private LoggerInterface $logger;
@@ -170,7 +170,8 @@ final class PipelineMetricsCollector
 
     /**
      * Record a warning (e.g. rate-limited, timeout, unexpected state).
-      * @param array<string|int, mixed> $context
+     *
+     * @param array<string, mixed> $context
      */
     public function recordWarning(string $message, array $context = []): void
     {
@@ -257,6 +258,8 @@ final class PipelineMetricsCollector
 
     /**
      * Get a full snapshot of the run for serialization/reporting.
+     *
+     * @return array{run_id: string, total_candidates: int, final_output: int, pass_rate: float, duration_sec: float, stages: array<string, array{accepted: int, rejected: int, time_ms: float}>, reject_reasons: array<string, array<string, int>>, warnings: list<array{level: string, message: string, context: array<string, mixed>}>}
      */
     public function snapshot(): array
     {

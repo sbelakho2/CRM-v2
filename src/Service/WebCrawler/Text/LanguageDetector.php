@@ -131,8 +131,9 @@ final class LanguageDetector
         foreach (self::SCRIPT_PATTERNS as $lang => $pattern) {
             $matches = [];
             preg_match_all($pattern, $text, $matches);
-            $scriptChars = mb_strlen(implode('', $matches[0] ?? []));
-            $totalChars = mb_strlen(preg_replace('/\s+/u', '', $text));
+            $scriptChars = mb_strlen(implode('', $matches[0]));
+            $noSpaceText = preg_replace('/\s+/u', '', $text) ?? '';
+            $totalChars = mb_strlen($noSpaceText);
             if ($totalChars > 0 && ($scriptChars / $totalChars) > 0.3) {
                 return [
                     'language'   => $lang,
@@ -250,7 +251,7 @@ final class LanguageDetector
     {
         // Remove non-letter characters except spaces
         $clean = preg_replace('/[^\\p{L}\\s]/u', '', $text) ?? $text;
-        $clean = preg_replace('/\\s+/', ' ', $clean);
+        $clean = preg_replace('/\\s+/', ' ', $clean) ?? $clean;
 
         $words = explode(' ', trim($clean));
         $trigrams = [];
