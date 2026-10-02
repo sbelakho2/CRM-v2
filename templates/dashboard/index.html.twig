@@ -28,7 +28,7 @@
                             {{ (kpis.pipeline_value / 1000000)|format_currency(kpis.pipeline_value_currency|default(display_currency()), null, 1) }}<span class="rams-metric__unit">{{ 'common.million_short'|trans }}</span>
                         </span>
                     </div>
-                    <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
+                    <div class="rams-andon"><span class="rams-andon__light rams-andon__light--off"></span></div>
                 </div>
             </div>
         </div>
@@ -41,7 +41,7 @@
                         <span class="rams-metric__label rams-uppercase rams-text--3xs rams-font-mono">{{ 'rfq.submitted_rfqs'|trans }}</span>
                         <span class="rams-metric__value rams-text--xl">{{ kpis.rfq_count }}</span>
                     </div>
-                    <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
+                    <div class="rams-andon"><span class="rams-andon__light rams-andon__light--off"></span></div>
                 </div>
             </div>
         </div>
@@ -54,7 +54,7 @@
                         <span class="rams-metric__label rams-uppercase rams-text--3xs rams-font-mono">{{ 'dashboard.npi_awards'|trans }}</span>
                         <span class="rams-metric__value rams-text--xl">{{ kpis.npi_awards }}</span>
                     </div>
-                    <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
+                    <div class="rams-andon"><span class="rams-andon__light rams-andon__light--off"></span></div>
                 </div>
             </div>
         </div>
@@ -67,7 +67,7 @@
                         <span class="rams-metric__label rams-uppercase rams-text--3xs rams-font-mono">{{ 'dashboard.framework_agreements'|trans }}</span>
                         <span class="rams-metric__value rams-text--xl">{{ kpis.framework_agreements }}</span>
                     </div>
-                    <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
+                    <div class="rams-andon"><span class="rams-andon__light rams-andon__light--off"></span></div>
                 </div>
             </div>
         </div>
@@ -158,9 +158,9 @@
                     <div class="rams-flex rams-items-center rams-gap-3 rams-p-2 rams-bg-panel rams-border rams-rounded">
                         <div class="rams-andon">
                             {% if activity.type == 'Call' %}
-                                <span class="rams-andon__light rams-andon__light--green"></span>
+                                <span class="rams-andon__light rams-andon__light--off"></span>
                             {% elseif activity.type == 'Email' %}
-                                <span class="rams-andon__light rams-andon__light--green"></span>
+                                <span class="rams-andon__light rams-andon__light--off"></span>
                             {% elseif activity.type == 'Meeting' %}
                                 <span class="rams-andon__light rams-andon__light--yellow"></span>
                             {% else %}

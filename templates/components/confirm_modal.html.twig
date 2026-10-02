@@ -48,47 +48,9 @@
 </div>
 
 <style>
-/* Confirmation Modal Styles */
-.rams-modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999;
-    padding: var(--space-4);
-}
-
-.rams-modal-backdrop.rams-hidden {
-    display: none;
-}
-
-.rams-modal {
-    width: 100%;
-    max-width: 480px;
-    animation: rams-modal-enter 0.2s ease-out;
-}
-
-.rams-modal--sm {
-    max-width: 400px;
-}
-
-.rams-modal--lg {
-    max-width: 600px;
-}
-
-@keyframes rams-modal-enter {
-    from {
-        opacity: 0;
-        transform: scale(0.95) translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
+/* Confirmation Modal Styles — component-specific only; shared modal
+ * primitives (.rams-modal-backdrop / .rams-modal / rams-modal-enter) live
+ * in sensei-rams.css so every modal shares one scrim and one z-scale. */
 .rams-module__title-icon {
     margin-right: var(--space-2);
 }

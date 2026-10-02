@@ -348,11 +348,11 @@
                             </td>
                             <td class="rams-table__cell">
                                 {% if lead.reviewStatus == 'approved' %}
-                                    <span class="rams-badge rams-badge--green">{{ 'lead_discovery.status_approved'|trans }}</span>
+                                    <span class="rams-status-chip rams-status-chip--ok">{{ 'lead_discovery.status_approved'|trans }}</span>
                                 {% elseif lead.reviewStatus == 'denied' %}
-                                    <span class="rams-badge rams-badge--red">{{ 'lead_discovery.status_denied'|trans }}</span>
+                                    <span class="rams-status-chip rams-status-chip--fault">{{ 'lead_discovery.status_denied'|trans }}</span>
                                 {% else %}
-                                    <span class="rams-badge rams-badge--warning">{{ 'lead_discovery.status_pending'|trans }}</span>
+                                    <span class="rams-status-chip rams-status-chip--caution">{{ 'lead_discovery.status_pending'|trans }}</span>
                                 {% endif %}
                             </td>
                             <td class="rams-table__cell">

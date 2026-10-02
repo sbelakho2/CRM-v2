@@ -32,7 +32,9 @@
                     <span class="rams-badge rams-badge--success">{{ 'company.status.active_compliance_eligible'|trans }}</span>
                 {% endif %}
                 {% if company.accountTier %}
-                    <span class="rams-badge">{{ 'company.account_tier'|trans }} {{ ('company.tiers.' ~ company.accountTier|lower)|trans }}</span>
+                    {# The definition list already labels this field; a bare
+                       tier badge avoids "ACCOUNT TIER TIER C" duplication. #}
+                    <span class="rams-badge">{{ ('company.tiers.' ~ company.accountTier|lower)|trans }}</span>
                 {% endif %}
                 {% if company.pipelineStage %}
                     <span class="rams-andon">

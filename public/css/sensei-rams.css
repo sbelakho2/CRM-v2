@@ -669,6 +669,7 @@ body {
     display: flex;
     align-items: center;
     gap: var(--space-3);
+    min-width: 0;
 }
 
 .rams-mobile-header__logo {
@@ -685,6 +686,9 @@ body {
     font-size: var(--text-sm);
     font-weight: 600;
     letter-spacing: -0.01em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .rams-sidebar__overlay {
@@ -1065,6 +1069,17 @@ body {
     overflow: hidden;
 }
 
+/* Stroke-icon fallback: an SVG that declares neither fill nor stroke is an
+ * unfinished Feather/Heroicons copy — without this it default-fills black
+ * into a blob. :not() keeps explicit attributes authoritative (CSS would
+ * otherwise override presentation attributes). */
+.rams-icon:not([fill]):not([stroke]),
+.rams-btn__icon:not([fill]):not([stroke]),
+.rams-empty-state__icon:not([fill]):not([stroke]) {
+    fill: none;
+    stroke: currentColor;
+}
+
 .rams-icon--xs {
     width: 12px;
     height: 12px;
@@ -1331,6 +1346,10 @@ body {
     letter-spacing: 0.05em;
     color: var(--rams-muted);
     border-bottom: 1px solid var(--rams-line);
+    /* Metadata labels never wrap mid-word; on phones the table scrolls
+       horizontally in its container instead (sweep finding: 'Created By'
+       wrapped over two lines). */
+    white-space: nowrap;
 }
 
 .rams-table td {
@@ -1341,6 +1360,25 @@ body {
 
 .rams-table tr:last-child td {
     border-bottom: none;
+}
+
+/* Charts must live INSIDE their panel padding, never clipped by the
+   module border (sweep finding: bar baselines and axis labels cut on
+   command-center / rfq-analytics / reports). */
+.rams-module__content canvas,
+.rams-module__content .chart-container,
+.rams-module__content .chartjs-render-monitor {
+    max-width: 100%;
+}
+
+.rams-module__content canvas {
+    display: block;
+}
+
+/* Flush tables sit edge-to-edge by design; give the LAST row breathing
+   room so content never kisses the module border. */
+.rams-module__content--flush .rams-table tbody tr:last-child td {
+    padding-bottom: var(--space-3);
 }
 
 .rams-table tbody tr {
@@ -1467,6 +1505,27 @@ body {
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
+}
+
+/* KPI cards equalize inside their grid row (sweep finding: ragged card
+ * heights on abm-dashboard / command-center / compliance-overview). The
+ * module stretches; the metric centers optically so equal frames read as
+ * one instrument row, not cards of chance. */
+.rams-grid > .rams-module,
+.rams-metrics-grid > .rams-module {
+    display: flex;
+    flex-direction: column;
+}
+
+.rams-grid > .rams-module > .rams-module__content,
+.rams-metrics-grid > .rams-module > .rams-module__content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.rams-metric {
+    margin: auto 0;
 }
 
 .rams-metric__label {
@@ -2469,6 +2528,19 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 200;
+    padding: var(--space-4);
+}
+
+.rams-modal-backdrop.rams-hidden {
+    display: none;
+}
+
+/* Optional click-catcher layer for modals that manage their own closing */
+.rams-modal-backdrop__overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--rams-overlay);
+    backdrop-filter: blur(4px);
 }
 
 .rams-modal {
@@ -2481,6 +2553,26 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    animation: rams-modal-enter 0.2s ease-out;
+}
+
+.rams-modal--sm {
+    max-width: 400px;
+}
+
+.rams-modal--lg {
+    max-width: 600px;
+}
+
+@keyframes rams-modal-enter {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
 }
 
 .rams-modal__header {
@@ -4509,6 +4601,32 @@ a.rams-module:hover {
     animation: rams-modal-enter 0.2s ease-out;
 }
 
+.rams-notification__panel .rams-modal__title {
+    color: var(--rams-foreground);
+}
+
+/* Empty state: quiet machine idiom — dim line icon + muted text, never a
+ * shouty label pill that reads like a debug placeholder. */
+.rams-notification__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-8) var(--space-4);
+    color: var(--rams-muted);
+}
+
+.rams-notification__empty svg {
+    width: 24px;
+    height: 24px;
+    opacity: 0.6;
+}
+
+.rams-notification__empty p {
+    margin: 0;
+    font-size: var(--text-sm);
+}
+
 .rams-notification__panel .rams-notification__list {
     position: static;
     top: auto;
@@ -4533,71 +4651,78 @@ a.rams-module:hover {
     justify-content: flex-end;
 }
 
-/* Notification Item */
+/* Notification Item — andon + text row; anchors and static divs share it */
 .rams-notification__item {
-    padding: 12px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--rams-line);
+    border-left: 3px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    text-align: start;
+    text-decoration: none;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .rams-notification__item:hover {
     background-color: var(--rams-panel);
+    border-left-color: var(--rams-line);
+}
+
+.rams-notification__item--error {
+    border-left-color: var(--rams-red);
+}
+
+.rams-notification__item--warning {
+    border-left-color: var(--rams-orange);
+}
+
+.rams-notification__item .rams-andon__light {
+    flex-shrink: 0;
+    margin-top: 5px;
 }
 
 .rams-notification__item.read {
     opacity: 0.6;
 }
 
-.rams-notification__item-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-}
-
-.rams-notification__icon {
-    font-size: 20px;
-    flex-shrink: 0;
-}
-
 .rams-notification__content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     flex: 1;
+    min-width: 0;
 }
 
 .rams-notification__message {
-    font-size: 14px;
+    font-size: var(--text-sm);
     font-weight: 500;
-    margin: 0 0 4px 0;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
 }
 
 .rams-notification__timestamp {
-    font-size: 12px;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
     color: var(--rams-muted);
 }
 
-.rams-notification__unread {
-    width: 8px;
-    height: 8px;
-    background-color: var(--rams-primary);
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
 /* Guidance & Toast Overlays */
+/* Guidance banners render IN-FLOW above the page content — a fixed overlay
+ * would cover the status bar and page header on phones (field-reported). */
 .rams-guidance-stack {
-    position: fixed;
-    top: 24px;
-    right: 24px;
-    width: 380px;
-    z-index: 9999;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    pointer-events: none;
-}
-
-.rams-guidance-stack > * {
-    pointer-events: auto;
+    gap: var(--space-3);
+    max-width: 640px;
+    margin-bottom: var(--space-4);
 }
 
 /* Industrial Guidance Module */
@@ -4649,11 +4774,6 @@ a.rams-module:hover {
 
 /* Fixed panels must never exceed the phone viewport */
 @media (max-width: 480px) {
-    .rams-guidance-stack {
-        width: calc(100vw - 32px);
-        right: 16px;
-    }
-
     .rams-alert--toast {
         max-width: calc(100vw - 32px);
     }
@@ -4774,6 +4894,23 @@ a.rams-module:hover {
    ============================================ */
 
 @media (max-width: 768px) {
+    /* 0. Status bar: keep only the live andon signal on phones;
+     * the SYSTEM STATUS · EN · OS meta wraps into noise at this width. */
+    .rams-status-bar__item--meta {
+        display: none;
+    }
+
+    .rams-status-bar {
+        justify-content: flex-start;
+    }
+
+    /* 0b. Page-header badges: long status labels may wrap, never overflow. */
+    .rams-page-header .rams-badge,
+    .rams-page__header .rams-badge {
+        white-space: normal;
+        text-align: left;
+    }
+
     /* 1. Page Header Stacking */
     .rams-page-header,
     .rams-page__header {
@@ -4791,6 +4928,17 @@ a.rams-module:hover {
     .rams-page-actions .rams-btn,
     .rams-page__actions .rams-btn {
         flex: 1;
+        justify-content: center;
+    }
+
+    /* Header action groups hold forms + links as children (not bare buttons):
+     * stretch every child so stacked actions share one width — no ragged edge. */
+    .rams-btn-group.mobile-stack > * {
+        width: 100%;
+    }
+
+    .rams-btn-group.mobile-stack .rams-btn {
+        width: 100%;
         justify-content: center;
     }
 
@@ -5083,7 +5231,10 @@ a.rams-module:hover {
     .rams-page-header__actions,
     .rams-module__header-actions,
     .rams-module__header__actions {
-        flex-direction: column;
+        /* One mobile idiom everywhere: wrapping row, buttons share the
+           width. Column-of-slabs read as a wall of buttons (sweep). */
+        flex-direction: row;
+        flex-wrap: wrap;
         align-items: stretch;
         gap: var(--space-2);
     }
@@ -5094,13 +5245,16 @@ a.rams-module:hover {
     .rams-page-header__actions .rams-btn,
     .rams-module__header-actions .rams-btn,
     .rams-module__header__actions .rams-btn {
-        width: 100%;
+        flex: 1 1 auto;
+        min-width: min(100%, 160px);
         justify-content: center;
     }
 
     .rams-module__footer .rams-btn,
     .rams-module__header .rams-btn {
-        width: 100%;
+        /* Auto width in a wrapping row: full-width stacks made module
+           footers a wall of giant buttons on phones (sweep finding). */
+        flex: 1 1 auto;
         justify-content: center;
     }
 
@@ -5160,7 +5314,10 @@ a.rams-module:hover {
     }
 
     .rams-btn-group .rams-btn {
-        flex: 1 1 100%;
+        /* Share the row: equal-flex buttons wrap as a set instead of every
+           button becoming a full-width slab (sweep finding: ragged groups,
+           two-line labels). */
+        flex: 1 1 auto;
         justify-content: center;
     }
 
@@ -5388,7 +5545,7 @@ a.rams-module:hover {
 /* Absolute-positioned elements flip */
 [dir="rtl"] .rams-dropdown { right: auto; left: 0; }
 [dir="rtl"] .rams-savings-badge { right: auto; left: -8px; }
-[dir="rtl"] .rams-guidance-stack { right: auto; left: 24px; }
+/* Guidance banners are in-flow; no RTL fixed-position override needed. */
 [dir="rtl"] .rams-module--guidance::after { right: auto; left: 0; }
 [dir="rtl"] .rams-toast { right: auto; left: 20px; }
 [dir="rtl"] .rams-alert--toast { right: auto; left: 20px; }
@@ -5765,6 +5922,20 @@ svg.rams-icon--xs, svg.rams-icon--sm, svg.rams-icon--lg { display: inline-block;
 
 .rams-calendar {
     height: 100%;
+}
+
+/* A month grid at phone width starves day cells until FullCalendar clips
+   its own day numbers ("31" reads as "3"). Same idiom as tables: the grid
+   keeps a readable minimum and scrolls horizontally in its panel. */
+@media (max-width: 768px) {
+    .rams-calendar-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .rams-calendar {
+        min-width: 640px;
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════════

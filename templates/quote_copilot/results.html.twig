@@ -28,11 +28,11 @@
             </div>
             <div class="rams-badge-group">
                 {% if quote.coveragePercent >= 90 %}
-                    <span class="rams-badge rams-badge--green">{{ 'quote.copilot.coverage_high_label'|trans }}</span>
+                    <span class="rams-status-chip rams-status-chip--ok">{{ 'quote.copilot.coverage_high_label'|trans }}</span>
                 {% elseif quote.coveragePercent >= 60 %}
                     <span class="rams-badge rams-badge--yellow">{{ 'quote.copilot.coverage_medium_label'|trans }}</span>
                 {% else %}
-                    <span class="rams-badge rams-badge--red">{{ 'quote.copilot.coverage_low_label'|trans }}</span>
+                    <span class="rams-status-chip rams-status-chip--fault">{{ 'quote.copilot.coverage_low_label'|trans }}</span>
                 {% endif %}
                 <span class="rams-badge rams-badge--gray">{{ quote.status|upper }}</span>
             </div>
@@ -92,7 +92,7 @@
         <div class="rams-module__header rams-panel-head">
             <h2 class="rams-heading rams-heading--3">{{ 'quote.copilot.bill_of_materials'|trans }}</h2>
             <a href="{{ path('quote_review_detail', {id: quote.id}) }}" class="rams-btn rams-btn--sm rams-btn--indigo">
-                <svg class="rams-btn__icon rams-icon--sm" aria-hidden="true">
+                <svg class="rams-btn__icon rams-icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                 </svg>
                 {{ 'quote.copilot.review_verify_lines'|trans }}
@@ -143,7 +143,7 @@
                             </td>
                             <td class="rams-table__cell">
                                 {% if line.hasException %}
-                                    <span class="rams-badge rams-badge--red">{{ line.exceptionReason }}</span>
+                                    <span class="rams-status-chip rams-status-chip--fault">{{ line.exceptionReason }}</span>
                                 {% else %}
                                     <span class="rams-badge">{{ line.procurementSource }}</span>
                                     {% if line.isFallback %}
@@ -153,11 +153,11 @@
                             </td>
                             <td class="rams-table__cell rams-text--center">
                                 {% if line.confidenceLevel == 'HIGH' %}
-                                    <span class="rams-badge rams-badge--green" title="Score: {{ line.confidenceScore }}">HIGH</span>
+                                    <span class="rams-status-chip rams-status-chip--ok" title="Score: {{ line.confidenceScore }}">HIGH</span>
                                 {% elseif line.confidenceLevel == 'MEDIUM' %}
                                     <span class="rams-badge rams-badge--yellow" title="Score: {{ line.confidenceScore }}">MED</span>
                                 {% elseif line.confidenceLevel == 'LOW' %}
-                                    <span class="rams-badge rams-badge--red" title="Score: {{ line.confidenceScore }}">LOW</span>
+                                    <span class="rams-status-chip rams-status-chip--fault" title="Score: {{ line.confidenceScore }}">LOW</span>
                                 {% elseif line.confidenceLevel == 'VERY_LOW' %}
                                     <span class="rams-badge rams-badge--very-low" title="Score: {{ line.confidenceScore }}">V.LOW</span>
                                 {% else %}

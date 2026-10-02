@@ -67,7 +67,7 @@
                             </td>
                             <td class="rams-table__cell">
                                 {% if q.status == 'sent' %}
-                                    <span class="rams-badge rams-badge--green">{{ 'quote.copilot.status_sent'|trans }}</span>
+                                    <span class="rams-status-chip rams-status-chip--ok">{{ 'quote.copilot.status_sent'|trans }}</span>
                                 {% elseif q.status == 'draft' %}
                                     <span class="rams-badge rams-badge--gray">{{ 'quote.copilot.status_draft'|trans }}</span>
                                 {% else %}

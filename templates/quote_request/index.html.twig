@@ -69,8 +69,8 @@
                             <td class="rams-font-mono">{{ req.requestedQuantity ?? '—' }}</td>
                             <td class="rams-font-mono">{{ req.estimatedTotal ? req.estimatedTotal ~ ' ' ~ req.currency : '—' }}</td>
                             <td>
-                                {% set badge = req.status == 'new' ? 'warning' : (req.status == 'handled' ? 'success' : 'info') %}
-                                <span class="rams-badge rams-badge--{{ badge }} rams-badge--small">
+                                {% set chip = req.status == 'new' ? 'caution' : (req.status == 'handled' ? 'ok' : 'info') %}
+                                <span class="rams-status-chip rams-status-chip--{{ chip }}">
                                     {{ statuses[req.status] ?? req.status }}
                                 </span>
                             </td>

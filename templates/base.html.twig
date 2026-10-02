@@ -7,7 +7,7 @@
     <title>{% block title %}{{ 'app.name'|trans }}{% endblock %} - {{ 'app.company'|trans }}</title>
     
     {# Sensei-Rams Design System CSS (versioned; bumped only when the stylesheet changes) #}
-    <link rel="stylesheet" href="{{ asset('css/sensei-rams.css') }}?v=3.1">
+    <link rel="stylesheet" href="{{ asset('css/sensei-rams.css') }}?v=3.3">
     
     {# Font preloading for performance - preconnect early, load fonts async #}
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -44,7 +44,7 @@
                 <span class="rams-mobile-header__toggle-bar"></span>
             </button>
             <div class="rams-mobile-header__brand">
-                <img src="{{ asset('images/starz-mark.svg') }}" data-theme-src="light:images/starz-mark.svg|dark:images/starz-mark-inverse.svg" alt="{{ 'app.name'|trans }} logo" class="rams-mobile-header__logo" width="272" height="220"> 
+                <img src="{{ asset('images/starz-mark.svg') }}" data-theme-src="light:/images/starz-mark.svg|dark:/images/starz-mark-inverse.svg" alt="{{ 'app.name'|trans }} logo" class="rams-mobile-header__logo" width="272" height="220"> 
                 <span class="rams-mobile-header__title">{{ 'app.name'|trans }}</span>
             </div>
         </header>
@@ -54,7 +54,7 @@
             {# Station Identifier #}
             <div class="rams-sidebar__header">
                 <div class="rams-sidebar__logo">
-                    <img src="{{ asset('images/starz-mark.svg') }}" data-theme-src="light:images/starz-mark.svg|dark:images/starz-mark-inverse.svg" alt="{{ 'app.name'|trans }} logo" class="rams-logo-image" width="272" height="220"> 
+                    <img src="{{ asset('images/starz-mark.svg') }}" data-theme-src="light:/images/starz-mark.svg|dark:/images/starz-mark-inverse.svg" alt="{{ 'app.name'|trans }} logo" class="rams-logo-image" width="272" height="220"> 
                 </div>
                 <div>
                     <div class="rams-sidebar__title">{{ 'app.name'|trans }}</div>

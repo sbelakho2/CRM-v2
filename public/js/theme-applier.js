@@ -109,8 +109,21 @@
                 if (kv[0].trim() === theme && kv[1]) { chosen = kv[1].trim(); return true; }
                 return false;
             });
-            if (chosen && el.getAttribute('src') !== chosen) {
-                el.setAttribute('src', chosen);
+            if (!chosen) { return; }
+            // Resolve the spec path against the ORIGINAL src directory. The spec
+            // carries a root-relative path ("images/…"); assigning it directly
+            // would resolve against the current page URL and 404 on every
+            // nested route (/companies/506 → /companies/images/…).
+            var base = el.getAttribute('data-theme-src-base');
+            if (base === null) {
+                var orig = el.getAttribute('src') || '';
+                var slash = orig.lastIndexOf('/');
+                base = slash >= 0 ? orig.slice(0, slash + 1) : '';
+                el.setAttribute('data-theme-src-base', base);
+            }
+            var url = chosen.charAt(0) === '/' || /^(https?:)?\/\//.test(chosen) ? chosen : base + chosen;
+            if (el.getAttribute('src') !== url) {
+                el.setAttribute('src', url);
             }
         });
     }

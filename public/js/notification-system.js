@@ -166,53 +166,41 @@ class NotificationSystem {
 
         if (alerts.length === 0) {
             this.list.innerHTML = `
-                <div class="rams-p-4 rams-text--center">
-                    <p class="rams-dymo">${this.escapeHTML(this.emptyText || 'No notifications')}</p>
+                <div class="rams-notification__empty">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <p>${this.escapeHTML(this.emptyText || 'No notifications')}</p>
                 </div>
             `;
             return;
         }
 
+        // Real anchors: keyboard-focusable, middle-clickable, no JS navigation
         this.list.innerHTML = alerts
             .map(alert => this.createAlertHTML(alert))
             .join('');
-
-        // Attach click listeners to alert items
-        this.list.querySelectorAll('.rams-notification__item').forEach(item => {
-            item.addEventListener('click', () => this.handleAlertClick(item));
-        });
     }
 
     /**
      * Create HTML for an alert item
      */
     createAlertHTML(alert) {
-        const severity = alert.severity === 'critical' ? 'rams-alert--error' : (alert.severity === 'warning' ? 'rams-alert--warning' : 'rams-alert--info');
+        const severity = alert.severity === 'critical' ? 'error' : (alert.severity === 'warning' ? 'warning' : 'info');
+        const light = severity === 'error' ? 'red' : (severity === 'warning' ? 'yellow' : 'off');
         const message = alert.message || alert.title || '';
+        const tag = alert.link ? 'a' : 'div';
+        const href = alert.link ? ` href="${this.escapeHTML(alert.link)}"` : '';
 
         return `
-            <div class="rams-notification__item ${severity}" data-alert-link="${this.escapeHTML(alert.link || '')}">
-                <div class="rams-notification__item-header">
-                    <div class="rams-notification__icon">
-                        <span class="rams-andon__light rams-andon__light--${severity === 'rams-alert--error' ? 'red' : (severity === 'rams-alert--warning' ? 'yellow' : 'green')}"></span>
-                    </div>
-                    <div class="rams-notification__content">
-                        <p class="rams-notification__message">${this.escapeHTML(message)}</p>
-                        <p class="rams-notification__timestamp">${this.formatTimestamp(alert.timestamp)}</p>
-                    </div>
-                </div>
-            </div>
+            <${tag} class="rams-notification__item rams-notification__item--${severity}"${href}>
+                <span class="rams-andon__light rams-andon__light--${light}" aria-hidden="true"></span>
+                <span class="rams-notification__content">
+                    <span class="rams-notification__message">${this.escapeHTML(message)}</span>
+                    <span class="rams-notification__timestamp">${this.formatTimestamp(alert.timestamp)}</span>
+                </span>
+            </${tag}>
         `;
-    }
-
-    /**
-     * Handle alert item click - navigate to the alert link when available
-     */
-    handleAlertClick(item) {
-        const link = item.getAttribute('data-alert-link');
-        if (link) {
-            window.location.href = link;
-        }
     }
 
     /**
@@ -235,6 +223,7 @@ class NotificationSystem {
         this.modal.classList.remove('rams-hidden');
         this.renderAlertList(this.alertCache);
         this.fetchAlerts();
+        if (this.closeBtn) this.closeBtn.focus();
     }
 
     /**
@@ -243,27 +232,37 @@ class NotificationSystem {
     closeModal() {
         if (!this.modal) return;
         this.modal.classList.add('rams-hidden');
+        if (this.bell) this.bell.focus();
     }
 
     /**
-     * Format timestamp (e.g., "2 minutes ago")
+     * Format timestamp relative to now, in the page locale (en/fr/ar)
      */
     formatTimestamp(isoString) {
         if (!isoString) return '';
         const date = new Date(isoString);
         if (isNaN(date.getTime())) return '';
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
+        const diffMs = Date.now() - date.getTime();
+        const rtf = (typeof Intl !== 'undefined' && Intl.RelativeTimeFormat)
+            ? new Intl.RelativeTimeFormat(document.documentElement.lang || 'en', { numeric: 'auto' })
+            : null;
 
-        if (diffMins < 1) return 'just now';
-        if (diffMins < 60) return `${diffMins}m ago`;
-        if (diffHours < 24) return `${diffHours}h ago`;
-        if (diffDays < 7) return `${diffDays}d ago`;
+        if (rtf) {
+            const minutes = Math.round(diffMs / 60000);
+            if (Math.abs(minutes) < 60) return rtf.format(-minutes, 'minute');
+            const hours = Math.round(diffMs / 3600000);
+            if (Math.abs(hours) < 24) return rtf.format(-hours, 'hour');
+            const days = Math.round(diffMs / 86400000);
+            if (Math.abs(days) < 7) return rtf.format(-days, 'day');
+        } else {
+            const diffMins = Math.floor(diffMs / 60000);
+            if (diffMins < 1) return 'just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            const diffHours = Math.floor(diffMs / 3600000);
+            if (diffHours < 24) return `${diffHours}h ago`;
+        }
 
-        return date.toLocaleDateString();
+        return date.toLocaleDateString(document.documentElement.lang || undefined);
     }
 
     /**
