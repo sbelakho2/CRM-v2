@@ -43,7 +43,7 @@ class PersonalizationProfile
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(nullable: true)]
     private ?int $contactId = null;
@@ -60,15 +60,19 @@ class PersonalizationProfile
     #[ORM\Column(length: 50)]
     private string $preferredStyle = self::STYLE_CONCISE;
 
+    /** @var array<string, float>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $topicInterests = null;
 
+    /** @var list<string>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $avoidTopics = null;
 
+    /** @var list<float>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $featureEmbedding = null;
 
+    /** @var list<array<string, mixed>>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $interactionHistory = null;
 
@@ -90,9 +94,11 @@ class PersonalizationProfile
     #[ORM\Column(length: 10, nullable: true)]
     private ?string $bestSendDay = null;
 
+    /** @var list<string>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $successfulSubjectPatterns = null;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $metadata = null;
 
@@ -187,11 +193,13 @@ class PersonalizationProfile
         return $this;
     }
 
+    /** @return array<string, float> */
     public function getTopicInterests(): array
     {
         return $this->topicInterests ?? [];
     }
 
+    /** @param array<string, float>|null $topicInterests */
     public function setTopicInterests(?array $topicInterests): static
     {
         $this->topicInterests = $topicInterests;
@@ -205,22 +213,26 @@ class PersonalizationProfile
         return $this;
     }
 
+    /** @return list<string> */
     public function getAvoidTopics(): array
     {
         return $this->avoidTopics ?? [];
     }
 
+    /** @param list<string>|null $avoidTopics */
     public function setAvoidTopics(?array $avoidTopics): static
     {
         $this->avoidTopics = $avoidTopics;
         return $this;
     }
 
+    /** @return list<float> */
     public function getFeatureEmbedding(): array
     {
         return $this->featureEmbedding ?? [];
     }
 
+    /** @param list<float>|null $featureEmbedding */
     public function setFeatureEmbedding(?array $featureEmbedding): static
     {
         $this->featureEmbedding = $featureEmbedding;
@@ -228,17 +240,20 @@ class PersonalizationProfile
         return $this;
     }
 
+    /** @return list<array<string, mixed>> */
     public function getInteractionHistory(): array
     {
         return $this->interactionHistory ?? [];
     }
 
+    /** @param list<array<string, mixed>>|null $interactionHistory */
     public function setInteractionHistory(?array $interactionHistory): static
     {
         $this->interactionHistory = $interactionHistory;
         return $this;
     }
 
+    /** @param array<string, mixed> $data */
     public function recordInteraction(string $type, array $data = []): static
     {
         $this->interactionHistory[] = array_merge([
@@ -325,6 +340,7 @@ class PersonalizationProfile
         return $this;
     }
 
+    /** @return list<string> */
     public function getSuccessfulSubjectPatterns(): array
     {
         return $this->successfulSubjectPatterns ?? [];
@@ -338,11 +354,13 @@ class PersonalizationProfile
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function getMetadata(): array
     {
         return $this->metadata ?? [];
     }
 
+    /** @param array<string, mixed>|null $metadata */
     public function setMetadata(?array $metadata): static
     {
         $this->metadata = $metadata;
@@ -367,6 +385,9 @@ class PersonalizationProfile
         return self::calculateEngagementScore($this->interactionHistory, $this->emailsOpened, $this->emailsReplied, $this->emailsBounced);
     }
 
+    /**
+     * @param list<array<string, mixed>>|null $interactionHistory
+     */
     public static function calculateEngagementScore(?array $interactionHistory, int $emailsOpened, int $emailsReplied, int $emailsBounced): float
     {
         $history = $interactionHistory ?? [];
@@ -382,7 +403,8 @@ class PersonalizationProfile
             $weightedTotal = 0.0;
 
             foreach ($history as $interaction) {
-                $ts = $interaction['timestamp'] ?? 0;
+                $rawTs = $interaction['timestamp'] ?? 0;
+                $ts = is_numeric($rawTs) ? (int) $rawTs : 0;
                 $age = max(0, $now - $ts);
                 $w = exp(-$lambda * $age);
 

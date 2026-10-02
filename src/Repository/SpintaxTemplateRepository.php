@@ -18,10 +18,13 @@ class SpintaxTemplateRepository extends ServiceEntityRepository
 
     /**
      * Find active templates by type
+     *
+     * @return list<SpintaxTemplate>
      */
     public function findActiveByType(string $templateType = 'email'): array
     {
-        return $this->createQueryBuilder('t')
+        /** @var list<SpintaxTemplate> $result */
+        $result = $this->createQueryBuilder('t')
             ->where('t.templateType = :type')
             ->andWhere('t.active = true')
             ->setParameter('type', $templateType)
@@ -29,6 +32,8 @@ class SpintaxTemplateRepository extends ServiceEntityRepository
 
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
@@ -36,6 +41,7 @@ class SpintaxTemplateRepository extends ServiceEntityRepository
      */
     public function findBestPerforming(string $templateType = 'email'): ?SpintaxTemplate
     {
+        /** @var list<SpintaxTemplate> $templates */
         $templates = $this->createQueryBuilder('t')
             ->where('t.templateType = :type')
             ->andWhere('t.active = true')
@@ -76,7 +82,8 @@ class SpintaxTemplateRepository extends ServiceEntityRepository
 
         $offset = random_int(0, $total - 1);
 
-        return $this->createQueryBuilder('t')
+        /** @var SpintaxTemplate|null $result */
+        $result = $this->createQueryBuilder('t')
             ->where('t.templateType = :type')
             ->andWhere('t.active = true')
             ->setParameter('type', $templateType)
@@ -84,6 +91,8 @@ class SpintaxTemplateRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     public function save(SpintaxTemplate $entity, bool $flush = false): void

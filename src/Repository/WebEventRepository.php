@@ -19,23 +19,26 @@ class WebEventRepository extends ServiceEntityRepository
     /**
      * Find unprocessed events
      * 
-     * @return WebEvent[]
+     * @return list<WebEvent>
      */
     public function findUnprocessed(int $limit = 1000): array
     {
-        return $this->createQueryBuilder('we')
+        /** @var list<WebEvent> $events */
+        $events = $this->createQueryBuilder('we')
             ->andWhere('we.isProcessed = :processed')
             ->setParameter('processed', false)
             ->orderBy('we.timestamp', 'ASC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $events;
     }
 
     /**
      * Find events by IP address
      * 
-     * @return WebEvent[]
+     * @return list<WebEvent>
      */
     public function findByIpAddress(string $ipAddress, ?\DateTimeInterface $since = null): array
     {
@@ -48,9 +51,12 @@ class WebEventRepository extends ServiceEntityRepository
                 ->setParameter('since', $since);
         }
 
-        return $qb->orderBy('we.timestamp', 'DESC')
+        /** @var list<WebEvent> $events */
+        $events = $qb->orderBy('we.timestamp', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $events;
     }
 
     /**
@@ -58,11 +64,14 @@ class WebEventRepository extends ServiceEntityRepository
      */
     public function deleteOlderThan(\DateTimeInterface $date): int
     {
-        return $this->createQueryBuilder('we')
+        /** @var int $deleted */
+        $deleted = $this->createQueryBuilder('we')
             ->delete()
             ->where('we.timestamp < :date')
             ->setParameter('date', $date)
             ->getQuery()
             ->execute();
+
+        return $deleted;
     }
 }

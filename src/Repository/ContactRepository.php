@@ -22,6 +22,9 @@ class ContactRepository extends ServiceEntityRepository
      * 
      * @return Contact[]
      */
+    /**
+     * @return list<Contact>
+     */
     public function findWithCompanyFiltered(?string $role = null, ?int $companyId = null, ?string $search = null): array
     {
         $qb = $this->createQueryBuilder('c')
@@ -42,24 +45,30 @@ class ContactRepository extends ServiceEntityRepository
                ->setParameter('search', '%' . addcslashes($search, '%_') . '%');
         }
 
-        return $qb->orderBy('c.lastName', 'ASC')
+        /** @var list<Contact> $result */
+        $result = $qb->orderBy('c.lastName', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find all contacts with company eager loaded via single query.
      * Used for email campaign contact selection.
-     * 
-     * @return Contact[]
+     *
+     * @return list<Contact>
      */
     public function findAllWithCompany(): array
     {
-        return $this->createQueryBuilder('c')
+        /** @var list<Contact> $result */
+        $result = $this->createQueryBuilder('c')
             ->leftJoin('c.company', 'co')->addSelect('co')
             ->orderBy('c.lastName', 'ASC')
 
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

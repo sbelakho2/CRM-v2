@@ -17,7 +17,7 @@ class DatasetVersion
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 100)]
     private ?string $datasetType = null; // TARIFF_RATES, FREIGHT_TABLES, FX_RATES, etc.
@@ -29,11 +29,14 @@ class DatasetVersion
     private ?string $sha256Hash = null;
 
     #[ORM\Column(nullable: true)]
-    private ?int $recordCount = 0;
+    /** Kept nullable: DB column is nullable, so hydration can produce null. */
+    protected ?int $recordCount = 0;
 
     #[ORM\Column(nullable: true)]
-    private ?bool $isActive = false;
+    /** Kept nullable: DB column is nullable, so hydration can produce null. */
+    protected ?bool $isActive = false;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $metadata = null;
 
@@ -118,11 +121,13 @@ class DatasetVersion
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getMetadata(): ?array
     {
         return $this->metadata;
     }
 
+    /** @param array<string, mixed>|null $metadata */
     public function setMetadata(?array $metadata): self
     {
         $this->metadata = $metadata;

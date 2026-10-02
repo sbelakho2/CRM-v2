@@ -125,23 +125,23 @@ class EmailCampaignType extends AbstractType
      * Touch templates: JSON map of touchNumber → {template_id, delay_value?,
      * conditions?}. Keys must be 1..touchCount; template_id must exist.
      */
-    public function validateTouchTemplates($value, \Symfony\Component\Validator\Context\ExecutionContextInterface $context): void
+    public function validateTouchTemplates(mixed $value, \Symfony\Component\Validator\Context\ExecutionContextInterface $context): void
     {
         // The constraint may run against the decoded ARRAY (model data,
         // post reverse-transform) or the raw JSON STRING (view data).
-        $decoded = $value;
         if (is_string($value)) {
             if (trim($value) === '') {
                 return;
             }
-            /** @var array<string, mixed>|null $decoded */
             $decoded = json_decode($value, true);
             if (!is_array($decoded)) {
                 $context->buildViolation('Touch templates must be valid JSON.')->addViolation();
 
                 return;
             }
-        } elseif (!is_array($value)) {
+        } elseif (is_array($value)) {
+            $decoded = $value;
+        } else {
             return; // null/empty model
         }
 
@@ -150,7 +150,7 @@ class EmailCampaignType extends AbstractType
         $touchCount = null;
         if ($root instanceof EmailCampaign) {
             $touchCount = $root->getTouchCount();
-        } elseif (is_array($root) && isset($root['touchCount'])) {
+        } elseif (is_array($root) && isset($root['touchCount']) && is_numeric($root['touchCount'])) {
             $touchCount = (int) $root['touchCount'];
         }
 
@@ -163,7 +163,7 @@ class EmailCampaignType extends AbstractType
                 $context->buildViolation(sprintf('Touch %s exceeds the campaign touch count (%d).', $touch, $touchCount))->addViolation();
                 continue;
             }
-            if (!is_array($config) || !isset($config['template_id']) || !ctype_digit((string) $config['template_id'])) {
+            if (!is_array($config) || !isset($config['template_id']) || !is_scalar($config['template_id']) || !ctype_digit((string) $config['template_id'])) {
                 $context->buildViolation(sprintf('Touch %s needs a numeric template_id.', $touch))->addViolation();
                 continue;
             }

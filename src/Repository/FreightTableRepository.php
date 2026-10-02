@@ -27,7 +27,8 @@ class FreightTableRepository extends ServiceEntityRepository
     ): ?FreightTable {
         $date = $date ?? new \DateTime();
 
-        return $this->createQueryBuilder('f')
+        /** @var FreightTable|null $rate */
+        $rate = $this->createQueryBuilder('f')
             ->where('f.originPort = :origin')
             ->andWhere('f.destinationPort = :destination')
             ->andWhere('f.containerType = :containerType')
@@ -43,18 +44,25 @@ class FreightTableRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $rate;
     }
 
     /**
      * Get all rates for an origin port
+     *
+     * @return list<FreightTable>
      */
     public function findByOrigin(string $originPort): array
     {
-        return $this->createQueryBuilder('f')
+        /** @var list<FreightTable> $rates */
+        $rates = $this->createQueryBuilder('f')
             ->where('f.originPort = :origin')
             ->setParameter('origin', $originPort)
             ->orderBy('f.destinationPort', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $rates;
     }
 }

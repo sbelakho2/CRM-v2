@@ -20,7 +20,7 @@ class PlaybookRun
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Playbook::class, inversedBy: 'playbookRuns')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]

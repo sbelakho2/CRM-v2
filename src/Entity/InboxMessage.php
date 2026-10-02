@@ -35,7 +35,7 @@ class InboxMessage
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $fromEmail = null;
@@ -80,6 +80,8 @@ class InboxMessage
 
     /**
      * Raw email headers/metadata
+     *
+     * @var array<string, mixed>|null
      */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $metadata = null;
@@ -231,11 +233,13 @@ class InboxMessage
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getMetadata(): ?array
     {
         return $this->metadata;
     }
 
+    /** @param array<string, mixed>|null $metadata */
     public function setMetadata(?array $metadata): self
     {
         $this->metadata = $metadata;

@@ -18,12 +18,13 @@ class CapacityCalendarRepository extends ServiceEntityRepository
 
     /**
      * Find available slots for a date range
-     * 
-     * @return CapacityCalendar[]
+     *
+     * @return list<CapacityCalendar>
      */
     public function findAvailableInRange(\DateTimeInterface $startDate, \DateTimeInterface $endDate): array
     {
-        return $this->createQueryBuilder('cc')
+        /** @var list<CapacityCalendar> $calendars */
+        $calendars = $this->createQueryBuilder('cc')
             ->andWhere('cc.productionDate >= :start')
             ->andWhere('cc.productionDate <= :end')
             ->andWhere('cc.isHoliday = :holiday')
@@ -34,6 +35,8 @@ class CapacityCalendarRepository extends ServiceEntityRepository
             ->orderBy('cc.productionDate', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $calendars;
     }
 
     /**
@@ -41,12 +44,15 @@ class CapacityCalendarRepository extends ServiceEntityRepository
      */
     public function findByDate(\DateTimeInterface $date): ?CapacityCalendar
     {
-        return $this->createQueryBuilder('cc')
+        /** @var CapacityCalendar|null $calendar */
+        $calendar = $this->createQueryBuilder('cc')
             ->andWhere('cc.productionDate = :date')
             ->setParameter('date', $date)
             ->orderBy('cc.id', 'ASC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $calendar;
     }
 }

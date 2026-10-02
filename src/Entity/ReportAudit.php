@@ -15,7 +15,9 @@ class ReportAudit
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    // Protected (not private): Doctrine assigns the identifier via reflection
+    // on hydration, so static analysis never sees an int assignment.
+    protected ?int $id = null;
 
     #[ORM\Column(length: 100)]
     private ?string $reportType = null; // quote, dfm_report, cost_breakdown, exceptions_report, sourcing_risk, etc.
@@ -32,14 +34,17 @@ class ReportAudit
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $versionId = null; // Dataset/API version identifier
 
+    /** @var array<string, string>|null JSON: {tariff_v: "2025.1", freight_v: "2025.2", etc.} */
     #[ORM\Column(type: 'json', nullable: true)]
-    private ?array $datasetVersions = null; // JSON: {tariff_v: "2025.1", freight_v: "2025.2", etc.}
+    private ?array $datasetVersions = null;
 
+    /** @var array<string, string>|null JSON: {mouser: "v1.2", digikey: "v3.0", etc.} */
     #[ORM\Column(type: 'json', nullable: true)]
-    private ?array $apiVersions = null; // JSON: {mouser: "v1.2", digikey: "v3.0", etc.}
+    private ?array $apiVersions = null;
 
+    /** @var array<string, mixed>|null Additional audit metadata */
     #[ORM\Column(type: 'json', nullable: true)]
-    private ?array $metadata = null; // Additional audit metadata
+    private ?array $metadata = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $fileName = null; // Generated file name
@@ -128,33 +133,51 @@ class ReportAudit
         return $this;
     }
 
+    /**
+     * @return array<string, string>|null
+     */
     public function getDatasetVersions(): ?array
     {
         return $this->datasetVersions;
     }
 
+    /**
+     * @param array<string, string>|null $datasetVersions
+     */
     public function setDatasetVersions(?array $datasetVersions): self
     {
         $this->datasetVersions = $datasetVersions;
         return $this;
     }
 
+    /**
+     * @return array<string, string>|null
+     */
     public function getApiVersions(): ?array
     {
         return $this->apiVersions;
     }
 
+    /**
+     * @param array<string, string>|null $apiVersions
+     */
     public function setApiVersions(?array $apiVersions): self
     {
         $this->apiVersions = $apiVersions;
         return $this;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getMetadata(): ?array
     {
         return $this->metadata;
     }
 
+    /**
+     * @param array<string, mixed>|null $metadata
+     */
     public function setMetadata(?array $metadata): self
     {
         $this->metadata = $metadata;

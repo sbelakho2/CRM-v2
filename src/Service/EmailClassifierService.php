@@ -34,6 +34,7 @@ class EmailClassifierService
     private const CONFIDENCE_THRESHOLD = 0.70; // Below this, flag for human review
     
     // Cache for Bayes model (loaded from database)
+    /** @var array<string, array<string, int>>|null */
     private ?array $bayesModelCache = null;
     private ?int $bayesModelCacheTime = null;
     private const BAYES_CACHE_TTL = 300; // 5 minutes
@@ -139,6 +140,8 @@ class EmailClassifierService
 
     /**
      * Classify an email
+     *
+     * @return array{classification: string, confidence: float, method: string, requiresReview: bool, matchedPattern?: string|null, probabilities?: array<string, float>}
      */
     public function classifyEmail(string $subject, string $body, string $fromEmail): array
     {
@@ -187,6 +190,8 @@ class EmailClassifierService
 
     /**
      * Classify using rule-based patterns
+     *
+     * @return array{classification: string|null, matchedPattern: string|null}
      */
     private function classifyByRules(string $text): array
     {
@@ -209,6 +214,8 @@ class EmailClassifierService
 
     /**
      * Classify using Naive Bayes with persistent database model
+     *
+     * @return array{classification: string, confidence: float, probabilities: array<string, float>}
      */
     private function classifyByNaiveBayes(string $text): array
     {
@@ -298,6 +305,8 @@ class EmailClassifierService
 
     /**
      * Load Bayes model from database with caching
+     *
+     * @return array<string, array<string, int>>
      */
     private function loadBayesModel(): array
     {
@@ -380,6 +389,8 @@ class EmailClassifierService
 
     /**
      * Get Bayes model statistics
+     *
+     * @return array{error: string}|array<string, array{vocabulary_size: int, total_words: int}>
      */
     public function getBayesModelStats(): array
     {
@@ -392,19 +403,22 @@ class EmailClassifierService
 
     /**
      * Tokenize text into words
+     *
+     * @return list<string>
      */
     private function tokenize(string $text): array
     {
         // Convert to lowercase and extract words
         $text = strtolower($text);
         preg_match_all('/\b[a-z\']+\b/', $text, $matches);
-        
-        return $matches[0] ?? [];
+
+        return $matches[0];
     }
 
     /**
      * Process incoming email and create InboxMessage
-      * @param array<string|int, mixed> $metadata
+     *
+     * @param array<string, mixed>|null $metadata
      */
     public function processIncomingEmail(
         string $fromEmail,
@@ -522,9 +536,13 @@ class EmailClassifierService
         
         $classification = $inbox->getClassification();
         $positiveReply = $inbox->isPositiveResponse();
-        
+        $armId = $arm->getId();
+        if ($armId === null) {
+            return; // Arm was never persisted — nothing to record against
+        }
+
         // Use amplified recording for replies (2x weight)
-        $this->thompsonSampler->recordReplyOutcome($arm->getId(), $positiveReply, $classification);
+        $this->thompsonSampler->recordReplyOutcome($armId, $positiveReply, $classification ?? 'unknown');
         
         // Update tracking
         $outbound->setOutcomeRecorded(true);
@@ -545,10 +563,15 @@ class EmailClassifierService
 
     /**
      * Get classification statistics
+     *
+     * @return array{total: int, pending_review: int, by_classification: array<string, array{count: int, avg_confidence: float|int}>}
      */
     public function getClassificationStats(): array
     {
-        return $this->inboxRepository->getClassificationStats();
+        /** @var array{total: int, pending_review: int, by_classification: array<string, array{count: int, avg_confidence: float|int}>} $stats */
+        $stats = $this->inboxRepository->getClassificationStats();
+
+        return $stats;
     }
 
     /**
@@ -556,6 +579,9 @@ class EmailClassifierService
      * 
      * Returns word counts and frequency information per classification
      * for monitoring the ML model's training state.
+     */
+    /**
+     * @return array{byClassification: array<string, array{words: int, frequency: int}>, totalWords: int, trainingExamples: int, status: string}
      */
     public function getBayesStatistics(): array
     {
@@ -585,18 +611,22 @@ class EmailClassifierService
         try {
             // Query database for statistics
             $qb = $this->bayesTrainingRepository->createQueryBuilder('b');
+            /** @var list<array{classification: mixed, word_count: mixed, total_freq: mixed}> $result */
             $result = $qb->select('b.classification, COUNT(b.word) as word_count, SUM(b.frequency) as total_freq')
                 ->groupBy('b.classification')
                 ->getQuery()
                 ->getResult();
-            
+
             foreach ($result as $row) {
-                $stats['byClassification'][$row['classification']] = [
-                    'words' => (int) $row['word_count'],
-                    'frequency' => (int) $row['total_freq'],
+                $classification = is_string($row['classification']) ? $row['classification'] : 'unknown';
+                $wordCount = is_numeric($row['word_count']) ? (int) $row['word_count'] : 0;
+                $totalFreq = is_numeric($row['total_freq']) ? (int) $row['total_freq'] : 0;
+                $stats['byClassification'][$classification] = [
+                    'words' => $wordCount,
+                    'frequency' => $totalFreq,
                 ];
-                $stats['totalWords'] += (int) $row['word_count'];
-                $stats['trainingExamples'] += (int) $row['total_freq'];
+                $stats['totalWords'] += $wordCount;
+                $stats['trainingExamples'] += $totalFreq;
             }
             
             // If database is empty, use fallback model stats

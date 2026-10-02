@@ -75,10 +75,21 @@ class OnboardingPackService
     }
 
     /**
+     * JSON-encode a value for a JSON-string column; NULL when encoding fails
+     * (previously the string|false result flowed into a ?string setter).
+     */
+    private function jsonOrNull(mixed $value): ?string
+    {
+        $json = json_encode($value);
+
+        return $json === false ? null : $json;
+    }
+
+    /**
      * Company profile sourced from env vars only. Every value defaults to
      * NULL: unconfigured fields are left empty instead of being fabricated.
      *
-     * @return array<string, string|int|null>
+     * @return array<string, list<string>|int|string|null>
      */
     private function companyProfileConfig(): array
     {
@@ -120,7 +131,7 @@ class OnboardingPackService
     /**
      * Parse a JSON list of strings from an env var; NULL when unset/invalid.
      *
-     * @return string[]|null
+     * @return list<string>|null
      */
     private function jsonListFromEnv(string $name): ?array
     {
@@ -135,7 +146,10 @@ class OnboardingPackService
             return null;
         }
 
-        return array_values(array_map('strval', $decoded));
+        return array_values(array_map(
+            static fn (mixed $item): string => is_scalar($item) ? (string) $item : '',
+            $decoded
+        ));
     }
 
     /**
@@ -143,12 +157,12 @@ class OnboardingPackService
      * 
      * @param int $companyId - Target company ID (customer)
      * @param string $packType - Pack type (FULL, QUICK, CUSTOM)
-     * @param array $customFields - Custom fields to include (if CUSTOM type)
-     * 
+     * @param list<string>|array<int|string, mixed> $customFields - Custom fields to include (if CUSTOM type)
+     *
      * @return array{
      *   packId: int,
      *   pdfPath: string,
-     *   fieldsExtracted: array
+     *   fieldsExtracted: array<string, mixed>
      * }
      */
     public function generatePack(int $companyId, string $packType = 'FULL', array $customFields = []): array
@@ -166,13 +180,13 @@ class OnboardingPackService
         $pack->setStatus('GENERATED');
         // Pack type + custom selection live in packContents (document
         // references + configuration JSON); createdAt is set by PrePersist.
-        $pack->setPackContents(json_encode(['pack_type' => $packType]));
+        $pack->setPackContents($this->jsonOrNull(['pack_type' => $packType]));
         $this->entityManager->persist($pack);
         $this->entityManager->flush(); // Get pack ID
 
         // 2. Extract fields from PortalCandidate
         $fieldsExtracted = $this->autoFillFields($companyId, $packType, $customFields);
-        $pack->setFieldsJson(json_encode($fieldsExtracted));
+        $pack->setFieldsJson($this->jsonOrNull($fieldsExtracted));
 
         // 3. Never submit packs with missing sensitive data: flag them so a
         //    human must complete the profile before any portal submission.
@@ -195,10 +209,10 @@ class OnboardingPackService
         // 5. Update pack
         $this->entityManager->flush();
 
-        // 6. Return pack data
+        // 6. Return pack data (coerced: both are non-null on the success path)
         return [
-            'packId' => $pack->getId(),
-            'pdfPath' => $pack->getPdfPath(),
+            'packId' => $pack->getId() ?? 0,
+            'pdfPath' => $pack->getPdfPath() ?? '',
             'fieldsExtracted' => $fieldsExtracted
         ];
     }
@@ -225,9 +239,9 @@ class OnboardingPackService
      * 
      * @param int $companyId - Company ID
      * @param string $packType - Pack type
-     * @param array $customFields - Custom fields (if CUSTOM type)
-     * 
-     * @return array - Extracted fields
+     * @param list<string>|array<int|string, mixed> $customFields - Custom fields (if CUSTOM type)
+     *
+     * @return array<string, mixed> - Extracted fields
      */
     public function autoFillFields(int $companyId, string $packType, array $customFields = []): array
     {
@@ -280,9 +294,19 @@ class OnboardingPackService
             $fields['contactSalesPhone'] = $config['contactSalesPhone'] ?? '';
         }
         
-        if ($packType === 'CUSTOM' && !empty($customFields)) {
-            // Filter to only requested custom fields
-            $fields = array_intersect_key($fields, array_flip($customFields));
+        if ($packType === 'CUSTOM' && $customFields !== []) {
+            // Filter to only requested custom fields. Accept both a flat list
+            // of field names (names as values) and a name => value map (names
+            // as keys); previously a map made array_flip() fail.
+            $requestedKeys = [];
+            foreach ($customFields as $key => $value) {
+                if (is_int($key) && is_string($value)) {
+                    $requestedKeys[] = $value;
+                } elseif (is_string($key)) {
+                    $requestedKeys[] = $key;
+                }
+            }
+            $fields = array_intersect_key($fields, array_flip($requestedKeys));
         }
         
         // 3. Return extracted fields
@@ -294,12 +318,12 @@ class OnboardingPackService
      * 
      * @param int $packId - OnboardingPack ID
      * @param int $portalId - SupplierPortal ID
-     * @param array $credentials - Portal login credentials (username, password)
-     * 
+     * @param array<string, mixed> $credentials - Portal login credentials (username, password)
+     *
      * @return array{
      *   success: bool,
      *   method: string,
-     *   response: string|null,
+     *   response: mixed,
      *   errorMessage: string|null
      * }
      */
@@ -401,9 +425,9 @@ class OnboardingPackService
      * 
      * @param OnboardingPack $pack - Onboarding pack
      * @param SupplierPortal $portal - Portal
-     * @param array $credentials - Login credentials
-     * 
-     * @return array - Submission result
+     * @param array<string, mixed> $credentials - Login credentials
+     *
+     * @return array{success: bool, method: string, response: mixed, errorMessage: string|null}
      */
     private function submitViaWebForm(OnboardingPack $pack, SupplierPortal $portal, array $credentials): array
     {
@@ -452,8 +476,10 @@ class OnboardingPackService
             // 3. Map pack data to form fields; null/empty pack values are
             //    skipped entirely rather than submitted as empty strings.
             $formData = [];
-            foreach ($formFields as $fieldName => $packField) {
-                $value = $packData[$packField] ?? null;
+            foreach (is_array($formFields) ? $formFields : [] as $fieldName => $packField) {
+                $value = is_array($packData) && is_string($packField)
+                    ? ($packData[$packField] ?? null)
+                    : null;
                 if ($value !== null && $value !== '') {
                     $formData[$fieldName] = $value;
                 }
@@ -544,9 +570,9 @@ class OnboardingPackService
      * @param int $packId - Pack ID
      * 
      * @return array{
-     *   status: string,
-     *   generatedAt: \DateTime|null,
-     *   submittedAt: \DateTime|null,
+     *   status: string|null,
+     *   generatedAt: \DateTimeInterface|null,
+     *   submittedAt: \DateTimeInterface|null,
      *   portalName: string|null
      * }
      */
@@ -561,9 +587,9 @@ class OnboardingPackService
         // 2. Get portal if submitted (recorded in packContents JSON — the
         // entity has no portalId column)
         $portalName = null;
-        $contents = json_decode($pack->getPackContents() ?? '{}', true) ?? [];
-        $submittedPortalId = $contents['submitted_portal_id'] ?? null;
-        if ($submittedPortalId !== null) {
+        $contents = json_decode($pack->getPackContents() ?? '{}', true);
+        $submittedPortalId = is_array($contents) ? ($contents['submitted_portal_id'] ?? null) : null;
+        if (is_numeric($submittedPortalId)) {
             $portal = $this->supplierPortalRepository->find((int) $submittedPortalId);
             $portalName = $portal?->getPortalUrl();
         }
@@ -581,14 +607,14 @@ class OnboardingPackService
      * cookie's own Domain scope against the submit host. Cookies whose
      * scope does not cover the submit host are NOT relayed (cookie-jar
      * semantics without a jar dependency).
-      * @param array<string|int, mixed> $setCookieHeaders
+      * @param list<string> $setCookieHeaders
      */
     private function scopedCookieHeader(array $setCookieHeaders, string $submitHost, string $loginHost): string
     {
         $pairs = [];
         foreach ($setCookieHeaders as $header) {
-            $parts = explode(';', (string) $header);
-            $nameValue = trim((string) ($parts[0] ?? ''));
+            $parts = explode(';', $header);
+            $nameValue = trim($parts[0]);
             if ($nameValue === '' || !str_contains($nameValue, '=')) {
                 continue;
             }
@@ -609,7 +635,7 @@ class OnboardingPackService
                 ? ($submitHost !== '' && $submitHost === $loginHost)
                 : ($submitHost === $domainAttr || str_ends_with('.' . $submitHost, '.' . $domainAttr));
 
-            if ($covers && !preg_match('/\bexpires=Thu, 01 Jan 1970/i', (string) $header)) {
+            if ($covers && !preg_match('/\bexpires=Thu, 01 Jan 1970/i', $header)) {
                 $pairs[] = $nameValue;
             }
         }
@@ -623,9 +649,12 @@ class OnboardingPackService
      */
     private function recordSubmittedPortal(OnboardingPack $pack, int $portalId): void
     {
-        $contents = json_decode($pack->getPackContents() ?? '{}', true) ?? [];
+        $contents = json_decode($pack->getPackContents() ?? '{}', true);
+        if (!is_array($contents)) {
+            $contents = [];
+        }
         $contents['submitted_portal_id'] = $portalId;
-        $pack->setPackContents(json_encode($contents));
+        $pack->setPackContents($this->jsonOrNull($contents));
     }
 
 }

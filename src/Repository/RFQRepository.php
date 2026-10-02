@@ -30,7 +30,8 @@ class RFQRepository extends ServiceEntityRepository
 
     public function countSubmittedBetween(\DateTimeInterface $start, \DateTimeInterface $end): int
     {
-        return $this->createQueryBuilder('r')
+        /** @var int|string|null $result */
+        $result = $this->createQueryBuilder('r')
             ->select('COUNT(r.id)')
             ->where('r.rfqDate >= :start')
             ->andWhere('r.rfqDate <= :end')
@@ -38,11 +39,14 @@ class RFQRepository extends ServiceEntityRepository
             ->setParameter('end', $end)
             ->getQuery()
             ->getSingleScalarResult();
+
+        return (int) $result;
     }
 
     public function countNPIAwards(\DateTime $start, \DateTime $end): int
     {
-        return $this->createQueryBuilder('r')
+        /** @var int|string|null $result */
+        $result = $this->createQueryBuilder('r')
             ->select('COUNT(r.id)')
             ->where('r.type = :type')
             ->andWhere('r.status = :status')
@@ -54,11 +58,14 @@ class RFQRepository extends ServiceEntityRepository
             ->setParameter('end', $end)
             ->getQuery()
             ->getSingleScalarResult();
+
+        return (int) $result;
     }
 
     public function countFrameworkAgreements(\DateTime $start, \DateTime $end): int
     {
-        return $this->createQueryBuilder('r')
+        /** @var int|string|null $result */
+        $result = $this->createQueryBuilder('r')
             ->select('COUNT(r.id)')
             ->where('r.type = :type')
             ->andWhere('r.status = :status')
@@ -70,11 +77,14 @@ class RFQRepository extends ServiceEntityRepository
             ->setParameter('end', $end)
             ->getQuery()
             ->getSingleScalarResult();
+
+        return (int) $result;
     }
 
     public function countActiveBySector(string $sector): int
     {
-        return $this->createQueryBuilder('r')
+        /** @var int|string|null $result */
+        $result = $this->createQueryBuilder('r')
             ->select('COUNT(r.id)')
             ->join('r.company', 'c')
             ->where('c.sector = :sector')
@@ -83,6 +93,8 @@ class RFQRepository extends ServiceEntityRepository
             ->setParameter('closedStatuses', [RFQ::STATUS_WON, RFQ::STATUS_LOST])
             ->getQuery()
             ->getSingleScalarResult();
+
+        return (int) $result;
     }
 
     /**
@@ -93,6 +105,7 @@ class RFQRepository extends ServiceEntityRepository
      */
     public function getActiveRfqCountsBySector(): array
     {
+        /** @var list<array{sector: mixed, cnt: mixed}> $results */
         $results = $this->createQueryBuilder('r')
             ->select('c.sector, COUNT(r.id) as cnt')
             ->join('r.company', 'c')
@@ -102,10 +115,10 @@ class RFQRepository extends ServiceEntityRepository
             ->groupBy('c.sector')
             ->getQuery()
             ->getResult();
-        
+
         $counts = [];
         foreach ($results as $row) {
-            if ($row['sector']) {
+            if (is_string($row['sector']) && $row['sector'] !== '' && is_numeric($row['cnt'])) {
                 $counts[$row['sector']] = (int) $row['cnt'];
             }
         }
@@ -121,12 +134,15 @@ class RFQRepository extends ServiceEntityRepository
      */
     public function getActivePipelineValues(): array
     {
-        return $this->createQueryBuilder('r')
+        /** @var list<array{value: float, currency: string|null}> $result */
+        $result = $this->createQueryBuilder('r')
             ->select('r.estimatedValue as value, r.currency')
             ->where('r.status IN (:statuses)')
             ->andWhere('r.estimatedValue > 0')
             ->setParameter('statuses', [RFQ::STATUS_SUBMITTED, RFQ::STATUS_IN_REVIEW])
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

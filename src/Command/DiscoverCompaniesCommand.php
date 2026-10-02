@@ -79,14 +79,13 @@ HELP
     {
         $io->title('Company Discovery Webcrawler');
 
-        /** @var mixed $sector */
-        $sector = $input->getOption('sector');
-        /** @var mixed $location */
-        $location = $input->getOption('location');
-        /** @var mixed $region */
-        $region = $input->getOption('region');
-        /** @var mixed $all */
-        $all = $input->getOption('all');
+        $sectorOption = $input->getOption('sector');
+        $sector = \is_string($sectorOption) && $sectorOption !== '' ? $sectorOption : null;
+        $locationOption = $input->getOption('location');
+        $location = \is_string($locationOption) && $locationOption !== '' ? $locationOption : null;
+        $regionOption = $input->getOption('region');
+        $region = \is_string($regionOption) && $regionOption !== '' ? $regionOption : null;
+        $all = (bool) $input->getOption('all');
 
         if ($all) {
             $regionLabel = $region ? strtoupper($region) : 'ALL REGIONS';

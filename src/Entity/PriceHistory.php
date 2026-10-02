@@ -26,7 +26,9 @@ class PriceHistory
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    // Protected (not private): Doctrine assigns the identifier via reflection
+    // on hydration, so static analysis never sees an int assignment.
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $mpn = null;
@@ -43,12 +45,12 @@ class PriceHistory
     #[ORM\Column(type: 'decimal', precision: 10, scale: 4)]
     private ?string $unitPrice = null; // Price at qty 1
 
+    /** @var list<array{quantity?: mixed, price?: mixed}> Full price break structure */
     #[ORM\Column(type: 'json')]
-    /** @var array<string, mixed>|list<mixed> $priceBreaks */
-    private array $priceBreaks = []; // Full price break structure
+    private array $priceBreaks = [];
 
     #[ORM\Column(length: 10)]
-    private ?string $currency = 'USD';
+    private string $currency = 'USD';
 
     #[ORM\Column(type: 'decimal', precision: 10, scale: 4, nullable: true)]
     private ?string $unitPriceUsd = null; // Normalized to USD
@@ -85,8 +87,9 @@ class PriceHistory
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $recordedAt = null;
 
+    /** @var array<string, mixed>|null For debugging */
     #[ORM\Column(type: 'json', nullable: true)]
-    private ?array $rawApiResponse = null; // For debugging
+    private ?array $rawApiResponse = null;
 
     public function __construct()
     {
@@ -163,11 +166,17 @@ class PriceHistory
         return $this;
     }
 
+    /**
+     * @return list<array{quantity?: mixed, price?: mixed}>
+     */
     public function getPriceBreaks(): array
     {
         return $this->priceBreaks;
     }
 
+    /**
+     * @param list<array{quantity?: mixed, price?: mixed}> $priceBreaks
+     */
     public function setPriceBreaks(array $priceBreaks): self
     {
         $this->priceBreaks = $priceBreaks;
@@ -306,11 +315,17 @@ class PriceHistory
         return $this;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getRawApiResponse(): ?array
     {
         return $this->rawApiResponse;
     }
 
+    /**
+     * @param array<string, mixed>|null $rawApiResponse
+     */
     public function setRawApiResponse(?array $rawApiResponse): self
     {
         $this->rawApiResponse = $rawApiResponse;
@@ -330,19 +345,21 @@ class PriceHistory
 
         // Sort by quantity ascending
         $breaks = $this->priceBreaks;
-        usort($breaks, fn($a, $b) => ($a['quantity'] ?? 0) <=> ($b['quantity'] ?? 0));
+        usort($breaks, fn($a, $b) => (is_numeric($a['quantity'] ?? null) ? $a['quantity'] : 0)
+            <=> (is_numeric($b['quantity'] ?? null) ? $b['quantity'] : 0));
 
-        $applicablePrice = $breaks[0]['price'] ?? null;
+        $applicablePrice = is_numeric($breaks[0]['price'] ?? null) ? (float) $breaks[0]['price'] : null;
 
         foreach ($breaks as $break) {
-            if ($quantity >= ($break['quantity'] ?? 0)) {
-                $applicablePrice = $break['price'] ?? $applicablePrice;
+            $breakQuantity = is_numeric($break['quantity'] ?? null) ? $break['quantity'] : 0;
+            if ($quantity >= $breakQuantity) {
+                $applicablePrice = is_numeric($break['price'] ?? null) ? (float) $break['price'] : $applicablePrice;
             } else {
                 break;
             }
         }
 
-        return $applicablePrice ? (float) $applicablePrice : null;
+        return $applicablePrice;
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Quote;
+use App\Entity\User;
 use App\Entity\BomLine;
 use App\Service\QuoteCoPilotService;
 use App\Service\UnifiedPdfGeneratorService;
@@ -116,16 +117,20 @@ class QuoteCoPilotController extends AbstractController
         }
 
         // CSRF protection
-        $token = $request->request->get('_token');
+        $token = (string) $request->request->get('_token');
         if (!$this->isCsrfTokenValid('delete-quote-' . $id, $token)) {
             $this->addFlash('error', 'Invalid security token. Please try again.');
             return $this->redirectToRoute('quote_copilot_list');
         }
 
         try {
+            $actingUser = $this->getUser();
+            if (!$actingUser instanceof User) {
+                throw $this->createAccessDeniedException();
+            }
             // Archive instead of hard delete. Quotes are commercial history:
             // BOM lines, pricing and customer interactions must survive.
-            $quote->archive($this->getUser());
+            $quote->archive($actingUser);
             $this->entityManager->flush();
 
             $this->addFlash('success', $this->translator->trans('quote.copilot.deleted_successfully'));
@@ -143,14 +148,13 @@ class QuoteCoPilotController extends AbstractController
     #[Route('/process', name: 'quote_copilot_process', methods: ['POST'])]
     public function process(Request $request): Response
     {
-        if (!$this->isCsrfTokenValid('quote_copilot_process', $request->request->get('_csrf_token'))) {
+        if (!$this->isCsrfTokenValid('quote_copilot_process', (string) $request->request->get('_csrf_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
         // Validate file upload
-        /** @var UploadedFile $bomFile */
         $bomFile = $request->files->get('bom_file');
-        if (!$bomFile) {
+        if (!$bomFile instanceof UploadedFile) {
             $this->addFlash('error', 'Please upload a BOM file');
             return $this->redirectToRoute('quote_copilot_index');
         }
@@ -169,22 +173,27 @@ class QuoteCoPilotController extends AbstractController
         }
 
         // Get form parameters
-        $companyId = $request->request->get('company_id');
-        $shipToCountry = $request->request->get('ship_to_country');
+        $companyIdRaw = $request->request->get('company_id');
+        $companyId = is_scalar($companyIdRaw) ? (string) $companyIdRaw : '';
+        $shipToCountryRaw = $request->request->get('ship_to_country');
+        $shipToCountry = is_scalar($shipToCountryRaw) ? (string) $shipToCountryRaw : '';
         $boardCount = max(1, (int)$request->request->get('board_count', 1));
         $orderMultiple = max(1, (int)$request->request->get('order_multiple', 1));
-        $incoterms = $request->request->get('incoterms', 'FCA');
-        $notes = $request->request->get('notes', '');
-        $issuingCompany = $request->request->get('issuing_company', IssuingCompanyService::DEFAULT_COMPANY);
-        
-        // Parse providers checkboxes (array of selected providers)
-        $providers = $request->request->all('providers');
-        if (!is_array($providers)) {
-            $providers = [];
-        }
-        // Filter to only valid provider names
+        $incotermsRaw = $request->request->get('incoterms', 'FCA');
+        $incoterms = is_string($incotermsRaw) ? $incotermsRaw : 'FCA';
+        $notesRaw = $request->request->get('notes', '');
+        $notes = is_string($notesRaw) ? $notesRaw : '';
+        $issuingCompanyRaw = $request->request->get('issuing_company', IssuingCompanyService::DEFAULT_COMPANY);
+        $issuingCompany = is_string($issuingCompanyRaw) ? $issuingCompanyRaw : IssuingCompanyService::DEFAULT_COMPANY;
+
+        // Parse providers checkboxes (array of selected providers); keep
+        // string values only (a non-string entry previously crashed the
+        // array_intersect below).
         $validProviders = ['alibaba', 'mouser', 'digikey', 'nexar'];
-        $providers = array_intersect($providers, $validProviders);
+        $providers = array_values(array_intersect(
+            array_filter($request->request->all('providers'), 'is_string'),
+            $validProviders
+        ));
 
         if (!$companyId || !$shipToCountry) {
             $this->addFlash('error', 'Please select a company and destination country');
@@ -224,14 +233,14 @@ class QuoteCoPilotController extends AbstractController
             $quote->setNotes($notes);
             $quote->setStatus('draft');
             $quote->setIssuingCompany($issuingCompany);
-            $quote->setBomDataJson(json_encode($bomData));
+            $quote->setBomDataJson(json_encode($bomData) ?: null);
             $quote->setCurrency($this->currencyPreferenceService->getDisplayCurrency());
             
             $this->entityManager->persist($quote);
             $this->entityManager->flush(); // Get quote ID
 
             // Process BOM through pricing service
-            $result = $this->copilotService->processBom($bomData, $quote->getId(), [
+            $result = $this->copilotService->processBom($bomData, (int) $quote->getId(), [
                 'providers' => $providers,
             ]);
 
@@ -273,8 +282,9 @@ class QuoteCoPilotController extends AbstractController
             throw $this->createNotFoundException('Quote not found');
         }
 
-        $quote = $row[0] ?? $row;
-        $companyName = is_array($row) ? ($row['company_name'] ?? null) : null;
+        /** @var array{0: Quote, company_name: mixed}|Quote $row */
+        $quote = is_array($row) ? $row[0] : $row;
+        $companyName = is_array($row) && is_string($row['company_name'] ?? null) ? $row['company_name'] : null;
 
         return $this->render('quote_copilot/results.html.twig', [
             'quote' => $quote,
@@ -349,8 +359,8 @@ class QuoteCoPilotController extends AbstractController
         $csv = [];
         $csv[] = ['Quote Number', $quote->getQuoteNumber() ?? 'Q-' . $quote->getId()];
         $csv[] = ['Issued By', $issuer['name']];
-        $csv[] = ['Company', $quote->getCompany()->getName()];
-        $csv[] = ['Date', $quote->getCreatedAt()->format('Y-m-d')];
+        $csv[] = ['Company', $company->getName()];
+        $csv[] = ['Date', $quote->getCreatedAt()?->format('Y-m-d') ?? ''];
         $csv[] = ['Quantity', $quote->getQuantity()];
         $csv[] = ['Ship To', $quote->getShipToCountry()];
         $csv[] = ['Incoterms', $quote->getIncoterms()];
@@ -375,26 +385,32 @@ class QuoteCoPilotController extends AbstractController
                 $line->getManufacturer() ?? '',
                 $line->getDescription() ?? '',
                 $line->getQuantity() ?? '',
-                number_format($line->getUnitPrice() ?? 0, 4),
-                number_format($line->getExtendedPrice() ?? 0, 2),
+                number_format((float) ($line->getUnitPrice() ?? 0), 4),
+                number_format((float) ($line->getExtendedPrice() ?? 0), 2),
                 $notes,
             ];
         }
 
         $csv[] = [];
-        $csv[] = ['Total Cost', number_format($quote->getTotalCost() ?? 0, 2)];
+        $csv[] = ['Total Cost', number_format((float) ($quote->getTotalCost() ?? 0), 2)];
         $csv[] = ['Coverage', $quote->getCoveragePercent() . '%'];
         $csv[] = [];
         $csv[] = ['This quote is valid for 30 days from the date of issue.'];
         $csv[] = [$issuer['name'] . ' | ' . $issuer['location'] . ' | ' . $issuer['email']];
 
         $output = fopen('php://temp', 'r+');
+        if ($output === false) {
+            throw new \RuntimeException('Unable to open temp stream for CSV export.');
+        }
         foreach ($csv as $row) {
             fputcsv($output, $row, ',', '"', '\\');
         }
         rewind($output);
         $csvContent = stream_get_contents($output);
         fclose($output);
+        if ($csvContent === false) {
+            $csvContent = '';
+        }
 
         $response = new Response($csvContent);
         $response->headers->set('Content-Type', 'text/csv');
@@ -444,7 +460,7 @@ class QuoteCoPilotController extends AbstractController
         $sheet->setCellValue('A2', 'Quote: ' . ($quote->getQuoteNumber() ?? 'Q-' . $quote->getId()));
         $sheet->setCellValue('B2', 'Issued By: ' . $issuer['name']);
         $sheet->setCellValue('A3', 'Company: ' . $companyName);
-        $sheet->setCellValue('B3', 'Date: ' . $quote->getCreatedAt()->format('Y-m-d'));
+        $sheet->setCellValue('B3', 'Date: ' . $quote->getCreatedAt()?->format('Y-m-d'));
         $sheet->setCellValue('A4', 'Coverage: ' . $quote->getCoveragePercent() . '%');
         $sheet->setCellValue('B4', 'Currency: ' . $quote->getCurrency());
 
@@ -551,7 +567,7 @@ class QuoteCoPilotController extends AbstractController
         $spreadsheet->disconnectWorksheets();
         unset($spreadsheet);
 
-        $response = new Response($xlsxContent);
+        $response = new Response($xlsxContent === false ? '' : $xlsxContent);
         $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         $response->headers->set('Content-Disposition', sprintf(
             'attachment; filename="quote-%s-FULL-INTERNAL.xlsx"',
@@ -609,9 +625,9 @@ class QuoteCoPilotController extends AbstractController
     public function publish(int $id, Request $request): Response
     {
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        if (!$this->isCsrfTokenValid('quote_copilot_publish_' . $id, $data['_csrf_token'] ?? '')) {
+        $publishToken = $data['_csrf_token'] ?? null;
+        if (!$this->isCsrfTokenValid('quote_copilot_publish_' . $id, is_string($publishToken) ? $publishToken : null)) {
             return $this->json(['success' => false, 'message' => 'Invalid CSRF token.'], 403);
         }
 
@@ -629,7 +645,8 @@ class QuoteCoPilotController extends AbstractController
         }
 
         // Get contact ID from request
-        $contactId = $data['contactId'] ?? null;
+        $contactIdRaw = $data['contactId'] ?? null;
+        $contactId = is_numeric($contactIdRaw) ? (int) $contactIdRaw : null;
 
         // Safely resolve company (may have been deleted)
         try {
@@ -668,7 +685,7 @@ class QuoteCoPilotController extends AbstractController
         // Create Activity record for quote publication
         // Note: Activity requires a User, so we only create if user is authenticated
         $user = $this->getUser();
-        if ($user && $company) {
+        if ($user instanceof User) {
             $activity = new \App\Entity\Activity();
             $activity->setType('QUOTE_PUBLISHED');
             $activity->setDescription(sprintf('Quote %s published and emailed to %s', 
@@ -687,18 +704,18 @@ class QuoteCoPilotController extends AbstractController
         $adminUsers = array_filter($allUsers, fn($u) => in_array('ROLE_ADMIN', $u->getRoles()));
         
         // If no specific admins, try to notify current user or skip
-        $notifyUsers = !empty($adminUsers) ? $adminUsers : ($user ? [$user] : []);
+        $notifyUsers = $adminUsers !== [] ? $adminUsers : ($user instanceof User ? [$user] : []);
         
         foreach ($notifyUsers as $notifyUser) {
             $notification = new \App\Entity\Notification();
             $notification->setUser($notifyUser);
             $notification->setType('quote_published');
             $notification->setEntityType('Quote');
-            $notification->setEntityId($quote->getId());
+            $notification->setEntityId((int) $quote->getId());
             $notification->setMessage(sprintf('Quote %s has been published', 
                 $quote->getQuoteNumber() ?? $quote->getId()));
             try {
-                $compName = $company?->getName();
+                $compName = $company->getName();
             } catch (\Doctrine\ORM\EntityNotFoundException) {
                 $compName = null;
             }

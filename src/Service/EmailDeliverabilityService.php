@@ -136,20 +136,27 @@ class EmailDeliverabilityService
 
     /**
      * Get all suppressed emails
+     *
+     * @return list<\App\Entity\EmailUnsubscribe>
      */
     public function getSuppressionList(int $limit = 100, int $offset = 0): array
     {
-        return $this->entityManager->getRepository(\App\Entity\EmailUnsubscribe::class)
+        /** @var list<\App\Entity\EmailUnsubscribe> $list */
+        $list = $this->entityManager->getRepository(\App\Entity\EmailUnsubscribe::class)
             ->findBy([], ['unsubscribedAt' => 'DESC'], $limit, $offset);
+
+        return $list;
     }
 
     /**
      * Validate SPF record for a domain
+     *
+     * @return array{valid: bool, error?: string, record?: string, mechanisms?: list<array{qualifier: string, mechanism: string, value: string|null}>}
      */
     public function validateSpf(string $domain): array
     {
         $txtRecords = @dns_get_record($domain, DNS_TXT);
-        
+
         if (!$txtRecords) {
             return [
                 'valid' => false,
@@ -159,7 +166,7 @@ class EmailDeliverabilityService
 
         $spfRecord = null;
         foreach ($txtRecords as $record) {
-            if (isset($record['txt']) && str_starts_with($record['txt'], 'v=spf1')) {
+            if (isset($record['txt']) && is_string($record['txt']) && str_starts_with($record['txt'], 'v=spf1')) {
                 $spfRecord = $record['txt'];
                 break;
             }
@@ -181,6 +188,8 @@ class EmailDeliverabilityService
 
     /**
      * Parse SPF mechanisms from record
+     *
+     * @return list<array{qualifier: string, mechanism: string, value: string|null}>
      */
     private function parseSpfMechanisms(string $spfRecord): array
     {
@@ -190,9 +199,9 @@ class EmailDeliverabilityService
         foreach ($parts as $part) {
             if (preg_match('/^([+\-~?])?(all|a|mx|ptr|ip4|ip6|include|exists):?(.*)$/', $part, $matches)) {
                 $mechanisms[] = [
-                    'qualifier' => $matches[1] ?? '+',
+                    'qualifier' => $matches[1] !== '' ? $matches[1] : '+',
                     'mechanism' => $matches[2],
-                    'value' => $matches[3] ?? null,
+                    'value' => $matches[3] !== '' ? $matches[3] : null,
                 ];
             }
         }
@@ -202,6 +211,11 @@ class EmailDeliverabilityService
 
     /**
      * Validate DKIM selector for a domain
+     */
+    /**
+     * Validate DKIM selector for a domain
+     *
+     * @return array{valid: bool, error?: string, record?: string, selector?: string}
      */
     public function validateDkim(string $domain, string $selector = 'default'): array
     {
@@ -215,7 +229,8 @@ class EmailDeliverabilityService
             ];
         }
 
-        $dkimRecord = $txtRecords[0]['txt'] ?? null;
+        $firstRecord = $txtRecords[0];
+        $dkimRecord = isset($firstRecord['txt']) && is_string($firstRecord['txt']) ? $firstRecord['txt'] : null;
 
         if (!$dkimRecord || !str_contains($dkimRecord, 'v=DKIM1')) {
             return [
@@ -234,6 +249,11 @@ class EmailDeliverabilityService
     /**
      * Validate DMARC policy for a domain
      */
+    /**
+     * Validate DMARC policy for a domain
+     *
+     * @return array{valid: bool, error?: string, record?: string, policy?: array{policy: string, subdomainPolicy: string|null, percentage: int, rua: string|null, ruf: string|null}}
+     */
     public function validateDmarc(string $domain): array
     {
         $dmarcDomain = '_dmarc.' . $domain;
@@ -246,7 +266,8 @@ class EmailDeliverabilityService
             ];
         }
 
-        $dmarcRecord = $txtRecords[0]['txt'] ?? null;
+        $firstRecord = $txtRecords[0];
+        $dmarcRecord = isset($firstRecord['txt']) && is_string($firstRecord['txt']) ? $firstRecord['txt'] : null;
 
         if (!$dmarcRecord || !str_starts_with($dmarcRecord, 'v=DMARC1')) {
             return [
@@ -264,6 +285,8 @@ class EmailDeliverabilityService
 
     /**
      * Parse DMARC policy from record
+     *
+     * @return array{policy: string, subdomainPolicy: string|null, percentage: int, rua: string|null, ruf: string|null}
      */
     private function parseDmarcPolicy(string $dmarcRecord): array
     {
@@ -290,8 +313,14 @@ class EmailDeliverabilityService
     /**
      * Get deliverability score for a campaign
      */
+    /**
+     * Get deliverability score for a campaign
+     *
+     * @return array{score: float, rating: string, deliveryRate: float, bounceRate: float, stats: array{total: int, delivered: int, bounced: int, failed: int}}
+     */
     public function getCampaignDeliverabilityScore(EmailCampaign $campaign): array
     {
+        /** @var array{total: mixed, delivered: mixed, bounced: mixed, failed: mixed} $stats */
         $stats = $this->entityManager->createQuery(
             'SELECT 
                 COUNT(es.id) as total,
@@ -306,10 +335,10 @@ class EmailDeliverabilityService
         ->setParameter('failed', 'failed')
         ->getSingleResult();
 
-        $total = (int) $stats['total'];
-        $delivered = (int) $stats['delivered'];
-        $bounced = (int) $stats['bounced'];
-        $failed = (int) $stats['failed'];
+        $total = is_numeric($stats['total']) ? (int) $stats['total'] : 0;
+        $delivered = is_numeric($stats['delivered']) ? (int) $stats['delivered'] : 0;
+        $bounced = is_numeric($stats['bounced']) ? (int) $stats['bounced'] : 0;
+        $failed = is_numeric($stats['failed']) ? (int) $stats['failed'] : 0;
 
         $deliveryRate = $total > 0 ? ($delivered / $total) * 100 : 0;
         $bounceRate = $total > 0 ? ($bounced / $total) * 100 : 0;
@@ -347,6 +376,11 @@ class EmailDeliverabilityService
     /**
      * Get bounce statistics grouped by type
      */
+    /**
+     * Get bounce statistics grouped by type
+     *
+     * @return array{hardBounces: int, softBounces: int, spamComplaints: int, total: int}
+     */
     public function getBounceStatistics(\DateTimeInterface $startDate, \DateTimeInterface $endDate): array
     {
         // Get hard bounces
@@ -360,6 +394,7 @@ class EmailDeliverabilityService
         ->setParameter('start', $startDate)
         ->setParameter('end', $endDate)
         ->getSingleScalarResult();
+        $hardBounces = is_numeric($hardBounces) ? (int) $hardBounces : 0;
 
         // Get soft bounces
         $softBounces = $this->entityManager->createQuery(
@@ -372,6 +407,7 @@ class EmailDeliverabilityService
         ->setParameter('start', $startDate)
         ->setParameter('end', $endDate)
         ->getSingleScalarResult();
+        $softBounces = is_numeric($softBounces) ? (int) $softBounces : 0;
 
         // Get spam complaints
         $spamComplaints = $this->entityManager->createQuery(
@@ -384,12 +420,13 @@ class EmailDeliverabilityService
         ->setParameter('start', $startDate)
         ->setParameter('end', $endDate)
         ->getSingleScalarResult();
+        $spamComplaints = is_numeric($spamComplaints) ? (int) $spamComplaints : 0;
 
         return [
-            'hardBounces' => (int) $hardBounces,
-            'softBounces' => (int) $softBounces,
-            'spamComplaints' => (int) $spamComplaints,
-            'total' => (int) ($hardBounces + $softBounces + $spamComplaints),
+            'hardBounces' => $hardBounces,
+            'softBounces' => $softBounces,
+            'spamComplaints' => $spamComplaints,
+            'total' => $hardBounces + $softBounces + $spamComplaints,
         ];
     }
 
@@ -409,6 +446,6 @@ class EmailDeliverabilityService
         ->setParameter('cutoff', $cutoffDate)
         ->execute();
 
-        return $deleted;
+        return is_numeric($deleted) ? (int) $deleted : 0;
     }
 }

@@ -177,6 +177,7 @@ class EmailSchedulerService
                 return;
             }
 
+            /** @var list<EmailCampaign> $due */
             $due = $this->entityManager->createQueryBuilder()
                 ->select('c')
                 ->from(EmailCampaign::class, 'c')

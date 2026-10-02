@@ -250,16 +250,16 @@ final class CandidateCollector
             '/\s*[\|–—-]\s*(Home|Homepage|Welcome|Official|Website|LinkedIn|Facebook|Twitter|Wikipedia|Glassdoor|Crunchbase|About|Contact|Products|Solutions|Overview).*$/i',
             '',
             $title,
-        );
+        ) ?? $title;
 
         // Remove trademark symbols
-        $title = preg_replace('/[®™©]/u', '', $title);
+        $title = preg_replace('/[®™©]/u', '', $title) ?? $title;
 
         $title = trim($title);
 
         // If the cleaned title is too short, use the display link as fallback
         if (mb_strlen($title) < 2) {
-            $title = ucfirst(explode('.', $result->getDisplayLink())[0] ?? '');
+            $title = ucfirst(explode('.', $result->getDisplayLink())[0]);
         }
 
         return $title;

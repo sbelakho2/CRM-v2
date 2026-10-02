@@ -80,7 +80,7 @@ class CompanyDeduplicationService
     {
         $duplicates = [];
         $companyName = $company->getName();
-        $normalizedName = $this->normalizeName($companyName);
+        $normalizedName = $this->normalizeName($companyName ?? '');
         $website = $company->getWebsite();
         $domain = $website ? $this->extractDomain($website) : null;
         
@@ -104,12 +104,13 @@ class CompanyDeduplicationService
                 'name' => $companyName,
             ]);
 
+            /** @var list<Company> $allCompanies */
             $allCompanies = $this->companyRepository->createQueryBuilder('c')
                 ->where('c.id != :id')
                 ->setParameter('id', $company->getId() ?? 0)
                 ->getQuery()
                 ->getResult();
-            
+
             foreach ($allCompanies as $existing) {
                 $match = $this->compareCompanies($company, $existing, $normalizedName, $domain);
                 
@@ -143,6 +144,7 @@ class CompanyDeduplicationService
 
         // Block 1: Domain match (highest precision)
         if ($domain) {
+            /** @var list<array{id: int|string}> $domainCandidates */
             $domainCandidates = $this->companyRepository->createQueryBuilder('c')
                 ->select('c.id')
                 ->where('c.website LIKE :domainPattern')
@@ -161,6 +163,7 @@ class CompanyDeduplicationService
         // Block 2: Name prefix blocking (for normalized names)
         $prefix = mb_substr($normalizedName, 0, self::BLOCKING_KEY_PREFIX_LENGTH);
         if (strlen($prefix) >= 3) {
+            /** @var list<array{id: int|string}> $prefixCandidates */
             $prefixCandidates = $this->companyRepository->createQueryBuilder('c')
                 ->select('c.id')
                 ->where('c.name LIKE :prefixPattern')
@@ -179,6 +182,7 @@ class CompanyDeduplicationService
         // Block 3: First word blocking (captures companies starting with same word)
         $firstWord = strtok($normalizedName, ' ');
         if ($firstWord !== false && strlen($firstWord) >= 3 && $firstWord !== $prefix) {
+            /** @var list<array{id: int|string}> $wordCandidates */
             $wordCandidates = $this->companyRepository->createQueryBuilder('c')
                 ->select('c.id')
                 ->where('c.name LIKE :firstWordPattern')
@@ -201,11 +205,14 @@ class CompanyDeduplicationService
 
         // Load full entities for all unique candidate IDs
         $ids = array_keys($candidateIds);
-        return $this->companyRepository->createQueryBuilder('c')
+        /** @var list<Company> $result */
+        $result = $this->companyRepository->createQueryBuilder('c')
             ->where('c.id IN (:ids)')
             ->setParameter('ids', $ids)
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
     
     /**
@@ -242,6 +249,7 @@ class CompanyDeduplicationService
         // Use blocking key to find candidates first
         $prefix = mb_substr($normalizedName, 0, self::BLOCKING_KEY_PREFIX_LENGTH);
         if (strlen($prefix) >= 3) {
+            /** @var list<Company> $candidates */
             $candidates = $this->companyRepository->createQueryBuilder('c')
                 ->where('c.name LIKE :prefixPattern')
                 ->setParameter('prefixPattern', $prefix . '%')
@@ -250,7 +258,7 @@ class CompanyDeduplicationService
                 ->getResult();
 
             foreach ($candidates as $existing) {
-                $existingNormalized = $this->normalizeName($existing->getName());
+                $existingNormalized = $this->normalizeName($existing->getName() ?? '');
                 
                 // Exact normalized match
                 if ($normalizedName === $existingNormalized) {
@@ -376,6 +384,9 @@ class CompanyDeduplicationService
                 }
 
                 $duplicateId = $duplicate->getId();
+                if ($duplicateId === null) {
+                    continue; // Unpersisted duplicate — nothing to re-point or delete
+                }
 
                 // Re-point every entity that referenced the duplicate —
                 // pointers only, never data movement that could cascade-delete.
@@ -499,6 +510,8 @@ class CompanyDeduplicationService
     
     /**
      * Compare two companies and return match details
+     *
+     * @return array{company: Company, matchType: string, confidence: int}|null
      */
     private function compareCompanies(
         Company $company,
@@ -506,7 +519,7 @@ class CompanyDeduplicationService
         string $normalizedName,
         ?string $domain
     ): ?array {
-        $existingNormalized = $this->normalizeName($existing->getName());
+        $existingNormalized = $this->normalizeName($existing->getName() ?? '');
         
         // 1. Exact name match
         if ($company->getName() === $existing->getName()) {
@@ -567,12 +580,12 @@ class CompanyDeduplicationService
         
         // Expand abbreviations (word-boundary to avoid partial matches)
         foreach (self::NAME_EXPANSIONS as $abbr => $full) {
-            $normalized = preg_replace('/\b' . preg_quote($abbr, '/') . '\b/', $full, $normalized);
+            $normalized = preg_replace('/\b' . preg_quote($abbr, '/') . '\b/', $full, $normalized) ?? '';
         }
-        
+
         // Remove special characters and extra spaces
-        $normalized = preg_replace('/[^a-z0-9\s]/', '', $normalized);
-        $normalized = preg_replace('/\s+/', ' ', $normalized);
+        $normalized = preg_replace('/[^a-z0-9\s]/', '', $normalized) ?? '';
+        $normalized = preg_replace('/\s+/', ' ', $normalized) ?? '';
         
         return trim($normalized);
     }
@@ -606,6 +619,7 @@ class CompanyDeduplicationService
      */
     private function findByDomain(string $domain): ?Company
     {
+        /** @var list<Company> $companies */
         $companies = $this->companyRepository->createQueryBuilder('c')
             ->where('c.website LIKE :domain1')
             ->orWhere('c.website LIKE :domain2')

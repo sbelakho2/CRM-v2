@@ -49,7 +49,9 @@ class LearnedCompetitor
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    // Protected (not private): Doctrine assigns the identifier via reflection
+    // on hydration, so static analysis never sees an int assignment.
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $domain = null;
@@ -84,12 +86,15 @@ class LearnedCompetitor
     #[ORM\Column]
     private bool $active = true;
 
+    /** @var list<string>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $aliases = null;
 
+    /** @var list<string>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $keywords = null;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $metadata = null;
 
@@ -276,11 +281,17 @@ class LearnedCompetitor
         return $this;
     }
 
+    /**
+     * @return list<string>
+     */
     public function getAliases(): array
     {
         return $this->aliases ?? [];
     }
 
+    /**
+     * @param list<string>|null $aliases
+     */
     public function setAliases(?array $aliases): static
     {
         $this->aliases = $aliases;
@@ -297,11 +308,17 @@ class LearnedCompetitor
         return $this;
     }
 
+    /**
+     * @return list<string>
+     */
     public function getKeywords(): array
     {
         return $this->keywords ?? [];
     }
 
+    /**
+     * @param list<string>|null $keywords
+     */
     public function setKeywords(?array $keywords): static
     {
         $this->keywords = $keywords;
@@ -318,11 +335,17 @@ class LearnedCompetitor
         return $this;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getMetadata(): array
     {
         return $this->metadata ?? [];
     }
 
+    /**
+     * @param array<string, mixed>|null $metadata
+     */
     public function setMetadata(?array $metadata): static
     {
         $this->metadata = $metadata;
@@ -373,8 +396,8 @@ class LearnedCompetitor
     public function buildMatchPattern(): string
     {
         $patterns = [
-            preg_quote($this->domain, '/'),
-            preg_quote(strtolower($this->name), '/'),
+            preg_quote($this->domain ?? '', '/'),
+            preg_quote(strtolower($this->name ?? ''), '/'),
         ];
         
         if ($this->fullName) {

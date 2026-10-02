@@ -16,12 +16,14 @@ use Psr\Log\LoggerInterface;
 
 /**
  * Follow-up Reminder Service
- * 
+ *
  * Manages automated follow-up scheduling and reminders:
  * - Schedules follow-ups based on activity type and outcome
  * - Tracks overdue follow-ups
  * - Generates reminder notifications
  * - Integrates with activity logging
+ *
+ * @phpstan-type FollowUpEntry array{activity: Activity, company: Company, follow_up_date: \DateTime, note: string, status: string, days_until: int, priority: string}
  */
 class FollowUpReminderService
 {
@@ -72,7 +74,8 @@ class FollowUpReminderService
     private EntityManagerInterface $entityManager;
     private ActivityRepository $activityRepository;
     private CompanyRepository $companyRepository;
-    private ContactRepository $contactRepository;
+    /** Injected for contact-scoped reminders planned later; not read today. */
+    protected ContactRepository $contactRepository;
     private LoggerInterface $logger;
     
     public function __construct(
@@ -91,6 +94,8 @@ class FollowUpReminderService
     
     /**
      * Schedule a follow-up based on an activity
+     *
+     * @return array{company_id: int|null, contact_id: int|null, source_activity_id: int|null, follow_up_date: \DateTimeInterface, activity_type: string, outcome: string, note: string, priority: string, status: string, created_at: \DateTime}|null
      */
     public function scheduleFollowUp(
         Activity $sourceActivity,
@@ -99,16 +104,12 @@ class FollowUpReminderService
         ?\DateTimeInterface $customDate = null
     ): ?array {
         $activityType = strtolower($sourceActivity->getType() ?? 'email');
-        
+
         // Determine follow-up date
         $followUpDate = $customDate;
-        
+
         if (!$followUpDate) {
             $daysUntilFollowUp = $this->getFollowUpDays($activityType, $outcome);
-            if ($daysUntilFollowUp === null) {
-                return null; // No follow-up needed
-            }
-            
             $followUpDate = (new \DateTime())->modify("+{$daysUntilFollowUp} days");
         }
         
@@ -148,6 +149,8 @@ class FollowUpReminderService
     
     /**
      * Get all pending follow-ups for a user
+     *
+     * @return list<FollowUpEntry>
      */
     public function getPendingFollowUps(?string $ownerRep = null, int $limit = 50): array
     {
@@ -184,8 +187,9 @@ class FollowUpReminderService
                ->groupBy('c.id');
         }
         
+        /** @var list<Company> $companies */
         $companies = $qb->getQuery()->getResult();
-        
+
         foreach ($companies as $company) {
             $activities = $this->activityRepository->findByCompanyWithLimit($company, 5);
             
@@ -227,6 +231,8 @@ class FollowUpReminderService
     
     /**
      * Get overdue follow-ups
+     *
+     * @return array<int, FollowUpEntry>
      */
     public function getOverdueFollowUps(?string $ownerRep = null): array
     {
@@ -239,6 +245,8 @@ class FollowUpReminderService
     
     /**
      * Get today's follow-ups
+     *
+     * @return array<int, FollowUpEntry>
      */
     public function getTodaysFollowUps(?string $ownerRep = null): array
     {
@@ -295,6 +303,8 @@ class FollowUpReminderService
     
     /**
      * Get follow-up summary for dashboard
+     *
+     * @return array{total: int, today: int, overdue: int, upcoming: int, by_priority: array<string, int>}
      */
     public function getFollowUpSummary(?string $ownerRep = null): array
     {
@@ -313,8 +323,7 @@ class FollowUpReminderService
         ];
         
         foreach ($allFollowUps as $fu) {
-            $priority = $fu['priority'] ?? self::PRIORITY_MEDIUM;
-            $byPriority[$priority]++;
+            $byPriority[$fu['priority']]++;
         }
         
         return [
@@ -328,6 +337,8 @@ class FollowUpReminderService
     
     /**
      * Suggest next action based on activity history
+     *
+     * @return array{action: string, reason: string, suggested_date: \DateTimeInterface, priority: string}|array{action: string, reason: string}
      */
     public function suggestNextAction(Company $company): array
     {
@@ -381,9 +392,10 @@ class FollowUpReminderService
     
     // Private helpers
     
-    private function getFollowUpDays(string $activityType, string $outcome): ?int
+    private function getFollowUpDays(string $activityType, string $outcome): int
     {
         $rules = self::FOLLOWUP_RULES[$activityType] ?? self::FOLLOWUP_RULES['email'];
+
         return $rules[$outcome] ?? $rules['sent'] ?? 3;
     }
     

@@ -11,6 +11,9 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+/**
+ * @phpstan-import-type ScrapeResult from \App\Service\DeepScrapingService
+ */
 #[AsMessageHandler]
 class LeadDeepScrapeMessageHandler
 {
@@ -63,7 +66,7 @@ class LeadDeepScrapeMessageHandler
                 'lead_id' => $leadId,
                 'emails_found' => count($scrapeResult['emails']),
                 'phones_found' => count($scrapeResult['phones']),
-                'structured_contacts' => count($scrapeResult['structured_contacts'] ?? []),
+                'structured_contacts' => count($scrapeResult['structured_contacts']),
                 'contacts_created' => $contactsCreated,
             ]);
 
@@ -83,9 +86,12 @@ class LeadDeepScrapeMessageHandler
         }
     }
 
+    /**
+     * @param ScrapeResult $scrapeResult
+     */
     private function createContactEntities(Lead $lead, array $scrapeResult): int
     {
-        $structuredContacts = $scrapeResult['structured_contacts'] ?? [];
+        $structuredContacts = $scrapeResult['structured_contacts'];
         if (empty($structuredContacts)) {
             return 0;
         }
@@ -94,7 +100,7 @@ class LeadDeepScrapeMessageHandler
         if (!$company) {
             $companyName = $lead->getCompanyName();
             if ($companyName) {
-                $company = $this->entityManager->getRepository(Company::class)
+                $found = $this->entityManager->getRepository(Company::class)
                     ->createQueryBuilder('c')
                     ->where('LOWER(c.name) = :name')
                     ->setParameter('name', strtolower($companyName))
@@ -102,7 +108,8 @@ class LeadDeepScrapeMessageHandler
                     ->getQuery()
                     ->getOneOrNullResult();
 
-                if ($company) {
+                if ($found instanceof Company) {
+                    $company = $found;
                     $lead->setCompany($company);
                 }
             }
@@ -153,8 +160,8 @@ class LeadDeepScrapeMessageHandler
         $created = 0;
 
         foreach ($structuredContacts as $data) {
-            $firstName = trim($data['first_name'] ?? '');
-            $lastName = trim($data['last_name'] ?? '');
+            $firstName = trim($data['first_name']);
+            $lastName = trim($data['last_name']);
 
             if (!$firstName || !$lastName) {
                 continue;
@@ -244,9 +251,13 @@ class LeadDeepScrapeMessageHandler
         return $created;
     }
 
+    /**
+     * @param ScrapeResult $result
+     */
     private function updateLeadFromScrapeResult(Lead $lead, array $result): void
     {
         if (!empty($result['emails'])) {
+            /** @var list<string> $existingEmails JSON column stores a plain email list. */
             $existingEmails = $lead->getContactEmailsPublic() ?? [];
             $allEmails = array_unique(array_merge($existingEmails, $result['emails']));
             $lead->setContactEmailsPublic(array_slice($allEmails, 0, 10));
@@ -262,7 +273,7 @@ class LeadDeepScrapeMessageHandler
         if (!empty($result['structured_contacts'])) {
             $contactSummary = [];
             foreach (array_slice($result['structured_contacts'], 0, 5) as $c) {
-                $line = trim(($c['first_name'] ?? '') . ' ' . ($c['last_name'] ?? ''));
+                $line = trim($c['first_name'] . ' ' . $c['last_name']);
                 if (!empty($c['job_title'])) {
                     $line .= ' (' . $c['job_title'] . ')';
                 }
@@ -289,8 +300,8 @@ class LeadDeepScrapeMessageHandler
         }
 
         $lead->setLastScrapedAt(new \DateTime());
-        $lead->setPagesScraped($result['pages_scraped'] ?? null);
-        $lead->setScrapingMethod($result['scraping_method'] ?? 'static');
+        $lead->setPagesScraped($result['pages_scraped']);
+        $lead->setScrapingMethod($result['scraping_method']);
         $lead->setHasContactForm(!empty($result['has_contact_form']));
 
         $lead->setLastSeen(new \DateTime());

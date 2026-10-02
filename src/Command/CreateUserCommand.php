@@ -44,19 +44,34 @@ class CreateUserCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
+        /** @var string|null $email - argv arguments are always strings. */
         $email = $input->getArgument('email') ?? $io->ask('Email');
+        /** @var string|null $firstName - argv arguments are always strings. */
         $firstName = $input->getArgument('firstName') ?? $io->ask('First Name');
+        /** @var string|null $lastName - argv arguments are always strings. */
         $lastName = $input->getArgument('lastName') ?? $io->ask('Last Name');
+        /** @var string|null $password - argv arguments are always strings. */
         $password = $input->getArgument('password') ?? $io->askHidden('Password');
-        
+
         /** @var mixed $isAdmin */
         $isAdmin = $input->getOption('admin');
-        $role = $isAdmin ? 'Admin' : $input->getOption('role');
-        /** @var mixed $territory */
-        $territory = $input->getOption('territory');
+        $roleOption = $input->getOption('role');
+        $role = $isAdmin ? 'Admin' : (is_string($roleOption) && $roleOption !== '' ? $roleOption : 'Field Rep');
+        $territoryOption = $input->getOption('territory');
+        $territory = is_string($territoryOption) && $territoryOption !== '' ? $territoryOption : 'Morocco';
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $io->error("Invalid email address: {$email}");
+        if (!is_string($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $io->error('Invalid email address: ' . (is_scalar($email) ? (string) $email : get_debug_type($email)));
+            return Command::FAILURE;
+        }
+
+        if (!is_string($firstName) || $firstName === '' || !is_string($lastName) || $lastName === '') {
+            $io->error('First name and last name are required.');
+            return Command::FAILURE;
+        }
+
+        if (!is_string($password) || $password === '') {
+            $io->error('Password is required.');
             return Command::FAILURE;
         }
 

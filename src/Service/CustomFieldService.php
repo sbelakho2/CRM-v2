@@ -34,6 +34,8 @@ class CustomFieldService
 
     /**
      * Get all fields for an entity type
+     *
+     * @return list<CustomFieldDefinition>
      */
     public function getFieldsForEntity(string $entityType): array
     {
@@ -42,22 +44,34 @@ class CustomFieldService
 
     /**
      * Get all values for an entity
+     *
+     * @return list<CustomFieldValue>
      */
     public function getValuesForEntity(string $entityType, int $entityId): array
     {
-        return $this->valueRepository->findByEntity($entityType, $entityId);
+        /** @var list<CustomFieldValue> $values */
+        $values = $this->valueRepository->findByEntity($entityType, $entityId);
+
+        return $values;
     }
 
     /**
      * Get values as an associative array [fieldKey => value]
+     *
+     * @return array<string, mixed>
      */
     public function getValuesAsArray(string $entityType, int $entityId): array
     {
+        /** @var list<CustomFieldValue> $values */
         $values = $this->valueRepository->findByEntity($entityType, $entityId);
-        
+
         $result = [];
         foreach ($values as $value) {
-            $result[$value->getFieldDefinition()->getFieldKey()] = $value->getValue();
+            $fieldKey = $value->getFieldDefinition()?->getFieldKey();
+            if ($fieldKey === null) {
+                continue;
+            }
+            $result[$fieldKey] = $value->getValue();
         }
 
         return $result;
@@ -65,15 +79,19 @@ class CustomFieldService
 
     /**
      * Get values with full field information
+     *
+     * @return list<array{field: CustomFieldDefinition, value: CustomFieldValue|null, displayValue: string, rawValue: mixed}>
      */
     public function getValuesWithFields(string $entityType, int $entityId): array
     {
         $fields = $this->getFieldsForEntity($entityType);
+        /** @var array<string, CustomFieldValue> $valueMap */
         $valueMap = $this->valueRepository->findAsMap($entityType, $entityId);
 
         $result = [];
         foreach ($fields as $field) {
-            $value = $valueMap[$field->getFieldKey()] ?? null;
+            $fieldKey = $field->getFieldKey() ?? '';
+            $value = $valueMap[$fieldKey] ?? null;
             $result[] = [
                 'field' => $field,
                 'value' => $value,
@@ -100,7 +118,10 @@ class CustomFieldService
         
         foreach ($fields as $field) {
             $key = $field->getFieldKey();
-            
+            if ($key === null) {
+                continue; // field_key is set for persisted definitions; skip defensively
+            }
+
             if (array_key_exists($key, $data)) {
                 $value = $data[$key];
                 
@@ -122,7 +143,9 @@ class CustomFieldService
         // Delete stale values: stored values whose field key is not part of
         // this save payload belong to fields that were removed from the form
         // or deactivated — remove them so they stop surfacing as "current".
-        foreach ($this->valueRepository->findByEntity($entityType, $entityId) as $existingValue) {
+        /** @var list<CustomFieldValue> $staleCheckValues */
+        $staleCheckValues = $this->valueRepository->findByEntity($entityType, $entityId);
+        foreach ($staleCheckValues as $existingValue) {
             $existingKey = $existingValue->getFieldDefinition()?->getFieldKey();
             if ($existingKey !== null && !array_key_exists($existingKey, $data)) {
                 $this->entityManager->remove($existingValue);
@@ -138,25 +161,30 @@ class CustomFieldService
     public function addFieldsToForm(FormBuilderInterface $builder, string $entityType, ?int $entityId = null): void
     {
         $fields = $this->getFieldsForEntity($entityType);
-        $existingValues = $entityId ? $this->valueRepository->findAsMap($entityType, $entityId) : [];
+        /** @var array<string, CustomFieldValue> $existingValuesFull */
+        $existingValuesFull = $entityId ? $this->valueRepository->findAsMap($entityType, $entityId) : [];
+        $existingValues = $entityId ? $existingValuesFull : [];
 
         foreach ($fields as $field) {
             if (!$field->isActive()) {
                 continue;
             }
 
-            $existingValue = $existingValues[$field->getFieldKey()] ?? null;
+            $fieldKey = $field->getFieldKey() ?? '';
+            $existingValue = $existingValues[$fieldKey] ?? null;
             $defaultValue = $existingValue ? $existingValue->getValue() : $field->getDefaultValue();
 
             $options = $this->buildFormFieldOptions($field, $defaultValue);
             $type = $this->getFormFieldType($field);
 
-            $builder->add('custom_' . $field->getFieldKey(), $type, $options);
+            $builder->add('custom_' . $fieldKey, $type, $options);
         }
     }
 
     /**
      * Get the Symfony form type for a field
+     *
+     * @return class-string<\Symfony\Component\Form\FormTypeInterface>
      */
     private function getFormFieldType(CustomFieldDefinition $field): string
     {
@@ -180,6 +208,8 @@ class CustomFieldService
 
     /**
      * Build form field options
+     *
+     * @return array<string, mixed>
      */
     private function buildFormFieldOptions(CustomFieldDefinition $field, mixed $defaultValue): array
     {
@@ -280,6 +310,8 @@ class CustomFieldService
 
     /**
      * Extract custom field values from form data
+     *
+     * @return array<string, mixed>
      */
     public function extractCustomFieldData(FormInterface $form, string $entityType): array
     {
@@ -287,10 +319,14 @@ class CustomFieldService
         $data = [];
 
         foreach ($fields as $field) {
-            $formFieldName = 'custom_' . $field->getFieldKey();
-            
+            $fieldKey = $field->getFieldKey();
+            if ($fieldKey === null) {
+                continue;
+            }
+            $formFieldName = 'custom_' . $fieldKey;
+
             if ($form->has($formFieldName)) {
-                $data[$field->getFieldKey()] = $form->get($formFieldName)->getData();
+                $data[$fieldKey] = $form->get($formFieldName)->getData();
             }
         }
 
@@ -307,14 +343,16 @@ class CustomFieldService
 
     /**
      * Search entities by custom field values
-      * @param array<string|int, mixed> $searchCriteria
+     *
+     * @param array<string|int, mixed> $searchCriteria
+     * @return list<int> Entity IDs matching every criterion
      */
     public function searchByCustomFields(string $entityType, array $searchCriteria): array
     {
         $entityIds = null;
 
         foreach ($searchCriteria as $fieldKey => $searchValue) {
-            if (empty($searchValue)) {
+            if (empty($searchValue) || !is_string($fieldKey) || !is_scalar($searchValue)) {
                 continue;
             }
 
@@ -327,7 +365,8 @@ class CustomFieldService
                 continue;
             }
 
-            $matchingIds = $this->valueRepository->searchByFieldValue($field, $searchValue);
+            /** @var list<int> $matchingIds */
+            $matchingIds = $this->valueRepository->searchByFieldValue($field, (string) $searchValue);
 
             if ($entityIds === null) {
                 $entityIds = $matchingIds;
@@ -336,11 +375,13 @@ class CustomFieldService
             }
         }
 
-        return $entityIds ?? [];
+        return array_values($entityIds ?? []);
     }
 
     /**
      * Get fields grouped by group name
+     *
+     * @return array<string, list<CustomFieldDefinition>>
      */
     public function getGroupedFields(string $entityType): array
     {
@@ -358,16 +399,17 @@ class CustomFieldService
         }
 
         // Ensure unique field key
-        $baseKey = $field->getFieldKey();
+        $baseKey = $field->getFieldKey() ?? '';
+        $entityType = $field->getEntityType() ?? '';
         $counter = 1;
-        while ($this->definitionRepository->fieldKeyExists($field->getFieldKey(), $field->getEntityType())) {
+        while ($this->definitionRepository->fieldKeyExists($field->getFieldKey() ?? $baseKey, $entityType)) {
             $field->setFieldKey($baseKey . '_' . $counter);
             $counter++;
         }
 
         // Set sort order
         if ($field->getSortOrder() === 0) {
-            $field->setSortOrder($this->definitionRepository->getNextSortOrder($field->getEntityType()));
+            $field->setSortOrder($this->definitionRepository->getNextSortOrder($entityType));
         }
 
         $this->entityManager->persist($field);

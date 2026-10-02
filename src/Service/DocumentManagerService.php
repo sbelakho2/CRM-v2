@@ -61,6 +61,9 @@ class DocumentManagerService
             throw new \RuntimeException("File not found: $filePath");
         }
         $hash = hash_file('sha256', $filePath);
+        if ($hash === false) {
+            throw new \RuntimeException("Cannot hash file: $filePath");
+        }
         
         // 2. Check if document already exists with same hash
         $existingDoc = $this->complianceDocumentRepository->findOneBy([
@@ -95,7 +98,7 @@ class DocumentManagerService
         $document->setGeneratedAt(new \DateTime());
         
         if ($userId) {
-            $document->setGeneratedBy($userId);
+            $document->setGeneratedBy((string) $userId);
         }
         
         // 5. Persist document
@@ -113,8 +116,8 @@ class DocumentManagerService
      * @param int $entityId - Entity ID
      * @param string|null $documentType - Document type filter (optional)
      * @param bool $latestOnly - Return only latest version
-     * 
-     * @return array|ComplianceDocument|null
+     *
+     * @return ComplianceDocument|list<ComplianceDocument>|null
      */
     public function retrieveDocument(
         string $entityType,
@@ -153,27 +156,28 @@ class DocumentManagerService
      * @param string $entityType - Entity type
      * @param int $entityId - Entity ID
      * 
-     * @return array - Array of ComplianceDocument entities grouped by type
+     * @return array<string, list<\App\Entity\ComplianceDocument>> Documents grouped by type
      */
     public function getAllDocuments(string $entityType, int $entityId): array
     {
         // 1. Get all documents (soft-deleted excluded)
+        /** @var list<\App\Entity\ComplianceDocument> $documents */
         $documents = $this->complianceDocumentRepository->findBy([
             'entityType' => $entityType,
             'entityId' => $entityId,
             'deletedAt' => null,
         ], ['generatedAt' => 'DESC']);
-        
+
         // 2. Group by document type
         $grouped = [];
         foreach ($documents as $doc) {
-            $type = $doc->getDocumentType();
+            $type = $doc->getDocumentType() ?? 'unknown';
             if (!isset($grouped[$type])) {
                 $grouped[$type] = [];
             }
             $grouped[$type][] = $doc;
         }
-        
+
         // 3. Return grouped documents
         return $grouped;
     }
@@ -228,19 +232,29 @@ class DocumentManagerService
         
         // 2. Get stored hash
         $storedHash = $document->getSha256Hash();
-        
+
         // 3. Calculate current hash from file
         $filePath = $document->getFilePath();
-        if (!file_exists($filePath)) {
+        if ($filePath === null || !file_exists($filePath)) {
             return [
                 'valid' => false,
-                'storedHash' => $storedHash,
+                'storedHash' => $storedHash ?? '',
                 'currentHash' => null,
                 'errorMessage' => 'File not found on disk'
             ];
         }
-        
+
         $currentHash = hash_file('sha256', $filePath);
+        if ($currentHash === false) {
+            return [
+                'valid' => false,
+                'storedHash' => $storedHash ?? '',
+                'currentHash' => null,
+                'errorMessage' => 'File could not be read for hashing'
+            ];
+        }
+
+        $storedHash ??= '';
         
         // 4. Compare hashes
         $valid = ($storedHash === $currentHash);
@@ -271,7 +285,7 @@ class DocumentManagerService
         // 2. Soft delete (mark as deleted)
         $document->setDeletedAt(new \DateTime());
         if ($userId) {
-            $document->setDeletedBy($userId);
+            $document->setDeletedBy((string) $userId);
         }
         
         // 3. Flush changes
@@ -287,17 +301,20 @@ class DocumentManagerService
      * @param int $entityId - Entity ID
      * @param string $documentType - Document type
      * 
-     * @return array - Array of ComplianceDocument entities (all versions)
+     * @return list<\App\Entity\ComplianceDocument> All versions
      */
     public function getVersionHistory(string $entityType, int $entityId, string $documentType): array
     {
         // Query all versions (soft-deleted excluded)
-        return $this->complianceDocumentRepository->findBy([
+        /** @var list<\App\Entity\ComplianceDocument> $result */
+        $result = $this->complianceDocumentRepository->findBy([
             'entityType' => $entityType,
             'entityId' => $entityId,
             'documentType' => $documentType,
             'deletedAt' => null,
         ], ['versionNumber' => 'DESC']);
+
+        return $result;
     }
 
     /**
@@ -305,15 +322,16 @@ class DocumentManagerService
      * 
      * @return array{
      *   totalDocuments: int,
-     *   byType: array,
+     *   byType: array<string, int>,
      *   totalSizeMb: float,
-     *   oldestDocument: \DateTime|null,
-     *   newestDocument: \DateTime|null
+     *   oldestDocument: \DateTimeInterface|null,
+     *   newestDocument: \DateTimeInterface|null
      * }
      */
     public function getStatistics(): array
     {
         // 1. Get all documents (paginated, soft-deleted excluded)
+        /** @var array{totalDocuments: int, byType: array<string, int>, totalSizeMb: float, oldestDocument: \DateTimeInterface|null, newestDocument: \DateTimeInterface|null} $stats */
         $stats = [
             'totalDocuments' => 0,
             'byType' => [],
@@ -325,6 +343,7 @@ class DocumentManagerService
         $offset = 0;
         $batch = 500;
         while (true) {
+            /** @var list<\App\Entity\ComplianceDocument> $documents */
             $documents = $this->complianceDocumentRepository->findBy(
                 ['deletedAt' => null],
                 ['id' => 'ASC'],
@@ -334,12 +353,12 @@ class DocumentManagerService
             if (empty($documents)) {
                 break;
             }
-            
+
             foreach ($documents as $doc) {
                 $stats['totalDocuments']++;
-                
+
                 // Count by type
-                $type = $doc->getDocumentType();
+                $type = $doc->getDocumentType() ?? 'unknown';
                 $stats['byType'][$type] = ($stats['byType'][$type] ?? 0) + 1;
                 
                 // Sum file sizes

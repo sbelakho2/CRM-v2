@@ -67,12 +67,14 @@ class PreserveComplianceLegacyCommand extends Command
             ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ENGINE = InnoDB'
         );
 
-        $legacyRowCount = (int) $this->connection->fetchOne(
+        /** @var int|string|null $legacyCountRaw SELECT COUNT(*) is int|string depending on the driver */
+        $legacyCountRaw = $this->connection->fetchOne(
             "SELECT COUNT(*) FROM compliance_documents
              WHERE (document_type IS NOT NULL AND document_type <> '')
                 OR (sha256_hash IS NOT NULL AND sha256_hash <> '')
                 OR (version_id IS NOT NULL AND version_id <> '')"
         );
+        $legacyRowCount = (int) $legacyCountRaw;
 
         if ($legacyRowCount === 0) {
             $io->success('Legacy compliance columns present but no values remain — nothing to preserve.');
@@ -100,7 +102,9 @@ class PreserveComplianceLegacyCommand extends Command
 
         // 4. Verify the archive covers every carrying row BEFORE touching
         //    the live columns.
-        $archivedCount = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM compliance_legacy_preserved');
+        /** @var int|string|null $archivedRaw */
+        $archivedRaw = $this->connection->fetchOne('SELECT COUNT(*) FROM compliance_legacy_preserved');
+        $archivedCount = (int) $archivedRaw;
         if ($archivedCount < $legacyRowCount) {
             $io->error(sprintf(
                 'Preservation incomplete: %d legacy row(s) present but only %d archived — live columns left untouched.',

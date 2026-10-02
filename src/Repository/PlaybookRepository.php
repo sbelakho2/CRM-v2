@@ -23,13 +23,16 @@ class PlaybookRepository extends ServiceEntityRepository
      */
     public function findAllActive(): array
     {
-        return $this->createQueryBuilder('p')
+        /** @var list<Playbook> $playbooks */
+        $playbooks = $this->createQueryBuilder('p')
             ->andWhere('p.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('p.priority', 'ASC')
 
             ->getQuery()
             ->getResult();
+
+        return $playbooks;
     }
 
     /**
@@ -37,12 +40,15 @@ class PlaybookRepository extends ServiceEntityRepository
      */
     public function findByName(string $name): ?Playbook
     {
-        return $this->createQueryBuilder('p')
+        /** @var Playbook|null $playbook */
+        $playbook = $this->createQueryBuilder('p')
             ->andWhere('p.name = :name')
             ->setParameter('name', $name)
             ->orderBy('p.id', 'ASC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $playbook;
     }
 }

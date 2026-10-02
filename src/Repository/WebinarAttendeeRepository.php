@@ -22,7 +22,8 @@ class WebinarAttendeeRepository extends ServiceEntityRepository
      */
     public function findByWebinarAndEmail(Webinar $webinar, string $email): ?WebinarAttendee
     {
-        return $this->createQueryBuilder('a')
+        /** @var WebinarAttendee|null $result */
+        $result = $this->createQueryBuilder('a')
             ->where('a.webinar = :webinar')
             ->andWhere('LOWER(a.email) = LOWER(:email)')
             ->setParameter('webinar', $webinar)
@@ -32,17 +33,24 @@ class WebinarAttendeeRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
-    /** @return list<App\Entity\WebinarAttendee> */
+    /**
+     * @return list<WebinarAttendee>
+     */
     public function findNeedingFollowUp(Webinar $webinar): array
     {
-        return $this->createQueryBuilder('a')
+        /** @var list<WebinarAttendee> $result */
+        $result = $this->createQueryBuilder('a')
             ->where('a.webinar = :webinar')
             ->andWhere('a.attended = true')
             ->andWhere('a.followUpSent = false')
             ->setParameter('webinar', $webinar)
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

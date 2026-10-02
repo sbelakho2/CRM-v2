@@ -44,7 +44,8 @@ class SalesPipelineOrchestratorService
     public function __construct(
         private EntityManagerInterface  $entityManager,
         private RFQRepository           $rfqRepository,
-        private OutboundMessageRepository $outboundRepository,
+        /** Injected for outbound-message reporting planned later; not read today. */
+        protected OutboundMessageRepository $outboundRepository,
         private LoggerInterface         $logger,
     ) {}
 
@@ -225,6 +226,7 @@ class SalesPipelineOrchestratorService
 
             // Check if company already has an open RFQ — don't create duplicates
             // (findBy cannot take an array value for a field; use IN via DQL)
+            /** @var list<RFQ> $openRfqs */
             $openRfqs = $this->rfqRepository->createQueryBuilder('r')
                 ->where('r.company = :company')
                 ->andWhere('r.status IN (:statuses)')
@@ -362,7 +364,8 @@ class SalesPipelineOrchestratorService
     private function advanceCompanyStage(Company $company, string $targetStage): void
     {
         $stageOrder = array_flip(Company::VALID_STAGES);
-        $currentIndex = $stageOrder[$company->getPipelineStage()] ?? 0;
+        $currentStage = $company->getPipelineStage();
+        $currentIndex = ($currentStage !== null && isset($stageOrder[$currentStage])) ? $stageOrder[$currentStage] : 0;
         $targetIndex  = $stageOrder[$targetStage] ?? 0;
 
         if ($targetIndex > $currentIndex) {

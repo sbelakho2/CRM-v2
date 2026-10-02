@@ -25,6 +25,7 @@ class DigiKeyApiClient
     
     private float $lastRequestTime = 0;
     private ?string $accessToken = null;
+    private PartMatchConfidenceCalculator $confidenceCalculator;
 
     public function __construct(
         private HttpClientInterface $httpClient,
@@ -32,13 +33,48 @@ class DigiKeyApiClient
         private LoggerInterface $logger,
         private string $clientId,
         private string $clientSecret,
-        private ?PartMatchConfidenceCalculator $confidenceCalculator = null
+        ?PartMatchConfidenceCalculator $confidenceCalculator = null
     ) {
-        $this->confidenceCalculator ??= new PartMatchConfidenceCalculator();
+        $this->confidenceCalculator = $confidenceCalculator ?? new PartMatchConfidenceCalculator();
+    }
+
+    /**
+     * Extract a nested array from decoded JSON; [] when not an array.
+     *
+     * @return array<array-key, mixed>
+     */
+    private static function arrayValue(mixed $value): array
+    {
+        return is_array($value) ? $value : [];
+    }
+
+    /**
+     * Scalar value from decoded JSON; null for arrays/objects.
+     */
+    private static function scalarValue(mixed $value): int|float|string|bool|null
+    {
+        return is_scalar($value) ? $value : null;
+    }
+
+    private static function stringValue(mixed $value): ?string
+    {
+        return is_scalar($value) ? (string) $value : null;
+    }
+
+    private static function intValue(mixed $value, int $default = 0): int
+    {
+        return is_numeric($value) ? (int) $value : $default;
+    }
+
+    private static function floatValue(mixed $value, float $default = 0.0): float
+    {
+        return is_numeric($value) ? (float) $value : $default;
     }
 
     /**
      * Search for a part by part number
+     *
+     * @return array<string, mixed>|null
      */
     public function searchByPartNumber(string $partNumber): ?array
     {
@@ -79,11 +115,11 @@ class DigiKeyApiClient
                 ]);
 
                 $data = $response->toArray();
-                $parts = $data['Products'] ?? $data['ExactManufacturerProducts'] ?? [];
-                
+                $parts = self::arrayValue($data['Products'] ?? $data['ExactManufacturerProducts'] ?? null);
+
                 // If no products found, retry with packaging suffix variants
                 // e.g. CRCW06031K00FKED → CRCW06031K00FKEA (same part, different packaging)
-                if (empty($parts)) {
+                if ($parts === []) {
                     $variants = $this->generatePackagingVariants($partNumber);
                     foreach ($variants as $variant) {
                         $this->respectRateLimit();
@@ -107,8 +143,8 @@ class DigiKeyApiClient
                                 ]
                             ]);
                             $varData = $varResponse->toArray();
-                            $varParts = $varData['Products'] ?? $varData['ExactManufacturerProducts'] ?? [];
-                            if (!empty($varParts)) {
+                            $varParts = self::arrayValue($varData['Products'] ?? $varData['ExactManufacturerProducts'] ?? null);
+                            if ($varParts !== []) {
                                 $this->logger->info('DigiKey found part via packaging variant', [
                                     'original' => $partNumber,
                                     'variant' => $variant,
@@ -123,23 +159,24 @@ class DigiKeyApiClient
                     }
                 }
                 
-                if (empty($parts)) {
+                if ($parts === []) {
                     $item->expiresAfter(self::MISS_CACHE_TTL); // Genuine miss: short TTL only
                     return null;
                 }
-                
+
                 // Find the best match — prefer exact MPN match
                 $part = null;
                 $normalizedSearch = strtolower(str_replace(['-', ' ', '.'], '', $partNumber));
-                foreach ($parts as $candidate) {
-                    $candidateMpn = strtolower(str_replace(['-', ' ', '.'], '', $candidate['ManufacturerPartNumber'] ?? ''));
+                foreach ($parts as $candidateRaw) {
+                    $candidate = self::arrayValue($candidateRaw);
+                    $candidateMpn = strtolower(str_replace(['-', ' ', '.'], '', self::stringValue($candidate['ManufacturerPartNumber'] ?? null) ?? ''));
                     if ($candidateMpn === $normalizedSearch) {
                         $part = $candidate;
                         break;
                     }
                 }
                 // Fall back to first result if no exact match
-                $part = $part ?? $parts[0];
+                $part = self::arrayValue($part ?? $parts[0]);
                 
                 // Merge pricing from ALL ProductVariations (cut-tape, reel, tray, etc.)
                 // Each variation has its own pricing and MOQ. We combine them all
@@ -151,14 +188,15 @@ class DigiKeyApiClient
                 
                 // Try top-level StandardPricing first
                 if (!empty($part['StandardPricing'])) {
-                    $topPricing = $this->parsePricing($part['StandardPricing']);
+                    $topPricing = $this->parsePricing(self::arrayValue($part['StandardPricing']));
                     $allPricingBreaks = array_merge($allPricingBreaks, $topPricing['breaks']);
                     $smallestMoq = min($smallestMoq, $topPricing['moq']);
                 }
                 
                 // Merge pricing from all variations
-                foreach ($part['ProductVariations'] ?? [] as $variation) {
-                    $varPricing = $this->parsePricing($variation['StandardPricing'] ?? []);
+                foreach (self::arrayValue($part['ProductVariations'] ?? null) as $variationRaw) {
+                    $variation = self::arrayValue($variationRaw);
+                    $varPricing = $this->parsePricing(self::arrayValue($variation['StandardPricing'] ?? null));
                     if (!empty($varPricing['breaks'])) {
                         $allPricingBreaks = array_merge($allPricingBreaks, $varPricing['breaks']);
                         $smallestMoq = min($smallestMoq, $varPricing['moq']);
@@ -172,10 +210,11 @@ class DigiKeyApiClient
                 }
                 
                 // Also check UnitPrice at top level as a fallback price point
-                if (isset($part['UnitPrice']) && is_numeric($part['UnitPrice']) && (float) $part['UnitPrice'] > 0) {
+                $topUnitPrice = $part['UnitPrice'] ?? null;
+                if (is_numeric($topUnitPrice) && (float) $topUnitPrice > 0) {
                     $allPricingBreaks[] = [
                         'quantity' => 1,
-                        'price' => (float) $part['UnitPrice'],
+                        'price' => (float) $topUnitPrice,
                         'currency' => null,
                     ];
                 }
@@ -198,37 +237,56 @@ class DigiKeyApiClient
                 if (is_array($description)) {
                     $description = $description['ProductDescription'] ?? $description['DetailedDescription'] ?? json_encode($description);
                 }
-                
+
                 // Ensure manufacturer is a string
-                $manufacturer = $part['Manufacturer']['Name'] ?? $part['ManufacturerName'] ?? null;
+                $manufacturer = self::arrayValue($part['Manufacturer'] ?? null)['Name']
+                    ?? self::scalarValue($part['ManufacturerName'] ?? null);
                 if (is_array($manufacturer)) {
                     $manufacturer = $manufacturer['Name'] ?? json_encode($manufacturer);
                 }
                 
+                // Lifecycle: keep only string statuses (as before)
+                $statusValue = $part['ProductStatus'] ?? null;
+                $obsoleteValue = $part['ObsolescenceStatus'] ?? null;
+
+                // Normalize manufacturer to string|null for the confidence calculator
+                $manufacturerName = is_string($manufacturer)
+                    ? $manufacturer
+                    : (is_scalar($manufacturer) ? (string) $manufacturer : null);
+
                 // Calculate confidence score
                 $apiResult = [
-                    'mpn' => $part['ManufacturerPartNumber'] ?? $part['ManufacturerProductNumber'] ?? $partNumber,
+                    'mpn' => self::stringValue($part['ManufacturerPartNumber'] ?? null)
+                        ?? self::stringValue($part['ManufacturerProductNumber'] ?? null)
+                        ?? $partNumber,
                     'manufacturer' => $manufacturer,
                     'description' => is_string($description) ? $description : null,
-                    'datasheet' => $part['DatasheetUrl'] ?? $part['PrimaryDatasheet'] ?? null,
+                    'datasheet' => self::scalarValue($part['DatasheetUrl'] ?? null)
+                        ?? self::scalarValue($part['PrimaryDatasheet'] ?? null),
                     'pricing' => $allPricingBreaks,
-                    'stock' => (int) ($part['QuantityAvailable'] ?? $part['QuantityOnHand'] ?? 0),
-                    'leadtime_days' => $this->parseLeadTime($part['ManufacturerLeadWeeks'] ?? 0),
-                    'digikey_part_number' => $part['DigiKeyPartNumber'] ?? null,
-                    'lifecycle' => is_string($part['ProductStatus'] ?? null) ? ($part['ProductStatus'] ?? null) : (is_string($part['ObsolescenceStatus'] ?? null) ? ($part['ObsolescenceStatus'] ?? null) : null),
-                    'category' => is_string($part['Category']['Name'] ?? null) ? ($part['Category']['Name'] ?? null) : null,
+                    'stock' => self::intValue($part['QuantityAvailable'] ?? $part['QuantityOnHand'] ?? null),
+                    'leadtime_days' => $this->parseLeadTime(self::intValue($part['ManufacturerLeadWeeks'] ?? null)),
+                    'digikey_part_number' => self::scalarValue($part['DigiKeyPartNumber'] ?? null),
+                    'lifecycle' => is_string($statusValue) ? $statusValue : (is_string($obsoleteValue) ? $obsoleteValue : null),
+                    'category' => is_string(self::arrayValue($part['Category'] ?? null)['Name'] ?? null)
+                        ? self::arrayValue($part['Category'] ?? null)['Name']
+                        : null,
                     // Direct product listing URL (v4 returns ProductUrl with full path)
-                    'product_url' => $part['ProductUrl']
-                        ?? ('https://www.digikey.com/en/products/filter?keywords=' . urlencode($part['ManufacturerPartNumber'] ?? $part['ManufacturerProductNumber'] ?? $partNumber)),
+                    'product_url' => self::stringValue($part['ProductUrl'] ?? null)
+                        ?? ('https://www.digikey.com/en/products/filter?keywords=' . urlencode(
+                            self::stringValue($part['ManufacturerPartNumber'] ?? null)
+                            ?? self::stringValue($part['ManufacturerProductNumber'] ?? null)
+                            ?? $partNumber
+                        )),
                     // MOQ and packaging info
-                    'moq' => (int) ($part['MinimumOrderQuantity'] ?? $smallestMoq),
+                    'moq' => self::intValue($part['MinimumOrderQuantity'] ?? null, $smallestMoq),
                     'pack_quantity' => $bestPackQty,
                     'multiple_quantity' => $bestMultipleQty,
                 ];
 
                 $confidence = $this->confidenceCalculator->calculateConfidence(
                     $partNumber,
-                    $manufacturer,
+                    $manufacturerName,
                     is_string($description) ? $description : null,
                     $apiResult
                 );
@@ -273,8 +331,9 @@ class DigiKeyApiClient
                 ]);
 
                 $data = $response->toArray();
-                $this->accessToken = $data['access_token'] ?? null;
-                
+                $tokenValue = $data['access_token'] ?? null;
+                $this->accessToken = is_string($tokenValue) ? $tokenValue : null;
+
                 return $this->accessToken;
                 
             } catch (\Exception $e) {
@@ -288,24 +347,26 @@ class DigiKeyApiClient
 
     /**
      * Parse pricing with MOQ detection
-     * 
-     * @return array{breaks: array, moq: int, pack_quantity: int|null, multiple_quantity: int|null}
-      * @param array<string|int, mixed> $pricing
+     *
+     * @param array<array-key, mixed> $pricing
+     * @return array{breaks: list<array{quantity: int, price: float, currency: int|float|string|bool|null}>, moq: int, pack_quantity: int|null, multiple_quantity: int|null}
      */
     private function parsePricing(array $pricing): array
     {
         $result = [];
         $quantities = [];
-        
-        foreach ($pricing as $tier) {
-            $qty = (int) ($tier['BreakQuantity'] ?? 0);
+
+        foreach ($pricing as $tierRaw) {
+            $tier = self::arrayValue($tierRaw);
+            $qty = self::intValue($tier['BreakQuantity'] ?? null);
             $quantities[] = $qty;
-            
-            $currency = $tier['Currency'] ?? $tier['CurrencyCode'] ?? null;
+
+            $currency = self::scalarValue($tier['Currency'] ?? null)
+                ?? self::scalarValue($tier['CurrencyCode'] ?? null);
 
             $result[] = [
                 'quantity' => $qty,
-                'price' => (float) ($tier['UnitPrice'] ?? 0),
+                'price' => self::floatValue($tier['UnitPrice'] ?? null),
                 'currency' => $currency
             ];
         }

@@ -24,9 +24,13 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 )]
 class GenerateTestDataCommand extends Command
 {
+    /** @var list<string> */
     private array $sectors = ['Aerospace', 'Automotive', 'Electronics', 'Medical Devices', 'Industrial Equipment'];
+    /** @var list<string> */
     private array $stages = ['Prospect', 'MQL', 'SQL', 'SQO', 'Proposal', 'Award'];
+    /** @var list<string> */
     private array $activityTypes = ['Call', 'Email', 'Meeting', 'Follow-up'];
+    /** @var list<string> */
     private array $outcomes = ['Successful', 'Follow-up Required', 'No Answer', 'Completed'];
     
     public function __construct(
@@ -49,8 +53,10 @@ class GenerateTestDataCommand extends Command
         
         $io->title('Generating Test Data');
 
-        $email = $input->getOption('email') ?? 'test_' . bin2hex(random_bytes(4)) . '@example.com';
-        $password = $input->getOption('password') ?? bin2hex(random_bytes(6));
+        $emailOption = $input->getOption('email');
+        $email = is_string($emailOption) && $emailOption !== '' ? $emailOption : 'test_' . bin2hex(random_bytes(4)) . '@example.com';
+        $passwordOption = $input->getOption('password');
+        $password = is_string($passwordOption) && $passwordOption !== '' ? $passwordOption : bin2hex(random_bytes(6));
 
         // Create test user if not exists
         $user = $this->createTestUser($io, $email, $password);
@@ -124,6 +130,9 @@ class GenerateTestDataCommand extends Command
         return $user;
     }
 
+    /**
+     * @return list<Company>
+     */
     private function generateCompanies(int $count): array
     {
         $companies = [];
@@ -156,6 +165,10 @@ class GenerateTestDataCommand extends Command
         return $companies;
     }
 
+    /**
+     * @param list<Company> $companies
+     * @return list<Contact>
+     */
     private function generateContacts(array $companies, int $count): array
     {
         $contacts = [];
@@ -182,6 +195,11 @@ class GenerateTestDataCommand extends Command
         return $contacts;
     }
 
+    /**
+     * @param list<Company> $companies
+     * @param list<Contact> $contacts
+     * @return list<Activity>
+     */
     private function generateActivities(array $companies, array $contacts, User $user, int $count): array
     {
         $activities = [];
@@ -215,6 +233,9 @@ class GenerateTestDataCommand extends Command
         return $activities;
     }
 
+    /**
+     * @return list<Lead>
+     */
     private function generateLeads(int $count): array
     {
         $leads = [];
@@ -238,6 +259,10 @@ class GenerateTestDataCommand extends Command
         return $leads;
     }
 
+    /**
+     * @param list<Company> $companies
+     * @return list<RFQ>
+     */
     private function generateRFQs(array $companies, int $count): array
     {
         $rfqs = [];
@@ -246,7 +271,7 @@ class GenerateTestDataCommand extends Command
 
         for ($i = 0; $i < $count; $i++) {
             $rfq = new RFQ();
-            $rfq->setRfqNumber('RFQ-' . date('Y') . '-' . str_pad($i + 1, 4, '0', STR_PAD_LEFT));
+            $rfq->setRfqNumber('RFQ-' . date('Y') . '-' . str_pad((string) ($i + 1), 4, '0', STR_PAD_LEFT));
             $rfq->setCompany($companies[array_rand($companies)]);
             $rfq->setType($types[array_rand($types)]);
             $rfq->setTechnicalScope('RFQ for ' . ['Machined Parts', 'Sheet Metal', 'Assemblies', 'Prototypes'][array_rand(['Machined Parts', 'Sheet Metal', 'Assemblies', 'Prototypes'])] . '. Request for quotation on manufacturing components.');
@@ -268,6 +293,10 @@ class GenerateTestDataCommand extends Command
         return $rfqs;
     }
 
+    /**
+     * @param list<Company> $companies
+     * @return list<ComplianceDocument>
+     */
     private function generateCompliance(array $companies, int $count): array
     {
         $documents = [];

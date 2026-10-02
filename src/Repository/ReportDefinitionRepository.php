@@ -35,6 +35,8 @@ class ReportDefinitionRepository extends ServiceEntityRepository
     
     /**
      * Find reports accessible by a user
+     *
+     * @return list<ReportDefinition>
      */
     public function findAccessibleByUser(User $user, ?string $dataSource = null, ?string $category = null): array
     {
@@ -62,6 +64,7 @@ class ReportDefinitionRepository extends ServiceEntityRepository
                ->setParameter('category', $category);
         }
 
+        /** @var list<ReportDefinition> $results */
         $results = $qb->getQuery()->getResult();
 
         // Merge role-granted rows (accessRoles JSON contains one of the
@@ -71,48 +74,57 @@ class ReportDefinitionRepository extends ServiceEntityRepository
         $roles = array_flip($user->getRoles());
         $existing = [];
         foreach ($results as $report) {
-            $existing[$report->getId()] = true;
+            $existing[$report->getId() ?? 0] = true;
         }
+        /** @var list<ReportDefinition> $roleGranted */
         $roleGranted = $this->createQueryBuilder('r2')
             ->andWhere('r2.accessRoles IS NOT NULL')
             ->getQuery()->getResult();
         foreach ($roleGranted as $report) {
-            if (isset($existing[$report->getId()])) {
+            if (isset($existing[$report->getId() ?? 0])) {
                 continue;
             }
             foreach ($report->getAccessRoles() ?? [] as $grantedRole) {
-                if (isset($roles[$grantedRole])) {
+                if (is_string($grantedRole) && isset($roles[$grantedRole])) {
                     $results[] = $report;
                     break;
                 }
             }
         }
 
-        usort($results, static fn ($a, $b) => [$b->isFavorite(), $a->getName()] <=> [$a->isFavorite(), $b->getName()]);
+        usort($results, static fn (ReportDefinition $a, ReportDefinition $b) => [$b->isFavorite(), $a->getName()] <=> [$a->isFavorite(), $b->getName()]);
 
         return $results;
     }
     
     /**
      * Find user's favorite reports
+     *
+     * @return list<ReportDefinition>
      */
     public function findFavorites(User $user): array
     {
-        return $this->createQueryBuilder('r')
+        /** @var list<ReportDefinition> $reports */
+        $reports = $this->createQueryBuilder('r')
             ->andWhere('r.createdBy = :user OR r.isPublic = true')
             ->andWhere('r.isFavorite = true')
             ->setParameter('user', $user)
             ->orderBy('r.name', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $reports;
     }
-    
+
     /**
      * Find recent reports for a user
+     *
+     * @return list<ReportDefinition>
      */
     public function findRecent(User $user, int $limit = 10): array
     {
-        return $this->createQueryBuilder('r')
+        /** @var list<ReportDefinition> $reports */
+        $reports = $this->createQueryBuilder('r')
             ->andWhere('r.createdBy = :user')
             ->andWhere('r.lastRunAt IS NOT NULL')
             ->setParameter('user', $user)
@@ -120,55 +132,73 @@ class ReportDefinitionRepository extends ServiceEntityRepository
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $reports;
     }
-    
+
     /**
      * Find most popular reports
+     *
+     * @return list<ReportDefinition>
      */
     public function findPopular(int $limit = 10): array
     {
-        return $this->createQueryBuilder('r')
+        /** @var list<ReportDefinition> $reports */
+        $reports = $this->createQueryBuilder('r')
             ->andWhere('r.isPublic = true')
             ->andWhere('r.runCount > 0')
             ->orderBy('r.runCount', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $reports;
     }
-    
+
     /**
      * Find reports by data source
+     *
+     * @return list<ReportDefinition>
      */
     public function findByDataSource(string $dataSource): array
     {
-        return $this->createQueryBuilder('r')
+        /** @var list<ReportDefinition> $reports */
+        $reports = $this->createQueryBuilder('r')
             ->andWhere('r.dataSource = :source')
             ->setParameter('source', $dataSource)
             ->orderBy('r.name', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $reports;
     }
-    
+
     /**
      * Get unique categories
+     *
+     * @return array<int, string>
      */
     public function findAllCategories(): array
     {
+        /** @var list<array{category: string}> $result */
         $result = $this->createQueryBuilder('r')
             ->select('DISTINCT r.category')
             ->andWhere('r.category IS NOT NULL')
             ->orderBy('r.category', 'ASC')
             ->getQuery()
             ->getScalarResult();
-        
-        return array_filter(array_column($result, 'category'));
+
+        return array_values(array_filter(array_column($result, 'category')));
     }
-    
+
     /**
      * Find reports with scheduled delivery
+     *
+     * @return list<ReportDefinition>
      */
     public function findScheduledReports(): array
     {
+        /** @var list<ReportDefinition> $results */
         $results = $this->createQueryBuilder('r')
             ->andWhere('r.scheduledDelivery IS NOT NULL')
             ->getQuery()
@@ -176,18 +206,21 @@ class ReportDefinitionRepository extends ServiceEntityRepository
 
         // TODO: Move this filter to DQL when multi-DB support is added. Use JSON_LENGTH
         // or JSON_CONTAINS for MySQL, jsonb_array_length for PostgreSQL.
-        return array_filter($results, function (ReportDefinition $r) {
+        return array_values(array_filter($results, static function (ReportDefinition $r): bool {
             $scheduled = $r->getScheduledDelivery();
             return is_array($scheduled) && count($scheduled) > 0;
-        });
+        }));
     }
-    
+
     /**
      * Search reports by name/description
+     *
+     * @return list<ReportDefinition>
      */
     public function search(string $query, User $user): array
     {
-        return $this->createQueryBuilder('r')
+        /** @var list<ReportDefinition> $reports */
+        $reports = $this->createQueryBuilder('r')
             ->andWhere('r.createdBy = :user OR r.isPublic = true')
             ->andWhere('r.name LIKE :query OR r.description LIKE :query')
             ->setParameter('user', $user)
@@ -195,13 +228,18 @@ class ReportDefinitionRepository extends ServiceEntityRepository
             ->orderBy('r.name', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $reports;
     }
     
     /**
      * Get statistics
+     *
+     * @return array{total: int, myReports: int, favorites: int, bySource: array<string, int>, byType: array<string, int>}
      */
     public function getStatistics(User $user): array
     {
+        /** @var list<array{total: int|string, myReports: int|string, favorites: int|string, dataSource: string|null, reportType: string|null}> $result */
         $result = $this->createQueryBuilder('r')
             ->select('
                 COUNT(r.id) as total,
@@ -220,7 +258,9 @@ class ReportDefinitionRepository extends ServiceEntityRepository
         $total = 0;
         $myReports = 0;
         $favorites = 0;
+        /** @var array<string, int> $sourceStats */
         $sourceStats = [];
+        /** @var array<string, int> $typeStats */
         $typeStats = [];
 
         foreach ($result as $row) {
@@ -231,11 +271,11 @@ class ReportDefinitionRepository extends ServiceEntityRepository
             // The query groups by (dataSource, reportType): each row carries
             // a COUNT for its whole group — SUM the counts, never ++
             // (two reports in the same group previously counted once).
-            if ($source) {
+            if (is_string($source) && $source !== '') {
                 $sourceStats[$source] = ($sourceStats[$source] ?? 0) + (int) $row['total'];
             }
             $rType = $row['reportType'];
-            if ($rType) {
+            if (is_string($rType) && $rType !== '') {
                 $typeStats[$rType] = ($typeStats[$rType] ?? 0) + (int) $row['total'];
             }
         }
@@ -257,8 +297,8 @@ class ReportDefinitionRepository extends ServiceEntityRepository
         $copy = new ReportDefinition();
         $copy->setName($newName)
              ->setDescription($report->getDescription())
-             ->setReportType($report->getReportType())
-             ->setDataSource($report->getDataSource())
+             ->setReportType($report->getReportType() ?? '')
+             ->setDataSource($report->getDataSource() ?? '')
              ->setColumns($report->getColumns())
              ->setFilters($report->getFilters())
              ->setGroupBy($report->getGroupBy())

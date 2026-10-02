@@ -16,7 +16,9 @@ class EmailSegment
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    // Protected (not private): Doctrine assigns the identifier via reflection
+    // on hydration, so static analysis never sees an int assignment.
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $name = null;
@@ -24,12 +26,12 @@ class EmailSegment
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $description = null;
 
+    /** @var array<string, mixed>|list<mixed> */
     #[ORM\Column(type: Types::JSON)]
-    /** @var array<string, mixed>|list<mixed> $filterRulesJson */
     private array $filterRulesJson = [];
 
     #[ORM\Column]
-    private ?int $contactCount = 0;
+    private int $contactCount = 0;
 
     #[ORM\Column]
     private bool $isActive = true;
@@ -92,11 +94,17 @@ class EmailSegment
         return $this;
     }
 
+    /**
+     * @return array<string, mixed>|list<mixed>
+     */
     public function getFilterRulesJson(): array
     {
         return $this->filterRulesJson;
     }
 
+    /**
+     * @param array<string, mixed>|list<mixed> $filterRulesJson
+     */
     public function setFilterRulesJson(array $filterRulesJson): self
     {
         $this->filterRulesJson = $filterRulesJson;

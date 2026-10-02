@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\User;
 use App\Entity\Webinar;
 use App\Entity\WebinarAttendee;
 use App\Entity\Contact;
@@ -23,7 +24,8 @@ class WebinarController extends AbstractController
     public function __construct(
         private EntityManagerInterface $entityManager,
         private WebinarRepository $webinarRepository,
-        private ContactRepository $contactRepository,
+        /** Reserved for contact-level webinar follow-up queries; not read yet. */
+        protected ContactRepository $contactRepository,
         private WebinarService $webinarService
     ) {}
 
@@ -117,10 +119,14 @@ class WebinarController extends AbstractController
     #[Route('/{id}', name: 'app_webinar_delete', methods: ['POST'])]
     public function delete(Request $request, Webinar $webinar): Response
     {
-        if ($this->isCsrfTokenValid('delete'.$webinar->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('delete'.$webinar->getId(), (string) $request->request->get('_token'))) {
+            $actingUser = $this->getUser();
+            if (!$actingUser instanceof User) {
+                throw $this->createAccessDeniedException();
+            }
             // Webinars carry registration/attendance history: archive
             // instead of cascading attendees away.
-            $webinar->archive($this->getUser(), 'Archived from webinars list');
+            $webinar->archive($actingUser, 'Archived from webinars list');
             $this->entityManager->flush();
 
             $this->addFlash('success', 'Webinar archived. Registration and attendance history is preserved.');
@@ -132,13 +138,13 @@ class WebinarController extends AbstractController
     #[Route('/{id}/attendees/{attendeeId}/mark-attended', name: 'app_webinar_mark_attended', methods: ['POST'])]
     public function markAttended(Request $request, Webinar $webinar, int $attendeeId): Response
     {
-        if (!$this->isCsrfTokenValid('webinar_mark_attended_' . $attendeeId, $request->request->get('_csrf_token'))) {
+        if (!$this->isCsrfTokenValid('webinar_mark_attended_' . $attendeeId, (string) $request->request->get('_csrf_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
         $attendee = $this->entityManager->getRepository(WebinarAttendee::class)->find($attendeeId);
 
-        if ($attendee && $attendee->getWebinar()->getId() === $webinar->getId()) {
+        if ($attendee && $attendee->getWebinar()?->getId() === $webinar->getId()) {
             $this->webinarService->markAttended($attendee);
             $this->addFlash('success', 'Attendee marked as attended.');
         }
@@ -149,7 +155,8 @@ class WebinarController extends AbstractController
     #[Route('/{id}/send-followup', name: 'app_webinar_send_followup', methods: ['POST'])]
     public function sendFollowUp(Request $request, Webinar $webinar): Response
     {
-        if ($this->isCsrfTokenValid('followup'.$webinar->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('followup'.$webinar->getId(), (string) $request->request->get('_token'))) {
+            /** @var list<WebinarAttendee> $attendees */
             $attendees = $this->webinarService->getAttendeesNeedingFollowUp($webinar);
             
             $sentCount = 0;

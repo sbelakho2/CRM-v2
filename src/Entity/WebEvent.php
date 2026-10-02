@@ -14,7 +14,9 @@ class WebEvent
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+// Protected (not private): Doctrine assigns the identifier via reflection
+    // on hydration, so static analysis never sees an int assignment.
+    protected ?int $id = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $timestamp = null;

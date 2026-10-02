@@ -42,7 +42,9 @@ class CustomFieldDefinition
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    // Protected (not private): Doctrine assigns the identifier via reflection
+    // on hydration, so static analysis never sees an int assignment.
+    protected ?int $id = null;
 
     #[ORM\Column(length: 100, name: 'field_key')]
     #[Assert\NotBlank]
@@ -91,14 +93,15 @@ class CustomFieldDefinition
     private ?string $fieldGroup = null;
 
     // Validation rules stored as JSON
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $validationRules = null;
 
-    // Options for select/multiselect fields
+    /** @var list<array{label?: mixed, value?: mixed}>|list<mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $options = null;
 
-    // Additional configuration
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $config = null;
 
@@ -112,6 +115,7 @@ class CustomFieldDefinition
     #[ORM\JoinColumn(name: 'created_by_id', nullable: true, onDelete: 'SET NULL')]
     private ?User $createdBy = null;
 
+    /** @var Collection<int, CustomFieldValue> */
     #[ORM\OneToMany(mappedBy: 'fieldDefinition', targetEntity: CustomFieldValue::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $values;
 
@@ -128,6 +132,9 @@ class CustomFieldDefinition
         $this->updatedAt = new \DateTime();
     }
 
+    /**
+     * @return array<string, string>
+     */
     public static function getEntityTypes(): array
     {
         return [
@@ -139,6 +146,9 @@ class CustomFieldDefinition
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
     public static function getFieldTypes(): array
     {
         return [
@@ -182,6 +192,9 @@ class CustomFieldDefinition
         return in_array($this->fieldType, [self::TYPE_SELECT, self::TYPE_MULTISELECT]);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getOptionChoices(): array
     {
         if (!$this->options) {
@@ -190,9 +203,14 @@ class CustomFieldDefinition
 
         $choices = [];
         foreach ($this->options as $option) {
-            $label = $option['label'] ?? $option;
-            $value = $option['value'] ?? $option;
-            $choices[$label] = $value;
+            if (is_array($option)) {
+                $label = $option['label'] ?? '';
+                $value = $option['value'] ?? null;
+            } else {
+                $label = $option;
+                $value = $option;
+            }
+            $choices[is_scalar($label) ? (string) $label : ''] = $value;
         }
 
         return $choices;
@@ -203,8 +221,8 @@ class CustomFieldDefinition
         if ($this->label) {
             // Convert label to snake_case field key
             $key = strtolower($this->label);
-            $key = preg_replace('/[^a-z0-9]+/', '_', $key);
-            $key = trim($key, '_');
+            $key = trim(preg_replace('/[^a-z0-9]+/', '_', $key) ?? '', '_');
+
             return $key;
         }
 
@@ -374,33 +392,51 @@ class CustomFieldDefinition
         return $this;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getValidationRules(): ?array
     {
         return $this->validationRules;
     }
 
+    /**
+     * @param array<string, mixed>|null $validationRules
+     */
     public function setValidationRules(?array $validationRules): static
     {
         $this->validationRules = $validationRules;
         return $this;
     }
 
+    /**
+     * @return list<array{label?: mixed, value?: mixed}>|list<mixed>|null
+     */
     public function getOptions(): ?array
     {
         return $this->options;
     }
 
+    /**
+     * @param list<array{label?: mixed, value?: mixed}>|list<mixed>|null $options
+     */
     public function setOptions(?array $options): static
     {
         $this->options = $options;
         return $this;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getConfig(): ?array
     {
         return $this->config;
     }
 
+    /**
+     * @param array<string, mixed>|null $config
+     */
     public function setConfig(?array $config): static
     {
         $this->config = $config;

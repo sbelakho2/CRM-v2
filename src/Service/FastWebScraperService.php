@@ -10,12 +10,15 @@ use Psr\Log\LoggerInterface;
 
 /**
  * Fast Web Scraper — pure PHP curl_multi replacement for Playwright.
- * 
+ *
  * Scrapes multiple websites concurrently using PHP's curl_multi_*
  * to extract team/leadership pages, contacts, LinkedIn URLs, and emails.
- * 
+ *
  * Performance: 20 concurrent connections = 100 sites in ~30-60 seconds
  * (vs Playwright's 5+ minutes per 15 sites = 30+ minutes for 100).
+ *
+ * @phpstan-type ContactCard array{first_name: string, last_name: string, job_title: string|null, email: string|null, phone: string|null, linkedin_url: string|null}
+ * @phpstan-type PageData array{url: string, title: string, contacts: list<ContactCard>, teamHtml: string, linkedinUrls: list<array{url: string, text: string|null}>, emails: list<string>, phones: list<string>, hasTeamContent: bool, jsonLd: list<array<string, mixed>>}
  */
 class FastWebScraperService
 {
@@ -63,7 +66,7 @@ class FastWebScraperService
      * Returns map of website URL → structured scrape data (same format as old Playwright output).
      *
      * @param string[] $urls Company website URLs
-     * @return array<string, array> URL → {baseUrl, pagesScraped, pages: [...]}
+     * @return array<string, array{baseUrl: string, pagesScraped: int, totalContacts: int, pages: list<PageData>}> URL → {baseUrl, pagesScraped, pages: [...]}
      */
     public function batchScrape(array $urls): array
     {
@@ -282,6 +285,9 @@ class FastWebScraperService
             $handles = [];
 
             foreach ($chunk as $url) {
+                if ($url === '') {
+                    continue; // curl has no usable target for an empty URL
+                }
                 $ch = curl_init();
                 curl_setopt_array($ch, [
                     CURLOPT_URL => $url,
@@ -331,8 +337,9 @@ class FastWebScraperService
                     $redirect = curl_getinfo($ch, CURLINFO_REDIRECT_URL) ?: null;
                 } elseif ($httpCode >= 200 && $httpCode < 300) {
                     $raw = curl_multi_getcontent($ch);
-                    $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE) ?? '';
-                    if (str_contains($contentType, 'html') || str_contains($contentType, 'text') || empty($contentType)) {
+                    $contentTypeRaw = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+                    $contentType = is_string($contentTypeRaw) ? $contentTypeRaw : '';
+                    if ($contentType === '' || str_contains($contentType, 'html') || str_contains($contentType, 'text')) {
                         $body = $raw ?: '';
                     }
                 }
@@ -382,6 +389,8 @@ class FastWebScraperService
     /**
      * Extract structured data from an HTML page.
      * Mirrors what the Playwright script extracted from the DOM.
+     *
+     * @return PageData|null
      */
     private function extractPageData(string $html, string $url): ?array
     {
@@ -522,6 +531,9 @@ class FastWebScraperService
      * Extract structured contact data from HTML team cards.
      * Mirrors the DOM-based card extraction from the Playwright script.
      */
+    /**
+     * @return list<ContactCard>
+     */
     private function extractContactCards(string $html): array
     {
         $contacts = [];
@@ -553,7 +565,7 @@ class FastWebScraperService
                 $title = html_entity_decode(trim(strip_tags($hm[2])), ENT_QUOTES, 'UTF-8');
                 
                 $nameParts = preg_split('/\s+/', $name);
-                if (count($nameParts) >= 2 && count($nameParts) <= 5) {
+                if ($nameParts !== false && count($nameParts) >= 2 && count($nameParts) <= 5) {
                     $firstName = $nameParts[0];
                     $lastName = implode(' ', array_slice($nameParts, 1));
                     
@@ -583,6 +595,9 @@ class FastWebScraperService
     /**
      * Parse a single contact card HTML fragment.
      */
+    /**
+     * @return ContactCard|null
+     */
     private function parseContactCard(string $cardHtml): ?array
     {
         // Find name: first heading or .name element
@@ -604,7 +619,7 @@ class FastWebScraperService
         if (!$name) return null;
 
         $nameParts = preg_split('/\s+/', $name);
-        if (count($nameParts) < 2 || count($nameParts) > 5) return null;
+        if ($nameParts === false || count($nameParts) < 2 || count($nameParts) > 5) return null;
 
         $contact = [
             'first_name' => $nameParts[0],
@@ -680,6 +695,9 @@ class FastWebScraperService
 
     /**
      * Discover team-related links from homepage HTML.
+     */
+    /**
+     * @return list<string>
      */
     private function discoverTeamLinks(string $html, string $baseUrl): array
     {
@@ -767,10 +785,10 @@ class FastWebScraperService
             $resolved[] = $hostIp;
         }
         foreach ((array) @dns_get_record($host, DNS_A | DNS_AAAA) as $record) {
-            if (!empty($record['ip'])) {
+            if (!empty($record['ip']) && is_string($record['ip'])) {
                 $resolved[] = $record['ip'];
             }
-            if (!empty($record['ipv6'])) {
+            if (!empty($record['ipv6']) && is_string($record['ipv6'])) {
                 $resolved[] = $record['ipv6'];
             }
         }
@@ -816,7 +834,7 @@ class FastWebScraperService
         ];
         foreach ($ranges as [$base, $prefix]) {
             $baseLong = ip2long($base);
-            $mask = ($prefix === 0) ? 0 : (~0 << (32 - $prefix)) & 0xFFFFFFFF;
+            $mask = (~0 << (32 - $prefix)) & 0xFFFFFFFF;
             if (($ipLong & $mask) === ($baseLong & $mask)) {
                 return true;
             }
@@ -876,8 +894,8 @@ class FastWebScraperService
         $baseHost = parse_url($baseUrl, PHP_URL_HOST);
         if (!$urlHost || !$baseHost) return false;
         // Strip www. for comparison
-        $urlHost = preg_replace('/^www\./i', '', $urlHost);
-        $baseHost = preg_replace('/^www\./i', '', $baseHost);
+        $urlHost = preg_replace('/^www\./i', '', $urlHost) ?? '';
+        $baseHost = preg_replace('/^www\./i', '', $baseHost) ?? '';
         return strtolower($urlHost) === strtolower($baseHost);
     }
 }

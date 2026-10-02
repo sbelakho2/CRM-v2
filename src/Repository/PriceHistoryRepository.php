@@ -10,9 +10,9 @@ use Doctrine\Persistence\ManagerRegistry;
  * @extends ServiceEntityRepository<PriceHistory>
  *
  * @method PriceHistory|null find($id, $lockMode = null, $lockVersion = null)
- * @method PriceHistory|null findOneBy(array $criteria, array $orderBy = null)
- * @method PriceHistory[]    findAll()
- * @method PriceHistory[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ * @method PriceHistory|null findOneBy(array<string, mixed> $criteria, array<string, string>|null $orderBy = null)
+ * @method list<PriceHistory>    findAll()
+ * @method list<PriceHistory>    findBy(array<string, mixed> $criteria, array<string, string>|null $orderBy = null, $limit = null, $offset = null)
  */
 class PriceHistoryRepository extends ServiceEntityRepository
 {
@@ -26,13 +26,14 @@ class PriceHistoryRepository extends ServiceEntityRepository
      * 
      * @param string $mpn
      * @param int $days Number of days to look back
-     * @return PriceHistory[]
+     * @return list<PriceHistory>
      */
     public function findByMpnRecent(string $mpn, int $days = 90): array
     {
         $since = new \DateTime("-{$days} days");
-        
-        return $this->createQueryBuilder('ph')
+
+        /** @var list<PriceHistory> $records */
+        $records = $this->createQueryBuilder('ph')
             ->where('ph.mpn = :mpn')
             ->andWhere('ph.recordedAt >= :since')
             ->setParameter('mpn', $mpn)
@@ -40,6 +41,8 @@ class PriceHistoryRepository extends ServiceEntityRepository
             ->orderBy('ph.recordedAt', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $records;
     }
 
     /**
@@ -48,7 +51,7 @@ class PriceHistoryRepository extends ServiceEntityRepository
      * @param string $mpn
      * @param string $source Optional source filter
      * @param int $days Number of days to analyze
-     * @return array{date: string, avg_price: float, min_price: float, max_price: float, samples: int}[]
+     * @return list<array<string, mixed>> rows keyed by date/avg_price/min_price/max_price/samples (values int|string from PDO)
      * @internal Uses raw SQL for performance. Callers should not depend on this approach.
      */
     public function getPriceTrend(string $mpn, ?string $source = null, int $days = 90): array
@@ -91,13 +94,16 @@ class PriceHistoryRepository extends ServiceEntityRepository
             ->setParameter('mpn', $mpn)
             ->orderBy('ph.recordedAt', 'DESC')
             ->setMaxResults(1);
-        
+
         if ($source) {
             $qb->andWhere('ph.source = :source')
                ->setParameter('source', $source);
         }
-        
-        return $qb->getQuery()->getOneOrNullResult();
+
+        /** @var PriceHistory|null $record */
+        $record = $qb->getQuery()->getOneOrNullResult();
+
+        return $record;
     }
 
     /**
@@ -106,8 +112,9 @@ class PriceHistoryRepository extends ServiceEntityRepository
     public function findLowestPrice(string $mpn, int $days = 365): ?PriceHistory
     {
         $since = new \DateTime("-{$days} days");
-        
-        return $this->createQueryBuilder('ph')
+
+        /** @var PriceHistory|null $record */
+        $record = $this->createQueryBuilder('ph')
             ->where('ph.mpn = :mpn')
             ->andWhere('ph.recordedAt >= :since')
             ->andWhere('ph.unitPriceUsd IS NOT NULL')
@@ -117,6 +124,8 @@ class PriceHistoryRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $record;
     }
 
     /**
@@ -136,7 +145,10 @@ class PriceHistoryRepository extends ServiceEntityRepository
             ->getQuery()
             ->getScalarResult();
 
-        $values = array_column($prices, 'price');
+        $values = array_map(
+            static fn (mixed $v): float => is_numeric($v) ? (float) $v : 0.0,
+            array_column($prices, 'price')
+        );
         $count = count($values);
 
         if ($count < 2) {
@@ -148,7 +160,7 @@ class PriceHistoryRepository extends ServiceEntityRepository
             return null;
         }
 
-        $variance = array_sum(array_map(fn($v) => ($v - $mean) ** 2, $values)) / $count;
+        $variance = array_sum(array_map(static fn(float $v): float => ($v - $mean) ** 2, $values)) / $count;
         $stdDev = sqrt($variance);
 
         return $stdDev / $mean;
@@ -156,10 +168,13 @@ class PriceHistoryRepository extends ServiceEntityRepository
 
     /**
      * Get price comparison across sources for an MPN
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getSourceComparison(string $mpn): array
     {
-        return $this->createQueryBuilder('ph')
+        /** @var array<int, array<string, mixed>> $rows */
+        $rows = $this->createQueryBuilder('ph')
             ->select('ph.source')
             ->addSelect("MIN(CAST(ph.unitPriceUsd AS DECIMAL(10,4))) as lowest_price")
             ->addSelect("MAX(ph.stockAvailable) as max_stock")
@@ -169,6 +184,8 @@ class PriceHistoryRepository extends ServiceEntityRepository
             ->groupBy('ph.source')
             ->getQuery()
             ->getResult();
+
+        return $rows;
     }
 
     /**
@@ -177,12 +194,15 @@ class PriceHistoryRepository extends ServiceEntityRepository
     public function cleanupOldRecords(int $retentionDays = 365): int
     {
         $cutoff = new \DateTime("-{$retentionDays} days");
-        
-        return $this->createQueryBuilder('ph')
+
+        /** @var int $deleted */
+        $deleted = $this->createQueryBuilder('ph')
             ->delete()
             ->where('ph.recordedAt < :cutoff')
             ->setParameter('cutoff', $cutoff)
             ->getQuery()
             ->execute();
+
+        return $deleted;
     }
 }

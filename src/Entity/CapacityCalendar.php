@@ -14,7 +14,7 @@ class CapacityCalendar
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
     private ?\DateTimeInterface $productionDate = null;
@@ -37,6 +37,8 @@ class CapacityCalendar
     /**
      * Structured booking ledger for the day (quoteId, quantity, bookedAt) —
      * supports reservation audit and cancellation by quote.
+     *
+     * @var array<int, array<string, mixed>>|null
      */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $bookings = [];
@@ -117,11 +119,13 @@ class CapacityCalendar
         if ($this->availableSlots === null || $this->bookedSlots === null) { return null; }
         return $this->availableSlots - $this->bookedSlots;
     }
+    /** @return array<int, array<string, mixed>> */
     public function getBookings(): array
     {
         return $this->bookings ?? [];
     }
 
+    /** @param array<int, array<string, mixed>>|null $bookings */
     public function setBookings(?array $bookings): self
     {
         $this->bookings = $bookings;

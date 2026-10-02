@@ -26,7 +26,8 @@ class FtaRuleRepository extends ServiceEntityRepository
     ): ?FtaRule {
         $date = $date ?? new \DateTime();
 
-        return $this->createQueryBuilder('f')
+        /** @var FtaRule|null $result */
+        $result = $this->createQueryBuilder('f')
             ->where('f.hsCode = :hsCode')
             ->andWhere('f.ftaAgreement = :agreement')
             ->andWhere('f.effectiveDate <= :date')
@@ -38,18 +39,25 @@ class FtaRuleRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
      * Get all rules for an FTA agreement
+     *
+     * @return list<FtaRule>
      */
     public function findByAgreement(string $ftaAgreement): array
     {
-        return $this->createQueryBuilder('f')
+        /** @var list<FtaRule> $result */
+        $result = $this->createQueryBuilder('f')
             ->where('f.ftaAgreement = :agreement')
             ->setParameter('agreement', $ftaAgreement)
             ->orderBy('f.hsCode', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

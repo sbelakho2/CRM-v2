@@ -25,7 +25,7 @@ class Lead
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $companyName = null;
@@ -51,18 +51,22 @@ class Lead
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $regionTag = null; // morocco, us_east, us_texas, uk, eu_core, eu_nordics, eu_cee
 
+    /** @var list<string>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $sectorTags = null; // ["automotive", "aerospace", "defense", etc.]
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $fitSignals = null; // {"pcba": true, "smt": true, "ems": true, etc.}
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     private ?bool $moroccoSignal = false;
 
+    /** @var list<string>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $qualityStack = null; // ["IATF 16949", "AS9100", "ISO 13485", "CE", etc.]
 
+    /** @var list<string>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $contactEmailsPublic = null; // ["procurement@example.com", "supplier@example.com"]
 
@@ -261,22 +265,26 @@ class Lead
         return $this;
     }
 
+    /** @return list<string>|null */
     public function getSectorTags(): ?array
     {
         return $this->sectorTags;
     }
 
+    /** @param list<string>|null $sectorTags */
     public function setSectorTags(?array $sectorTags): self
     {
         $this->sectorTags = $sectorTags;
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getFitSignals(): ?array
     {
         return $this->fitSignals;
     }
 
+    /** @param array<string, mixed>|null $fitSignals */
     public function setFitSignals(?array $fitSignals): self
     {
         $this->fitSignals = $fitSignals;
@@ -294,22 +302,26 @@ class Lead
         return $this;
     }
 
+    /** @return list<string>|null */
     public function getQualityStack(): ?array
     {
         return $this->qualityStack;
     }
 
+    /** @param list<string>|null $qualityStack */
     public function setQualityStack(?array $qualityStack): self
     {
         $this->qualityStack = $qualityStack;
         return $this;
     }
 
+    /** @return list<string>|null */
     public function getContactEmailsPublic(): ?array
     {
         return $this->contactEmailsPublic;
     }
 
+    /** @param list<string>|null $contactEmailsPublic */
     public function setContactEmailsPublic(?array $contactEmailsPublic): self
     {
         $this->contactEmailsPublic = $contactEmailsPublic;

@@ -19,27 +19,31 @@ class DfmFindingRepository extends ServiceEntityRepository
     /**
      * Find findings by Quote
      *
-     * @return DfmFinding[]
+     * @return list<DfmFinding>
      */
     public function findByQuote(int $quoteId): array
     {
-        return $this->createQueryBuilder('d')
+        /** @var list<DfmFinding> $findings */
+        $findings = $this->createQueryBuilder('d')
             ->andWhere('d.quote = :quoteId')
             ->setParameter('quoteId', $quoteId)
             ->orderBy('d.severity', 'ASC')
             ->addOrderBy('d.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $findings;
     }
 
     /**
      * Find findings by severity
      *
-     * @return DfmFinding[]
+     * @return list<DfmFinding>
      */
     public function findBySeverity(int $quoteId, string $severity): array
     {
-        return $this->createQueryBuilder('d')
+        /** @var list<DfmFinding> $findings */
+        $findings = $this->createQueryBuilder('d')
             ->andWhere('d.quote = :quoteId')
             ->andWhere('d.severity = :severity')
             ->setParameter('quoteId', $quoteId)
@@ -47,20 +51,27 @@ class DfmFindingRepository extends ServiceEntityRepository
             ->orderBy('d.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $findings;
     }
 
     /**
      * Get finding counts by severity
+     *
+     * @return list<array{severity: string, count: int|string}>
      */
     public function getCountsBySeverity(int $quoteId): array
     {
-        return $this->createQueryBuilder('d')
+        /** @var list<array{severity: string, count: int|string}> $rows */
+        $rows = $this->createQueryBuilder('d')
             ->select('d.severity, COUNT(d.id) as count')
             ->andWhere('d.quote = :quoteId')
             ->setParameter('quoteId', $quoteId)
             ->groupBy('d.severity')
             ->getQuery()
             ->getResult();
+
+        return $rows;
     }
 
     /**

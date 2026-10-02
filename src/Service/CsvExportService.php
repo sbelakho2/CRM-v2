@@ -27,20 +27,24 @@ class CsvExportService
     public function __construct(
         private LeadRepository $leadRepository,
         private QuoteRepository $quoteRepository,
-        private LoggerInterface $logger
+        /** Reserved for export auditing; not read yet. */
+        protected LoggerInterface $logger
     ) {}
 
     /**
      * Export leads to CSV as a streamed response
      * 
-     * @param array $filters Optional filters: status, hasEmails, sector, region, dateFrom, dateTo
-     * @param array|null $fields Custom field selection (null = all fields)
+     * @param array<string, mixed> $filters Optional filters: status, hasEmails, sector, region, dateFrom, dateTo
+     * @param list<string>|null $fields Custom field selection (null = all fields)
      */
     public function exportLeads(array $filters = [], ?array $fields = null): StreamedResponse
     {
         $response = new StreamedResponse(function() use ($filters, $fields) {
             $handle = fopen('php://output', 'w');
-            
+            if ($handle === false) {
+                throw new \RuntimeException('Unable to open output stream.');
+            }
+
             // Define available fields
             $availableFields = [
                 'id' => 'ID',
@@ -105,34 +109,35 @@ class CsvExportService
                 $qb->andWhere('l.hasContactForm = true');
             }
             
-            if (!empty($filters['sector'])) {
+            if (!empty($filters['sector']) && is_string($filters['sector'])) {
                 $qb->andWhere('l.sectorTags LIKE :sector')
                    ->setParameter('sector', '%' . $filters['sector'] . '%');
             }
-            
+
             if (!empty($filters['region'])) {
                 $qb->andWhere('l.regionTag = :region')
                    ->setParameter('region', $filters['region']);
             }
-            
-            if (!empty($filters['dateFrom'])) {
+
+            if (!empty($filters['dateFrom']) && is_string($filters['dateFrom'])) {
                 $qb->andWhere('l.createdAt >= :dateFrom')
                    ->setParameter('dateFrom', new \DateTime($filters['dateFrom']));
             }
-            
-            if (!empty($filters['dateTo'])) {
+
+            if (!empty($filters['dateTo']) && is_string($filters['dateTo'])) {
                 $qb->andWhere('l.createdAt <= :dateTo')
                    ->setParameter('dateTo', new \DateTime($filters['dateTo']));
             }
-            
+
             $qb->orderBy('l.createdAt', 'DESC');
-            
+
             // Stream results
+            /** @var iterable<Lead> $leads */
             $leads = $qb->getQuery()->toIterable();
             
             foreach ($leads as $lead) {
                 $row = $this->leadToRow($lead, $exportFields);
-                fputcsv($handle, array_map([self::class, 'sanitizeCsvCell'], $row), ',', '"', '\\');
+                fputcsv($handle, self::csvRow($row), ',', '"', '\\');
             }
             
             fclose($handle);
@@ -155,7 +160,10 @@ class CsvExportService
     {
         $response = new StreamedResponse(function() use ($quote, $includeAlternatives, $includeConfidence) {
             $handle = fopen('php://output', 'w');
-            
+            if ($handle === false) {
+                throw new \RuntimeException('Unable to open output stream.');
+            }
+
             // Build headers
             $headers = [
                 'Line #', 'MPN', 'Matched MPN', 'Original MPN', 'Manufacturer', 'Description',
@@ -213,18 +221,25 @@ class CsvExportService
                         $line->requiresReview() ? 'Yes' : 'No',
                         $line->getLifecycleStatus(),
                         $line->getLifecycleWarning(),
-                        implode('; ', $line->getConfidenceReasons() ?? []),
-                        implode('; ', $line->getConfidenceWarnings() ?? []),
+                        implode('; ', array_map(
+                            static fn (mixed $r): string => is_scalar($r) ? (string) $r : '',
+                            $line->getConfidenceReasons() ?? []
+                        )),
+                        implode('; ', array_map(
+                            static fn (mixed $r): string => is_scalar($r) ? (string) $r : '',
+                            $line->getConfidenceWarnings() ?? []
+                        )),
                     ]);
                 }
-                
+
                 if ($includeAlternatives) {
                     $alts = $line->getAlternativeParts() ?? [];
                     for ($i = 0; $i < 3; $i++) {
-                        if (isset($alts[$i])) {
-                            $row[] = $alts[$i]['mpn'] ?? '';
-                            $row[] = $alts[$i]['price'] ?? '';
-                            $row[] = $alts[$i]['stock'] ?? '';
+                        $alt = $alts[$i] ?? null;
+                        if (is_array($alt)) {
+                            $row[] = $alt['mpn'] ?? '';
+                            $row[] = $alt['price'] ?? '';
+                            $row[] = $alt['stock'] ?? '';
                         } else {
                             $row[] = '';
                             $row[] = '';
@@ -239,9 +254,9 @@ class CsvExportService
                 $row[] = $line->getPriceSourceUrl();
                 $row[] = $line->getManualNotes();
                 
-                fputcsv($handle, array_map([self::class, 'sanitizeCsvCell'], $row), ',', '"', '\\');
+                fputcsv($handle, self::csvRow($row), ',', '"', '\\');
             }
-            
+
             // Add summary rows
             fputcsv($handle, [], ',', '"', '\\'); // Empty row
             fputcsv($handle, ['Summary'], ',', '"', '\\');
@@ -264,13 +279,16 @@ class CsvExportService
 
     /**
      * Export part sourcing report (multi-quote comparison)
-      * @param array<string|int, mixed> $quoteIds
+     * @param list<int> $quoteIds
      */
     public function exportSourcingReport(array $quoteIds): StreamedResponse
     {
         $response = new StreamedResponse(function() use ($quoteIds) {
             $handle = fopen('php://output', 'w');
-            
+            if ($handle === false) {
+                throw new \RuntimeException('Unable to open output stream.');
+            }
+
             $headers = [
                 'Quote', 'Line #', 'MPN', 'Manufacturer', 'Quantity',
                 'Source', 'Unit Price', 'Extended Price', 'Confidence',
@@ -302,10 +320,10 @@ class CsvExportService
                         $line->hasAlternatives() ? 'Yes' : 'No',
                         $line->getAlternativeCount(),
                     ];
-                    fputcsv($handle, array_map([self::class, 'sanitizeCsvCell'], $row), ',', '"', '\\');
+                    fputcsv($handle, self::csvRow($row), ',', '"', '\\');
                 }
             }
-            
+
             fclose($handle);
         });
         
@@ -317,7 +335,8 @@ class CsvExportService
 
     /**
      * Convert Lead entity to CSV row array
-      * @param array<string|int, mixed> $fields
+     * @param list<string> $fields
+     * @return list<mixed>
      */
     private function leadToRow(Lead $lead, array $fields): array
     {
@@ -362,6 +381,24 @@ class CsvExportService
     }
 
     /**
+     * Sanitize a whole row and coerce non-scalar cells (which previously
+     * crashed fputcsv under strict_types) to ''.
+     *
+     * @param list<mixed> $row
+     * @return list<int|string|float|bool|null>
+     */
+    private static function csvRow(array $row): array
+    {
+        return array_map(
+            static function (mixed $value): string|int|float|bool|null {
+                $sanitized = self::sanitizeCsvCell($value);
+                return is_scalar($sanitized) || $sanitized === null ? $sanitized : '';
+            },
+            $row
+        );
+    }
+
+    /**
      * OWASP CSV formula injection guard: prefix string cells starting with
      * =, +, -, @ or a tab with a tab character. Numeric values are preserved.
      */
@@ -381,21 +418,22 @@ class CsvExportService
 
     /**
      * Format JSON field for CSV
-      * @param array<string|int, mixed> $data
+     * @param array<string|int, mixed>|null $data
      */
     private function formatJsonField(?array $data): string
     {
         if (!$data) return '';
-        
+
         $parts = [];
         foreach ($data as $key => $value) {
             if ($value === true) {
                 $parts[] = $key;
-            } elseif ($value !== false && $value !== null) {
+            } elseif (is_scalar($value)) {
                 $parts[] = "$key: $value";
             }
+            // non-scalar values (previously string-cast with warnings) are skipped
         }
-        
+
         return implode(', ', $parts);
     }
 

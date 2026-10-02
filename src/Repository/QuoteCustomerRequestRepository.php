@@ -24,7 +24,8 @@ class QuoteCustomerRequestRepository extends ServiceEntityRepository
      */
     public function findOpenByQuote(\App\Entity\Quote $quote): array
     {
-        return $this->createQueryBuilder('r')
+        /** @var list<QuoteCustomerRequest> $requests */
+        $requests = $this->createQueryBuilder('r')
             ->andWhere('r.quote = :quote')
             ->andWhere('r.status IN (:open)')
             ->setParameter('quote', $quote)
@@ -32,6 +33,8 @@ class QuoteCustomerRequestRepository extends ServiceEntityRepository
             ->orderBy('r.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $requests;
     }
 
     /**

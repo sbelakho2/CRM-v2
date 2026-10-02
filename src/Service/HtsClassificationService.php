@@ -20,19 +20,23 @@ use Doctrine\ORM\EntityManagerInterface;
  * - HEURISTIC: 60% (Keyword/category matching via hts_map_rules)
  * 
  * Used by: Quote Co-Pilot, Landed-Cost Estimator
+ *
+ * @phpstan-type BomLine array{mpn?: string|null, manufacturer?: string|null, category?: string|null, description?: string|null, hts_code?: string|null}
+ * @phpstan-type ClassificationResult array{hts_code: string|null, confidence: int, method: string, rule_id: int|null}
  */
 class HtsClassificationService
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        /** Kept for future direct DQL needs; queries currently go through the repository. */
+        protected EntityManagerInterface $entityManager,
         private HtsMapRuleRepository $htsMapRuleRepository
     ) {}
 
     /**
      * Classify a single BOM line item to HTS code
      * 
-     * @param array $bomLine BOM line data: ['mpn' => 'STM32F407VGT6', 'manufacturer' => 'STMicroelectronics', 'category' => 'Microcontroller', 'description' => '...', 'hts_code' => null]
-     * @return array Classification result: ['hts_code' => '8542.39.00', 'confidence' => 85, 'method' => 'MAPPED', 'rule_id' => 123]
+     * @param BomLine $bomLine BOM line data: ['mpn' => 'STM32F407VGT6', 'manufacturer' => 'STMicroelectronics', 'category' => 'Microcontroller', 'description' => '...', 'hts_code' => null]
+     * @return ClassificationResult
      * 
      * Implementation:
      * 1. Check if bomLine['hts_code'] is provided (not null/empty)
@@ -60,9 +64,11 @@ class HtsClassificationService
         // 2. Try exact MPN match via keywords JSON field
         // The hts_map_rules.keywords column stores a JSON array of identifiers (MPNs, part numbers)
         $mpn = $bomLine['mpn'] ?? null;
-        
-        if ($mpn) {
+
+        if ($mpn !== null && $mpn !== '') {
             $safeMpn = addcslashes($mpn, '%_');
+
+            /** @var HtsMapRule|null $mappedRule */
             $mappedRule = $this->htsMapRuleRepository->createQueryBuilder('h')
                 ->where('h.keywords LIKE :mpnPattern')
                 ->andWhere('h.isActive = true')
@@ -70,8 +76,8 @@ class HtsClassificationService
                 ->setMaxResults(1)
                 ->getQuery()
                 ->getOneOrNullResult();
-            
-            if ($mappedRule) {
+
+            if ($mappedRule !== null) {
                 return [
                     'hts_code' => $mappedRule->getHtsCode(),
                     'confidence' => $this->calculateConfidence('MAPPED', $mappedRule),
@@ -113,7 +119,7 @@ class HtsClassificationService
      * - connector/switch/relay → 8536, transformer/inductor → 8504
      * - PCB → 8534, LED/crystal/sensor → 8541
      *
-     * @param array $bomLine BOM line data
+     * @param BomLine $bomLine BOM line data
      * @return HtsMapRule|null Best matching rule (highest priority) or null
      */
     private function applyHeuristics(array $bomLine): ?HtsMapRule
@@ -146,11 +152,11 @@ class HtsClassificationService
         ];
         
         // Extract keywords from description
-        if ($description) {
-            $words = preg_split('/[\s,;\/()-]+/', strtolower($description));
+        if ($description !== '') {
+            $words = preg_split('/[\s,;\/()-]+/', strtolower($description)) ?: []; // false only on PCRE error
             foreach ($words as $word) {
                 $cleaned = preg_replace('/[^a-z0-9.-]/', '', trim($word));
-                if (strlen($cleaned) < 2) {
+                if ($cleaned === null || strlen($cleaned) < 2) {
                     continue;
                 }
                 
@@ -184,11 +190,11 @@ class HtsClassificationService
             $keywords[] = strtolower($manufacturer);
         }
         
-        // Remove duplicates
-        $keywords = array_unique(array_filter($keywords));
+        // Remove duplicates (entries are non-empty by construction)
+        $keywords = array_unique($keywords);
         
         // --- 2. Query Building ---
-        if (empty($keywords) && !$category) {
+        if ($keywords === [] && $category === '') {
             return null;
         }
         
@@ -208,8 +214,9 @@ class HtsClassificationService
         $qb->orderBy('h.priority', 'DESC')
             ->setMaxResults(1);
         
+        /** @var HtsMapRule|null $result */
         $result = $qb->getQuery()->getOneOrNullResult();
-        
+
         // --- 3. Category-based fallback ---
         // If keyword matching failed but we have a category, try direct category match
         if (!$result && $category) {
@@ -244,9 +251,9 @@ class HtsClassificationService
 
     /**
      * Classify entire BOM (multiple line items)
-     * 
-     * @param array $bom Array of BOM lines
-     * @return array Array of classification results (same order as input)
+     *
+     * @param list<BomLine> $bom Array of BOM lines
+     * @return list<ClassificationResult> Array of classification results (same order as input)
      * 
      * Implementation:
      * 1. Loop through each BOM line
@@ -265,9 +272,9 @@ class HtsClassificationService
 
     /**
      * Get classification statistics for a BOM
-     * 
-     * @param array $classificationResults Results from classifyBom()
-     * @return array Statistics: ['total' => 100, 'provided' => 20, 'mapped' => 50, 'heuristic' => 25, 'unknown' => 5, 'avg_confidence' => 78.5]
+     *
+     * @param list<ClassificationResult> $classificationResults Results from classifyBom()
+     * @return array{total: int, provided: int, mapped: int, heuristic: int, unknown: int, avg_confidence: float|int} Statistics
      * 
      * Implementation:
      * 1. Count classifications by method
@@ -292,13 +299,13 @@ class HtsClassificationService
         $totalConfidence = 0;
         
         foreach ($classificationResults as $result) {
-            $method = strtolower($result['method'] ?? 'unknown');
-            
+            $method = strtolower($result['method']);
+
             if (isset($stats[$method])) {
                 $stats[$method]++;
             }
-            
-            $totalConfidence += $result['confidence'] ?? 0;
+
+            $totalConfidence += $result['confidence'];
         }
         
         $stats['avg_confidence'] = round($totalConfidence / $stats['total'], 1);

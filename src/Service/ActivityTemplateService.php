@@ -16,6 +16,8 @@ use App\Entity\Contact;
  * - Call scripts
  * - Meeting agendas
  * - Follow-up structures
+ *
+ * @phpstan-type TemplateShape array{category: string, name: string, subject: string, body: string, type: string, tags: list<string>}
  */
 class ActivityTemplateService
 {
@@ -341,6 +343,8 @@ TEMPLATE,
     
     /**
      * Get all available templates
+     *
+     * @return array<string, TemplateShape>
      */
     public function getTemplates(): array
     {
@@ -349,14 +353,18 @@ TEMPLATE,
     
     /**
      * Get templates by category
+     *
+     * @return array<string, TemplateShape>
      */
     public function getTemplatesByCategory(string $category): array
     {
-        return array_filter(self::TEMPLATES, fn($t) => $t['category'] === $category);
+        return array_filter(self::TEMPLATES, static fn (array $t): bool => $t['category'] === $category);
     }
     
     /**
      * Get a specific template
+     *
+     * @return TemplateShape|null
      */
     public function getTemplate(string $templateId): ?array
     {
@@ -366,6 +374,7 @@ TEMPLATE,
     /**
      * Render a template with data
       * @param array<string|int, mixed> $data
+     * @return array{subject: string, body: string, type: string, template_id: string}|null
      */
     public function renderTemplate(string $templateId, array $data): ?array
     {
@@ -387,6 +396,7 @@ TEMPLATE,
     /**
      * Render template with Company and Contact context
       * @param array<string|int, mixed> $additionalData
+     * @return array{subject: string, body: string, type: string, template_id: string}|null
      */
     public function renderForCompany(
         string $templateId,
@@ -402,7 +412,7 @@ TEMPLATE,
         ];
         
         if ($contact) {
-            $data['contact_name'] = $contact->getFullName() ?? $contact->getFirstName() ?? 'there';
+            $data['contact_name'] = $contact->getFullName(); // non-nullable; the former ?? chain was dead
             $data['contact_title'] = $contact->getJobTitle() ?? '';
         } else {
             $data['contact_name'] = 'there';
@@ -450,6 +460,8 @@ TEMPLATE,
     
     /**
      * Get suggested templates based on company state and history
+     *
+     * @return list<array{template_id: string, reason: string, priority: string, template_name?: string}>
      */
     public function suggestTemplates(Company $company, ?string $lastActivityType = null): array
     {
@@ -492,6 +504,8 @@ TEMPLATE,
     
     /**
      * Get template categories
+     *
+     * @return array<string, string>
      */
     public function getCategories(): array
     {
@@ -506,15 +520,20 @@ TEMPLATE,
     
     // Private helpers
     
+    /**
+     * @param array<string|int, mixed> $data
+     */
     private function replaceVariables(string $text, array $data): string
     {
         foreach ($data as $key => $value) {
-            $text = str_replace('{{' . $key . '}}', $value, $text);
+            // Coerce scalar data for interpolation; non-scalars (previously a
+            // TypeError under strict_types) are treated as empty.
+            $text = str_replace('{{' . $key . '}}', is_scalar($value) ? (string) $value : '', $text);
         }
-        
+
         // Clean up any remaining placeholders
-        $text = preg_replace('/\{\{[^}]+\}\}/', '[TBD]', $text);
-        
+        $text = preg_replace('/\{\{[^}]+\}\}/', '[TBD]', $text) ?? $text; // null only on PCRE error
+
         return $text;
     }
     
@@ -557,6 +576,9 @@ TEMPLATE,
         return 'ISO 9001';
     }
     
+    /**
+     * @return list<string>
+     */
     private function generateBenefits(Company $company): array
     {
         $sector = strtolower($company->getSector() ?? '');

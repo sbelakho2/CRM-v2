@@ -113,6 +113,7 @@ HELP
         $io->progressStart();
         
         try {
+            /** @var array{processed: int, imported: int, updated: int, skipped: int, errors: list<string>} $stats */
             $stats = $this->importService->importFromCsv($filePath);
             
             $io->progressFinish();

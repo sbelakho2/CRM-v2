@@ -21,7 +21,7 @@ class QuoteAcceptance
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Quote::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
@@ -54,6 +54,7 @@ class QuoteAcceptance
     #[ORM\Column(length: 64, nullable: true)]
     private ?string $tokenFingerprint = null;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $pricingSnapshot = null;
 
@@ -190,11 +191,13 @@ class QuoteAcceptance
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getPricingSnapshot(): ?array
     {
         return $this->pricingSnapshot;
     }
 
+    /** @param array<string, mixed>|null $pricingSnapshot */
     public function setPricingSnapshot(?array $pricingSnapshot): self
     {
         $this->pricingSnapshot = $pricingSnapshot;

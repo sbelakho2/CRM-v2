@@ -60,8 +60,8 @@ class CopyLintService
      *
      * @param string $subject  Final subject line
      * @param string $body     Final body text
-     * @param array  $context  Template context (for token sanity checks)
-     * @return array ['passed' => bool, 'violations' => string[], 'warnings' => string[]]
+     * @param array<string, mixed>  $context  Template context (for token sanity checks)
+     * @return array{passed: bool, violations: list<string>, warnings: list<string>}
      */
     public function lint(string $subject, string $body, array $context = []): array
     {
@@ -116,8 +116,9 @@ class CopyLintService
         }
 
         // 7. Required name token: body should contain recipient name or "there"
-        $firstName = $context['first_name'] ?? '';
-        if (!empty($firstName) && $firstName !== 'there' && !str_contains($body, $firstName)) {
+        $firstNameRaw = $context['first_name'] ?? '';
+        $firstName = is_string($firstNameRaw) ? $firstNameRaw : '';
+        if ($firstName !== '' && $firstName !== 'there' && !str_contains($body, $firstName)) {
             $warnings[] = 'Recipient first name not found in body';
         }
 
@@ -142,7 +143,7 @@ class CopyLintService
         }
 
         // 9. Tone-substitution hard cap (opt-in: set by the tone pipeline)
-        if (isset($context['tone_substitution_count'])) {
+        if (isset($context['tone_substitution_count']) && is_numeric($context['tone_substitution_count'])) {
             $toneGate = $this->checkToneSubstitutionCount((int) $context['tone_substitution_count']);
             if (!$toneGate['passed']) {
                 $violations[] = sprintf(
@@ -176,12 +177,12 @@ class CopyLintService
      *
      * @param string $baseline Original template text (before spintax/personalization)
      * @param string $output   Final generated text
-     * @return array ['passed' => bool, 'variability' => float]
+     * @return array{passed: bool, variability: float}
      */
     public function checkVariability(string $baseline, string $output): array
     {
-        $baseTokens = preg_split('/\s+/', strtolower(trim($baseline)));
-        $outTokens  = preg_split('/\s+/', strtolower(trim($output)));
+        $baseTokens = preg_split('/\s+/', strtolower(trim($baseline))) ?: []; // false only on PCRE error
+        $outTokens  = preg_split('/\s+/', strtolower(trim($output))) ?: []; // false only on PCRE error
 
         $baseSet = array_count_values($baseTokens);
         $outSet  = array_count_values($outTokens);
@@ -209,6 +210,8 @@ class CopyLintService
 
     /**
      * Count tone substitutions applied. If > MAX_TONE_SUBSTITUTIONS, suggest revert.
+     *
+     * @return array{passed: bool, count: int, max: int}
      */
     public function checkToneSubstitutionCount(int $substitutionCount): array
     {

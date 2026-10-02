@@ -25,7 +25,7 @@ class Playbook
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $name = null;
@@ -57,6 +57,7 @@ class Playbook
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $notes = null;
 
+    /** @var Collection<int, PlaybookRun> */
     #[ORM\OneToMany(mappedBy: 'playbook', targetEntity: PlaybookRun::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $playbookRuns;
 
@@ -230,7 +231,7 @@ class Playbook
     public function isCooldownComplete(\DateTimeInterface $lastTriggered): bool
     {
         $cooldownHours = $this->cooldownHours ?? 24;
-        $cooldownEnd = (clone $lastTriggered)->modify("+{$cooldownHours} hours");
+        $cooldownEnd = \DateTimeImmutable::createFromInterface($lastTriggered)->modify("+{$cooldownHours} hours");
         return new \DateTime() >= $cooldownEnd;
     }
     public function isArchived(): bool

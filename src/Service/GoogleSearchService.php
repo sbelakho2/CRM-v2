@@ -10,11 +10,14 @@ use Psr\Log\LoggerInterface;
 
 /**
  * Service to search for companies using Google Custom Search API
- * 
+ *
  * Features:
  * - Automatic retry with exponential backoff for transient failures
  * - Rate limiting awareness
  * - Comprehensive error handling
+ *
+ * @phpstan-type SearchResult array{title: string, link: string, snippet: string, displayLink: string, formattedUrl: string, htmlSnippet: string, cacheId: string|null, pagemap: array<array-key, mixed>}
+ * @phpstan-type SearchResponse array{results: list<SearchResult>, totalResults: int, searchTime: float, queries: mixed}
  */
 class GoogleSearchService
 {
@@ -39,7 +42,7 @@ class GoogleSearchService
      * @param string $query Search query (e.g., "aerospace manufacturing morocco")
      * @param int $resultsPerPage Number of results (max 10 per request)
      * @param int $startIndex Starting index for pagination
-     * @return array Search results with title, link, snippet
+     * @return SearchResponse Search results with title, link, snippet
      */
     public function searchCompanies(string $query, int $resultsPerPage = 10, int $startIndex = 1, ?string $gl = null): array
     {
@@ -82,16 +85,17 @@ class GoogleSearchService
             }
         }
         
-        // All retries exhausted
+        // All retries exhausted ($lastException is always set here: the loop
+        // runs at least once and every caught exception assigns it)
         $this->logger->error('Google Search API error (all retries exhausted)', [
-            'message' => $lastException?->getMessage(),
+            'message' => $lastException->getMessage(),
             'query' => $query,
             'attempts' => $attempt,
         ]);
-        
+
         throw new \RuntimeException(
-            'Failed to search Google after ' . self::MAX_RETRIES . ' attempts: ' . 
-            ($lastException?->getMessage() ?? 'Unknown error'),
+            'Failed to search Google after ' . self::MAX_RETRIES . ' attempts: ' .
+            $lastException->getMessage(),
             0,
             $lastException
         );
@@ -99,6 +103,8 @@ class GoogleSearchService
     
     /**
      * Execute the actual search request
+     *
+     * @return SearchResponse
      */
     private function executeSearch(string $query, int $resultsPerPage, int $startIndex, ?string $gl = null): array
     {
@@ -134,20 +140,33 @@ class GoogleSearchService
         }
 
         $data = $response->toArray();
-        
-        if (!isset($data['items'])) {
+
+        if (!isset($data['items']) || !is_array($data['items'])) {
             $this->logger->warning('Google Search returned no results', ['query' => $query]);
             return [
                 'results' => [],
                 'totalResults' => 0,
                 'searchTime' => 0,
+                'queries' => [],
             ];
         }
 
+        $searchInformation = $data['searchInformation'] ?? null;
+        $totalResults = is_array($searchInformation)
+            && isset($searchInformation['totalResults'])
+            && is_numeric($searchInformation['totalResults'])
+            ? (int) $searchInformation['totalResults']
+            : 0;
+        $searchTime = is_array($searchInformation)
+            && isset($searchInformation['searchTime'])
+            && is_numeric($searchInformation['searchTime'])
+            ? (float) $searchInformation['searchTime']
+            : 0.0;
+
         return [
             'results' => $this->parseResults($data['items']),
-            'totalResults' => (int)($data['searchInformation']['totalResults'] ?? 0),
-            'searchTime' => (float)($data['searchInformation']['searchTime'] ?? 0),
+            'totalResults' => $totalResults,
+            'searchTime' => $searchTime,
             'queries' => $data['queries'] ?? [],
         ];
     }
@@ -193,22 +212,27 @@ class GoogleSearchService
 
     /**
      * Parse search results into structured format
-      * @param array<string|int, mixed> $items
+     *
+     * @param array<int|string, mixed> $items
+     * @return list<SearchResult>
      */
     private function parseResults(array $items): array
     {
         $results = [];
 
         foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
             $results[] = [
-                'title' => $item['title'] ?? '',
-                'link' => $item['link'] ?? '',
-                'snippet' => $item['snippet'] ?? '',
-                'displayLink' => $item['displayLink'] ?? '',
-                'formattedUrl' => $item['formattedUrl'] ?? '',
-                'htmlSnippet' => $item['htmlSnippet'] ?? '',
-                'cacheId' => $item['cacheId'] ?? null,
-                'pagemap' => $item['pagemap'] ?? [],
+                'title' => self::strField($item, 'title'),
+                'link' => self::strField($item, 'link'),
+                'snippet' => self::strField($item, 'snippet'),
+                'displayLink' => self::strField($item, 'displayLink'),
+                'formattedUrl' => self::strField($item, 'formattedUrl'),
+                'htmlSnippet' => self::strField($item, 'htmlSnippet'),
+                'cacheId' => isset($item['cacheId']) && is_string($item['cacheId']) ? $item['cacheId'] : null,
+                'pagemap' => isset($item['pagemap']) && is_array($item['pagemap']) ? $item['pagemap'] : [],
             ];
         }
 
@@ -216,9 +240,21 @@ class GoogleSearchService
     }
 
     /**
+     * String coercion for JSON API fields (weak input → empty string).
+     */
+    /**
+     * @param array<string|int, mixed> $item
+     */
+    private static function strField(array $item, string $key): string
+    {
+        return isset($item[$key]) && is_string($item[$key]) ? $item[$key] : '';
+    }
+
+    /**
      * Search for companies in a specific sector
      *
      * @param string $location Target location/region (e.g. 'Germany', 'Texas'). Empty = generic.
+     * @return SearchResponse
      */
     public function searchBySector(string $sector, string $location = '', int $limit = 10): array
     {
@@ -234,6 +270,8 @@ class GoogleSearchService
 
     /**
      * Search for company information by name
+     *
+     * @return SearchResponse
      */
     public function searchCompanyInfo(string $companyName): array
     {
@@ -247,6 +285,8 @@ class GoogleSearchService
 
     /**
      * Search for aerospace companies
+     *
+     * @return array{results: list<SearchResult>, totalResults: int}
      */
     public function searchAerospaceCompanies(string $region = '', int $limit = 10): array
     {
@@ -282,12 +322,14 @@ class GoogleSearchService
 
     /**
      * Extract company website from search result
-      * @param array<string|int, mixed> $searchResult
+     *
+     * @param array<string, mixed> $searchResult
      */
     public function extractWebsite(array $searchResult): ?string
     {
-        if (!empty($searchResult['link'])) {
-            $parsed = parse_url($searchResult['link']);
+        $link = $searchResult['link'] ?? null;
+        if (is_string($link) && $link !== '') {
+            $parsed = parse_url($link);
             return sprintf('%s://%s', $parsed['scheme'] ?? 'https', $parsed['host'] ?? '');
         }
 
@@ -296,29 +338,34 @@ class GoogleSearchService
 
     /**
      * Build advanced search query
-      * @param array<string|int, mixed> $criteria
+     *
+     * @param array<string, mixed> $criteria
      */
     public function buildAdvancedQuery(array $criteria): string
     {
         $parts = [];
 
-        if (!empty($criteria['sector'])) {
+        if (!empty($criteria['sector']) && is_string($criteria['sector'])) {
             $parts[] = $criteria['sector'];
         }
 
-        if (!empty($criteria['keywords'])) {
+        if (!empty($criteria['keywords']) && is_array($criteria['keywords'])) {
             foreach ($criteria['keywords'] as $keyword) {
-                $parts[] = "\"{$keyword}\"";
+                if (is_string($keyword)) {
+                    $parts[] = "\"{$keyword}\"";
+                }
             }
         }
 
-        if (!empty($criteria['location'])) {
+        if (!empty($criteria['location']) && is_string($criteria['location'])) {
             $parts[] = $criteria['location'];
         }
 
-        if (!empty($criteria['exclude'])) {
+        if (!empty($criteria['exclude']) && is_array($criteria['exclude'])) {
             foreach ($criteria['exclude'] as $exclude) {
-                $parts[] = "-{$exclude}";
+                if (is_string($exclude)) {
+                    $parts[] = "-{$exclude}";
+                }
             }
         }
 
@@ -328,6 +375,9 @@ class GoogleSearchService
     /**
      * Get quota usage estimation
      * Note: Google Custom Search has a limit of 2000 queries/day (paid tier)
+     */
+    /**
+     * @return array{total_queries: float, daily_quota: int, free_quota: float|int, billable_queries: float, estimated_cost: float, currency: string}
      */
     public function estimateQuota(int $searchCount, int $resultsPerSearch = 10): array
     {

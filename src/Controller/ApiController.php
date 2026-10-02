@@ -43,6 +43,7 @@ class ApiController extends AbstractController
             return $this->json(['error' => 'Company not found'], 404);
         }
 
+        /** @var list<\App\Entity\Contact> $contacts */
         $contacts = $contactRepository->createQueryBuilder('c')
             ->andWhere('c.company = :company')
             ->andWhere('c.archivedAt IS NULL')
@@ -50,8 +51,8 @@ class ApiController extends AbstractController
             ->orderBy('c.lastName', 'ASC')
             ->getQuery()
             ->getResult();
-        
-        $data = array_map(function($contact) {
+
+        $data = array_map(function (\App\Entity\Contact $contact) {
             return [
                 'id' => $contact->getId(),
                 'firstName' => $contact->getFirstName(),

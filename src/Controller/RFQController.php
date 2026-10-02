@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Company;
 use App\Entity\RFQ;
+use App\Entity\User;
 use App\Form\RFQType;
 use App\Repository\RFQRepository;
 use App\Repository\CompanyRepository;
@@ -109,6 +110,7 @@ class RFQController extends AbstractController
             $qb->andWhere('r.company = :company')->setParameter('company', $companyId);
         }
 
+        /** @var list<RFQ> $allRfqs */
         $allRfqs = $qb->getQuery()->getResult();
 
         // Group by status for kanban view
@@ -122,7 +124,7 @@ class RFQController extends AbstractController
 
         foreach ($allRfqs as $rfq) {
             $status = $rfq->getStatus();
-            if (isset($pipeline[$status])) {
+            if ($status !== null && isset($pipeline[$status])) {
                 $pipeline[$status][] = $rfq;
             }
         }
@@ -156,9 +158,9 @@ class RFQController extends AbstractController
             $entityManager->flush();
 
             // Provide guidance for RFQ workflow
-            $companyName = $rfq->getCompany() ? $rfq->getCompany()->getName() : 'Customer';
+            $companyName = $rfq->getCompany()?->getName() ?? 'Customer';
             $this->guidanceService->afterRFQCreated(
-                $rfq->getId(),
+                (int) $rfq->getId(),
                 $companyName,
                 $rfq->getSopDate() !== null
             );
@@ -229,10 +231,14 @@ class RFQController extends AbstractController
     #[Route('/{id}/delete', name: 'app_rfq_delete', methods: ['POST'])]
     public function delete(Request $request, RFQ $rfq, EntityManagerInterface $entityManager): Response
     {
-        if ($this->isCsrfTokenValid('delete'.$rfq->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('delete'.$rfq->getId(), (string) $request->request->get('_token'))) {
+            $actingUser = $this->getUser();
+            if (!$actingUser instanceof User) {
+                throw $this->createAccessDeniedException();
+            }
             // RFQs are commercial history (line items, versions, quotes):
             // archive instead of hard-deleting.
-            $rfq->archive($this->getUser(), 'Archived from RFQ list');
+            $rfq->archive($actingUser, 'Archived from RFQ list');
             $entityManager->flush();
 
             $this->addFlash('success', $this->translator->trans('rfq.flash.deleted'));
@@ -248,15 +254,16 @@ class RFQController extends AbstractController
             return $redirect;
         }
 
-        if (!$this->isCsrfTokenValid('update_status' . $rfq->getId(), $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('update_status' . $rfq->getId(), (string) $request->request->get('_token'))) {
             $this->addFlash('error', $this->translator->trans('common.flash.invalid_csrf'));
             return $this->redirectToRoute('app_rfq_show', ['id' => $rfq->getId()]);
         }
 
-        $newStatus = $request->request->get('status');
-        
-        if (in_array($newStatus, ['Pending', 'In Review', 'Submitted', 'Won', 'Lost'])) {
-            $oldStatus = $rfq->getStatus();
+        $newStatusRaw = $request->request->get('status');
+        $newStatus = is_string($newStatusRaw) ? $newStatusRaw : '';
+
+        if (in_array($newStatus, ['Pending', 'In Review', 'Submitted', 'Won', 'Lost'], true)) {
+            $oldStatus = (string) $rfq->getStatus();
             $rfq->setStatus($newStatus);
             $entityManager->flush();
 
@@ -265,8 +272,8 @@ class RFQController extends AbstractController
             $entityManager->flush();
 
             // Provide guidance based on new status
-            $companyName = $rfq->getCompany() ? $rfq->getCompany()->getName() : 'Customer';
-            $this->guidanceService->afterRFQStatusUpdated($rfq->getId(), $newStatus, $companyName);
+            $companyName = $rfq->getCompany()?->getName() ?? 'Customer';
+            $this->guidanceService->afterRFQStatusUpdated((int) $rfq->getId(), $newStatus, $companyName);
 
             $this->addFlash('success', $this->translator->trans('rfq.flash.status_updated', ['%status%' => $newStatus]));
         }
@@ -281,7 +288,7 @@ class RFQController extends AbstractController
             return $redirect;
         }
 
-        if ($this->isCsrfTokenValid('nda_sent'.$rfq->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('nda_sent'.$rfq->getId(), (string) $request->request->get('_token'))) {
             $rfq->setNdaSent(true);
             $rfq->setNdaDate(new \DateTime());
             $entityManager->flush();
@@ -299,7 +306,7 @@ class RFQController extends AbstractController
             return $redirect;
         }
 
-        if ($this->isCsrfTokenValid('nda_executed'.$rfq->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('nda_executed'.$rfq->getId(), (string) $request->request->get('_token'))) {
             $rfq->setNdaExecuted(true);
             
             // Set NDA sent and date if not already set
@@ -378,7 +385,7 @@ class RFQController extends AbstractController
         }
         
         // Get all completed RFQs (Won or Lost) in period
-        $completedRfqs = $rfqRepository->createQueryBuilder('r')
+        $completedRfqsQuery = $rfqRepository->createQueryBuilder('r')
             ->leftJoin('r.company', 'c')
             ->addSelect('c')
             ->where('r.status IN (:statuses)')
@@ -388,9 +395,11 @@ class RFQController extends AbstractController
             ->setParameter('start', $startDate)
             ->setParameter('end', $endDate)
             ->orderBy('r.decisionDate', 'DESC')
-            ->getQuery()
-            ->getResult();
-        
+            ->getQuery();
+
+        /** @var list<RFQ> $completedRfqs */
+        $completedRfqs = $completedRfqsQuery->getResult();
+
         // Calculate metrics
         $metrics = $this->calculateWinLossMetrics($completedRfqs);
         
@@ -404,7 +413,7 @@ class RFQController extends AbstractController
             $prevEndDate = (clone $startDate)->modify('-1 day');
             $prevStartDate = (clone $prevEndDate)->modify("-{$periodDays} days");
             
-            $previousRfqs = $rfqRepository->createQueryBuilder('r')
+            $previousRfqsQuery = $rfqRepository->createQueryBuilder('r')
                 ->leftJoin('r.company', 'c')
                 ->addSelect('c')
                 ->where('r.status IN (:statuses)')
@@ -412,9 +421,11 @@ class RFQController extends AbstractController
                 ->setParameter('statuses', ['Won', 'Lost'])
                 ->setParameter('start', $prevStartDate)
                 ->setParameter('end', $prevEndDate)
-                ->getQuery()
-                ->getResult();
-            
+                ->getQuery();
+
+            /** @var list<RFQ> $previousRfqs */
+            $previousRfqs = $previousRfqsQuery->getResult();
+
             $comparisonMetrics = $this->calculateWinLossMetrics($previousRfqs);
         }
         
@@ -443,7 +454,9 @@ class RFQController extends AbstractController
     
     /**
      * Calculate win/loss metrics from a collection of RFQs
-      * @param array<string|int, mixed> $rfqs
+     *
+     * @param list<RFQ> $rfqs
+     * @return array<string, mixed>
      */
     private function calculateWinLossMetrics(array $rfqs): array
     {

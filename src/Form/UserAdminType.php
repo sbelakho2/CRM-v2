@@ -66,6 +66,9 @@ class UserAdminType extends AbstractType
             
         $builder->addEventListener(FormEvents::SUBMIT, function (FormEvent $event) {
             $user = $event->getData();
+            if (!$user instanceof User) {
+                return;
+            }
             $roles = $user->getRoles();
 
             $manageableRoles = [

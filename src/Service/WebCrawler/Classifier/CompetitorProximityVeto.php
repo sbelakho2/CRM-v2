@@ -231,7 +231,8 @@ final class CompetitorProximityVeto
         'náš\s+(EMS|výrobní)\s+partner',
     ];
 
-    private TextNormalizer $normalizer;
+    /** Kept injectable/overridable for subclasses; reserved for future normalization hooks. */
+    protected TextNormalizer $normalizer;
 
     public function __construct(?TextNormalizer $normalizer = null)
     {

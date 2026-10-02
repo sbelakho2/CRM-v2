@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Task;
+use App\Entity\User;
 use App\Form\TaskType;
 use App\Repository\TaskRepository;
 use App\Repository\CompanyRepository;
@@ -25,7 +26,8 @@ class TaskController extends AbstractController
     public function __construct(
         private TaskRepository $taskRepository,
         private EntityManagerInterface $entityManager,
-        private GuidanceNotificationService $guidanceService,
+        /** Injected for guidance features wired elsewhere; not read here today. */
+        protected GuidanceNotificationService $guidanceService,
         private UserRepository $userRepository,
         private CompanyRepository $companyRepository,
         private TranslatorInterface $translator
@@ -34,6 +36,7 @@ class TaskController extends AbstractController
     #[Route('', name: 'app_task_index', methods: ['GET'])]
     public function index(Request $request): Response
     {
+        /** @var User|null $user - ROLE_USER is enforced at class level. */
         $user = $this->getUser();
         $view = $request->query->get('view', 'list');
         /** @var string|int|float|bool|null $status */
@@ -136,6 +139,7 @@ class TaskController extends AbstractController
     #[Route('/kanban', name: 'app_task_kanban', methods: ['GET'])]
     public function kanban(Request $request): Response
     {
+        /** @var User|null $user - ROLE_USER is enforced at class level. */
         $user = $this->getUser();
         // ?all=1 previously leaked EVERY user's board to any account —
         // the admin condition now lives in the voter.
@@ -162,8 +166,10 @@ class TaskController extends AbstractController
     public function new(Request $request): Response
     {
         $task = new Task();
-        $task->setCreatedBy($this->getUser());
-        $task->setAssignedTo($this->getUser());
+        /** @var User|null $user - ROLE_USER is enforced at class level. */
+        $user = $this->getUser();
+        $task->setCreatedBy($user);
+        $task->setAssignedTo($user);
 
         // Pre-fill from query parameters
         if ($companyId = $request->query->get('company')) {
@@ -179,7 +185,7 @@ class TaskController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             // Handle tags
             $tagsString = $form->get('tags')->getData();
-            if ($tagsString) {
+            if (is_string($tagsString) && $tagsString !== '') {
                 $tags = array_map('trim', explode(',', $tagsString));
                 $task->setTags($tags);
             }
@@ -231,7 +237,7 @@ class TaskController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             // Handle tags
             $tagsString = $form->get('tags')->getData();
-            if ($tagsString) {
+            if (is_string($tagsString) && $tagsString !== '') {
                 $tags = array_map('trim', explode(',', $tagsString));
                 $task->setTags($tags);
             } else {
@@ -257,7 +263,8 @@ class TaskController extends AbstractController
     {
         $this->denyAccessUnlessGranted(TaskVoter::ARCHIVE, $task);
 
-        if ($this->isCsrfTokenValid('delete' . $task->getId(), $request->request->get('_token'))) {
+        $token = $request->request->get('_token');
+        if ($this->isCsrfTokenValid('delete' . $task->getId(), is_string($token) ? $token : null)) {
             // Completed tasks are CRM execution history (like activities):
             // archive instead of hard-delete; open tasks may be removed.
             if ($task->getCompletedAt() !== null) {
@@ -279,7 +286,8 @@ class TaskController extends AbstractController
     {
         $this->denyAccessUnlessGranted(TaskVoter::MODIFY, $task);
 
-        if ($this->isCsrfTokenValid('toggle' . $task->getId(), $request->request->get('_token'))) {
+        $token = $request->request->get('_token');
+        if ($this->isCsrfTokenValid('toggle' . $task->getId(), is_string($token) ? $token : null)) {
             // transitionTo() is the authoritative lifecycle: leaving DONE
             // clears completedAt, entering DONE stamps it.
             $task->transitionTo(
@@ -302,7 +310,8 @@ class TaskController extends AbstractController
     {
         $this->denyAccessUnlessGranted(TaskVoter::MODIFY, $task);
 
-        if ($this->isCsrfTokenValid('complete' . $task->getId(), $request->request->get('_token'))) {
+        $token = $request->request->get('_token');
+        if ($this->isCsrfTokenValid('complete' . $task->getId(), is_string($token) ? $token : null)) {
             $task->transitionTo(Task::STATUS_DONE);
             $this->entityManager->flush();
 
@@ -316,10 +325,10 @@ class TaskController extends AbstractController
     public function apiUpdateStatus(Request $request): JsonResponse
     {
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
 
-        if (!$this->isCsrfTokenValid('update_status', $data['_token'] ?? '')) {
+        $token = $data['_token'] ?? null;
+        if (!$this->isCsrfTokenValid('update_status', is_string($token) ? $token : null)) {
             return new JsonResponse(['error' => 'Invalid CSRF token'], 403);
         }
 
@@ -336,20 +345,21 @@ class TaskController extends AbstractController
             return new JsonResponse(['error' => 'Not authorized to modify this task'], 403);
         }
 
-        if (!in_array($data['status'], Task::STATUSES)) {
+        $newStatus = $data['status'];
+        if (!is_string($newStatus) || !in_array($newStatus, Task::STATUSES, true)) {
             return new JsonResponse(['error' => 'Invalid status'], 400);
         }
 
         try {
             // transitionTo() keeps status/completedAt consistent (leaving
             // DONE clears completedAt) and rejects archived tasks.
-            $task->transitionTo($data['status']);
+            $task->transitionTo($newStatus);
         } catch (\InvalidArgumentException | \LogicException $e) {
             return new JsonResponse(['error' => $e->getMessage()], 409);
         }
 
         if (isset($data['sortOrder'])) {
-            $task->setSortOrder((int) $data['sortOrder']);
+            $task->setSortOrder(is_numeric($data['sortOrder']) ? (int) $data['sortOrder'] : 0);
         }
 
         $this->entityManager->flush();
@@ -368,24 +378,31 @@ class TaskController extends AbstractController
     public function apiReorder(Request $request): JsonResponse
     {
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
 
-        if (!$this->isCsrfTokenValid('reorder', $data['_token'] ?? '')) {
+        $token = $data['_token'] ?? null;
+        if (!$this->isCsrfTokenValid('reorder', is_string($token) ? $token : null)) {
             return new JsonResponse(['error' => 'Invalid CSRF token'], 403);
         }
 
-        if (!$data || !isset($data['tasks'])) {
+        if (!$data || !isset($data['tasks']) || !is_array($data['tasks'])) {
             return new JsonResponse(['error' => 'Invalid request'], 400);
         }
 
         foreach ($data['tasks'] as $taskData) {
-            $task = $this->taskRepository->find($taskData['id']);
+            if (!is_array($taskData)) {
+                continue;
+            }
+            $task = $this->taskRepository->find($taskData['id'] ?? null);
             if ($task && $this->isGranted(TaskVoter::MODIFY, $task)) {
-                $task->setSortOrder($taskData['sortOrder']);
-                if (isset($taskData['status'])) {
+                $sortOrder = $taskData['sortOrder'] ?? null;
+                if (is_numeric($sortOrder)) {
+                    $task->setSortOrder((int) $sortOrder);
+                }
+                $newStatus = $taskData['status'] ?? null;
+                if (is_string($newStatus)) {
                     try {
-                        $task->transitionTo($taskData['status']);
+                        $task->transitionTo($newStatus);
                     } catch (\InvalidArgumentException | \LogicException) {
                         continue; // invalid/archived — skip, don't fail the batch
                     }
@@ -403,6 +420,7 @@ class TaskController extends AbstractController
     #[Route('/my-day', name: 'app_task_my_day', methods: ['GET'])]
     public function myDay(): Response
     {
+        /** @var User|null $user - ROLE_USER is enforced at class level. */
         $user = $this->getUser();
 
         $overdueTasks = $this->taskRepository->findOverdue($user);
@@ -422,31 +440,34 @@ class TaskController extends AbstractController
     public function quickAdd(Request $request): JsonResponse
     {
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
 
-        if (!$this->isCsrfTokenValid('quick_add', $data['_token'] ?? '')) {
+        $token = $data['_token'] ?? null;
+        if (!$this->isCsrfTokenValid('quick_add', is_string($token) ? $token : null)) {
             return new JsonResponse(['error' => 'Invalid CSRF token'], 403);
         }
 
-        if (!$data || empty($data['title'])) {
+        $title = $data['title'] ?? null;
+        if (!$data || !is_string($title) || $title === '') {
             return new JsonResponse(['error' => 'Title is required'], 400);
         }
 
         $task = new Task();
-        $task->setTitle($data['title']);
-        $task->setCreatedBy($this->getUser());
-        $task->setAssignedTo($this->getUser());
-        
-        if (isset($data['dueDate'])) {
+        $task->setTitle($title);
+        /** @var User|null $user - ROLE_USER is enforced at class level. */
+        $user = $this->getUser();
+        $task->setCreatedBy($user);
+        $task->setAssignedTo($user);
+
+        if (isset($data['dueDate']) && is_string($data['dueDate'])) {
             $task->setDueDate(new \DateTime($data['dueDate']));
         }
-        
-        if (isset($data['priority'])) {
+
+        if (isset($data['priority']) && is_string($data['priority'])) {
             $task->setPriority($data['priority']);
         }
-        
-        if (isset($data['type'])) {
+
+        if (isset($data['type']) && is_string($data['type'])) {
             $task->setType($data['type']);
         }
 
@@ -472,7 +493,8 @@ class TaskController extends AbstractController
         ]);
     }
 
-    private function canModify(Task $task): bool
+    /** Kept as an extensibility point for subclasses; not called in this class. */
+    protected function canModify(Task $task): bool
     {
         return $this->isGranted(TaskVoter::MODIFY, $task);
     }

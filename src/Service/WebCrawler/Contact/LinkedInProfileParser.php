@@ -113,7 +113,7 @@ final class LinkedInProfileParser
      * @param string $title  Google result title
      * @param string $snippet Google result snippet
      *
-     * @return array|null Parsed contact or null if unparseable.
+     * @return array<string, mixed>|null Parsed contact or null if unparseable.
      *   Keys: first_name, last_name, job_title, linkedin_url, company_mentioned,
      *         location, role_score, source_method
      */
@@ -143,7 +143,8 @@ final class LinkedInProfileParser
         $result['source_method'] = isset($result['source_method']) ? $result['source_method'] : 'title_parse';
 
         // Compute role relevance score
-        $result['role_score'] = $this->computeRoleScore($result['job_title'] ?? '');
+        $jobTitle = $result['job_title'] ?? '';
+        $result['role_score'] = $this->computeRoleScore(is_string($jobTitle) ? $jobTitle : '');
 
         return $result;
     }
@@ -151,7 +152,7 @@ final class LinkedInProfileParser
     /**
      * Parse a LinkedIn company page URL and snippet.
      *
-     * @return array|null Keys: company_name, linkedin_company_url, description, employee_hint
+     * @return array<string, mixed>|null Keys: company_name, linkedin_company_url, description, employee_hint
      */
     public function parseCompanyPage(string $url, string $title, string $snippet): ?array
     {
@@ -162,7 +163,7 @@ final class LinkedInProfileParser
         $companyName = null;
 
         // Extract from title: "ACME Corp | LinkedIn" or "ACME Corp - LinkedIn" or "ACME Corp: Overview | LinkedIn"
-        $cleaned = preg_replace('/\s*[|·:\-–—]\s*(Overview|LinkedIn|About).*$/i', '', $title);
+        $cleaned = preg_replace('/\s*[|·:\-–—]\s*(Overview|LinkedIn|About).*$/i', '', $title) ?? $title;
         $cleaned = trim($cleaned);
 
         if (mb_strlen($cleaned) >= 2 && mb_strlen($cleaned) <= 120) {
@@ -284,14 +285,15 @@ final class LinkedInProfileParser
     /**
      * Score and rank a list of contacts by role relevance.
      *
-     * @param list<array> $contacts
-     * @return list<array> Sorted by role_score descending
+     * @param list<array<string|int, mixed>> $contacts
+     * @return list<array<string|int, mixed>> Sorted by role_score descending
      */
     public function rankContacts(array $contacts): array
     {
         foreach ($contacts as &$c) {
             if (!isset($c['role_score'])) {
-                $c['role_score'] = $this->computeRoleScore($c['job_title'] ?? '');
+                $jobTitle = $c['job_title'] ?? '';
+                $c['role_score'] = $this->computeRoleScore(is_string($jobTitle) ? $jobTitle : '');
             }
         }
         unset($c);
@@ -313,10 +315,13 @@ final class LinkedInProfileParser
      *   "John Smith – Directeur Achats – ACME Corp | LinkedIn"
      *   "Dr. John Smith, MBA - CEO - Company Name | LinkedIn"
      */
+    /**
+     * @return array<string, mixed>|null
+     */
     private function parseTitle(string $title): ?array
     {
         // Strip "| LinkedIn" or "· LinkedIn" suffix
-        $cleaned = preg_replace('/\s*[|·]\s*LinkedIn$/i', '', $title);
+        $cleaned = preg_replace('/\s*[|·]\s*LinkedIn$/i', '', $title) ?? $title;
         $cleaned = trim($cleaned);
 
         if (mb_strlen($cleaned) < 3) {
@@ -325,7 +330,8 @@ final class LinkedInProfileParser
 
         // Split on dash/en-dash/em-dash (require spaces around delimiter
         // to avoid splitting compound terms like PMI-RMP)
-        $parts = array_map('trim', preg_split('/\s+[-–—]+\s+/u', $cleaned, 4));
+        $split = preg_split('/\s+[-–—]+\s+/u', $cleaned, 4);
+        $parts = $split === false ? [] : array_map('trim', $split);
 
         if (count($parts) < 1 || mb_strlen($parts[0]) < 2) {
             return null;
@@ -383,6 +389,9 @@ final class LinkedInProfileParser
      * Slugs: "john-smith-12345" or "john-smith-a1b2c3"
      * Or: "jeanpierre-dupont-ab12cd34"
      */
+    /**
+     * @return array<string, mixed>|null
+     */
     private function parseSlug(string $url): ?array
     {
         if (!preg_match('#linkedin\.com/in/([a-z0-9-]+)#i', $url, $m)) {
@@ -392,8 +401,8 @@ final class LinkedInProfileParser
         $slug = strtolower($m[1]);
 
         // Strip trailing hash codes (hex chars, digits)
-        $slug = preg_replace('/-[a-f0-9]{6,}$/', '', $slug);
-        $slug = preg_replace('/-\d{3,}$/', '', $slug);
+        $slug = preg_replace('/-[a-f0-9]{6,}$/', '', $slug) ?? $slug;
+        $slug = preg_replace('/-\d{3,}$/', '', $slug) ?? $slug;
 
         $parts = explode('-', $slug);
         $parts = array_filter($parts, fn(string $p) => mb_strlen($p) >= 2 && !is_numeric($p));
@@ -427,7 +436,8 @@ final class LinkedInProfileParser
 
     /**
      * Enrich a parsed contact with additional data from the Google snippet.
-      * @param array<string|int, mixed> $contact
+     * @param array<string, mixed> $contact
+     * @return array<string, mixed>
      */
     private function enrichFromSnippet(array $contact, string $snippet): array
     {
@@ -486,6 +496,9 @@ final class LinkedInProfileParser
      * Split a full name into first_name and last_name.
      * Returns null if the result doesn't look like a person name.
      */
+    /**
+     * @return array{first_name: string, last_name: string}|null
+     */
     private function splitName(string $fullName): ?array
     {
         $fullName = trim($fullName);
@@ -493,8 +506,8 @@ final class LinkedInProfileParser
         // Strip honorifics
         $fullName = preg_replace('/^(?:Mr\.?|Mrs\.?|Ms\.?|Dr\.?|Prof\.?|Eng\.?|Ing\.?|Dott\.?|Dott\.ssa)\s+/iu', '', $fullName) ?? $fullName;
 
-        $words = preg_split('/\s+/', $fullName);
-        $words = array_filter($words, fn(string $w) => mb_strlen($w) >= 1);
+        $split = preg_split('/\s+/', $fullName);
+        $words = $split === false ? [] : array_filter($split, fn(string $w) => mb_strlen($w) >= 1);
         $words = array_values($words);
 
         if (count($words) < 2) {
@@ -582,7 +595,7 @@ final class LinkedInProfileParser
     private function normalizeLinkedInUrl(string $url): string
     {
         // Strip query params and trailing slashes
-        $url = preg_replace('/[?#].*$/', '', $url);
+        $url = preg_replace('/[?#].*$/', '', $url) ?? $url;
         $url = rtrim($url, '/');
 
         // Ensure https
@@ -600,7 +613,8 @@ final class LinkedInProfileParser
     {
         $text = html_entity_decode($snippet, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $text = strip_tags($text);
-        $text = preg_replace('/\s+/', ' ', $text);
+        $text = preg_replace('/\s+/', ' ', $text) ?? $text;
+
         return trim($text);
     }
 }

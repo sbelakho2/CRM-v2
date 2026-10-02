@@ -59,6 +59,9 @@ class AutonomousSalesSettingsService
         $this->writeSettings($data);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function readSettings(): array
     {
         if (!file_exists($this->settingsPath)) {
@@ -82,6 +85,9 @@ class AutonomousSalesSettingsService
         return $data;
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     private function writeSettings(array $data): void
     {
         $dir = dirname($this->settingsPath);

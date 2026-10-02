@@ -13,6 +13,7 @@ class LeadDeepScrapeMessage
     public function __construct(
         private int $leadId,
         private string $websiteUrl,
+        /** @var array<string, mixed> $options */
         private array $options = []
     ) {}
 
@@ -26,6 +27,9 @@ class LeadDeepScrapeMessage
         return $this->websiteUrl;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getOptions(): array
     {
         return $this->options;
@@ -36,7 +40,7 @@ class LeadDeepScrapeMessage
      */
     public function shouldUseLlm(): bool
     {
-        return $this->options['use_llm'] ?? false;
+        return (bool) ($this->options['use_llm'] ?? false);
     }
     
     /**
@@ -44,6 +48,8 @@ class LeadDeepScrapeMessage
      */
     public function getMaxPages(): int
     {
-        return $this->options['max_pages'] ?? 5;
+        $maxPages = $this->options['max_pages'] ?? 5;
+
+        return is_numeric($maxPages) ? (int) $maxPages : 5;
     }
 }

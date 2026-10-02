@@ -58,19 +58,20 @@ final class ContactQualityScorer
     /**
      * Score a single contact.
      *
+     * @param array<string|int, mixed> $contact
      * @return int Quality score (higher = better)
-      * @param array<string|int, mixed> $contact
      */
     public function score(array $contact): int
     {
         $score = 0;
 
         // 1. Role relevance (0–100 from LinkedInProfileParser or custom)
-        $score += (int) ($contact['role_score'] ?? 0);
+        $roleScore = $contact['role_score'] ?? 0;
+        $score += is_numeric($roleScore) ? (int) $roleScore : 0;
 
         // 2. Source reliability
         $source = $contact['source'] ?? 'snippet_text';
-        $score += self::SOURCE_WEIGHTS[$source] ?? 5;
+        $score += self::SOURCE_WEIGHTS[is_string($source) ? $source : 'snippet_text'] ?? 5;
 
         // 3. Data completeness
         foreach (self::FIELD_BONUSES as $field => $bonus) {
@@ -80,9 +81,11 @@ final class ContactQualityScorer
         }
 
         // 4. Email domain match (bonus if email matches company domain)
-        if (!empty($contact['email']) && !empty($contact['company_domain'])) {
-            $emailDomain = strtolower(substr($contact['email'], strrpos($contact['email'], '@') + 1));
-            $companyDomain = strtolower($contact['company_domain']);
+        $email = $contact['email'] ?? '';
+        $companyDomainRaw = $contact['company_domain'] ?? '';
+        if (is_string($email) && $email !== '' && is_string($companyDomainRaw) && $companyDomainRaw !== '') {
+            $emailDomain = strtolower(substr($email, (int) strrpos($email, '@') + 1));
+            $companyDomain = strtolower($companyDomainRaw);
             if (str_contains($emailDomain, $companyDomain) || str_contains($companyDomain, $emailDomain)) {
                 $score += 15; // Strong signal: email belongs to the company
             }
@@ -92,10 +95,18 @@ final class ContactQualityScorer
     }
 
     /**
+     * String coercion for scraper-produced array fields.
+     */
+    private static function str(mixed $value): string
+    {
+        return is_string($value) ? $value : '';
+    }
+
+    /**
      * Score and sort a list of contacts. Adds 'quality_score' to each.
      *
-     * @param list<array> $contacts
-     * @return list<array> Sorted descending by quality_score
+     * @param list<array<string|int, mixed>> $contacts
+     * @return list<array<string|int, mixed>> Sorted descending by quality_score
      */
     public function scoreAndSort(array $contacts): array
     {
@@ -113,12 +124,12 @@ final class ContactQualityScorer
      * Deduplicate contacts by matching first+last name or email.
      * When duplicates are found, merge the richer record.
      *
-     * @param list<array> $contacts Already scored
-     * @return list<array> Deduplicated
+     * @param list<array<string|int, mixed>> $contacts Already scored
+     * @return list<array<string|int, mixed>> Deduplicated
      */
     public function deduplicate(array $contacts): array
     {
-        /** @var array<string, array> $seen key=normalized identity */
+        /** @var array<string, array<string|int, mixed>> $seen key=normalized identity */
         $seen = [];
 
         foreach ($contacts as $c) {
@@ -148,7 +159,7 @@ final class ContactQualityScorer
         $unique = [];
         $seenIds = [];
         foreach ($seen as $c) {
-            $id = ($c['first_name'] ?? '') . '|' . ($c['last_name'] ?? '') . '|' . ($c['email'] ?? '');
+            $id = self::str($c['first_name'] ?? '') . '|' . self::str($c['last_name'] ?? '') . '|' . self::str($c['email'] ?? '');
             if (!isset($seenIds[$id])) {
                 $seenIds[$id] = true;
                 $unique[] = $c;
@@ -161,10 +172,10 @@ final class ContactQualityScorer
     /**
      * Full pipeline: score → deduplicate → filter → sort → limit.
      *
-     * @param list<array> $contacts
+     * @param list<array<string|int, mixed>> $contacts
      * @param int $maxContacts Maximum contacts to return
      * @param int $minScore Minimum quality score
-     * @return list<array>
+     * @return list<array<string|int, mixed>>
      */
     public function pipeline(array $contacts, int $maxContacts = 5, int $minScore = self::MIN_QUALITY_SCORE): array
     {
@@ -188,31 +199,31 @@ final class ContactQualityScorer
     /**
      * Get deduplication keys for a contact.
      *
+     * @param array<string|int, mixed> $c
      * @return list<string>
-      * @param array<string|int, mixed> $c
      */
     private function getDedupeKeys(array $c): array
     {
         $keys = [];
 
         // Name-based key
-        $fn = mb_strtolower(trim($c['first_name'] ?? ''));
-        $ln = mb_strtolower(trim($c['last_name'] ?? ''));
+        $fn = mb_strtolower(trim(self::str($c['first_name'] ?? '')));
+        $ln = mb_strtolower(trim(self::str($c['last_name'] ?? '')));
         if ($fn !== '' && $ln !== '') {
             $keys[] = "name:$fn|$ln";
         }
 
         // Email key
-        $email = strtolower(trim($c['email'] ?? ''));
+        $email = strtolower(trim(self::str($c['email'] ?? '')));
         if ($email !== '') {
             $keys[] = "email:$email";
         }
 
         // LinkedIn URL key
-        $li = strtolower(trim($c['linkedin_url'] ?? ''));
+        $li = strtolower(trim(self::str($c['linkedin_url'] ?? '')));
         if ($li !== '') {
             // Normalize: strip trailing hash
-            $li = preg_replace('/[?#].*$/', '', $li);
+            $li = preg_replace('/[?#].*$/', '', $li) ?? $li;
             $keys[] = "li:$li";
         }
 
@@ -221,8 +232,10 @@ final class ContactQualityScorer
 
     /**
      * Merge two contact records, keeping the richer data from each.
-      * @param array<string|int, mixed> $existing
- * @param array<string|int, mixed> $new
+     *
+     * @param array<string|int, mixed> $existing
+     * @param array<string|int, mixed> $new
+     * @return array<string|int, mixed>
      */
     private function mergeContacts(array $existing, array $new): array
     {

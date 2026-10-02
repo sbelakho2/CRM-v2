@@ -102,6 +102,7 @@ class MeetingSlotType extends AbstractType
         ]);
     }
     
+    /** @return array<string, string> */
     private function getTimezoneChoices(): array
     {
         $timezones = [];

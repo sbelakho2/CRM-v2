@@ -18,10 +18,13 @@ class LeadRepository extends ServiceEntityRepository
 
     /**
      * Find leads by region tag with pagination
+     *
+     * @return list<Lead>
      */
     public function findByRegion(string $regionTag, int $page = 1, int $limit = 50): array
     {
-        return $this->createQueryBuilder('l')
+        /** @var list<Lead> $result */
+        $result = $this->createQueryBuilder('l')
             ->where('l.regionTag = :region')
             ->setParameter('region', $regionTag)
             ->orderBy('l.leadScore', 'DESC')
@@ -29,10 +32,14 @@ class LeadRepository extends ServiceEntityRepository
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find pending leads for review
+     *
+     * @return list<Lead>
      */
     public function findPendingLeads(?string $regionTag = null): array
     {
@@ -46,11 +53,17 @@ class LeadRepository extends ServiceEntityRepository
                ->setParameter('region', $regionTag);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<Lead> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
     }
 
     /**
      * Find leads by score threshold with pagination
+     */
+    /**
+     * @return list<Lead>
      */
     public function findByScoreThreshold(int $minScore, ?string $regionTag = null, int $page = 1, int $limit = 50): array
     {
@@ -66,7 +79,10 @@ class LeadRepository extends ServiceEntityRepository
                ->setParameter('region', $regionTag);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<Lead> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
     }
 
     /**
@@ -74,13 +90,16 @@ class LeadRepository extends ServiceEntityRepository
      */
     public function findByDupeKey(string $dupeKey): ?Lead
     {
-        return $this->createQueryBuilder('l')
+        /** @var Lead|null $result */
+        $result = $this->createQueryBuilder('l')
             ->where('l.dupeKey = :dupeKey')
             ->setParameter('dupeKey', $dupeKey)
             ->orderBy('l.leadScore', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
@@ -88,7 +107,8 @@ class LeadRepository extends ServiceEntityRepository
      */
     public function findByWebsiteRoot(string $websiteRoot): ?Lead
     {
-        return $this->createQueryBuilder('l')
+        /** @var Lead|null $result */
+        $result = $this->createQueryBuilder('l')
             ->where('l.websiteRoot = :website')
             ->setParameter('website', $websiteRoot)
             ->orderBy('l.leadScore', 'DESC')
@@ -96,6 +116,8 @@ class LeadRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
@@ -116,18 +138,25 @@ class LeadRepository extends ServiceEntityRepository
 
     /**
      * Get lead statistics by region
+     *
+     * @return list<array{regionTag: mixed, total: mixed, avg_score: mixed}>
      */
     public function getStatsByRegion(): array
     {
-        return $this->createQueryBuilder('l')
+        /** @var list<array{regionTag: mixed, total: mixed, avg_score: mixed}> $result */
+        $result = $this->createQueryBuilder('l')
             ->select('l.regionTag, COUNT(l.id) as total, AVG(l.leadScore) as avg_score')
             ->groupBy('l.regionTag')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Get top scoring leads
+     *
+     * @return list<Lead>
      */
     public function getTopLeads(int $limit = 50, ?string $regionTag = null): array
     {
@@ -140,11 +169,16 @@ class LeadRepository extends ServiceEntityRepository
                ->setParameter('region', $regionTag);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<Lead> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
     }
 
     /**
      * Get approval rate for precision calculation
+     *
+     * @return array{total: mixed, approved: mixed, denied: mixed}
      */
     public function getApprovalRate(?string $regionTag = null, ?\DateTime $since = null): array
     {
@@ -165,8 +199,12 @@ class LeadRepository extends ServiceEntityRepository
                ->setParameter('since', $since);
         }
 
-        return $qb->getQuery()->getSingleResult();
+        /** @var array{total: mixed, approved: mixed, denied: mixed} $result */
+        $result = $qb->getQuery()->getSingleResult();
+
+        return $result;
     }
+
     /**
      * Count leads by specific nurturing stage
      */
@@ -182,28 +220,38 @@ class LeadRepository extends ServiceEntityRepository
 
     /**
      * Get average score by region
+     *
+     * @return list<array{region: mixed, avgScore: mixed, count: mixed}>
      */
     public function getAvgScoreByRegion(): array
     {
-        return $this->createQueryBuilder('l')
+        /** @var list<array{region: mixed, avgScore: mixed, count: mixed}> $result */
+        $result = $this->createQueryBuilder('l')
             ->select('l.regionTag as region, AVG(l.leadScore) as avgScore, COUNT(l.id) as count')
             ->where('l.leadScore IS NOT NULL')
             ->groupBy('l.regionTag')
             ->orderBy('count', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Get lead counts by review status
+     *
+     * @return list<array{status: mixed, count: mixed}>
      */
     public function getCountsByStatus(): array
     {
-        return $this->createQueryBuilder('l')
+        /** @var list<array{status: mixed, count: mixed}> $result */
+        $result = $this->createQueryBuilder('l')
             ->select('l.reviewStatus as status, COUNT(l.id) as count')
             ->groupBy('l.reviewStatus')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
@@ -225,10 +273,13 @@ class LeadRepository extends ServiceEntityRepository
 
     /**
      * Get recent leads with score > threshold for alerting
+     *
+     * @return list<Lead>
      */
     public function findHighScoreRecent(\DateTimeInterface $since, int $minScore = 70): array
     {
-        return $this->createQueryBuilder('l')
+        /** @var list<Lead> $result */
+        $result = $this->createQueryBuilder('l')
             ->where('l.createdAt >= :since')
             ->andWhere('l.leadScore >= :minScore')
             ->setParameter('since', $since)
@@ -236,5 +287,7 @@ class LeadRepository extends ServiceEntityRepository
             ->orderBy('l.leadScore', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

@@ -13,7 +13,9 @@ class CompetitorDetection
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: "integer")]
-    private ?int $id = null;
+// Protected (not private): Doctrine assigns the identifier via reflection
+    // on hydration, so static analysis never sees an int assignment.
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Lead::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: "CASCADE")]

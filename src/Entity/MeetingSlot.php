@@ -39,7 +39,7 @@ class MeetingSlot
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
     
     #[ORM\Column(length: 255)]
     private ?string $title = null;
@@ -48,10 +48,10 @@ class MeetingSlot
     private ?string $description = null;
     
     #[ORM\Column(length: 50)]
-    private ?string $meetingType = self::TYPE_INTRODUCTION;
+    private string $meetingType = self::TYPE_INTRODUCTION;
     
     #[ORM\Column]
-    private ?int $durationMinutes = self::DURATION_30;
+    private int $durationMinutes = self::DURATION_30;
     
     #[ORM\Column]
     private ?DateTimeImmutable $startTime = null;
@@ -60,7 +60,7 @@ class MeetingSlot
     private ?DateTimeImmutable $endTime = null;
     
     #[ORM\Column(length: 50)]
-    private ?string $status = self::STATUS_AVAILABLE;
+    private string $status = self::STATUS_AVAILABLE;
     
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $location = null;
@@ -71,6 +71,7 @@ class MeetingSlot
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $meetingProvider = null; // zoom, teams, google_meet, etc.
     
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $meetingCredentials = null;
     
@@ -275,11 +276,13 @@ class MeetingSlot
         return $this;
     }
     
+    /** @return array<string, mixed>|null */
     public function getMeetingCredentials(): ?array
     {
         return $this->meetingCredentials;
     }
     
+    /** @param array<string, mixed>|null $meetingCredentials */
     public function setMeetingCredentials(?array $meetingCredentials): static
     {
         $this->meetingCredentials = $meetingCredentials;
@@ -583,6 +586,7 @@ class MeetingSlot
         };
     }
     
+    /** @return array<string, string> */
     public static function getMeetingTypes(): array
     {
         return [
@@ -595,6 +599,7 @@ class MeetingSlot
         ];
     }
     
+    /** @return array<string, int> */
     public static function getDurations(): array
     {
         return [
@@ -607,6 +612,7 @@ class MeetingSlot
         ];
     }
     
+    /** @return array<string, string> */
     public static function getStatuses(): array
     {
         return [

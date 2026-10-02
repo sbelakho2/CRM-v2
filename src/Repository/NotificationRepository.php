@@ -20,10 +20,13 @@ class NotificationRepository extends ServiceEntityRepository
 
     /**
      * Get unread notifications for a user, ordered by newest first
+     *
+     * @return list<Notification>
      */
     public function findUnreadForUser(User $user, int $limit = 5): array
     {
-        return $this->createQueryBuilder('n')
+        /** @var list<Notification> $result */
+        $result = $this->createQueryBuilder('n')
             ->where('n.user = :user')
             ->andWhere('n.readAt IS NULL')
             ->setParameter('user', $user)
@@ -31,6 +34,8 @@ class NotificationRepository extends ServiceEntityRepository
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
@@ -38,17 +43,22 @@ class NotificationRepository extends ServiceEntityRepository
      */
     public function countUnreadForUser(User $user): int
     {
-        return $this->createQueryBuilder('n')
+        /** @var int|string|null $result */
+        $result = $this->createQueryBuilder('n')
             ->select('COUNT(n.id)')
             ->where('n.user = :user')
             ->andWhere('n.readAt IS NULL')
             ->setParameter('user', $user)
             ->getQuery()
             ->getSingleScalarResult();
+
+        return (int) $result;
     }
 
     /**
      * Get all notifications for a user (paginated)
+     *
+     * @return Paginator<Notification>
      */
     public function findForUser(User $user, int $page = 1, int $limit = 20): Paginator
     {
@@ -62,7 +72,10 @@ class NotificationRepository extends ServiceEntityRepository
             ->setMaxResults($limit)
             ->getQuery();
 
-        return new Paginator($query);
+        /** @var Paginator<Notification> $paginator */
+        $paginator = new Paginator($query);
+
+        return $paginator;
     }
 
     /**
@@ -70,12 +83,14 @@ class NotificationRepository extends ServiceEntityRepository
      */
     public function deleteOlderThan(\DateTime $date): int
     {
-        return $this->createQueryBuilder('n')
+        $deleted = $this->createQueryBuilder('n')
             ->delete()
             ->where('n.createdAt < :date')
             ->setParameter('date', $date)
             ->getQuery()
             ->execute();
+
+        return is_numeric($deleted) ? (int) $deleted : 0;
     }
 
     /**

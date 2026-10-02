@@ -14,7 +14,9 @@ class IpMap
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    // Protected (not private): Doctrine assigns the identifier via reflection
+    // on hydration, so static analysis never sees an int assignment.
+    protected ?int $id = null;
 
     #[ORM\Column(length: 45)]
     private ?string $ipAddress = null;
@@ -34,6 +36,7 @@ class IpMap
     #[ORM\Column(length: 2, nullable: true)]
     private ?string $country = null;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $firmographicData = null; // JSON with industry, size, etc.
 
@@ -114,11 +117,17 @@ class IpMap
         return $this;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getFirmographicData(): ?array
     {
         return $this->firmographicData;
     }
 
+    /**
+     * @param array<string, mixed>|null $firmographicData
+     */
     public function setFirmographicData(?array $firmographicData): self
     {
         $this->firmographicData = $firmographicData;

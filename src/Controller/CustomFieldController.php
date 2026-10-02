@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\CustomFieldDefinition;
+use App\Entity\User;
 use App\Form\CustomFieldDefinitionType;
 use App\Repository\CustomFieldDefinitionRepository;
 use App\Service\CustomFieldService;
@@ -50,14 +51,15 @@ class CustomFieldController extends AbstractController
         $field = new CustomFieldDefinition();
         
         if ($request->query->has('entity')) {
-            $field->setEntityType($request->query->get('entity'));
+            $field->setEntityType((string) $request->query->get('entity'));
         }
 
         $form = $this->createForm(CustomFieldDefinitionType::class, $field);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $field->setCreatedBy($this->getUser());
+            $currentUser = $this->getUser();
+            $field->setCreatedBy($currentUser instanceof User ? $currentUser : null);
             $this->customFieldService->createField($field);
 
             $this->addFlash('success', $this->translator->trans('custom_field.flash.created'));
@@ -108,7 +110,7 @@ class CustomFieldController extends AbstractController
     {
         $entityType = $field->getEntityType();
 
-        if ($this->isCsrfTokenValid('delete' . $field->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('delete' . $field->getId(), (string) $request->request->get('_token'))) {
             // Check if field has values
             $valueCount = count($field->getValues());
             
@@ -129,7 +131,7 @@ class CustomFieldController extends AbstractController
     #[Route('/{id}/toggle', name: 'custom_field_toggle', methods: ['POST'])]
     public function toggle(Request $request, CustomFieldDefinition $field): Response
     {
-        if ($this->isCsrfTokenValid('toggle' . $field->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('toggle' . $field->getId(), (string) $request->request->get('_token'))) {
             $field->setIsActive(!$field->isActive());
             $this->entityManager->flush();
 
@@ -146,10 +148,10 @@ class CustomFieldController extends AbstractController
     public function reorder(Request $request): JsonResponse
     {
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
 
-        if (!$this->isCsrfTokenValid('reorder', $data['_token'] ?? '')) {
+        $reorderToken = $data['_token'] ?? null;
+        if (!$this->isCsrfTokenValid('reorder', \is_string($reorderToken) ? $reorderToken : null)) {
             return $this->json(['error' => 'Invalid CSRF token'], 403);
         }
         
@@ -177,8 +179,8 @@ class CustomFieldController extends AbstractController
         }
 
         $exists = $this->definitionRepository->fieldKeyExists(
-            $fieldKey, 
-            $entityType, 
+            (string) $fieldKey,
+            (string) $entityType,
             $excludeId ? (int) $excludeId : null
         );
 

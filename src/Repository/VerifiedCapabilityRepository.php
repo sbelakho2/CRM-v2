@@ -24,6 +24,7 @@ class VerifiedCapabilityRepository extends ServiceEntityRepository
      */
     public function findClaimable(): array
     {
+        /** @var list<VerifiedCapability> $rows */
         $rows = $this->createQueryBuilder('c')
             ->andWhere('c.status = :verified')
             ->setParameter('verified', VerifiedCapability::STATUS_VERIFIED)
@@ -32,8 +33,12 @@ class VerifiedCapabilityRepository extends ServiceEntityRepository
 
         $claimable = [];
         foreach ($rows as $row) {
+            $key = $row->getCapabilityKey();
+            if ($key === null) {
+                continue; // capability_key column is NOT NULL; defensive only
+            }
             if ($row->isClaimable()) {
-                $claimable[$row->getCapabilityKey()] = $row->getLabel() ?? $row->getCapabilityKey();
+                $claimable[$key] = $row->getLabel() ?? $key;
             }
         }
 

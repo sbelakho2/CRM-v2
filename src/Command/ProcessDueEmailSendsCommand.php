@@ -138,6 +138,7 @@ class ProcessDueEmailSendsCommand extends Command
             // Fresh rows (the claim transaction committed; identity map is
             // stale relative to the SENDING transition).
             $this->entityManager->clear();
+            /** @var list<\App\Entity\EmailSend> $rows */
             $rows = $this->sendRepository->createQueryBuilder('e')
                 ->andWhere('e.id IN (:ids)')
                 ->setParameter('ids', $claimedIds)
@@ -157,7 +158,7 @@ class ProcessDueEmailSendsCommand extends Command
 
             $io->success(sprintf(
                 'Processed %d due send(s): %d sent, %d skipped by policy, %d already handled, %d failed (retryable with backoff).',
-                count($claimedIds),
+                is_array($claimedIds) ? count($claimedIds) : 0,
                 $counts['sent'],
                 $counts['skipped'],
                 $counts['already'],

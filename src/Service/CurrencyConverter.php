@@ -75,7 +75,7 @@ class CurrencyConverter
         }
 
         $displayCurrency = $this->currencyPreferenceService->getDisplayCurrency();
-        $fallback = $fromCurrency ?? $toCurrency ?? $displayCurrency ?? 'USD';
+        $fallback = $fromCurrency ?? $toCurrency ?? $displayCurrency; // display currency is non-null
         $from = strtoupper((string) $fallback);
         $to = strtoupper($toCurrency ?? $this->currencyPreferenceService->getDisplayCurrency($from));
 
@@ -85,7 +85,7 @@ class CurrencyConverter
 
         try {
             $result = $this->conversionService->convert((float) $amount, $from, $to);
-            return (float) ($result['amount'] ?? $amount);
+            return (float) $result['amount'];
         } catch (\RuntimeException $e) {
             // Unknown currency pair — never silently convert 1:1. Log loudly
             // and return the original amount so display code degrades
@@ -126,7 +126,7 @@ class CurrencyConverter
         }
 
         $displayCurrency = $this->currencyPreferenceService->getDisplayCurrency();
-        $fallback = $fromCurrency ?? $toCurrency ?? $displayCurrency ?? 'USD';
+        $fallback = $fromCurrency ?? $toCurrency ?? $displayCurrency; // display currency is non-null
         $from = strtoupper((string) $fallback);
         $to = strtoupper($toCurrency ?? $this->currencyPreferenceService->getDisplayCurrency($from));
 
@@ -136,7 +136,7 @@ class CurrencyConverter
 
         $result = $this->conversionService->convert((float) $amount, $from, $to);
 
-        return (float) ($result['amount'] ?? $amount);
+        return (float) $result['amount'];
     }
 
     public function format(?float $amount, ?string $fromCurrency, ?string $toCurrency = null, int $decimals = 2): string
@@ -146,7 +146,7 @@ class CurrencyConverter
         }
 
         $displayCurrency = $this->currencyPreferenceService->getDisplayCurrency();
-        $fallback = $fromCurrency ?? $toCurrency ?? $displayCurrency ?? 'USD';
+        $fallback = $fromCurrency ?? $toCurrency ?? $displayCurrency; // display currency is non-null
         $from = strtoupper((string) $fallback);
         $to = strtoupper($toCurrency ?? $this->currencyPreferenceService->getDisplayCurrency($from));
         $value = $this->convert($amount, $from, $to);

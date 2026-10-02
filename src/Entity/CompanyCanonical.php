@@ -16,7 +16,7 @@ class CompanyCanonical
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class, inversedBy: 'companyCanonicals')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]

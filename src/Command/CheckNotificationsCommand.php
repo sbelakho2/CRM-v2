@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Entity\User;
 use App\Service\NotificationService;
 use App\Repository\UserRepository;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -64,12 +65,10 @@ HELP
         }
 
         try {
-            /** @var mixed $cleanup */
-            $cleanup = $input->getOption('cleanup');
-            /** @var mixed $userId */
-            $userId = $input->getOption('user');
-            /** @var mixed $checkAll */
-            $checkAll = $input->getOption('all');
+            $cleanup = (bool) $input->getOption('cleanup');
+            $userIdOption = $input->getOption('user');
+            $userId = \is_string($userIdOption) && $userIdOption !== '' ? $userIdOption : null;
+            $checkAll = (bool) $input->getOption('all');
 
             $totalCreated = 0;
 
@@ -92,6 +91,7 @@ HELP
                     ->select('COUNT(u.id)')
                     ->getQuery()
                     ->getSingleScalarResult();
+                /** @var iterable<array{0: User}> $users */
                 $users = $this->userRepository->createQueryBuilder('u')
                     ->getQuery()
                     ->iterate();

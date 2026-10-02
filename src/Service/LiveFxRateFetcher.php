@@ -74,7 +74,7 @@ class LiveFxRateFetcher
      * single Doctrine transaction so all rates commit atomically: a mid-batch
      * failure rolls back everything instead of leaving a partial write.
      * 
-     * @return array Summary of fetched rates
+     * @return array{success: list<string>, failed: list<string>, source: string|null, timestamp: \DateTime}
      */
     public function fetchAllRates(): array
     {
@@ -183,8 +183,43 @@ class LiveFxRateFetcher
     }
 
     /**
+     * Walk a nested decoded-JSON array path; null when any level is missing
+     * or not an array.
+     */
+    private static function arrayPath(mixed $value, int|string ...$keys): mixed
+    {
+        foreach ($keys as $key) {
+            if (!is_array($value) || !array_key_exists($key, $value)) {
+                return null;
+            }
+            $value = $value[$key];
+        }
+
+        return $value;
+    }
+
+    /**
+     * Coerce a decoded API rates object into a code => float map, dropping
+     * any non-numeric junk so callers always receive floats.
+     *
+     * @param array<array-key, mixed> $rates
+     * @return array<string, float>
+     */
+    private function floatRateMap(array $rates): array
+    {
+        $result = [];
+        foreach ($rates as $code => $value) {
+            if (is_numeric($value)) {
+                $result[(string) $code] = (float) $value;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * Fetch rates from Frankfurter.app (ECB-backed)
-     * 
+     *
      * @return array<string, float> Currency code => rate (EUR base)
      */
     public function fetchFromFrankfurter(): array
@@ -212,7 +247,7 @@ class LiveFxRateFetcher
                 
                 $data = $response->toArray();
                 
-                if (!isset($data['rates'])) {
+                if (!isset($data['rates']) || !is_array($data['rates'])) {
                     throw new \RuntimeException('Invalid Frankfurter API response');
                 }
                 
@@ -222,7 +257,7 @@ class LiveFxRateFetcher
                     'currencies' => count($data['rates']),
                 ]);
                 
-                return $data['rates'];
+                return $this->floatRateMap($data['rates']);
             });
         } catch (\Exception $e) {
             $this->logger->error('Failed to fetch from Frankfurter', ['error' => $e->getMessage()]);
@@ -261,7 +296,7 @@ class LiveFxRateFetcher
                 
                 $data = $response->toArray();
                 
-                if (!isset($data['rates'])) {
+                if (!isset($data['rates']) || !is_array($data['rates'])) {
                     throw new \RuntimeException('Invalid ExchangeRate API response');
                 }
                 
@@ -270,7 +305,7 @@ class LiveFxRateFetcher
                     'currencies' => count($data['rates']),
                 ]);
                 
-                return $data['rates'];
+                return $this->floatRateMap($data['rates']);
             });
         } catch (\Exception $e) {
             $this->logger->error('Failed to fetch from ExchangeRate-API', ['error' => $e->getMessage()]);
@@ -395,16 +430,17 @@ class LiveFxRateFetcher
                 $rates = [];
                 
                 // Parse header to get column positions
-                $filteredLines = array_values(array_filter($lines, fn($l) => trim($l) !== ''));
+                $filteredLines = array_values(array_filter($lines, static fn (string $l): bool => trim($l) !== ''));
                 if (count($filteredLines) >= 2) {
                     $header = str_getcsv($filteredLines[0], ',', '"', '\\');
                     $lastLine = $filteredLines[count($filteredLines) - 1];
                     $lastRow = str_getcsv($lastLine, ',', '"', '\\');
                     
                     foreach ($header as $idx => $colName) {
-                        $colName = trim($colName);
-                        if (isset($seriesMap[$colName]) && isset($lastRow[$idx]) && is_numeric(trim($lastRow[$idx]))) {
-                            $rate = (float) $lastRow[$idx];
+                        $colName = trim((string) $colName);
+                        $rawValue = $lastRow[$idx] ?? null;
+                        if (isset($seriesMap[$colName]) && is_string($rawValue) && is_numeric($rawValue)) {
+                            $rate = (float) $rawValue;
                             if ($rate > 0) {
                                 $rates[$seriesMap[$colName]] = $rate;
                             }
@@ -460,15 +496,20 @@ class LiveFxRateFetcher
                 $data = $response->toArray();
                 
                 // ECB JSON structure: dataSets[0].series.0:0:0:0:0.observations
-                $observations = $data['dataSets'][0]['series']['0:0:0:0:0']['observations'] ?? null;
+                $observations = $this->arrayPath($data, 'dataSets', 0, 'series', '0:0:0:0:0', 'observations');
                 
-                if (!$observations) {
+                if (!is_array($observations) || $observations === []) {
                     return null;
                 }
                 
                 // Get latest observation
                 $latestKey = max(array_keys($observations));
-                $rate = (float) ($observations[$latestKey][0] ?? 0);
+                $latestObservation = $observations[$latestKey] ?? null;
+                $rate = is_array($latestObservation)
+                    && isset($latestObservation[0])
+                    && is_numeric($latestObservation[0])
+                    ? (float) $latestObservation[0]
+                    : 0.0;
                 
                 $this->logger->info('Fetched rate from ECB SDW', [
                     'currency' => $currency,
@@ -625,7 +666,11 @@ class LiveFxRateFetcher
     private function getEntityManager(): EntityManagerInterface
     {
         if (!$this->entityManager->isOpen()) {
-            $this->entityManager = $this->managerRegistry->resetManager();
+            $resetManager = $this->managerRegistry->resetManager();
+            if (!$resetManager instanceof EntityManagerInterface) {
+                throw new \RuntimeException('Manager registry did not return an ORM entity manager.');
+            }
+            $this->entityManager = $resetManager;
         }
 
         return $this->entityManager;
@@ -637,7 +682,7 @@ class LiveFxRateFetcher
      * This auto-seeds the DB so that the system becomes self-sustaining:
      * first request hits the API, all subsequent requests use the DB cache.
      * Failures are silently logged (non-critical — the rate is still returned).
-      * @param array<string|int, mixed> $rateResult
+      * @param array{rate: float, source: string, timestamp: \DateTime} $rateResult
      */
     private function persistLiveRate(string $from, string $to, array $rateResult): void
     {
@@ -661,32 +706,39 @@ class LiveFxRateFetcher
     /**
      * Check if stored rates are fresh
      * 
-     * @return array<string, array> Currency pairs with staleness info
+     * @return array<string, array{rate: float, asof: string, stale: bool, age_hours: float}> Currency pairs with staleness info
      */
     public function checkRateFreshness(): array
     {
         $result = [];
         $threshold = new \DateTime('-' . self::RATE_STALENESS_HOURS . ' hours');
-        
+
         $rates = $this->entityManager->getRepository(FxRate::class)->findBy(['isActive' => true]);
-        
+
         foreach ($rates as $rate) {
+            $asof = $rate->getAsof();
+            if ($asof === null) {
+                continue; // asof is written by storeRate(); skip defensively rather than crash
+            }
+
             $pair = $rate->getFromCurrency() . '/' . $rate->getToCurrency();
-            $isStale = $rate->getAsof() < $threshold;
-            
+            $isStale = $asof < $threshold;
+
             $result[$pair] = [
                 'rate' => (float) $rate->getRate(),
-                'asof' => $rate->getAsof()->format('Y-m-d H:i:s'),
+                'asof' => $asof->format('Y-m-d H:i:s'),
                 'stale' => $isStale,
-                'age_hours' => round((time() - $rate->getAsof()->getTimestamp()) / 3600, 1),
+                'age_hours' => round((time() - $asof->getTimestamp()) / 3600, 1),
             ];
         }
-        
+
         return $result;
     }
 
     /**
      * Get list of supported currencies from all sources
+     *
+     * @return array{primary: list<string>, secondary: list<string>, regional: list<string>, sources: array<string, list<string>>}
      */
     public function getSupportedCurrencies(): array
     {

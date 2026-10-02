@@ -37,24 +37,25 @@ class EmailCampaign
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $name = null;
 
     #[ORM\Column(length: 10)]
-    private ?string $language = self::LANGUAGE_EN; // EN or FR
+    private string $language = self::LANGUAGE_EN; // EN or FR
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description = null;
 
     #[ORM\Column(type: 'integer')]
-    private ?int $touchCount = 5; // Default 5-touch sequence
+    private int $touchCount = 5; // Default 5-touch sequence
 
+    /** @var array<string, mixed>|list<mixed> */
     #[ORM\Column(type: 'json')]
-    /** @var array<string, mixed>|list<mixed> $touchTemplates */
     private array $touchTemplates = []; // Array of template IDs
 
+    /** @var array<int, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $abTestVariants = null;
 
@@ -74,7 +75,7 @@ class EmailCampaign
     private ?string $bodyHtml = null;
 
     #[ORM\Column(length: 20, options: ['default' => 'draft'])]
-    private ?string $status = self::STATUS_DRAFT;
+    private string $status = self::STATUS_DRAFT;
 
     #[ORM\Column(length: 20, nullable: true)]
     private ?string $type = self::TYPE_MANUAL;
@@ -82,6 +83,7 @@ class EmailCampaign
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $triggerType = null;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $triggerConditions = null;
 
@@ -110,9 +112,11 @@ class EmailCampaign
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
 
+    /** @var Collection<int, EmailSend> */
     #[ORM\OneToMany(mappedBy: 'campaign', targetEntity: EmailSend::class, cascade: ['persist'])]
     private Collection $emailSends;
 
+    /** @var Collection<int, Contact> */
     #[ORM\ManyToMany(targetEntity: Contact::class, mappedBy: 'emailCampaigns')]
     private Collection $contacts;
 
@@ -189,11 +193,13 @@ class EmailCampaign
         return $this;
     }
 
+    /** @return array<string, mixed>|list<mixed> */
     public function getTouchTemplates(): array
     {
         return $this->touchTemplates;
     }
 
+    /** @param array<string, mixed>|list<mixed> $touchTemplates */
     public function setTouchTemplates(array $touchTemplates): self
     {
         $this->touchTemplates = $touchTemplates;
@@ -301,6 +307,7 @@ class EmailCampaign
         return $this->abTestVariants ?? [];
     }
 
+    /** @param array<int, mixed> $variants */
     public function setAbTestVariants(array $variants): self
     {
         $this->abTestVariants = $variants;
@@ -387,11 +394,13 @@ class EmailCampaign
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getTriggerConditions(): ?array
     {
         return $this->triggerConditions;
     }
 
+    /** @param array<string, mixed>|null $triggerConditions */
     public function setTriggerConditions(?array $triggerConditions): self
     {
         $this->triggerConditions = $triggerConditions;

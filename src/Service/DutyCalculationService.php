@@ -26,12 +26,17 @@ use Doctrine\ORM\EntityManagerInterface;
  * - QuoteCoPilotController for landed-cost calculations
  * - FtaEligibilityService for duty savings analysis
  */
+/**
+ * @phpstan-import-type EligibilityResult from \App\Service\FtaEligibilityService
+ */
 class DutyCalculationService
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        /** Kept for future direct DQL; lookups currently go through the tariff repository. */
+        protected EntityManagerInterface $entityManager,
         private TariffRateRepository $tariffRateRepository,
-        private FtaRuleRepository $ftaRuleRepository,
+        /** Reserved for direct FTA rule lookups; not read yet. */
+        protected FtaRuleRepository $ftaRuleRepository,
         private FtaEligibilityService $ftaEligibilityService
     ) {}
 
@@ -55,7 +60,8 @@ class DutyCalculationService
      *   totalTax: float,
      *   method: string,
      *   ftaSavings: float|null,
-     *   breakdown: array
+     *   ftaAgreement: string|null,
+     *   breakdown: array<string, mixed>
      * }
      */
     public function calculateDuty(
@@ -184,7 +190,7 @@ class DutyCalculationService
      * @param string $originCountry - Origin country code (ISO 2-letter)
      * @param string $destinationCountry - Destination country code (ISO 2-letter)
      * @param float $customsValue - Customs value
-     * @param array $eligibilityResult - Result from FtaEligibilityService::checkEligibility()
+     * @param EligibilityResult $eligibilityResult - Result from FtaEligibilityService::checkEligibility()
      *
      * @return array{
      *   dutyRate: float|null,
@@ -201,7 +207,7 @@ class DutyCalculationService
         float $customsValue,
         array $eligibilityResult
     ): array {
-        // 1. Get FTA agreement from eligibility result
+        // 1. Get FTA agreement from eligibility result (absent = no agreement)
         $ftaAgreement = $eligibilityResult['fta_agreement'] ?? null;
         
         if (!$ftaAgreement) {
@@ -218,6 +224,7 @@ class DutyCalculationService
         // The tariff_rates table stores fta_rate alongside the standard MFN rate
         $today = new \DateTime('now', new \DateTimeZone('UTC'));
         
+        /** @var TariffRate|null $tariffRate */
         $tariffRate = $this->tariffRateRepository->createQueryBuilder('tr')
             ->where('tr.hsCode = :hsCode')
             ->andWhere('tr.destinationCountry = :dest')
@@ -232,8 +239,8 @@ class DutyCalculationService
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
-        
-        if (!$tariffRate || $tariffRate->getFtaRate() === null) {
+
+        if ($tariffRate === null || $tariffRate->getFtaRate() === null) {
             // No FTA preferential rate found for this HTS code
             return [
                 'dutyRate' => null,
@@ -247,7 +254,7 @@ class DutyCalculationService
         $preferentialRate = (float) $tariffRate->getFtaRate();
         
         // 3. Check if declaration required
-        $eligibilityStatus = $eligibilityResult['eligible'] ?? 'UNKNOWN';
+        $eligibilityStatus = $eligibilityResult['eligible'];
         $requiresDeclaration = in_array($eligibilityStatus, ['CONDITIONAL', 'ELIGIBLE']);
         
         $declarationTemplate = null;
@@ -300,6 +307,7 @@ class DutyCalculationService
         string $uom
     ): array {
         // Query tariff_rates for latest MFN rate
+        /** @var TariffRate|null $tariffRate */
         $tariffRate = $this->tariffRateRepository->createQueryBuilder('tr')
             ->where('tr.hsCode = :hsCode')
             ->andWhere('tr.destinationCountry = :dest')
@@ -312,8 +320,8 @@ class DutyCalculationService
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
-        
-        if (!$tariffRate) {
+
+        if ($tariffRate === null) {
             throw new \RuntimeException(
                 "Tariff rate not found for HTS: $htsCode, Destination: $destinationCountry"
             );
@@ -428,11 +436,17 @@ class DutyCalculationService
      * @param string $originCountry - Origin country
      * 
      * @return array{
-     *   mfnDuty: float,
-     *   ftaDuty: float,
-     *   savings: float,
-     *   savingsPercent: float,
-     *   eligible: bool
+     *   mfnDuty?: float,
+     *   ftaDuty?: float,
+     *   savings?: float,
+     *   savingsPercent?: float,
+     *   eligible: bool,
+     *   error?: string,
+     *   conditional?: bool,
+     *   reason?: string,
+     *   potentialSavingsIfQualified?: null,
+     *   ftaAgreement?: string|null,
+     *   requiresDeclaration?: bool
      * }
      */
     public function calculateFtaSavings(
@@ -463,12 +477,13 @@ class DutyCalculationService
         
         // 2. Check FTA eligibility
         try {
+            /** @var EligibilityResult $eligibility */
             $eligibility = $this->ftaEligibilityService->checkEligibility(
                 $originCountry,
                 $destinationCountry
             );
             
-            $eligibleStatus = $eligibility['eligible'] ?? 'NOT_ELIGIBLE';
+            $eligibleStatus = $eligibility['eligible'];
 
             if ($eligibleStatus !== 'ELIGIBLE') {
                 // CONDITIONAL means missing evidence / unverified rules of
@@ -478,7 +493,8 @@ class DutyCalculationService
                     return [
                         'eligible' => false,
                         'conditional' => true,
-                        'reason' => $eligibility['reason'] ?? 'FTA eligibility conditional on unverified evidence',
+                        // checkEligibility() carries no 'reason' key: the former `?? default` always resolved to the default.
+                        'reason' => 'FTA eligibility conditional on unverified evidence',
                         'mfnDuty' => round($mfnDuty, 2),
                         'ftaDuty' => round($mfnDuty, 2),
                         'savings' => 0,
@@ -489,7 +505,7 @@ class DutyCalculationService
 
                 return [
                     'eligible' => false,
-                    'reason' => $eligibility['reason'] ?? 'Not eligible for FTA',
+                    'reason' => 'Not eligible for FTA',
                     'mfnDuty' => round($mfnDuty, 2),
                     'ftaDuty' => round($mfnDuty, 2),
                     'savings' => 0,
@@ -515,7 +531,7 @@ class DutyCalculationService
                 $eligibility
             );
             
-            if ($ftaResult['notFound'] ?? false) {
+            if ($ftaResult['notFound']) {
                 // FTA rule not found
                 return [
                     'eligible' => false,
@@ -527,7 +543,7 @@ class DutyCalculationService
                 ];
             }
             
-            $ftaDutyRate = $ftaResult['dutyRate'] ?? 0;
+            $ftaDutyRate = $ftaResult['dutyRate'] ?? 0.0;
             $ftaDuty = $customsValue * ($ftaDutyRate / 100);
             
         } catch (\Exception $e) {
@@ -550,7 +566,7 @@ class DutyCalculationService
             'savingsPercent' => round($savingsPercent, 1),
             'eligible' => true,
             'ftaAgreement' => $ftaResult['ftaAgreement'] ?? null,
-            'requiresDeclaration' => $ftaResult['requiresDeclaration'] ?? false
+            'requiresDeclaration' => $ftaResult['requiresDeclaration']
         ];
     }
 
@@ -569,6 +585,9 @@ class DutyCalculationService
     {
         // Strip non-digit characters for clean hierarchical parsing
         $clean = preg_replace('/[^0-9]/', '', $htsCode);
+        if ($clean === null) {
+            return []; // null only on PCRE error
+        }
 
         $levels = [];
         if (strlen($clean) >= 10) {
@@ -590,11 +609,12 @@ class DutyCalculationService
     /**
      * Find a tariff rate for the given HTS code, destination, and origin.
      *
-     * @return object|null The TariffRate entity, or null if not found
+     * @return TariffRate|null The TariffRate entity, or null if not found
      */
     private function findTariffRate(string $hsCode, string $destinationCountry, string $originCountry): ?object
     {
-        return $this->tariffRateRepository->createQueryBuilder('tr')
+        /** @var TariffRate|null $tariffRate */
+        $tariffRate = $this->tariffRateRepository->createQueryBuilder('tr')
             ->where('tr.hsCode = :hsCode')
             ->andWhere('tr.destinationCountry = :dest')
             ->andWhere('tr.originCountry = :origin')
@@ -608,5 +628,7 @@ class DutyCalculationService
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $tariffRate;
     }
 }

@@ -18,10 +18,21 @@ use Symfony\Component\Yaml\Yaml;
  * and reports pass/fail for each entry — used for regression testing.
  *
  * Each gate is optional (null-safe) so unit tests can inject subsets.
+ *
+ * @phpstan-type GoldenEntry array{
+ *   expected: string,
+ *   name: string,
+ *   domain: string,
+ *   snippet: string,
+ *   title: string,
+ *   country?: string,
+ *   sector?: string,
+ *   category?: string
+ * }
  */
 final class GoldenDatasetRunner
 {
-    /** @var array<string, array{expected: string, name: string, domain: string, snippet: string, title: string, country: string, sector: string, category: string}> */
+    /** @var array<string, GoldenEntry> */
     private array $entries = [];
 
     public function __construct(
@@ -31,7 +42,8 @@ final class GoldenDatasetRunner
         private ?RuleEngine $ruleEngine = null,
         private ?CompanyClassifierService $companyClassifier = null,
         private ?LanguageDetector $languageDetector = null,
-        private ?LoggerInterface $logger = null,
+        /** Kept injectable for callers/tests that pass a logger; never read here. */
+        protected ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -50,22 +62,31 @@ final class GoldenDatasetRunner
 
         $data = Yaml::parseFile($path);
 
-        if (!isset($data['entries']) || !is_array($data['entries'])) {
+        if (!is_array($data) || !isset($data['entries']) || !is_array($data['entries'])) {
             throw new \RuntimeException("Invalid golden dataset format: missing 'entries' key");
         }
 
         $this->entries = [];
         foreach ($data['entries'] as $i => $entry) {
+            if (!is_array($entry)) {
+                throw new \RuntimeException("Golden dataset entry #$i must be an array");
+            }
             $this->validateEntry($entry, $i);
-            $key = $entry['name'] . '|' . $entry['domain'];
-            $this->entries[$key] = $entry;
+            $name = $entry['name'];
+            $domain = $entry['domain'];
+            if (!is_string($name) || !is_string($domain)) {
+                throw new \RuntimeException("Golden dataset entry #$i has non-string 'name' or 'domain'");
+            }
+            // validateEntry() has enforced every GoldenEntry required field.
+            /** @var GoldenEntry $entry */
+            $this->entries[$name . '|' . $domain] = $entry;
         }
     }
 
     /**
      * Load entries programmatically (for tests).
      *
-     * @param list<array{expected: string, name: string, domain: string, snippet: string, title: string, country: string, sector: string, category: string}> $entries
+     * @param list<GoldenEntry> $entries
      */
     public function loadFromArray(array $entries): void
     {
@@ -100,6 +121,7 @@ final class GoldenDatasetRunner
     /**
      * Evaluate one entry through the full gate chain.
      *
+     * @param GoldenEntry $entry
      * @return array{
      *   name: string,
      *   domain: string,
@@ -107,9 +129,9 @@ final class GoldenDatasetRunner
      *   actual: string,
      *   correct: bool,
      *   category: string,
+     *   reject_gate: string|null,
      *   gates: array<string, array{passed: bool, detail: string}>,
      * }
-      * @param array<string|int, mixed> $entry
      */
     public function evaluateSingle(array $entry): array
     {
@@ -131,7 +153,7 @@ final class GoldenDatasetRunner
                 'passed' => $gatePassed,
                 'detail' => $evidenceResult->getReason(),
             ];
-            if (!$gatePassed && !$rejected) {
+            if (!$gatePassed) {
                 $rejected = true;
                 $rejectGate = 'buyer_evidence';
             }
@@ -182,10 +204,10 @@ final class GoldenDatasetRunner
         // ── Gate 5: CompanyClassifierService ─────────────
         if ($this->companyClassifier !== null) {
             $clResult = $this->companyClassifier->classifyCompany($name, $snippet, $title, $domain);
-            $gatePassed = ($clResult['verdict'] ?? 'UNCERTAIN') !== 'REJECT';
+            $gatePassed = $clResult['verdict'] !== 'REJECT';
             $gates['company_classifier'] = [
                 'passed' => $gatePassed,
-                'detail' => implode('; ', $clResult['reasons'] ?? []),
+                'detail' => implode('; ', $clResult['reasons']),
             ];
             if (!$gatePassed && !$rejected) {
                 $rejected = true;
@@ -228,6 +250,11 @@ final class GoldenDatasetRunner
 
     // ──────────────────────────────────────────────────
 
+    /**
+     * Validate a golden dataset entry has all required string fields.
+     *
+     * @param array<array-key, mixed> $entry
+     */
     private function validateEntry(array $entry, int $index): void
     {
         $required = ['expected', 'name', 'domain', 'snippet', 'title'];

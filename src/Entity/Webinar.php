@@ -31,19 +31,21 @@ class Webinar
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    // Protected (not private): Doctrine assigns the identifier via reflection
+    // on hydration, so static analysis never sees an int assignment.
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $title = null;
 
     #[ORM\Column(length: 10)]
-    private ?string $language = self::LANGUAGE_EN; // EN or FR
+    private string $language = self::LANGUAGE_EN; // EN or FR
 
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $scheduledDate = null;
 
     #[ORM\Column(type: 'integer')]
-    private ?int $duration = 60; // in minutes
+    private int $duration = 60; // in minutes
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description = null;
@@ -66,11 +68,12 @@ class Webinar
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $maxAttendees = null;
 
+    /** @var Collection<int, WebinarAttendee> */
     #[ORM\OneToMany(mappedBy: 'webinar', targetEntity: WebinarAttendee::class, cascade: ['persist'])]
     private Collection $attendees;
 
     #[ORM\Column(length: 50)]
-    private ?string $status = self::STATUS_SCHEDULED; // Scheduled, Completed, Cancelled
+    private string $status = self::STATUS_SCHEDULED; // Scheduled, Completed, Cancelled
 
     public function __construct()
     {

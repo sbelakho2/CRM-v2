@@ -24,7 +24,8 @@ class LeadDiscoveryController extends AbstractController
         private EntityManagerInterface $entityManager,
         private CountryService $countryService,
         private LeadAnalysisService $leadAnalysisService,
-        private LeadRepository $leadRepository,
+        /** Kept for future direct lead queries; DQL currently uses the entity manager. */
+        protected LeadRepository $leadRepository,
         private LeadScoringService $leadScoringService
     ) {}
 
@@ -60,13 +61,17 @@ class LeadDiscoveryController extends AbstractController
             ->getScalarResult();
 
         $sectorCounts = [];
+        /** @var list<array{sectorTags: mixed}> $allSectorRows */
         foreach ($allSectorRows as $row) {
             $tags = $row['sectorTags'];
             if (is_array($tags)) {
                 foreach ($tags as $tag) {
-                    $tag = trim((string) $tag);
-                    if ($tag === '') continue;
-                    $sectorCounts[$tag] = ($sectorCounts[$tag] ?? 0) + 1;
+                    if (!is_scalar($tag)) {
+                        continue;
+                    }
+                    $tagName = trim((string) $tag);
+                    if ($tagName === '') continue;
+                    $sectorCounts[$tagName] = ($sectorCounts[$tagName] ?? 0) + 1;
                 }
             }
         }
@@ -147,24 +152,27 @@ class LeadDiscoveryController extends AbstractController
     #[Route('/search', name: 'lead_discovery_search', methods: ['POST'])]
     public function search(Request $request): Response
     {
-        if (!$this->isCsrfTokenValid('lead_discovery_search', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('lead_discovery_search', (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token');
         }
 
-        $query = $request->request->get('query');
+        $queryRaw = $request->request->get('query');
+        $query = is_string($queryRaw) ? $queryRaw : '';
         $limit = (int)$request->request->get('limit', 10);
-        $sector = $request->request->get('sector');
-        $location = $request->request->get('location');
+        $sectorRaw = $request->request->get('sector');
+        $sector = is_string($sectorRaw) && $sectorRaw !== '' ? $sectorRaw : null;
+        $locationRaw = $request->request->get('location');
+        $location = is_string($locationRaw) && $locationRaw !== '' ? $locationRaw : null;
 
-        if (empty($query)) {
+        if ($query === '') {
             $this->addFlash('error', 'lead_discovery.flash.error.query_required');
             return $this->redirectToRoute('lead_discovery_index');
         }
 
         try {
             // Perform search — use caller-supplied location (never hardcoded)
-            if ($sector && $sector !== 'all') {
-                $results = $this->googleSearchService->searchBySector($sector, $location ?: 'all', $limit);
+            if ($sector !== null && $sector !== 'all') {
+                $results = $this->googleSearchService->searchBySector($sector, $location ?? 'all', $limit);
             } else {
                 $results = $this->googleSearchService->searchCompanies($query, min($limit, 10));
             }
@@ -180,8 +188,8 @@ class LeadDiscoveryController extends AbstractController
 
             return $this->render('lead_discovery/results.html.twig', [
                 'results' => $results['results'],
-                'totalResults' => $results['totalResults'] ?? 0,
-                'searchTime' => $results['searchTime'] ?? 0,
+                'totalResults' => $results['totalResults'],
+                'searchTime' => $results['searchTime'],
                 'query' => $query,
                 'quota' => $quota,
             ]);
@@ -195,17 +203,22 @@ class LeadDiscoveryController extends AbstractController
     #[Route('/import', name: 'lead_discovery_import', methods: ['POST'])]
     public function import(Request $request): Response
     {
-        if (!$this->isCsrfTokenValid('lead_discovery_import', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('lead_discovery_import', (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token');
         }
 
-        $results = $request->getSession()->get('search_results', []);
-        $query = $request->getSession()->get('search_query', 'Unknown');
-        $location = $request->getSession()->get('search_location');
-        $sector = $request->getSession()->get('search_sector');
-        $selectedIndices = $request->request->all()['selected'] ?? [];
+        $sessionResults = $request->getSession()->get('search_results', []);
+        /** @var list<array{title: string, link: string, snippet: string, displayLink: string, formattedUrl: string, htmlSnippet: string, cacheId: string|null, pagemap: array<mixed>}> $results */
+        $results = is_array($sessionResults) ? $sessionResults : [];
+        $querySession = $request->getSession()->get('search_query', 'Unknown');
+        $query = is_string($querySession) ? $querySession : 'Unknown';
+        $locationSession = $request->getSession()->get('search_location');
+        $location = is_string($locationSession) && $locationSession !== '' ? $locationSession : null;
+        $sectorSession = $request->getSession()->get('search_sector');
+        $sector = is_string($sectorSession) && $sectorSession !== '' ? $sectorSession : null;
+        $selectedIndices = $request->request->all('selected');
 
-        if (empty($results) || empty($selectedIndices)) {
+        if ($results === [] || $selectedIndices === []) {
             $this->addFlash('warning', 'lead_discovery.flash.warning.no_results');
             return $this->redirectToRoute('lead_discovery_index');
         }
@@ -214,6 +227,9 @@ class LeadDiscoveryController extends AbstractController
         $skipped = 0;
 
         foreach ($selectedIndices as $index) {
+            if (!is_int($index) && !is_string($index)) {
+                continue;
+            }
             if (!isset($results[$index])) {
                 continue;
             }
@@ -242,7 +258,7 @@ class LeadDiscoveryController extends AbstractController
             $lead->setCreatedAt(new \DateTimeImmutable());
             $lead->setSiteLocation($location);
             $lead->setRegionTag($this->countryService->normalizeRegionCode($location) ?? 'unknown');
-            if ($sector && $sector !== 'all') {
+            if ($sector !== null && $sector !== 'all') {
                 $lead->setSectorTags([$sector]);
             }
 
@@ -252,11 +268,11 @@ class LeadDiscoveryController extends AbstractController
                 'website_root' => $website,
                 'region_tag' => $lead->getRegionTag(),
                 'site_location' => $location,
-                'sector_tags' => $sector ? [$sector] : [],
-                'page_content' => $result['snippet'] ?? '',
-                'address' => $result['snippet'] ?? '',
+                'sector_tags' => $sector !== null ? [$sector] : [],
+                'page_content' => $result['snippet'],
+                'address' => $result['snippet'],
             ]);
-            $lead->setLeadScore($scoreData['score'] ?? 30);
+            $lead->setLeadScore($scoreData['score']);
 
             $this->entityManager->persist($lead);
             $imported++;
@@ -281,16 +297,21 @@ class LeadDiscoveryController extends AbstractController
     #[Route('/import-all', name: 'lead_discovery_import_all', methods: ['POST'])]
     public function importAll(Request $request): Response
     {
-        if (!$this->isCsrfTokenValid('lead_discovery_import_all', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('lead_discovery_import_all', (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token');
         }
 
-        $results = $request->getSession()->get('search_results', []);
-        $query = $request->getSession()->get('search_query', 'Unknown');
-        $location = $request->getSession()->get('search_location');
-        $sector = $request->getSession()->get('search_sector');
+        $sessionResults = $request->getSession()->get('search_results', []);
+        /** @var list<array{title: string, link: string, snippet: string, displayLink: string, formattedUrl: string, htmlSnippet: string, cacheId: string|null, pagemap: array<mixed>}> $results */
+        $results = is_array($sessionResults) ? $sessionResults : [];
+        $querySession = $request->getSession()->get('search_query', 'Unknown');
+        $query = is_string($querySession) ? $querySession : 'Unknown';
+        $locationSession = $request->getSession()->get('search_location');
+        $location = is_string($locationSession) && $locationSession !== '' ? $locationSession : null;
+        $sectorSession = $request->getSession()->get('search_sector');
+        $sector = is_string($sectorSession) && $sectorSession !== '' ? $sectorSession : null;
 
-        if (empty($results)) {
+        if ($results === []) {
             $this->addFlash('warning', 'lead_discovery.flash.warning.no_results');
             return $this->redirectToRoute('lead_discovery_index');
         }
@@ -320,7 +341,7 @@ class LeadDiscoveryController extends AbstractController
             $lead->setCreatedAt(new \DateTimeImmutable());
             $lead->setSiteLocation($location);
             $lead->setRegionTag($this->countryService->normalizeRegionCode($location) ?? 'unknown');
-            if ($sector && $sector !== 'all') {
+            if ($sector !== null && $sector !== 'all') {
                 $lead->setSectorTags([$sector]);
             }
 
@@ -330,11 +351,11 @@ class LeadDiscoveryController extends AbstractController
                 'website_root' => $website,
                 'region_tag' => $lead->getRegionTag(),
                 'site_location' => $location,
-                'sector_tags' => $sector ? [$sector] : [],
-                'page_content' => $result['snippet'] ?? '',
-                'address' => $result['snippet'] ?? '',
+                'sector_tags' => $sector !== null ? [$sector] : [],
+                'page_content' => $result['snippet'],
+                'address' => $result['snippet'],
             ]);
-            $lead->setLeadScore($scoreData['score'] ?? 30);
+            $lead->setLeadScore($scoreData['score']);
 
             $this->entityManager->persist($lead);
             $imported++;
@@ -357,7 +378,7 @@ class LeadDiscoveryController extends AbstractController
 
     private function cleanCompanyName(string $title): string
     {
-        $title = preg_replace('/\s*[-|]\s*.+$/', '', $title);
+        $title = preg_replace('/\s*[-|]\s*.+$/', '', $title) ?? $title; // null only on PCRE error
         return trim($title);
     }
 }

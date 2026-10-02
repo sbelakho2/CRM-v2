@@ -21,10 +21,13 @@ class ActivityRepository extends ServiceEntityRepository
     /**
      * Find recent activities with eager loading to prevent N+1 queries.
      * Loads company, contact, and user in a single query.
+     *
+     * @return list<Activity>
      */
     public function findRecent(int $limit = 10): array
     {
-        return $this->createQueryBuilder('a')
+        /** @var list<Activity> $activities */
+        $activities = $this->createQueryBuilder('a')
             ->leftJoin('a.company', 'c')->addSelect('c')
             ->leftJoin('a.contact', 'ct')->addSelect('ct')
             ->leftJoin('a.user', 'u')->addSelect('u')
@@ -32,6 +35,8 @@ class ActivityRepository extends ServiceEntityRepository
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $activities;
     }
 
     /**
@@ -39,10 +44,11 @@ class ActivityRepository extends ServiceEntityRepository
      * Optimized for dashboard weekly metrics - eliminates 4 separate queries.
      * 
      * @return array<string, int> Map of type => count
-      * @param array<string|int, mixed> $types
+     * @param array<int|string, string> $types
      */
     public function countByTypesBetween(array $types, \DateTime $start, \DateTime $end): array
     {
+        /** @var list<array{type: string, cnt: int|string}> $results */
         $results = $this->createQueryBuilder('a')
             ->select('a.type, COUNT(a.id) as cnt')
             ->where('a.type IN (:types)')
@@ -66,7 +72,7 @@ class ActivityRepository extends ServiceEntityRepository
 
     public function countMeetingsBetween(\DateTimeInterface $start, \DateTimeInterface $end): int
     {
-        return $this->createQueryBuilder('a')
+        return (int) $this->createQueryBuilder('a')
             ->select('COUNT(a.id)')
             ->where('a.type = :type')
             ->andWhere('a.activityDate >= :start')
@@ -80,7 +86,7 @@ class ActivityRepository extends ServiceEntityRepository
 
     public function countByTypeBetween(string $type, \DateTime $start, \DateTime $end): int
     {
-        return $this->createQueryBuilder('a')
+        return (int) $this->createQueryBuilder('a')
             ->select('COUNT(a.id)')
             ->where('a.type = :type')
             ->andWhere('a.activityDate >= :start')
@@ -102,8 +108,9 @@ class ActivityRepository extends ServiceEntityRepository
     public function findRecentByCompany(\App\Entity\Company $company, int $days = 30): array
     {
         $since = new \DateTime("-{$days} days");
-        
-        return $this->createQueryBuilder('a')
+
+        /** @var list<Activity> $activities */
+        $activities = $this->createQueryBuilder('a')
             ->where('a.company = :company')
             ->andWhere('a.activityDate >= :since')
             ->setParameter('company', $company)
@@ -111,6 +118,8 @@ class ActivityRepository extends ServiceEntityRepository
             ->orderBy('a.activityDate', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $activities;
     }
 
     /**
@@ -118,11 +127,12 @@ class ActivityRepository extends ServiceEntityRepository
      * date window. The company detail page's "Recent Activity" panel must
      * surface the most recent five activities regardless of age.
      *
-     * @return Activity[]
+     * @return list<Activity>
      */
     public function findLatestByCompany(\App\Entity\Company $company, int $limit = 5): array
     {
-        return $this->createQueryBuilder('a')
+        /** @var list<Activity> $activities */
+        $activities = $this->createQueryBuilder('a')
             ->where('a.company = :company')
             ->andWhere('a.archivedAt IS NULL')
             ->setParameter('company', $company)
@@ -130,6 +140,8 @@ class ActivityRepository extends ServiceEntityRepository
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $activities;
     }
     
     /**
@@ -137,17 +149,20 @@ class ActivityRepository extends ServiceEntityRepository
      * 
      * @param \App\Entity\Company $company
      * @param int $limit
-     * @return Activity[]
+     * @return list<Activity>
      */
     public function findByCompanyWithLimit(\App\Entity\Company $company, int $limit = 10): array
     {
-        return $this->createQueryBuilder('a')
+        /** @var list<Activity> $activities */
+        $activities = $this->createQueryBuilder('a')
             ->where('a.company = :company')
             ->setParameter('company', $company)
             ->orderBy('a.activityDate', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $activities;
     }
     
     /**
@@ -157,6 +172,7 @@ class ActivityRepository extends ServiceEntityRepository
      */
     public function getActivitySummary(\DateTime $start, \DateTime $end): array
     {
+        /** @var list<array{type: string, count: int|string}> $results */
         $results = $this->createQueryBuilder('a')
             ->select('a.type, COUNT(a.id) as count')
             ->where('a.activityDate >= :start')
@@ -166,7 +182,7 @@ class ActivityRepository extends ServiceEntityRepository
             ->groupBy('a.type')
             ->getQuery()
             ->getResult();
-        
+
         $summary = [];
         foreach ($results as $row) {
             $summary[$row['type']] = (int) $row['count'];

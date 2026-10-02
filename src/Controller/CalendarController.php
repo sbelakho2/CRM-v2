@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\CalendarEvent;
+use App\Entity\User;
 use App\Form\CalendarEventType;
 use App\Repository\CalendarEventRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,6 +26,30 @@ class CalendarController extends AbstractController
     ) {
     }
 
+    /**
+     * The authenticated user narrowed to App\Entity\User (null for
+     * anonymous/other user objects).
+     */
+    private function currentUser(): ?User
+    {
+        $user = $this->getUser();
+
+        return $user instanceof User ? $user : null;
+    }
+
+    private function requireUser(): User
+    {
+        return $this->currentUser() ?? throw $this->createAccessDeniedException();
+    }
+
+    /**
+     * Coerce a decoded-JSON/query scalar to ?string; non-scalars become null.
+     */
+    private static function stringValue(mixed $value): ?string
+    {
+        return is_scalar($value) ? (string) $value : null;
+    }
+
     #[Route('', name: 'calendar_index', methods: ['GET'])]
     public function index(Request $request): Response
     {
@@ -38,13 +63,13 @@ class CalendarController extends AbstractController
         }
 
         // Get upcoming events for sidebar
-        $upcomingEvents = $this->eventRepository->findUpcoming($this->getUser(), 5);
-        
+        $upcomingEvents = $this->eventRepository->findUpcoming($this->currentUser(), 5);
+
         // Get today's events
-        $todayEvents = $this->eventRepository->findToday($this->getUser());
-        
+        $todayEvents = $this->eventRepository->findToday($this->currentUser());
+
         // Get events happening now
-        $happeningNow = $this->eventRepository->findHappeningNow($this->getUser());
+        $happeningNow = $this->eventRepository->findHappeningNow($this->currentUser());
 
         return $this->render('calendar/index.html.twig', [
             'view' => $view,
@@ -71,7 +96,7 @@ class CalendarController extends AbstractController
         $events = $this->eventRepository->findForFullCalendar(
             $start,
             $end,
-            $this->getUser()
+            $this->currentUser()
         );
 
         $payload = array_map(static function (array $event): array {
@@ -111,8 +136,8 @@ class CalendarController extends AbstractController
     public function new(Request $request): Response
     {
         $event = new CalendarEvent();
-        $event->setOrganizer($this->getUser());
-        
+        $event->setOrganizer($this->currentUser());
+
         // Pre-fill from query params
         if ($request->query->has('start')) {
             $start = $this->parseDateParam($request->query->get('start'));
@@ -123,14 +148,17 @@ class CalendarController extends AbstractController
             $event->setStartAt($start);
             // getStartAt() is typed DateTimeInterface — clone+modify() is
             // undefined on the interface; convert to a concrete DateTime.
-            $event->setEndAt(\DateTime::createFromInterface($event->getStartAt())->modify('+1 hour'));
+            $end = \DateTime::createFromInterface($start)->modify('+1 hour');
         } else {
-            $event->setStartAt(new \DateTime());
-            $event->setEndAt((new \DateTime())->modify('+1 hour'));
+            $start = new \DateTime();
+            $end = (new \DateTime())->modify('+1 hour');
+            $event->setStartAt($start);
         }
-        
+        $event->setEndAt($end);
+
         if ($request->query->has('type')) {
-            $event->setEventType($request->query->get('type'));
+            $eventType = $request->query->get('type');
+            $event->setEventType(is_string($eventType) ? $eventType : CalendarEvent::TYPE_OTHER);
         }
 
         $form = $this->createForm(CalendarEventType::class, $event);
@@ -139,9 +167,9 @@ class CalendarController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             // Check for conflicts
             $conflicts = $this->eventRepository->findConflicts(
-                $event->getStartAt(),
-                $event->getEndAt(),
-                $this->getUser()
+                $start,
+                $end,
+                $this->requireUser()
             );
             
             if (!empty($conflicts) && !$request->request->getBoolean('ignore_conflicts')) {
@@ -239,7 +267,7 @@ class CalendarController extends AbstractController
         }
 
         $deleted = false;
-        if ($this->isCsrfTokenValid('delete' . $event->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('delete' . $event->getId(), (string) $request->request->get('_token'))) {
             $this->entityManager->remove($event);
             $this->entityManager->flush();
 
@@ -264,7 +292,7 @@ class CalendarController extends AbstractController
             throw $this->createAccessDeniedException('You can only cancel your own events.');
         }
 
-        if ($this->isCsrfTokenValid('cancel' . $event->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('cancel' . $event->getId(), (string) $request->request->get('_token'))) {
             $event->setStatus(CalendarEvent::STATUS_CANCELLED);
             $this->entityManager->flush();
 
@@ -278,10 +306,10 @@ class CalendarController extends AbstractController
     public function apiUpdate(Request $request): JsonResponse
     {
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
 
-        if (!$this->isCsrfTokenValid('calendar_update', $data['_token'] ?? '')) {
+        $updateToken = $data['_token'] ?? null;
+        if (!$this->isCsrfTokenValid('calendar_update', is_string($updateToken) ? $updateToken : null)) {
             return $this->json(['error' => 'Invalid CSRF token'], 403);
         }
         
@@ -301,7 +329,7 @@ class CalendarController extends AbstractController
 
         // Update from drag/drop or resize
         if (isset($data['start'])) {
-            $start = $this->parseDateParam($data['start']);
+            $start = $this->parseDateParam(self::stringValue($data['start']));
             if ($start === null) {
                 return $this->json(['error' => 'Invalid start date'], 400);
             }
@@ -309,7 +337,7 @@ class CalendarController extends AbstractController
         }
         
         if (isset($data['end'])) {
-            $end = $this->parseDateParam($data['end']);
+            $end = $this->parseDateParam(self::stringValue($data['end']));
             if ($end === null) {
                 return $this->json(['error' => 'Invalid end date'], 400);
             }
@@ -317,7 +345,7 @@ class CalendarController extends AbstractController
         }
         
         if (isset($data['allDay'])) {
-            $event->setAllDay($data['allDay']);
+            $event->setAllDay((bool) $data['allDay']);
         }
 
         $this->entityManager->flush();
@@ -332,42 +360,44 @@ class CalendarController extends AbstractController
     public function quickAdd(Request $request): JsonResponse
     {
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
 
-        if (!$this->isCsrfTokenValid('calendar_quick_add', $data['_token'] ?? '')) {
+        $quickAddToken = $data['_token'] ?? null;
+        if (!$this->isCsrfTokenValid('calendar_quick_add', is_string($quickAddToken) ? $quickAddToken : null)) {
             return $this->json(['error' => 'Invalid CSRF token'], 403);
         }
-        
-        if (empty($data['title']) || empty($data['start'])) {
+
+        $title = self::stringValue($data['title'] ?? null);
+        if ($title === null || $title === '' || empty($data['start'])) {
             return $this->json(['error' => 'Title and start time required'], 400);
         }
 
         $event = new CalendarEvent();
-        $event->setTitle($data['title']);
-        $event->setOrganizer($this->getUser());
-        $start = $this->parseDateParam($data['start']);
+        $event->setTitle($title);
+        $event->setOrganizer($this->currentUser());
+        $start = $this->parseDateParam(self::stringValue($data['start']));
         if ($start === null) {
             return $this->json(['error' => 'Invalid start date'], 400);
         }
         $event->setStartAt($start);
         
         if (!empty($data['end'])) {
-            $end = $this->parseDateParam($data['end']);
+            $end = $this->parseDateParam(self::stringValue($data['end']));
             if ($end === null) {
                 return $this->json(['error' => 'Invalid end date'], 400);
             }
             $event->setEndAt($end);
         } else {
-            $event->setEndAt(\DateTime::createFromInterface($event->getStartAt())->modify('+1 hour'));
+            $event->setEndAt(\DateTime::createFromInterface($start)->modify('+1 hour'));
         }
-        
+
         if (!empty($data['allDay'])) {
             $event->setAllDay(true);
         }
-        
+
         if (!empty($data['type'])) {
-            $event->setEventType($data['type']);
+            $eventType = self::stringValue($data['type']);
+            $event->setEventType($eventType ?? CalendarEvent::TYPE_OTHER);
         }
 
         $this->entityManager->persist($event);
@@ -388,7 +418,7 @@ class CalendarController extends AbstractController
             $currentDate = new \DateTime();
         }
 
-        $events = $this->eventRepository->findByDate($currentDate, $this->getUser());
+        $events = $this->eventRepository->findByDate($currentDate, $this->currentUser());
 
         // Sort by time
         usort($events, fn($a, $b) => $a->getStartAt() <=> $b->getStartAt());
@@ -410,12 +440,16 @@ class CalendarController extends AbstractController
             $currentDate = new \DateTime();
         }
 
-        $events = $this->eventRepository->findByWeek($currentDate, $this->getUser());
+        $events = $this->eventRepository->findByWeek($currentDate, $this->currentUser());
 
         // Group events by day
         $eventsByDay = [];
         foreach ($events as $event) {
-            $day = $event->getStartAt()->format('Y-m-d');
+            $startAt = $event->getStartAt();
+            if ($startAt === null) {
+                continue; // startAt is set for persisted events; skip defensively
+            }
+            $day = $startAt->format('Y-m-d');
             if (!isset($eventsByDay[$day])) {
                 $eventsByDay[$day] = [];
             }
@@ -453,7 +487,7 @@ class CalendarController extends AbstractController
             return $this->json(['error' => 'Invalid date'], 400);
         }
 
-        $busySlots = $this->eventRepository->getUserAvailability($this->getUser(), $checkDate);
+        $busySlots = $this->eventRepository->getUserAvailability($this->requireUser(), $checkDate);
 
         return $this->json([
             'date' => $checkDate->format('Y-m-d'),
@@ -468,14 +502,14 @@ class CalendarController extends AbstractController
         $events = [];
 
         if (strlen($query) >= 2) {
-            $events = $this->eventRepository->search($query, $this->getUser());
+            $events = $this->eventRepository->search($query, $this->currentUser());
         }
 
         if ($request->isXmlHttpRequest()) {
-            return $this->json(array_map(fn($e) => [
+            return $this->json(array_map(static fn (CalendarEvent $e) => [
                 'id' => $e->getId(),
                 'title' => $e->getTitle(),
-                'start' => $e->getStartAt()->format('Y-m-d H:i'),
+                'start' => $e->getStartAt()?->format('Y-m-d H:i'),
                 'type' => $e->getEventType(),
             ], $events));
         }

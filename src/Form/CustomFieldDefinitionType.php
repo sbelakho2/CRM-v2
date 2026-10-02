@@ -142,12 +142,23 @@ class CustomFieldDefinitionType extends AbstractType
         $builder->addEventListener(FormEvents::PRE_SET_DATA, function (FormEvent $event) {
             $field = $event->getData();
             $form = $event->getForm();
-            
-            if ($field && $field->getOptions()) {
-                $optionsText = implode("\n", array_map(function ($opt) {
-                    return is_array($opt) ? ($opt['label'] ?? $opt['value'] ?? '') : $opt;
-                }, $field->getOptions()));
-                
+
+            if (!$field instanceof CustomFieldDefinition) {
+                return;
+            }
+
+            if ($field->getOptions()) {
+                $optionsText = implode("\n", array_map(
+                    static function (mixed $opt): string {
+                        if (is_array($opt)) {
+                            $label = $opt['label'] ?? $opt['value'] ?? '';
+                            return is_scalar($label) ? (string) $label : '';
+                        }
+                        return is_scalar($opt) ? (string) $opt : '';
+                    },
+                    $field->getOptions()
+                ));
+
                 $form->get('options')->setData($optionsText);
             }
         });
@@ -155,13 +166,17 @@ class CustomFieldDefinitionType extends AbstractType
         $builder->addEventListener(FormEvents::POST_SUBMIT, function (FormEvent $event) {
             $field = $event->getData();
             $form = $event->getForm();
-            
+
+            if (!$field instanceof CustomFieldDefinition) {
+                return;
+            }
+
             // Convert options text to array
             $optionsText = $form->get('options')->getData();
-            if ($optionsText && $field->hasOptions()) {
+            if (is_string($optionsText) && $optionsText !== '' && $field->hasOptions()) {
                 $sanitized = array_map('trim', array_filter(explode("\n", $optionsText)));
-                $sanitized = array_map('strip_tags', $sanitized);
-                $options = array_map(function ($line) {
+                $sanitized = array_values(array_map('strip_tags', $sanitized));
+                $options = array_map(static function (string $line): array {
                     return ['label' => $line, 'value' => $line];
                 }, $sanitized);
                 $field->setOptions($options);

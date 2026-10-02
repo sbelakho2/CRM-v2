@@ -43,6 +43,9 @@ final class ServiceProductVerdict
         return $this->type === self::TYPE_PRODUCT;
     }
 
+    /**
+     * @return array{type: string, product_score: float, service_score: float, reason: string, signal_breakdown: array<string, mixed>}
+     */
     public function toArray(): array
     {
         return [

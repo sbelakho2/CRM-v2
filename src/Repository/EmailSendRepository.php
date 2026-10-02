@@ -18,7 +18,8 @@ class EmailSendRepository extends ServiceEntityRepository
 
     public function countSentBetween(\DateTimeInterface $start, \DateTimeInterface $end): int
     {
-        return $this->createQueryBuilder('e')
+        /** @var int|string|null $result */
+        $result = $this->createQueryBuilder('e')
             ->select('COUNT(e.id)')
             ->where('e.sentAt >= :start')
             ->andWhere('e.sentAt <= :end')
@@ -26,17 +27,20 @@ class EmailSendRepository extends ServiceEntityRepository
             ->setParameter('end', $end)
             ->getQuery()
             ->getSingleScalarResult();
+
+        return (int) $result;
     }
 
     /**
      * All sends of a campaign with the recipient contact joined, so the
      * show page does not lazy-load one query per send.
      *
-     * @return EmailSend[]
+     * @return list<EmailSend>
      */
     public function findByCampaignWithContact(int $campaignId): array
     {
-        return $this->createQueryBuilder('e')
+        /** @var list<EmailSend> $result */
+        $result = $this->createQueryBuilder('e')
             ->leftJoin('e.contact', 'c')
             ->addSelect('c')
             ->where('e.campaign = :campaignId')
@@ -45,6 +49,8 @@ class EmailSendRepository extends ServiceEntityRepository
             ->addOrderBy('e.id', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
@@ -57,7 +63,8 @@ class EmailSendRepository extends ServiceEntityRepository
      */
     public function findTouch(int $campaignId, int $contactId, int $touchNumber): ?EmailSend
     {
-        return $this->createQueryBuilder('e')
+        /** @var EmailSend|null $result */
+        $result = $this->createQueryBuilder('e')
             ->where('e.campaign = :campaignId')
             ->andWhere('e.contact = :contactId')
             ->andWhere('e.touchNumber = :touchNumber')
@@ -67,6 +74,8 @@ class EmailSendRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
@@ -78,7 +87,8 @@ class EmailSendRepository extends ServiceEntityRepository
      */
     public function findSentTouch(int $campaignId, int $contactId, int $touchNumber): ?EmailSend
     {
-        return $this->createQueryBuilder('e')
+        /** @var EmailSend|null $result */
+        $result = $this->createQueryBuilder('e')
             ->where('e.campaign = :campaignId')
             ->andWhere('e.contact = :contactId')
             ->andWhere('e.touchNumber = :touchNumber')
@@ -90,5 +100,7 @@ class EmailSendRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 }

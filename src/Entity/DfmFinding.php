@@ -15,7 +15,7 @@ class DfmFinding
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Quote::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -29,7 +29,7 @@ class DfmFinding
     private ?string $findingType = null; // TRACE_WIDTH, SPACING, DRILL, SOLDERMASK, etc.
 
     #[ORM\Column(length: 20)]
-    private ?string $severity = 'MEDIUM'; // CRITICAL, HIGH, MEDIUM, LOW
+    private string $severity = 'MEDIUM'; // CRITICAL, HIGH, MEDIUM, LOW
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description = null;
@@ -43,6 +43,7 @@ class DfmFinding
     #[ORM\Column(nullable: true)]
     private ?int $leadTimeImpact = null; // Days added
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $metadata = null;
 
@@ -163,11 +164,13 @@ class DfmFinding
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getMetadata(): ?array
     {
         return $this->metadata;
     }
 
+    /** @param array<string, mixed>|null $metadata */
     public function setMetadata(?array $metadata): self
     {
         $this->metadata = $metadata;

@@ -64,7 +64,8 @@ class UserController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             // Hash the plain password
-            $plainPassword = $form->get('plainPassword')->getData();
+            $plainPasswordData = $form->get('plainPassword')->getData();
+            $plainPassword = \is_string($plainPasswordData) ? $plainPasswordData : '';
             $hashedPassword = $passwordHasher->hashPassword($user, $plainPassword);
             $user->setPassword($hashedPassword);
             
@@ -110,7 +111,7 @@ class UserController extends AbstractController
     #[Route('/{id}/delete', name: 'admin_user_delete', methods: ['POST'])]
     public function delete(Request $request, User $user, EntityManagerInterface $em, TranslatorInterface $translator): Response
     {
-        if (!$this->isCsrfTokenValid('delete_user'.$user->getId(), $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('delete_user'.$user->getId(), (string) $request->request->get('_token'))) {
             return $this->redirectToRoute('admin_user_index');
         }
 
@@ -123,6 +124,11 @@ class UserController extends AbstractController
         }
 
         $userFullName = trim(($user->getFirstName() ?? '') . ' ' . ($user->getLastName() ?? ''));
+
+        if (!$actingAdmin instanceof User) {
+            // Previously crashed with a TypeError here; deny instead.
+            throw $this->createAccessDeniedException();
+        }
 
         $user->deactivate($actingAdmin);
 
@@ -142,7 +148,7 @@ class UserController extends AbstractController
     #[Route('/{id}/reactivate', name: 'admin_user_reactivate', methods: ['POST'])]
     public function reactivate(Request $request, User $user, EntityManagerInterface $em, TranslatorInterface $translator): Response
     {
-        if (!$this->isCsrfTokenValid('reactivate_user'.$user->getId(), $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('reactivate_user'.$user->getId(), (string) $request->request->get('_token'))) {
             return $this->redirectToRoute('admin_user_index');
         }
 

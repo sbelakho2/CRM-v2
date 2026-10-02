@@ -42,13 +42,22 @@ class CreateAdminCommand extends Command
         $io = new SymfonyStyle($input, $output);
         
         // Get or prompt for required values
+        /** @var string|null $email - command options with VALUE_REQUIRED/OPTIONAL are strings. */
         $email = $input->getOption('email') ?? $io->ask($this->translator->trans('command.create_admin.prompt.email'));
+        /** @var string|null $password */
         $password = $input->getOption('password') ?? $io->askHidden($this->translator->trans('command.create_admin.prompt.password'));
+        /** @var string|null $firstName */
         $firstName = $input->getOption('firstName') ?? $io->ask($this->translator->trans('command.create_admin.prompt.first_name'));
+        /** @var string|null $lastName */
         $lastName = $input->getOption('lastName') ?? $io->ask($this->translator->trans('command.create_admin.prompt.last_name'));
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $io->error("Invalid email address: {$email}");
+        if (!is_string($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $io->error('Invalid email address: ' . (is_scalar($email) ? (string) $email : get_debug_type($email)));
+            return Command::FAILURE;
+        }
+
+        if (!is_string($password) || $password === '' || !is_string($firstName) || $firstName === '' || !is_string($lastName) || $lastName === '') {
+            $io->error($this->translator->trans('command.create_admin.prompt.password'));
             return Command::FAILURE;
         }
 

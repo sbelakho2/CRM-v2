@@ -25,6 +25,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 
 class AuditLogListener
 {
+    /** @var list<class-string> */
     private array $entitiesToAudit = [
         Company::class,
         Contact::class,
@@ -38,6 +39,7 @@ class AuditLogListener
         BomLine::class,
     ];
 
+    /** @var list<string> */
     private array $sensitiveFields = [
         'password',
         'plainPassword',
@@ -119,7 +121,8 @@ class AuditLogListener
      * built with real data in the current flush. Entities persisted inside
      * lifecycle events are otherwise inserted with an empty change set,
      * which produces an unparameterised INSERT and a MySQL syntax error.
-      * @param array<string|int, mixed> $changeSet
+     *
+     * @param array<string, array{mixed, mixed}|\Doctrine\ORM\PersistentCollection<int|string, mixed>> $changeSet
      */
     private function scheduleAuditLog(UnitOfWork $uow, string $action, object $entity, array $changeSet = []): void
     {
@@ -137,11 +140,17 @@ class AuditLogListener
         return in_array($this->getRealClassName($entity), $this->entitiesToAudit, true);
     }
 
+    /**
+     * @return class-string
+     */
     private function getRealClassName(object $entity): string
     {
         return $this->em->getClassMetadata(get_class($entity))->getName();
     }
 
+    /**
+     * @param array<string, array{mixed, mixed}|\Doctrine\ORM\PersistentCollection<int|string, mixed>> $changeSet
+     */
     private function createAuditLog(string $action, object $entity, array $changeSet = []): AuditLog
     {
         $auditLog = new AuditLog();
@@ -152,7 +161,7 @@ class AuditLogListener
         $identifierValues = $metadata->getIdentifierValues($entity);
         $entityId = reset($identifierValues);
 
-        if ($entityId) {
+        if (is_int($entityId)) {
             $auditLog->setEntityId($entityId);
         }
 
@@ -177,6 +186,10 @@ class AuditLogListener
             foreach ($changeSet as $field => $changes) {
                 if (in_array($field, $this->sensitiveFields)) {
                     continue;
+                }
+
+                if (!is_array($changes)) {
+                    continue; // persistent-collection change sets are not audited field diffs
                 }
 
                 [$oldValue, $newValue] = $changes;
@@ -215,8 +228,11 @@ class AuditLogListener
         if (is_object($value)) {
             $className = $this->getRealClassName($value);
             if (method_exists($value, 'getId')) {
-                return sprintf('%s#%d', (new \ReflectionClass($className))->getShortName(), $value->getId());
+                $entityId = $value->getId();
+
+                return sprintf('%s#%s', (new \ReflectionClass($className))->getShortName(), is_int($entityId) ? (string) $entityId : 'new');
             }
+
             return $className;
         }
 
@@ -227,6 +243,9 @@ class AuditLogListener
         return $value;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function extractEntityValues(object $entity): array
     {
         $metadata = $this->em->getClassMetadata($this->getRealClassName($entity));

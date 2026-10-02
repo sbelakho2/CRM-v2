@@ -34,6 +34,8 @@ class CustomFieldDefinitionRepository extends ServiceEntityRepository
 
     /**
      * Find all active fields for an entity type
+     *
+     * @return list<CustomFieldDefinition>
      */
     public function findByEntityType(string $entityType, bool $activeOnly = true): array
     {
@@ -48,15 +50,21 @@ class CustomFieldDefinitionRepository extends ServiceEntityRepository
                ->setParameter('active', true);
         }
 
-        return $qb->getQuery()->getResult();
+        /** @var list<CustomFieldDefinition> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
     }
 
     /**
      * Find fields that should be shown in list view
+     *
+     * @return list<CustomFieldDefinition>
      */
     public function findListFields(string $entityType): array
     {
-        return $this->createQueryBuilder('f')
+        /** @var list<CustomFieldDefinition> $result */
+        $result = $this->createQueryBuilder('f')
             ->where('f.entityType = :entityType')
             ->andWhere('f.isActive = :active')
             ->andWhere('f.showInList = :showInList')
@@ -66,14 +74,19 @@ class CustomFieldDefinitionRepository extends ServiceEntityRepository
             ->orderBy('f.sortOrder', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find fields that should be shown in detail view
+     *
+     * @return list<CustomFieldDefinition>
      */
     public function findDetailFields(string $entityType): array
     {
-        return $this->createQueryBuilder('f')
+        /** @var list<CustomFieldDefinition> $result */
+        $result = $this->createQueryBuilder('f')
             ->where('f.entityType = :entityType')
             ->andWhere('f.isActive = :active')
             ->andWhere('f.showInDetail = :showInDetail')
@@ -83,14 +96,19 @@ class CustomFieldDefinitionRepository extends ServiceEntityRepository
             ->orderBy('f.sortOrder', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find searchable fields
+     *
+     * @return list<CustomFieldDefinition>
      */
     public function findSearchableFields(string $entityType): array
     {
-        return $this->createQueryBuilder('f')
+        /** @var list<CustomFieldDefinition> $result */
+        $result = $this->createQueryBuilder('f')
             ->where('f.entityType = :entityType')
             ->andWhere('f.isActive = :active')
             ->andWhere('f.isSearchable = :searchable')
@@ -99,15 +117,19 @@ class CustomFieldDefinitionRepository extends ServiceEntityRepository
             ->setParameter('searchable', true)
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find fields grouped by field group
+     *
+     * @return array<string, list<CustomFieldDefinition>>
      */
     public function findGroupedByFieldGroup(string $entityType): array
     {
         $fields = $this->findByEntityType($entityType);
-        
+
         $grouped = [];
         foreach ($fields as $field) {
             $group = $field->getFieldGroup() ?: 'Custom Fields';
@@ -137,7 +159,10 @@ class CustomFieldDefinitionRepository extends ServiceEntityRepository
                ->setParameter('excludeId', $excludeId);
         }
 
-        return (int) $qb->getQuery()->getSingleScalarResult() > 0;
+        /** @var int|string|null $scalar */
+        $scalar = $qb->getQuery()->getSingleScalarResult();
+
+        return (int) $scalar > 0;
     }
 
     /**
@@ -145,6 +170,7 @@ class CustomFieldDefinitionRepository extends ServiceEntityRepository
      */
     public function getNextSortOrder(string $entityType): int
     {
+        /** @var int|string|null $result */
         $result = $this->createQueryBuilder('f')
             ->select('MAX(f.sortOrder)')
             ->where('f.entityType = :entityType')
@@ -152,12 +178,13 @@ class CustomFieldDefinitionRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
 
-        return ($result ?? 0) + 1;
+        return ($result !== null ? (int) $result : 0) + 1;
     }
 
     /**
      * Update sort orders
-      * @param array<string|int, mixed> $orderedIds
+     *
+     * @param array<string|int, mixed> $orderedIds
      */
     public function updateSortOrders(array $orderedIds): void
     {
@@ -175,9 +202,12 @@ class CustomFieldDefinitionRepository extends ServiceEntityRepository
 
     /**
      * Get statistics about custom fields
+     *
+     * @return array{byEntity: array<array-key, mixed>, byType: array<array-key, mixed>, total: int|float}
      */
     public function getStatistics(): array
     {
+        /** @var list<array{entityType: mixed, count: mixed}> $byEntity */
         $byEntity = $this->createQueryBuilder('f')
             ->select('f.entityType, COUNT(f.id) as count')
             ->where('f.isActive = :active')
@@ -186,6 +216,7 @@ class CustomFieldDefinitionRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
 
+        /** @var list<array{fieldType: mixed, count: mixed}> $byType */
         $byType = $this->createQueryBuilder('f')
             ->select('f.fieldType, COUNT(f.id) as count')
             ->where('f.isActive = :active')

@@ -93,7 +93,7 @@ class Task
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $title = null;
@@ -158,6 +158,7 @@ class Task
     #[ORM\Column(length: 20, nullable: true)]
     private ?string $recurringFrequency = null; // daily, weekly, monthly
 
+    /** @var list<string>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $tags = null;
 
@@ -184,7 +185,8 @@ class Task
     #[ORM\PrePersist]
     public function onPrePersist(): void
     {
-        $this->createdAt = $this->createdAt ?? new \DateTime();
+        // createdAt is initialized in the constructor and non-nullable;
+        // the former `?? new \DateTime()` fallback was dead code.
     }
 
     #[ORM\PreUpdate]
@@ -425,11 +427,13 @@ class Task
         return $this;
     }
 
+    /** @return list<string>|null */
     public function getTags(): ?array
     {
         return $this->tags;
     }
 
+    /** @param list<string>|null $tags */
     public function setTags(?array $tags): static
     {
         $this->tags = $tags;

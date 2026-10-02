@@ -435,6 +435,8 @@ class RegionStandardizationService
     
     /**
      * Get all regions with labels
+     *
+     * @return array<string, string>
      */
     public function getAllRegions(): array
     {
@@ -447,6 +449,8 @@ class RegionStandardizationService
     
     /**
      * Get Morocco free zones
+     *
+     * @return list<string>
      */
     public function getMoroccoFreeZones(): array
     {
@@ -491,6 +495,8 @@ class RegionStandardizationService
     
     /**
      * Get regions by group
+     *
+     * @return array<string, list<string>>
      */
     public function getRegionsByGroup(): array
     {
@@ -567,8 +573,9 @@ class RegionStandardizationService
             '.br' => self::REGION_BRAZIL,
         ];
         
-        $host = parse_url($url, PHP_URL_HOST) ?? $url;
-        
+        $parsedHost = parse_url($url, PHP_URL_HOST);
+        $host = is_string($parsedHost) ? $parsedHost : $url;
+
         foreach ($tldMapping as $tld => $region) {
             if (str_ends_with(strtolower($host), $tld)) {
                 return $region;

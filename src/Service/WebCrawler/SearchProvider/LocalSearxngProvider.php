@@ -66,7 +66,7 @@ final class LocalSearxngProvider extends GoogleCSEProvider
 
         // Strip quotes around single words — SearXNG's site: operator breaks
         // when a single word is quoted (e.g. site:kerix.net "automotive" returns 0).
-        $query = preg_replace('/"(\w+)"/u', '$1', $query);
+        $query = preg_replace('/"(\w+)"/u', '$1', $query) ?? $query;
 
         // Map startIndex to SearXNG page number (SearXNG uses pageno=1,2,3...)
         // Our startIndex is 1-based: 1=page1, 21=page2, 41=page3
@@ -113,6 +113,11 @@ final class LocalSearxngProvider extends GoogleCSEProvider
 
             $data = $response->toArray();
             $rawResults = $data['results'] ?? [];
+            if (!is_array($rawResults)) {
+                $rawResults = [];
+            }
+            $numberOfResultsRaw = $data['number_of_results'] ?? 0;
+            $numberOfResults = is_numeric($numberOfResultsRaw) ? (int) $numberOfResultsRaw : 0;
 
             // Convert SearXNG results to SearchResult objects.
             // NOTE: We do NOT deduplicate by root domain here because:
@@ -126,21 +131,24 @@ final class LocalSearxngProvider extends GoogleCSEProvider
                 if (count($results) >= $maxResults) {
                     break;
                 }
+                if (!is_array($item)) {
+                    continue;
+                }
 
                 $itemUrl = $item['url'] ?? '';
-                if (empty($itemUrl)) {
+                if (!is_string($itemUrl) || $itemUrl === '') {
                     continue;
                 }
 
                 $host = parse_url($itemUrl, PHP_URL_HOST);
-                if (!$host) {
+                if (!is_string($host) || $host === '') {
                     continue;
                 }
 
                 $results[] = new SearchResult(
                     url: $itemUrl,
-                    title: $item['title'] ?? '',
-                    snippet: $item['content'] ?? '',
+                    title: isset($item['title']) && is_string($item['title']) ? $item['title'] : '',
+                    snippet: isset($item['content']) && is_string($item['content']) ? $item['content'] : '',
                     displayLink: $host,
                     metadata: [
                         'engines' => $item['engines'] ?? [],
@@ -157,12 +165,12 @@ final class LocalSearxngProvider extends GoogleCSEProvider
                 'results' => count($results),
                 'raw_results' => count($rawResults),
                 'elapsed' => round($elapsed, 3),
-                'total_results' => $data['number_of_results'] ?? 0,
+                'total_results' => $numberOfResults,
             ]);
 
             return new SearchResultSet(
                 results: $results,
-                totalResults: (int) ($data['number_of_results'] ?? 0),
+                totalResults: $numberOfResults,
                 searchTimeSeconds: $elapsed,
                 providerName: $this->getProviderName(),
                 query: $query,

@@ -18,9 +18,12 @@ class BayesTrainingRepository extends ServiceEntityRepository
 
     /**
      * Get word frequencies for a specific classification
+     *
+     * @return array<string, int>
      */
     public function getWordFrequenciesForClass(string $classification): array
     {
+        /** @var list<array{word: mixed, frequency: mixed}> $results */
         $results = $this->createQueryBuilder('bt')
             ->select('bt.word', 'bt.frequency')
             ->where('bt.classification = :classification')
@@ -30,17 +33,25 @@ class BayesTrainingRepository extends ServiceEntityRepository
 
         $frequencies = [];
         foreach ($results as $row) {
-            $frequencies[$row['word']] = (int) $row['frequency'];
+            $word = $row['word'];
+            $frequency = $row['frequency'];
+            if (is_string($word) && is_numeric($frequency)) {
+                $frequencies[$word] = (int) $frequency;
+            }
         }
 
         return $frequencies;
     }
 
     /**
-     * Get all word frequencies grouped by classification
+     * Get all word frequencies grouped by classification.
+     * Model shape: classification => (word => frequency).
+     *
+     * @return array<string, array<string, int>>
      */
     public function getAllWordFrequencies(): array
     {
+        /** @var list<array{classification: mixed, word: mixed, frequency: mixed}> $results */
         $results = $this->createQueryBuilder('bt')
             ->select('bt.classification', 'bt.word', 'bt.frequency')
             ->getQuery()
@@ -49,10 +60,15 @@ class BayesTrainingRepository extends ServiceEntityRepository
         $model = [];
         foreach ($results as $row) {
             $class = $row['classification'];
+            $word = $row['word'];
+            $frequency = $row['frequency'];
+            if (!is_string($class) || !is_string($word) || !is_numeric($frequency)) {
+                continue;
+            }
             if (!isset($model[$class])) {
                 $model[$class] = [];
             }
-            $model[$class][$row['word']] = (int) $row['frequency'];
+            $model[$class][$word] = (int) $frequency;
         }
 
         return $model;
@@ -91,7 +107,7 @@ class BayesTrainingRepository extends ServiceEntityRepository
     {
         $text = strtolower($text);
         preg_match_all('/\b[a-z\']+\b/', $text, $matches);
-        $words = $matches[0] ?? [];
+        $words = $matches[0];
 
         $stopWords = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 
                       'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 
@@ -113,6 +129,7 @@ class BayesTrainingRepository extends ServiceEntityRepository
         $wordCounts = array_count_values($words);
 
         $em = $this->getEntityManager();
+        /** @var list<BayesTraining> $existingRecords */
         $existingRecords = $this->createQueryBuilder('bt')
             ->where('bt.classification = :classification')
             ->andWhere('bt.word IN (:words)')
@@ -123,7 +140,10 @@ class BayesTrainingRepository extends ServiceEntityRepository
 
         $existingIndex = [];
         foreach ($existingRecords as $record) {
-            $existingIndex[$record->getWord()] = $record;
+            $word = $record->getWord();
+            if ($word !== null) {
+                $existingIndex[$word] = $record;
+            }
         }
 
         $updated = 0;
@@ -171,19 +191,27 @@ class BayesTrainingRepository extends ServiceEntityRepository
 
     /**
      * Get all unique classifications
+     *
+     * @return list<string>
      */
     public function getClassifications(): array
     {
+        /** @var list<array{classification: mixed}> $result */
         $result = $this->createQueryBuilder('bt')
             ->select('DISTINCT bt.classification')
             ->getQuery()
             ->getResult();
 
-        return array_column($result, 'classification');
+        return array_map(
+            static fn ($row) => is_string($row['classification']) ? $row['classification'] : '',
+            $result
+        );
     }
 
     /**
      * Get model statistics
+     *
+     * @return array<string, array{vocabulary_size: int, total_words: int}>
      */
     public function getModelStats(): array
     {

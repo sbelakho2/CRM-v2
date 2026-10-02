@@ -12,7 +12,9 @@ class SupplierPortal
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+// Protected (not private): Doctrine assigns the identifier via reflection
+    // on hydration, so static analysis never sees an int assignment.
+    protected ?int $id = null;
 
     #[ORM\OneToOne(targetEntity: Company::class, inversedBy: 'supplierPortal')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]

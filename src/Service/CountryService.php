@@ -27,7 +27,9 @@ class CountryService
     public const REGION_EU = 'EU_REGION';
     public const REGION_GCC = 'GCC_REGION';
 
+    /** @var array<string, string>|null */
     private static ?array $cachedCountryList = null;
+    /** @var array<string, string>|null */
     private static ?array $cachedUsRegionList = null;
 
     /**
@@ -35,7 +37,7 @@ class CountryService
      * 
      * Uses ISO 3166-1 alpha-2 standard country codes
      * 
-     * @return array Associative array of country codes => names
+     * @return array<string, string> Associative array of country codes => names
      */
     public function getCountryList(): array
     {
@@ -53,7 +55,7 @@ class CountryService
     /**
      * Get US subdivisions (states and territories)
      *
-     * @return array Associative array of subdivision codes => names
+     * @return array<string, string> Associative array of subdivision codes => names
      */
     public function getUsRegionList(): array
     {
@@ -123,6 +125,8 @@ class CountryService
                 'US-VI' => 'U.S. Virgin Islands',
             ];
         }
+
+        /** @var array<string, string> $regions literal fallback or Subdivisions::getNames() */
         ksort($regions);
         self::$cachedUsRegionList = $regions;
 
@@ -383,7 +387,7 @@ class CountryService
      * Get countries by region
      * 
      * @param string $region Region name (north_america, europe, asia_pacific, middle_east, africa, south_america)
-     * @return array Filtered country list
+     * @return array<string, string> Filtered country list
      */
     public function getCountriesByRegion(string $region): array
     {

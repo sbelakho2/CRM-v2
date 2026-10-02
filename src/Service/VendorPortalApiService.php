@@ -43,10 +43,10 @@ final class VendorPortalApiService
      */
     public function submitToAriba(OnboardingPack $pack, SupplierPortal $portal): array
     {
-        $baseUrl = (string) (($_ENV['ARIBA_API_BASE_URL'] ?? '') ?: '');
-        $clientId = (string) (($_ENV['ARIBA_CLIENT_ID'] ?? '') ?: '');
-        $clientSecret = (string) (($_ENV['ARIBA_CLIENT_SECRET'] ?? '') ?: '');
-        $realm = (string) (($_ENV['ARIBA_REALM'] ?? '') ?: '');
+        $baseUrl = self::envString('ARIBA_API_BASE_URL');
+        $clientId = self::envString('ARIBA_CLIENT_ID');
+        $clientSecret = self::envString('ARIBA_CLIENT_SECRET');
+        $realm = self::envString('ARIBA_REALM');
 
         if ($baseUrl === '' || $clientId === '' || $clientSecret === '' || $realm === '') {
             return $this->configRequired('ARIBA', ['ARIBA_API_BASE_URL', 'ARIBA_CLIENT_ID', 'ARIBA_CLIENT_SECRET', 'ARIBA_REALM']);
@@ -81,7 +81,7 @@ final class VendorPortalApiService
                 'vendor' => 'ARIBA',
                 'response' => $decoded ?? $body,
                 'errorMessage' => null,
-                'external_id' => is_array($decoded) ? ($decoded['supplierId'] ?? ($decoded['id'] ?? null)) : null,
+                'external_id' => self::stringOrNull(is_array($decoded) ? ($decoded['supplierId'] ?? ($decoded['id'] ?? null)) : null),
             ];
         }
 
@@ -99,8 +99,8 @@ final class VendorPortalApiService
      */
     public function submitToCoupa(OnboardingPack $pack, SupplierPortal $portal): array
     {
-        $baseUrl = (string) (($_ENV['COUPA_API_BASE_URL'] ?? '') ?: '');
-        $apiKey = (string) (($_ENV['COUPA_API_KEY'] ?? '') ?: '');
+        $baseUrl = self::envString('COUPA_API_BASE_URL');
+        $apiKey = self::envString('COUPA_API_KEY');
 
         if ($baseUrl === '' || $apiKey === '') {
             return $this->configRequired('COUPA', ['COUPA_API_BASE_URL', 'COUPA_API_KEY']);
@@ -133,7 +133,7 @@ final class VendorPortalApiService
                 'vendor' => 'COUPA',
                 'response' => $decoded ?? $body,
                 'errorMessage' => null,
-                'external_id' => is_array($decoded) ? (string) ($decoded['id'] ?? '') ?: null : null,
+                'external_id' => self::stringOrNull(is_array($decoded) ? ($decoded['id'] ?? null) : null),
             ];
         }
 
@@ -172,11 +172,12 @@ final class VendorPortalApiService
 
         /** @var array<string, mixed>|null $decoded */
         $decoded = json_decode($response->getContent(), true);
-        if (!is_array($decoded) || empty($decoded['access_token'])) {
+        $accessToken = is_array($decoded) ? ($decoded['access_token'] ?? null) : null;
+        if (!is_string($accessToken) || $accessToken === '') {
             throw new \RuntimeException('Ariba OAuth response contained no access_token.');
         }
 
-        return (string) $decoded['access_token'];
+        return $accessToken;
     }
 
     /**
@@ -204,9 +205,14 @@ final class VendorPortalApiService
         'bankAccountName' => 'bank_account_name',
     ];
 
+    /**
+     * @return array<string, mixed>
+     */
     private function mapSupplierPayload(OnboardingPack $pack): array
     {
-        $fields = json_decode($pack->getFieldsJson() ?? '{}', true) ?? [];
+        $decodedFields = json_decode($pack->getFieldsJson() ?? '{}', true);
+        /** @var array<string, mixed> $fields */
+        $fields = is_array($decodedFields) ? $decodedFields : [];
         $company = $pack->getCompany();
 
         $payload = [];
@@ -231,8 +237,26 @@ final class VendorPortalApiService
     }
 
     /**
+     * Weak-mode string coercion for environment variables ("" when unset/empty).
+     */
+    private static function envString(string $key): string
+    {
+        $value = $_ENV[$key] ?? '';
+
+        return is_string($value) && $value !== '' ? $value : '';
+    }
+
+    /**
+     * String-or-null coercion for API payload identifiers.
+     */
+    private static function stringOrNull(mixed $value): ?string
+    {
+        return is_string($value) && $value !== '' ? $value : (is_int($value) ? (string) $value : null);
+    }
+
+    /**
      * @return array{success: bool, vendor: string, response: null, errorMessage: string, external_id: null}
-      * @param array<string|int, mixed> $envVars
+     * @param list<string> $envVars
      */
     private function configRequired(string $vendor, array $envVars): array
     {

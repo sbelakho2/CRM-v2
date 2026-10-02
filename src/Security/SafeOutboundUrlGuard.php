@@ -160,12 +160,10 @@ final class SafeOutboundUrlGuard
      * when combined with an IP; an unresolvable name yields no connection
      * anyway, so it is permitted and the HTTP client will fail).
      *
-     * @return string[]
-     */
     /**
      * Resolve a hostname to all its A/AAAA records — fresh, never cached.
      *
-     * @return string[]
+     * @return list<string>
      */
     public function resolveHost(string $host): array
     {
@@ -182,7 +180,7 @@ final class SafeOutboundUrlGuard
             $aaaa = @dns_get_record($host, DNS_AAAA);
             if (is_array($aaaa)) {
                 foreach ($aaaa as $record) {
-                    if (!empty($record['ipv6'])) {
+                    if (!empty($record['ipv6']) && is_string($record['ipv6'])) {
                         $ips[] = $record['ipv6'];
                     }
                 }
@@ -253,19 +251,25 @@ final class SafeOutboundUrlGuard
             return false;
         }
 
-        $unpack = unpack('n8', $packed);
-        if ($unpack === false) {
+        $unpackRaw = unpack('n8', $packed);
+        if ($unpackRaw === false) {
             return false;
         }
+        // 'n' segments are always unsigned 16-bit integers.
+        /** @var array<int, int> $unpack */
+        $unpack = $unpackRaw;
 
         $embeddedV4 = static function () use ($packed): ?string {
             $value = unpack('N', substr($packed, 12, 4));
             if ($value === false) {
                 return null;
             }
-            $ip = long2ip($value[1]);
+            $segment = $value[1] ?? null;
+            if (!is_int($segment)) {
+                return null;
+            }
 
-            return $ip === false ? null : $ip;
+            return long2ip($segment);
         };
 
         // IPv4-mapped (::ffff:a.b.c.d) and IPv4-compatible (::a.b.c.d):

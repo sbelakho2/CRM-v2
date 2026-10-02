@@ -18,11 +18,15 @@ class DashboardController extends AbstractController
 {
     public function __construct(
         private KPITrackingService $kpiService,
-        private CompanyRepository $companyRepository,
-        private RFQRepository $rfqRepository,
+        /** Kept for dashboard widgets planned later; not read directly today. */
+        protected CompanyRepository $companyRepository,
+        /** Kept for dashboard widgets planned later; not read directly today. */
+        protected RFQRepository $rfqRepository,
         private ActivityRepository $activityRepository,
-        private WebinarRepository $webinarRepository,
-        private GuidanceNotificationService $guidanceService,
+        /** Kept for dashboard widgets planned later; not read directly today. */
+        protected WebinarRepository $webinarRepository,
+        /** Kept for guidance panels planned later; not read directly today. */
+        protected GuidanceNotificationService $guidanceService,
         private ComplianceDocumentRepository $complianceDocumentRepository
     ) {}
 

@@ -21,7 +21,8 @@ class IpMapRepository extends ServiceEntityRepository
      */
     public function findValidByIp(string $ipAddress): ?IpMap
     {
-        return $this->createQueryBuilder('im')
+        /** @var IpMap|null $result */
+        $result = $this->createQueryBuilder('im')
             ->andWhere('im.ipAddress = :ip')
             ->andWhere('im.expiresAt IS NULL OR im.expiresAt > :now')
             ->setParameter('ip', $ipAddress)
@@ -30,20 +31,25 @@ class IpMapRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
      * Find all valid mappings
-     * 
-     * @return IpMap[]
+     *
+     * @return list<IpMap>
      */
     public function findAllValid(): array
     {
-        return $this->createQueryBuilder('im')
+        /** @var list<IpMap> $result */
+        $result = $this->createQueryBuilder('im')
             ->andWhere('im.expiresAt IS NULL OR im.expiresAt > :now')
             ->setParameter('now', new \DateTime())
             ->orderBy('im.organizationName', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

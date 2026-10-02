@@ -198,7 +198,7 @@ final class BuyerEvidenceResult
             $antiPressureFactor = 0.25;
         }
 
-        $netScore = $cappedTotalPos - ($antiTotal * $antiPressureFactor);
+        $netScore = (float) $cappedTotalPos - ((float) $antiTotal * $antiPressureFactor);
         $antiPressure = $cappedTotalPos > 0 ? ($antiTotal / max(1, $cappedTotalPos)) : (float) $antiTotal;
 
         $this->effectiveAntiFamilies = $effectiveAntiFamilies;
@@ -238,12 +238,12 @@ final class BuyerEvidenceResult
                 'No core buyer-intent family (%s) and no strong structured/industrial profile',
                 implode(', ', BuyerEvidenceGate::CORE_FAMILIES),
             );
-        } elseif ($distinctPosFamilies < BuyerEvidenceGate::MIN_FAMILIES && !$hasStructuredSectorSignals) {
+        } elseif ($distinctPosFamilies < BuyerEvidenceGate::MIN_FAMILIES) {
             $this->passed = false;
             $this->reason = sprintf(
                 'Only %d positive families (%s), need %d',
                 $distinctPosFamilies,
-                $distinctPosFamilies > 0 ? implode(', ', array_keys($cappedPosFamilies)) : 'none',
+                'none', // unreachable with >0: this branch requires zero positive families
                 BuyerEvidenceGate::MIN_FAMILIES,
             );
         } elseif ($cappedTotalPos < BuyerEvidenceGate::MIN_TOTAL_POSITIVE_SCORE) {

@@ -8,7 +8,7 @@ use App\Entity\Company;
 use App\Entity\Contact;
 use App\Entity\EmailCampaign;
 use App\Entity\EmailSend;
-use App\Entity\Rfq;
+use App\Entity\RFQ;
 use App\Entity\Quote;
 use App\Entity\Lead;
 use App\Entity\AbmHit;
@@ -23,7 +23,8 @@ use Psr\Log\LoggerInterface;
 class EmailCampaignTriggerService
 {
     private EntityManagerInterface $em;
-    private EmailSchedulerService $schedulerService;
+    /** Kept for subclasses/tests that schedule sends directly; not read in this class. */
+    protected EmailSchedulerService $schedulerService;
     private EmailDripCampaignService $dripService;
     private LoggerInterface $logger;
 
@@ -48,7 +49,7 @@ class EmailCampaignTriggerService
      */
     public function handlePipelineStageChange(Company $company, string $oldStage, string $newStage): void
     {
-        // Find trigger campaigns for this stage change
+        /** @var list<EmailCampaign> $campaigns */
         $campaigns = $this->em->getRepository(EmailCampaign::class)
             ->createQueryBuilder('c')
             ->where('c.triggerType = :type')
@@ -86,10 +87,10 @@ class EmailCampaignTriggerService
 
     /**
      * Trigger campaigns when RFQ is submitted
-     * 
-     * @param Rfq $rfq The submitted RFQ
+     *
+     * @param RFQ $rfq The submitted RFQ
      */
-    public function handleRfqSubmission(Rfq $rfq): void
+    public function handleRfqSubmission(RFQ $rfq): void
     {
         $company = $rfq->getCompany();
 
@@ -104,8 +105,7 @@ class EmailCampaignTriggerService
             $this->logger->warning("No contact found for company {$company->getName()} - skipping RFQ trigger");
             return;
         }
-
-        // Find trigger campaigns for RFQ submission
+        /** @var list<EmailCampaign> $campaigns */
         $campaigns = $this->em->getRepository(EmailCampaign::class)
             ->createQueryBuilder('c')
             ->where('c.triggerType = :type')
@@ -118,8 +118,8 @@ class EmailCampaignTriggerService
         foreach ($campaigns as $campaign) {
             // Check if campaign should only trigger for specific sectors
             $conditions = $campaign->getTriggerConditions();
-            if ($conditions && isset($conditions['sectors'])) {
-                $companySector = $company?->getSector();
+            if ($conditions && isset($conditions['sectors']) && is_array($conditions['sectors'])) {
+                $companySector = $company->getSector();
                 if (!in_array($companySector, $conditions['sectors'])) {
                     continue;
                 }
@@ -158,8 +158,7 @@ class EmailCampaignTriggerService
             $this->logger->warning("No contact found for company {$company->getName()} - skipping quote trigger");
             return;
         }
-
-        // Find trigger campaigns for quote sent
+        /** @var list<EmailCampaign> $campaigns */
         $campaigns = $this->em->getRepository(EmailCampaign::class)
             ->createQueryBuilder('c')
             ->where('c.triggerType = :type')
@@ -206,8 +205,7 @@ class EmailCampaignTriggerService
             $this->logger->warning("No contact found for company {$company->getName()} - skipping lead score trigger");
             return;
         }
-
-        // Find trigger campaigns for lead score changes
+        /** @var list<EmailCampaign> $campaigns */
         $campaigns = $this->em->getRepository(EmailCampaign::class)
             ->createQueryBuilder('c')
             ->where('c.triggerType = :type')
@@ -222,8 +220,8 @@ class EmailCampaignTriggerService
             
             // Check if score meets threshold conditions
             if ($conditions) {
-                $minScore = $conditions['min_score'] ?? 0;
-                $scoreIncrease = $conditions['min_increase'] ?? 0;
+                $minScore = is_numeric($conditions['min_score'] ?? null) ? (int) $conditions['min_score'] : 0;
+                $scoreIncrease = is_numeric($conditions['min_increase'] ?? null) ? (int) $conditions['min_increase'] : 0;
                 
                 if ($newScore < $minScore) {
                     continue;
@@ -267,8 +265,7 @@ class EmailCampaignTriggerService
             $this->logger->warning("No primary contact found for company {$company->getName()} - skipping ABM trigger");
             return;
         }
-
-        // Find trigger campaigns for ABM hits
+        /** @var list<EmailCampaign> $campaigns */
         $campaigns = $this->em->getRepository(EmailCampaign::class)
             ->createQueryBuilder('c')
             ->where('c.triggerType = :type')
@@ -282,9 +279,9 @@ class EmailCampaignTriggerService
             $conditions = $campaign->getTriggerConditions();
             
             // Check engagement threshold (use pageViews as proxy for engagement score)
-            if ($conditions && isset($conditions['min_engagement_score'])) {
+            if ($conditions && isset($conditions['min_engagement_score']) && is_numeric($conditions['min_engagement_score'])) {
                 $pageViews = $hit->getPageViews() ?? 0;
-                if ($pageViews < $conditions['min_engagement_score']) {
+                if ($pageViews < (int) $conditions['min_engagement_score']) {
                     continue;
                 }
             }
@@ -304,10 +301,10 @@ class EmailCampaignTriggerService
 
     /**
      * Schedule a single email send
-     * 
+     *
      * @param EmailCampaign $campaign The campaign to send
      * @param Contact $contact The recipient
-     * @param array $metadata Additional metadata for the send
+     * @param array<string, mixed> $metadata Additional metadata for the send
      */
     private function scheduleSingleEmail(EmailCampaign $campaign, Contact $contact, array $metadata = []): void
     {
@@ -331,7 +328,8 @@ class EmailCampaignTriggerService
 
         // Calculate send time based on campaign delay settings
         $conditions = $campaign->getTriggerConditions();
-        $delay = $conditions['delay_minutes'] ?? 0;
+        $delaySetting = $conditions['delay_minutes'] ?? 0;
+        $delay = is_numeric($delaySetting) ? $delaySetting + 0 : 0;
         $sendAt = new \DateTime();
         $sendAt->modify("+{$delay} minutes");
 
@@ -386,8 +384,8 @@ class EmailCampaignTriggerService
 
     /**
      * Get all available trigger types
-     * 
-     * @return array
+     *
+     * @return array<string, array{label: string, description: string, conditions: array<string, string>}>
      */
     public function getAvailableTriggerTypes(): array
     {
@@ -422,10 +420,10 @@ class EmailCampaignTriggerService
 
     /**
      * Create a triggered campaign
-     * 
+     *
      * @param string $name Campaign name
      * @param string $triggerType Type of trigger
-     * @param array $triggerConditions Conditions for triggering
+     * @param array<string, mixed> $triggerConditions Conditions for triggering
      * @param EmailCampaign|null $baseCampaign Base campaign to use (optional)
      * @return EmailCampaign
      */

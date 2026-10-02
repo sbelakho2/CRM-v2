@@ -19,15 +19,20 @@ class RfqVersionRepository extends ServiceEntityRepository
     
     /**
      * Find all versions for an RFQ
+     *
+     * @return list<RfqVersion>
      */
     public function findByRfq(RFQ $rfq): array
     {
-        return $this->createQueryBuilder('v')
+        /** @var list<RfqVersion> $versions */
+        $versions = $this->createQueryBuilder('v')
             ->where('v.rfq = :rfq')
             ->setParameter('rfq', $rfq)
             ->orderBy('v.versionNumber', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $versions;
     }
     
     /**
@@ -35,13 +40,16 @@ class RfqVersionRepository extends ServiceEntityRepository
      */
     public function findLatestVersion(RFQ $rfq): ?RfqVersion
     {
-        return $this->createQueryBuilder('v')
+        /** @var RfqVersion|null $version */
+        $version = $this->createQueryBuilder('v')
             ->where('v.rfq = :rfq')
             ->setParameter('rfq', $rfq)
             ->orderBy('v.versionNumber', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $version;
     }
     
     /**
@@ -61,15 +69,20 @@ class RfqVersionRepository extends ServiceEntityRepository
     
     /**
      * Get version history summary for an RFQ
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getVersionHistory(RFQ $rfq): array
     {
-        return $this->createQueryBuilder('v')
+        /** @var array<int, array<string, mixed>> $rows */
+        $rows = $this->createQueryBuilder('v')
             ->select('v.versionNumber', 'v.revisionCode', 'v.status', 'v.estimatedValue', 'v.createdAt', 'v.createdBy', 'v.revisionReason')
             ->where('v.rfq = :rfq')
             ->setParameter('rfq', $rfq)
             ->orderBy('v.versionNumber', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $rows;
     }
 }

@@ -16,7 +16,7 @@ class EmailCampaignMessageHandler
         private EmailCampaignService $campaignService,
     ) {}
 
-    public function __invoke(EmailCampaignMessage $message)
+    public function __invoke(EmailCampaignMessage $message): void
     {
         $campaign = $this->campaignRepository->find($message->getCampaignId());
         if (!$campaign) {

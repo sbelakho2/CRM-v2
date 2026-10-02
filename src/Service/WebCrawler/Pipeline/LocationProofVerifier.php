@@ -200,12 +200,24 @@ final class LocationProofVerifier
         }
 
         $confirmed = $totalWeight >= self::THRESHOLD;
-        $maxPossible = self::WEIGHT_JSON_LD + self::WEIGHT_CCTLD + self::WEIGHT_PHONE + self::WEIGHT_TEXT;
-        $confidence = $maxPossible > 0 ? round(min(1.0, $totalWeight / $maxPossible), 3) : 0.0;
+        $maxPossible = self::WEIGHT_JSON_LD + self::WEIGHT_CCTLD + self::WEIGHT_PHONE + self::WEIGHT_TEXT; // constant 14
+        $confidence = round(min(1.0, $totalWeight / $maxPossible), 3);
 
         return new LocationVerdict($confirmed, $confidence, $signals);
     }
 
+    /**
+     * JSON-LD values come from decoded JSON: coerce scalars to string,
+     * default anything else (null/array/object) to ''.
+     */
+    private static function coerceString(mixed $value): string
+    {
+        return \is_scalar($value) ? (string) $value : '';
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $structuredData
+     */
     private function checkJsonLdAddress(array $structuredData, string $location): int
     {
         $countryCodes = self::COUNTRY_CODES[$location] ?? [];
@@ -217,9 +229,9 @@ final class LocationProofVerifier
             }
 
             $fields = [
-                mb_strtolower((string) ($address['addressLocality'] ?? '')),
-                mb_strtolower((string) ($address['addressRegion'] ?? '')),
-                mb_strtolower((string) ($address['addressCountry'] ?? '')),
+                mb_strtolower(self::coerceString($address['addressLocality'] ?? '')),
+                mb_strtolower(self::coerceString($address['addressRegion'] ?? '')),
+                mb_strtolower(self::coerceString($address['addressCountry'] ?? '')),
             ];
 
             foreach ($fields as $field) {

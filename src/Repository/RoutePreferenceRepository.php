@@ -19,12 +19,15 @@ class RoutePreferenceRepository extends ServiceEntityRepository
     /**
      * Find ranked routes for a destination country
      * 
+     * Find ranked routes for a destination country
+     *
      * @param string $destinationCountry
-     * @return RoutePreference[]
+     * @return list<\App\Entity\RoutePreference>
      */
     public function findRankedRoutes(string $destinationCountry): array
     {
-        return $this->createQueryBuilder('rp')
+        /** @var list<\App\Entity\RoutePreference> $result */
+        $result = $this->createQueryBuilder('rp')
             ->andWhere('rp.destinationCountry = :country')
             ->andWhere('rp.isActive = :active')
             ->setParameter('country', $destinationCountry)
@@ -32,16 +35,19 @@ class RoutePreferenceRepository extends ServiceEntityRepository
             ->orderBy('rp.rank', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find all active routes
-     * 
-     * @return RoutePreference[]
+     *
+     * @return list<\App\Entity\RoutePreference>
      */
     public function findAllActive(): array
     {
-        return $this->createQueryBuilder('rp')
+        /** @var list<\App\Entity\RoutePreference> $result */
+        $result = $this->createQueryBuilder('rp')
             ->andWhere('rp.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('rp.destinationCountry', 'ASC')
@@ -49,5 +55,7 @@ class RoutePreferenceRepository extends ServiceEntityRepository
 
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

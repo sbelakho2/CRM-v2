@@ -22,7 +22,8 @@ class CompanyCanonicalRepository extends ServiceEntityRepository
      */
     public function findByDomain(string $domain): ?CompanyCanonical
     {
-        return $this->createQueryBuilder('cc')
+        /** @var CompanyCanonical|null $result */
+        $result = $this->createQueryBuilder('cc')
             ->andWhere('cc.domain = :domain')
             ->setParameter('domain', $domain)
             ->orderBy('cc.isPrimary', 'DESC')
@@ -30,21 +31,26 @@ class CompanyCanonicalRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     /**
      * Find by company
      * 
-     * @return CompanyCanonical[]
+     * @return list<CompanyCanonical>
      */
     public function findByCompany(Company $company): array
     {
-        return $this->createQueryBuilder('cc')
+        /** @var list<CompanyCanonical> $result */
+        $result = $this->createQueryBuilder('cc')
             ->andWhere('cc.company = :company')
             ->setParameter('company', $company)
             ->orderBy('cc.isPrimary', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
@@ -52,7 +58,8 @@ class CompanyCanonicalRepository extends ServiceEntityRepository
      */
     public function findPrimaryByCompany(Company $company): ?CompanyCanonical
     {
-        return $this->createQueryBuilder('cc')
+        /** @var CompanyCanonical|null $result */
+        $result = $this->createQueryBuilder('cc')
             ->andWhere('cc.company = :company')
             ->andWhere('cc.isPrimary = :primary')
             ->setParameter('company', $company)
@@ -61,5 +68,7 @@ class CompanyCanonicalRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 }

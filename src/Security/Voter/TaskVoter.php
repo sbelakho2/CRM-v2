@@ -14,6 +14,9 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
  * IDOR where any ROLE_USER could read/mutate any task by numeric ID and the
  * ?all=1 scope bypass on the list/Kanban endpoints.
  */
+/**
+ * @extends Voter<string, Task|null>
+ */
 class TaskVoter extends Voter
 {
     /** Read a single task (show page, detail panels). */
@@ -63,6 +66,8 @@ class TaskVoter extends Voter
 
         return match ($attribute) {
             self::VIEW, self::MODIFY, self::ARCHIVE => $isOwn,
+            // Unreachable: supports() only admits the four attributes above.
+            default => false,
         };
     }
 }

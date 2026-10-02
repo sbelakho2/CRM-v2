@@ -62,10 +62,11 @@ class GoldenDatasetRegressionCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $datasetPath = $this->projectDir . '/' . $input->getOption('dataset');
-        $threshold = ((int) $input->getOption('threshold')) / 100;
-        /** @var mixed $jsonMode */
-        $jsonMode = $input->getOption('json');
+        $datasetOption = $input->getOption('dataset');
+        $datasetPath = $this->projectDir . '/' . (\is_string($datasetOption) ? $datasetOption : '');
+        $thresholdOption = $input->getOption('threshold');
+        $threshold = (\is_numeric($thresholdOption) ? (int) $thresholdOption : 0) / 100;
+        $jsonMode = (bool) $input->getOption('json');
 
         $io->title('Golden Dataset Regression Test');
         $io->text("Dataset: $datasetPath");
@@ -83,15 +84,28 @@ class GoldenDatasetRegressionCommand extends Command
 
         // ── JSON output ───────────────────────────────
         if ($jsonMode) {
-            $output->writeln(json_encode($report->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            $json = json_encode($report->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            $output->writeln($json !== false ? $json : '{}');
             return $report->meetsThreshold($threshold) ? Command::SUCCESS : Command::FAILURE;
         }
 
         // ── Human table ───────────────────────────────
         $io->section('Results');
 
+        /** @var list<array{
+         *   name: string,
+         *   domain: string,
+         *   expected: string,
+         *   actual: string,
+         *   correct: bool,
+         *   category: string,
+         *   reject_gate: ?string,
+         *   gates: array<string, array{passed: bool, detail: string}>,
+         * }> $results */
+        $results = $report->getResults();
+
         $rows = [];
-        foreach ($report->getResults() as $r) {
+        foreach ($results as $r) {
             $status = $r['correct'] ? '<fg=green>✓</>' : '<fg=red>✗</>';
             $rows[] = [
                 $status,
@@ -112,7 +126,7 @@ class GoldenDatasetRegressionCommand extends Command
         // ── Verbose per-gate breakdown ────────────────
         if ($output->isVerbose()) {
             $io->section('Per-Gate Breakdown');
-            foreach ($report->getResults() as $r) {
+            foreach ($results as $r) {
                 $io->text(sprintf('<info>%s</info> (%s):', $r['name'], $r['domain']));
                 foreach ($r['gates'] as $gate => $info) {
                     $icon = $info['passed'] ? '✓' : '✗';

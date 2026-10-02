@@ -21,52 +21,63 @@ class PlaybookRunRepository extends ServiceEntityRepository
     /**
      * Find runs by playbook
      * 
-     * @return PlaybookRun[]
+     * @return list<PlaybookRun>
      */
     public function findByPlaybook(Playbook $playbook, int $limit = 100): array
     {
-        return $this->createQueryBuilder('pr')
+        /** @var list<PlaybookRun> $runs */
+        $runs = $this->createQueryBuilder('pr')
             ->andWhere('pr.playbook = :playbook')
             ->setParameter('playbook', $playbook)
             ->orderBy('pr.triggeredAt', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $runs;
     }
 
     /**
      * Find runs by ABM hit
      * 
-     * @return PlaybookRun[]
+     * @return list<PlaybookRun>
      */
     public function findByAbmHit(AbmHit $abmHit): array
     {
-        return $this->createQueryBuilder('pr')
+        /** @var list<PlaybookRun> $runs */
+        $runs = $this->createQueryBuilder('pr')
             ->andWhere('pr.abmHit = :hit')
             ->setParameter('hit', $abmHit)
             ->orderBy('pr.triggeredAt', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $runs;
     }
 
     /**
      * Find pending runs
      * 
-     * @return PlaybookRun[]
+     * @return list<PlaybookRun>
      */
     public function findPending(int $limit = 50): array
     {
-        return $this->createQueryBuilder('pr')
+        /** @var list<PlaybookRun> $runs */
+        $runs = $this->createQueryBuilder('pr')
             ->andWhere('pr.status = :status')
             ->setParameter('status', PlaybookRun::STATUS_PENDING)
             ->orderBy('pr.triggeredAt', 'ASC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $runs;
     }
 
     /**
      * Count runs per day
+     *
+     * @return list<array<string, mixed>>
      */
     public function countRunsPerDay(\DateTimeInterface $startDate, \DateTimeInterface $endDate): array
     {

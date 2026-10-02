@@ -51,7 +51,8 @@ class CadenceGovernorService
 
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private OutboundMessageRepository $outboundRepo,
+        /** Reserved for direct outbound queries; DQL currently goes through the entity manager. */
+        protected OutboundMessageRepository $outboundRepo,
         private LoggerInterface $logger,
     ) {}
 
@@ -63,7 +64,7 @@ class CadenceGovernorService
      * 2. Stop events from previous outbound messages (reply, bounce, complaint)
      * 3. Cross-module cadence limits (OutboundMessage + EmailSend combined)
      *
-     * @return array ['allowed' => bool, 'reason' => string|null, 'nextAllowedAt' => \DateTime|null]
+     * @return array{allowed: bool, reason: string|null, nextAllowedAt: \DateTimeInterface|null}
      */
     public function canSendTo(Contact $contact): array
     {
@@ -101,6 +102,7 @@ class CadenceGovernorService
             ->getQuery()
             ->getResult();
 
+        /** @var list<OutboundMessage> $recentMessages */
         foreach ($recentMessages as $msg) {
             if (in_array($msg->getStatus(), self::STOP_EVENTS, true)) {
                 return [
@@ -137,6 +139,7 @@ class CadenceGovernorService
         }
 
         // --- Campaign (Email Campaigns) send dates ---
+        /** @var list<array{sentAt: \DateTimeInterface|null}> $campaignSendDates */
         $campaignSendDates = $this->entityManager->createQueryBuilder()
             ->select('es.sentAt')
             ->from(EmailSend::class, 'es')
@@ -155,6 +158,9 @@ class CadenceGovernorService
             }
         }
 
+        /** @var \DateTimeInterface|null $lastSentAt */
+        $lastSentAt = null;
+
         // Count combined sends per window
         $count7  = 0;
         $count14 = 0;
@@ -172,7 +178,7 @@ class CadenceGovernorService
         }
 
         if ($count7 >= self::MAX_TOUCHES_7_DAYS) {
-            $nextAllowed = $lastSentAt ? (clone $lastSentAt)->modify('+7 days') : null;
+            $nextAllowed = $lastSentAt !== null ? \DateTime::createFromInterface($lastSentAt)->modify('+7 days') : null;
             return [
                 'allowed' => false,
                 'reason' => sprintf(
@@ -184,7 +190,7 @@ class CadenceGovernorService
         }
 
         if ($count14 >= self::MAX_TOUCHES_14_DAYS) {
-            $nextAllowed = $lastSentAt ? (clone $lastSentAt)->modify('+14 days') : null;
+            $nextAllowed = $lastSentAt !== null ? \DateTime::createFromInterface($lastSentAt)->modify('+14 days') : null;
             return [
                 'allowed' => false,
                 'reason' => sprintf(
@@ -196,7 +202,7 @@ class CadenceGovernorService
         }
 
         if ($count30 >= self::MAX_TOUCHES_30_DAYS) {
-            $nextAllowed = $lastSentAt ? (clone $lastSentAt)->modify('+30 days') : null;
+            $nextAllowed = $lastSentAt !== null ? \DateTime::createFromInterface($lastSentAt)->modify('+30 days') : null;
             return [
                 'allowed' => false,
                 'reason' => sprintf(
@@ -213,7 +219,7 @@ class CadenceGovernorService
     /**
      * Check if NOW is within business hours for a contact's timezone.
      *
-     * @return array ['inWindow' => bool, 'timezone' => string, 'localHour' => int]
+     * @return array{inWindow: bool, timezone: string, localHour: int, dayOfWeek: int}
      */
     public function isWithinBusinessHours(Contact $contact): array
     {
@@ -286,13 +292,14 @@ class CadenceGovernorService
      * subject-line arm. The penalty is censored (lower than a real failure)
      * because absence-of-reply is weaker signal than explicit negative.
      *
-     * @return array List of messages that had soft failure applied
+     * @return list<array{messageId: int|null, contactId: int|null, armId: int|null, sentAt: string|null}> List of messages that had soft failure applied
      */
     public function processDelayedSoftFailures(ThompsonSamplerService $sampler): array
     {
         $cutoff = (new \DateTime())->modify(sprintf('-%d days', self::REPLY_WINDOW_DAYS));
 
         // Find messages: sent before cutoff, not replied, not bounced, soft failure not yet applied
+        /** @var list<OutboundMessage> $candidates */
         $candidates = $this->entityManager->createQueryBuilder()
             ->select('m')
             ->from(OutboundMessage::class, 'm')
@@ -317,7 +324,7 @@ class CadenceGovernorService
             if (!$arm) continue;
 
             // Apply soft failure: β += WEIGHT_NO_RESPONSE (0.30)
-            $sampler->recordWeightedOutcome($arm->getId(), 'no_response');
+            $sampler->recordWeightedOutcome((int) $arm->getId(), 'no_response');
 
             // Also apply to value-prop arm if tracked
             $vpArmId = $msg->getValuePropArmId();

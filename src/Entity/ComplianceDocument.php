@@ -22,7 +22,9 @@ class ComplianceDocument
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    // Protected (not private): Doctrine assigns the identifier via reflection
+    // on hydration, so static analysis never sees an int assignment.
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class, inversedBy: 'complianceDocuments')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
@@ -110,6 +112,7 @@ class ComplianceDocument
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $versionId = null;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $metadataJson = null;
 
@@ -589,11 +592,17 @@ class ComplianceDocument
         return $this;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getMetadataJson(): ?array
     {
         return $this->metadataJson;
     }
 
+    /**
+     * @param array<string, mixed>|null $metadataJson
+     */
     public function setMetadataJson(?array $metadataJson): self
     {
         $this->metadataJson = $metadataJson;

@@ -96,8 +96,11 @@ class QuoteWinPredictorService
      *     confidence: float,
      *     grade: string,
      *     recommendation: string,
-     *     factors: array,
-     *     insights: array
+     *     factors: array<string, float>,
+     *     insights: array<string, mixed>,
+     *     segment: string,
+     *     industry: string,
+     *     base_rate: float
      * }
      */
     public function predictWinProbability(Quote $quote): array
@@ -159,6 +162,8 @@ class QuoteWinPredictorService
 
     /**
      * Calculate all factor scores (0-1 scale)
+     *
+     * @return array<string, float>
      */
     private function calculateFactors(Quote $quote, ?Company $company): array
     {
@@ -266,11 +271,12 @@ class QuoteWinPredictorService
         $metadata = $quote->getMetadata() ?? [];
         // Prefer max_lead_time_days (written by QuoteCoPilotService before
         // predicting); fall back to lead_time_days for older metadata payloads.
-        $maxLeadTime = $metadata['max_lead_time_days']
+        $maxLeadTimeRaw = $metadata['max_lead_time_days']
             ?? $metadata['lead_time_days']
             ?? 30;
-        $maxLeadTime = max(0, (int) $maxLeadTime);
-        $customerUrgency = $metadata['customer_urgency'] ?? 'normal';
+        $maxLeadTime = is_numeric($maxLeadTimeRaw) ? max(0, (int) $maxLeadTimeRaw) : 0;
+        $customerUrgencyRaw = $metadata['customer_urgency'] ?? 'normal';
+        $customerUrgency = is_string($customerUrgencyRaw) && $customerUrgencyRaw !== '' ? $customerUrgencyRaw : 'normal';
         
         // Map urgency to acceptable lead time
         $urgencyThresholds = [
@@ -484,12 +490,18 @@ class QuoteWinPredictorService
             'lifecycle_health' => 'BOM contains EOL/NRND parts. Proactively suggest alternatives.',
         ];
         
+        if ($minFactor === null) {
+            return 'Review quote factors for improvement opportunities.';
+        }
+
         return $recommendations[$minFactor] ?? 'Review quote factors for improvement opportunities.';
     }
 
     /**
      * Generate detailed insights for sales team
-      * @param array<string|int, mixed> $factors
+     *
+     * @param array<string, float> $factors
+     * @return array{strengths?: list<string>, weaknesses?: list<string>, summary: string}
      */
     private function generateInsights(array $factors, float $probability): array
     {
@@ -548,6 +560,8 @@ class QuoteWinPredictorService
 
     /**
      * Get model information for transparency
+     *
+     * @return array{version: string, algorithm: string, factor_count: int, segment_count: int, industry_count: int, training_data: string, last_updated: string}
      */
     public function getModelInfo(): array
     {

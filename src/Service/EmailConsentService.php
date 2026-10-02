@@ -43,7 +43,7 @@ class EmailConsentService
      * 
      * @param Contact $contact The contact to verify
      * @param string $source Source of the opt-in request (form, import, manual)
-     * @return array Token and confirmation URL
+     * @return array{token: string, confirm_url: string, expires_at: \DateTime}
      */
     public function requestDoubleOptIn(Contact $contact, string $source = 'form'): array
     {
@@ -75,7 +75,7 @@ class EmailConsentService
      * Confirm opt-in using verification token
      * 
      * @param string $token Confirmation token
-     * @return array Success status and contact info
+     * @return array{success: bool, error?: string, message?: string, contact?: Contact}
      */
     public function confirmOptIn(string $token): array
     {
@@ -191,8 +191,13 @@ class EmailConsentService
             $normalizedReason = EmailUnsubscribe::REASON_MANUAL;
         }
 
+        $contactEmail = $contact->getEmail();
+        if ($contactEmail === null || $contactEmail === '') {
+            throw new \InvalidArgumentException('Cannot unsubscribe a contact without an email address.');
+        }
+
         $unsubscribe = new EmailUnsubscribe();
-        $unsubscribe->setEmail($contact->getEmail());
+        $unsubscribe->setEmail($contactEmail);
         $unsubscribe->setContact($contact);
         $unsubscribe->setReason($normalizedReason);
         $unsubscribe->setUnsubscribedAt(new \DateTime());
@@ -262,7 +267,7 @@ class EmailConsentService
      * Process unsubscribe from token (one-click unsubscribe)
      * 
      * @param string $token Unsubscribe token
-     * @return array
+     * @return array{success: bool, error?: string, email?: string, message?: string}
      */
     public function processUnsubscribeToken(string $token): array
     {
@@ -318,7 +323,7 @@ class EmailConsentService
      * Get consent audit trail for a contact
      * 
      * @param Contact $contact
-     * @return array
+     * @return list<array<string, mixed>>
      */
     public function getConsentAuditTrail(Contact $contact): array
     {
@@ -331,7 +336,7 @@ class EmailConsentService
         if ($unsubscribe) {
             $trail[] = [
                 'action' => 'unsubscribed',
-                'timestamp' => $unsubscribe->getUnsubscribedAt()->format('Y-m-d H:i:s'),
+                'timestamp' => $unsubscribe->getUnsubscribedAt()?->format('Y-m-d H:i:s'),
                 'reason' => $unsubscribe->getReason()
             ];
         }
@@ -349,7 +354,7 @@ class EmailConsentService
      * Export contact data (GDPR right to data portability)
      * 
      * @param Contact $contact
-     * @return array
+     * @return array<string, mixed>
      */
     public function exportContactData(Contact $contact): array
     {
@@ -406,7 +411,7 @@ class EmailConsentService
      * Get email engagement statistics for a contact
      * 
      * @param Contact $contact
-     * @return array
+     * @return array{total_emails_received: int, emails_opened: int, emails_clicked: int, emails_replied: int}
      */
     private function getEmailEngagementStats(Contact $contact): array
     {
@@ -442,12 +447,16 @@ class EmailConsentService
      */
     private function getSigningSecret(): string
     {
-        $secret = $_ENV['APP_SECRET'] ?? $_SERVER['APP_SECRET'] ?? getenv('APP_SECRET');
+        $secret = $_ENV['APP_SECRET'] ?? $_SERVER['APP_SECRET'] ?? null;
+        if (!\is_string($secret) || $secret === '') {
+            $envSecret = getenv('APP_SECRET');
+            $secret = \is_string($envSecret) && $envSecret !== '' ? $envSecret : null;
+        }
 
         if (!$secret) {
             throw new \RuntimeException('APP_SECRET is not configured — consent tokens cannot be signed or verified.');
         }
 
-        return (string) $secret;
+        return $secret;
     }
 }

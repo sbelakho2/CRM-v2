@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Activity;
+use App\Entity\User;
 use App\Form\ActivityType;
 use App\Repository\ActivityRepository;
 use App\Repository\CompanyRepository;
@@ -62,10 +63,14 @@ class ActivityController extends AbstractController
         $qb->orderBy('c.lastName', 'ASC')
            ->addOrderBy('c.firstName', 'ASC');
         
+        /** @var list<array{id: mixed, firstName: mixed, lastName: mixed, email: mixed, companyId: mixed, companyName: mixed}> $results */
         $results = $qb->getQuery()->getResult();
-        
+
         $contacts = [];
         foreach ($results as $row) {
+            $firstName = is_string($row['firstName']) ? $row['firstName'] : '';
+            $lastName = is_string($row['lastName']) ? $row['lastName'] : '';
+            $companyName = is_string($row['companyName']) ? $row['companyName'] : '';
             $contacts[] = [
                 'id' => $row['id'],
                 'firstName' => $row['firstName'],
@@ -73,7 +78,7 @@ class ActivityController extends AbstractController
                 'email' => $row['email'],
                 'companyId' => $row['companyId'],
                 'companyName' => $row['companyName'],
-                'label' => trim($row['firstName'] . ' ' . $row['lastName']) . ($row['companyName'] ? ' (' . $row['companyName'] . ')' : ''),
+                'label' => trim($firstName . ' ' . $lastName) . ($companyName !== '' ? ' (' . $companyName . ')' : ''),
             ];
         }
         
@@ -90,9 +95,9 @@ class ActivityController extends AbstractController
         $company = $request->query->get('company');
         /** @var string|int|float|bool|null $user */
         $user = $request->query->get('user');
-        /** @var string|int|float|bool|null $dateFrom */
+        /** @var string|null $dateFrom */
         $dateFrom = $request->query->get('date_from');
-        /** @var string|int|float|bool|null $dateTo */
+        /** @var string|null $dateTo */
         $dateTo = $request->query->get('date_to');
 
         // Build query
@@ -162,6 +167,7 @@ class ActivityController extends AbstractController
             'LinkedIn Message', 'LinkedIn Connection Request', 'LinkedIn InMail', 'Other'
         ];
         
+        /** @var list<\App\Entity\Company> $companies */
         $companies = $this->companyRepository->createQueryBuilder('c')
             ->orderBy('c.name', 'ASC')
             ->setMaxResults(300)
@@ -175,6 +181,7 @@ class ActivityController extends AbstractController
             }
         }
 
+        /** @var list<User> $users */
         $users = $this->entityManager->getRepository(\App\Entity\User::class)
             ->createQueryBuilder('u')
             ->orderBy('u.lastName', 'ASC')
@@ -234,12 +241,14 @@ class ActivityController extends AbstractController
         $qb->orderBy('a.activityDate', 'DESC')
            ->setMaxResults(50);
 
+        /** @var list<Activity> $activities */
         $activities = $qb->getQuery()->getResult();
 
         // Group by date
         $groupedActivities = [];
         foreach ($activities as $activity) {
-            $date = $activity->getActivityDate()->format('Y-m-d');
+            $activityDate = $activity->getActivityDate();
+            $date = $activityDate !== null ? $activityDate->format('Y-m-d') : 'undated';
             $groupedActivities[$date][] = $activity;
         }
 
@@ -272,7 +281,9 @@ class ActivityController extends AbstractController
         }
 
         // Set current user
-        $activity->setUser($this->getUser());
+        /** @var User|null $currentUser - ROLE_USER is enforced at class level. */
+        $currentUser = $this->getUser();
+        $activity->setUser($currentUser);
         $activity->setActivityDate(new \DateTime());
 
         $form = $this->createForm(ActivityType::class, $activity);
@@ -304,8 +315,9 @@ class ActivityController extends AbstractController
             
             /** @var string|int|float|bool|null $redirectParams */
             $redirectParams = $request->query->get('redirect_params');
-            if ($redirectParams) {
-                $targetParams = json_decode($redirectParams, true) ?: [];
+            if (is_string($redirectParams) && $redirectParams !== '') {
+                $decoded = json_decode($redirectParams, true);
+                $targetParams = is_array($decoded) ? $decoded : [];
             } elseif ($targetRoute === 'app_company_show' && $activity->getCompany()) {
                 $targetParams = ['id' => $activity->getCompany()->getId()];
             } elseif ($targetRoute === 'app_contact_show' && $activity->getContact()) {
@@ -390,9 +402,12 @@ class ActivityController extends AbstractController
     #[Route('/{id}/delete', name: 'app_activity_delete', methods: ['POST'])]
     public function delete(Request $request, Activity $activity): Response
     {
-        if ($this->isCsrfTokenValid('delete' . $activity->getId(), $request->request->get('_token'))) {
+        $token = $request->request->get('_token');
+        /** @var User|null $user - ROLE_USER is enforced at class level. */
+        $user = $this->getUser();
+        if ($user instanceof User && $this->isCsrfTokenValid('delete' . $activity->getId(), is_string($token) ? $token : null)) {
             // Activities are historical sales records: archive them.
-            $activity->archive($this->getUser(), 'Archived from activities list');
+            $activity->archive($user, 'Archived from activities list');
             $this->entityManager->flush();
 
             $this->addFlash('success', 'Activity archived. Its history is preserved.');

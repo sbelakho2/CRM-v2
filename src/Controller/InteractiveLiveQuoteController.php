@@ -44,7 +44,8 @@ class InteractiveLiveQuoteController extends AbstractController
     public function __construct(
         private InteractiveLiveQuoteService $liveQuoteService,
         private EntityManagerInterface $entityManager,
-        private LoggerInterface $logger
+        /** Kept for subclasses/tests that log lifecycle events; not read here. */
+        protected LoggerInterface $logger
     ) {}
 
     /**
@@ -60,7 +61,7 @@ class InteractiveLiveQuoteController extends AbstractController
             $token = is_array($data) ? ($data['_token'] ?? null) : null;
         }
 
-        if (!$this->isCsrfTokenValid('quote_live', (string) $token)) {
+        if (!$this->isCsrfTokenValid('quote_live', is_string($token) ? $token : '')) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], Response::HTTP_FORBIDDEN);
         }
 
@@ -140,16 +141,16 @@ class InteractiveLiveQuoteController extends AbstractController
         }
         
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        $quantity = (int) ($data['quantity'] ?? 0);
-        
+        $quantityRaw = is_array($data) ? ($data['quantity'] ?? 0) : 0;
+        $quantity = is_numeric($quantityRaw) ? (int) $quantityRaw : 0;
+
         if ($quantity <= 0) {
             return new JsonResponse([
                 'error' => 'Invalid quantity',
             ], Response::HTTP_BAD_REQUEST);
         }
-        
+
         $tierPricing = $this->liveQuoteService->calculateTierPricing($quote);
         
         // Find exact tier or interpolate
@@ -175,7 +176,8 @@ class InteractiveLiveQuoteController extends AbstractController
             }
             
             $matchedTier = $closestTier;
-            $matchedTier['note'] = "Pricing shown for nearest standard tier ({$closestTier['quantity']} units). Request a custom quote for {$quantity} units.";
+            $closestQuantity = $closestTier['quantity'] ?? $quantity;
+            $matchedTier['note'] = "Pricing shown for nearest standard tier ({$closestQuantity} units). Request a custom quote for {$quantity} units.";
         }
         
         return new JsonResponse([
@@ -205,11 +207,12 @@ class InteractiveLiveQuoteController extends AbstractController
         }
         
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        $quantity = (int) ($data['quantity'] ?? 0);
-        $notes = $data['notes'] ?? null;
-        
+        $quantityRaw = is_array($data) ? ($data['quantity'] ?? 0) : 0;
+        $quantity = is_numeric($quantityRaw) ? (int) $quantityRaw : 0;
+        $notesRaw = is_array($data) ? ($data['notes'] ?? null) : null;
+        $notes = is_string($notesRaw) ? $notesRaw : null;
+
         if ($quantity <= 0) {
             return new JsonResponse([
                 'error' => 'Invalid quantity',
@@ -256,9 +259,9 @@ class InteractiveLiveQuoteController extends AbstractController
         // Idempotency is handled IN the service: a replay returns the
         // ORIGINAL QuoteAcceptance record with its authoritative data.
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        $quantity = (int) ($data['quantity'] ?? $quote->getQuantity());
+        $quantityRaw = is_array($data) ? ($data['quantity'] ?? $quote->getQuantity()) : $quote->getQuantity();
+        $quantity = is_numeric($quantityRaw) ? (int) $quantityRaw : 0;
         $customerInfo = [
             'name' => $data['name'] ?? null,
             'email' => $data['email'] ?? null,
@@ -306,10 +309,11 @@ class InteractiveLiveQuoteController extends AbstractController
         }
         
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        $quantityTiers = $data['quantity_tiers'] ?? null;
-        $expirationDays = $data['expiration_days'] ?? 30;
+        $quantityTiersRaw = is_array($data) ? ($data['quantity_tiers'] ?? null) : null;
+        $quantityTiers = is_array($quantityTiersRaw) ? $quantityTiersRaw : null;
+        $expirationDaysRaw = is_array($data) ? ($data['expiration_days'] ?? 30) : 30;
+        $expirationDays = is_numeric($expirationDaysRaw) ? (int) $expirationDaysRaw : 30;
         
         try {
             $result = $this->liveQuoteService->enableInteractiveMode($quote, $quantityTiers, $expirationDays);
@@ -393,9 +397,9 @@ class InteractiveLiveQuoteController extends AbstractController
         }
         
         /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
         $data = json_decode($request->getContent(), true);
-        $expirationDays = (int) ($data['expiration_days'] ?? 30);
+        $expirationDaysRaw = is_array($data) ? ($data['expiration_days'] ?? 30) : 30;
+        $expirationDays = is_numeric($expirationDaysRaw) ? (int) $expirationDaysRaw : 30;
 
         try {
             $result = $this->liveQuoteService->regenerateToken($quote, $expirationDays);

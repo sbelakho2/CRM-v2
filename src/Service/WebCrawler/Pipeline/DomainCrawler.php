@@ -341,11 +341,6 @@ final class DomainCrawler
                 continue;
             }
 
-            if ($response === null) {
-                $policies[$domain] = ['allowed' => false, 'disallowed_paths' => ['/']];
-                continue;
-            }
-
             try {
                 $statusCode = $response->getStatusCode();
                 if ($statusCode === 404) {
@@ -412,7 +407,7 @@ final class DomainCrawler
         $disallowedPaths = [];
         $appliesToUs = false;
 
-        foreach (preg_split('/\r?\n/', $robotsTxt) as $line) {
+        foreach (preg_split('/\r?\n/', $robotsTxt) ?: [] as $line) {
             $line = trim(explode('#', $line, 2)[0]);
             if ($line === '') {
                 continue;
@@ -494,7 +489,7 @@ final class DomainCrawler
             $homepageUrl = 'https://' . $domain;
             // Only attempt sitemap discovery on domains with a successful homepage
             if (!isset($homepageResponses[$homepageUrl])
-                || ($homepageResponses[$homepageUrl]['status'] ?? 0) >= 400
+                || $homepageResponses[$homepageUrl]['status'] >= 400
             ) {
                 continue;
             }
@@ -647,7 +642,8 @@ final class DomainCrawler
      */
     private function classifySitemapUrl(string $url): ?string
     {
-        $path = parse_url($url, PHP_URL_PATH) ?? '';
+        $pathRaw = parse_url($url, PHP_URL_PATH);
+        $path = is_string($pathRaw) ? $pathRaw : '';
         $pathLower = mb_strtolower($path);
 
         // Check against team/contact/about keywords

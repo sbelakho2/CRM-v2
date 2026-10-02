@@ -45,27 +45,27 @@ class SpintaxEngineService
         // Protect {{variable}} placeholders from being treated as spintax
         // Replace {{var}} with a sentinel that won't match the spintax pattern
         $placeholders = [];
-        $content = preg_replace_callback('/\{\{(\w+)\}\}/', function ($matches) use (&$placeholders) {
+        $content = preg_replace_callback('/\{\{(\w+)\}\}/', function (array $matches) use (&$placeholders): string {
             $key = '%%PLACEHOLDER_' . count($placeholders) . '%%';
             $placeholders[$key] = $matches[0]; // Store original {{var}}
             return $key;
-        }, $content);
+        }, $content) ?? $content; // null only on PCRE error; keep previous content
         
         // Now spin {option1|option2} safely
         $pattern = '/\{([^{}]+)\}/';
         
         while (preg_match($pattern, $content)) {
-            $content = preg_replace_callback($pattern, function ($matches) {
+            $content = preg_replace_callback($pattern, function (array $matches): string {
                 // Split by pipe, handling nested content carefully
                 $options = $this->splitOptions($matches[1]);
                 
-                if (empty($options)) {
+                if ($options === []) {
                     return $matches[0]; // Return original if no valid options
                 }
                 
                 // Return random option
                 return $options[array_rand($options)];
-            }, $content);
+            }, $content) ?? $content; // null only on PCRE error; keep previous content
         }
         
         // Restore {{variable}} placeholders
@@ -77,11 +77,14 @@ class SpintaxEngineService
     /**
      * Split options by pipe, handling edge cases
      */
+    /**
+     * @return array<int, string>
+     */
     private function splitOptions(string $content): array
     {
         // Simple split for non-nested content
         $options = array_map('trim', explode('|', $content));
-        return array_filter($options, fn($o) => $o !== '');
+        return array_filter($options, static fn (string $o): bool => $o !== '');
     }
 
     /**
@@ -90,15 +93,18 @@ class SpintaxEngineService
      */
     public function personalize(string $content, array $context): string
     {
-        return preg_replace_callback('/\{\{(\w+)\}\}/', function ($matches) use ($context) {
+        return preg_replace_callback('/\{\{(\w+)\}\}/', function (array $matches) use ($context): string {
             $variable = $matches[1];
-            return $context[$variable] ?? $matches[0]; // Keep placeholder if not found
-        }, $content);
+            $value = $context[$variable] ?? null;
+            // Scalar context values are substituted; anything else keeps the placeholder
+            return is_scalar($value) ? (string) $value : $matches[0];
+        }, $content) ?? $content; // null only on PCRE error; keep original content
     }
 
     /**
      * Spin and personalize template content
       * @param array<string|int, mixed> $context
+     * @return array{subject: string, body: string, variationHash: string}
      */
     public function spinAndPersonalize(
         string $subjectSpintax,
@@ -136,7 +142,8 @@ class SpintaxEngineService
      * Attempts to generate a unique variation with sufficient Levenshtein distance
      * from previous variations.
       * @param array<string|int, mixed> $context
- * @param array<string|int, mixed> $previousVariations
+     * @param list<string> $previousVariations
+     * @return array{subject: string, body: string, variationHash: string}|null
      */
     public function generateUnique(
         string $subjectSpintax,
@@ -168,7 +175,7 @@ class SpintaxEngineService
 
     /**
      * Check if content is unique compared to previous variations
-      * @param array<string|int, mixed> $previousVariations
+     * @param list<string> $previousVariations
      */
     public function isUnique(string $content, array $previousVariations): bool
     {
@@ -283,6 +290,7 @@ class SpintaxEngineService
     /**
      * Preview multiple variations of a template
       * @param array<string|int, mixed> $context
+     * @return list<array{subject: string, body: string, variationHash: string}>
      */
     public function previewVariations(
         string $subjectSpintax,
@@ -310,6 +318,7 @@ class SpintaxEngineService
     /**
      * Get active template and spin content
       * @param array<string|int, mixed> $context
+     * @return array{subject: string, body: string, variationHash: string, templateId: int|null, templateName: string|null}
      */
     public function composeFromTemplate(
         SpintaxTemplate $template,
@@ -341,11 +350,15 @@ class SpintaxEngineService
      * - {{cta}} - Engagement-adaptive call to action
      * - {{greeting}} / {{closing}} - Tone-appropriate openers/closers
      */
+    /**
+     * @return list<SpintaxTemplate>
+     */
     public function seedDefaultTemplates(): array
     {
+        /** @var list<SpintaxTemplate> $existing */
         $existing = $this->templateRepository->findActiveByType('email');
-        
-        if (!empty($existing)) {
+
+        if ($existing !== []) {
             return $existing;
         }
 

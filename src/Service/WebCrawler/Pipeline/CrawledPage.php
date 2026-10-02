@@ -9,6 +9,10 @@ namespace App\Service\WebCrawler\Pipeline;
  */
 final class CrawledPage
 {
+    /**
+     * @param array<int, array<string, mixed>> $structuredData
+     * @param array<string, string> $metaTags
+     */
     public function __construct(
         private readonly string $url,
         private readonly string $html,
@@ -52,7 +56,8 @@ final class CrawledPage
     {
         $text = strip_tags($this->html);
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $text = preg_replace('/\s+/', ' ', $text);
+        $text = preg_replace('/\s+/', ' ', $text) ?? $text;
+
         return trim($text);
     }
 }

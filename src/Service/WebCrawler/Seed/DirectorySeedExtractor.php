@@ -298,8 +298,9 @@ final class DirectorySeedExtractor
                                     $links = $parent->filter('a[href*="http"]');
                                     if ($links->count() > 0) {
                                         $href = $links->first()->attr('href');
-                                        if ($href && !$this->isDirectoryDomain(parse_url($href, PHP_URL_HOST) ?? '')) {
-                                            $domain = parse_url($href, PHP_URL_HOST);
+                                        $host = is_string($href) && $href !== '' ? parse_url($href, PHP_URL_HOST) : false;
+                                        if (is_string($host) && $host !== '' && !$this->isDirectoryDomain($host)) {
+                                            $domain = $host;
                                         }
                                     }
                                 }
@@ -331,9 +332,16 @@ final class DirectorySeedExtractor
                 $scripts->each(function ($node) use (&$seeds, $url, $directoryName, $country, $sector) {
                     try {
                         $data = json_decode($node->text(), true, 512, JSON_THROW_ON_ERROR);
-                        if (isset($data['@type']) && $data['@type'] === 'Organization' && isset($data['name'])) {
+                        if (is_array($data)
+                            && ($data['@type'] ?? null) === 'Organization'
+                            && isset($data['name'])
+                            && is_string($data['name'])
+                        ) {
                             $name = $this->normalizer->normalizeCompanyName($data['name']);
-                            $domain = isset($data['url']) ? parse_url($data['url'], PHP_URL_HOST) : null;
+                            $domain = isset($data['url']) && is_string($data['url'])
+                                ? parse_url($data['url'], PHP_URL_HOST)
+                                : null;
+                            $domain = is_string($domain) ? $domain : null;
                             if (strlen($name) >= 3) {
                                 $seeds[] = new DirectorySeed(
                                     companyName: $name,

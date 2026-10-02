@@ -11,7 +11,9 @@ class QuotePartBreakdown
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    // Protected (not private): Doctrine assigns the identifier via reflection
+    // on hydration, so static analysis never sees an int assignment.
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Quote::class, inversedBy: 'partBreakdowns')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -24,13 +26,13 @@ class QuotePartBreakdown
     private ?string $manufacturer = null;
 
     #[ORM\Column(type: 'integer')]
-    private ?int $quantity = 1;
+    private int $quantity = 1;
 
     #[ORM\Column(type: 'decimal', precision: 15, scale: 4)]
-    private ?string $unitPrice = '0.0000';
+    private string $unitPrice = '0.0000';
 
     #[ORM\Column(type: 'decimal', precision: 15, scale: 2)]
-    private ?string $extendedPrice = '0.00';
+    private string $extendedPrice = '0.00';
 
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $dataSource = null; // MOUSER|DIGIKEY|NEXAR|ALIBABA|PRICEBOOK|IMPUTED

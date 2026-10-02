@@ -20,64 +20,76 @@ class PortalCandidateRepository extends ServiceEntityRepository
     /**
      * Find candidates by company
      * 
-     * @return PortalCandidate[]
+     * @return list<PortalCandidate>
      */
     public function findByCompany(Company $company): array
     {
-        return $this->createQueryBuilder('pc')
+        /** @var list<PortalCandidate> $result */
+        $result = $this->createQueryBuilder('pc')
             ->andWhere('pc.company = :company')
             ->setParameter('company', $company)
             ->orderBy('pc.discoveredAt', 'DESC')
 
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find candidates by status
      * 
-     * @return PortalCandidate[]
+     * @return list<PortalCandidate>
      */
     public function findByStatus(string $status): array
     {
-        return $this->createQueryBuilder('pc')
+        /** @var list<PortalCandidate> $result */
+        $result = $this->createQueryBuilder('pc')
             ->andWhere('pc.status = :status')
             ->setParameter('status', $status)
             ->orderBy('pc.discoveredAt', 'DESC')
 
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find pending approval candidates
      * 
-     * @return PortalCandidate[]
+     * @return list<PortalCandidate>
      */
     public function findPendingApproval(): array
     {
-        return $this->createQueryBuilder('pc')
+        /** @var list<PortalCandidate> $result */
+        $result = $this->createQueryBuilder('pc')
             ->andWhere('pc.status = :status')
             ->setParameter('status', 'discovered')
             ->orderBy('pc.discoveredAt', 'ASC')
 
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
      * Find active portals
      * 
-     * @return PortalCandidate[]
+     * @return list<PortalCandidate>
      */
     public function findActive(): array
     {
-        return $this->createQueryBuilder('pc')
+        /** @var list<PortalCandidate> $result */
+        $result = $this->createQueryBuilder('pc')
             ->andWhere('pc.status = :status')
             ->setParameter('status', 'active')
             ->orderBy('pc.company', 'ASC')
 
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

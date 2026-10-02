@@ -27,7 +27,9 @@ class Notification
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
-    private ?int $id = null;
+    // Protected (not private): Doctrine assigns the identifier via reflection
+    // on hydration, so static analysis never sees an int assignment.
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -60,6 +62,7 @@ class Notification
     /**
      * Additional data (JSON): company_name, contact_name, value_change, etc.
      */
+    /** @var array<string, mixed>|null Additional data (JSON): company_name, contact_name, value_change, etc. */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $data = null;
 
@@ -80,7 +83,7 @@ class Notification
     #[ORM\PrePersist]
     public function onPrePersist(): void
     {
-        $this->createdAt = $this->createdAt ?? new \DateTime();
+        // createdAt is already initialized in the constructor; nothing to backfill.
     }
 
     public function getId(): ?int
@@ -143,11 +146,17 @@ class Notification
         return $this;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getData(): ?array
     {
         return $this->data;
     }
 
+    /**
+     * @param array<string, mixed>|null $data
+     */
     public function setData(?array $data): self
     {
         $this->data = $data;
@@ -192,7 +201,7 @@ class Notification
      */
     public function getTypeLabel(): string
     {
-        $type = strtolower($this->type ?? '');
+        $type = strtolower($this->type);
         
         return match($type) {
             'rfq_due' => '📋 RFQ Due Soon',
@@ -212,7 +221,7 @@ class Notification
      */
     public function getIcon(): string
     {
-        $type = strtolower($this->type ?? '');
+        $type = strtolower($this->type);
         
         return match($type) {
             'rfq_due' => '⏰',

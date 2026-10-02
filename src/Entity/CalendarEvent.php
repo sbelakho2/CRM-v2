@@ -50,7 +50,7 @@ class CalendarEvent
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 255)]
     #[Assert\NotBlank(message: 'Event title is required')]
@@ -103,6 +103,7 @@ class CalendarEvent
     #[ORM\Column(nullable: true)]
     private ?int $recurringCount = null;
 
+    /** @var list<int>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $recurringDays = null;
 
@@ -122,6 +123,7 @@ class CalendarEvent
     #[ORM\JoinColumn(name: 'organizer_id', nullable: false, onDelete: 'RESTRICT')]
     private ?User $organizer = null;
 
+    /** @var Collection<int, User> */
     #[ORM\ManyToMany(targetEntity: User::class)]
     #[ORM\JoinTable(name: 'calendar_event_attendees',
         joinColumns: [new ORM\JoinColumn(name: 'user_id', onDelete: 'CASCADE')],
@@ -160,6 +162,7 @@ class CalendarEvent
     private ?\DateTimeInterface $lastSyncedAt = null;
 
     // Metadata
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $metadata = null;
 
@@ -182,6 +185,7 @@ class CalendarEvent
         $this->updatedAt = new \DateTime();
     }
 
+    /** @return array<string, string> */
     public static function getTypes(): array
     {
         return [
@@ -198,6 +202,7 @@ class CalendarEvent
         ];
     }
 
+    /** @return array<string, string> */
     public static function getVisibilities(): array
     {
         return [
@@ -207,6 +212,7 @@ class CalendarEvent
         ];
     }
 
+    /** @return array<string, string> */
     public static function getStatuses(): array
     {
         return [
@@ -216,6 +222,7 @@ class CalendarEvent
         ];
     }
 
+    /** @return array<string, string> */
     public static function getRecurrenceOptions(): array
     {
         return [
@@ -320,12 +327,13 @@ class CalendarEvent
 
         if ($this->startAt === null) { return false; }
 
-        $reminderTime = (clone $this->startAt)->modify("-{$this->reminderMinutes} minutes");
+        $reminderTime = \DateTimeImmutable::createFromInterface($this->startAt)->modify("-{$this->reminderMinutes} minutes");
         $now = new \DateTime();
 
         return $now >= $reminderTime && $now < $this->startAt;
     }
 
+    /** @return array<string, mixed> */
     public function toFullCalendarEvent(): array
     {
         return [
@@ -519,11 +527,13 @@ class CalendarEvent
         return $this;
     }
 
+    /** @return list<int>|null */
     public function getRecurringDays(): ?array
     {
         return $this->recurringDays;
     }
 
+    /** @param list<int>|null $recurringDays */
     public function setRecurringDays(?array $recurringDays): static
     {
         $this->recurringDays = $recurringDays;
@@ -684,11 +694,13 @@ class CalendarEvent
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getMetadata(): ?array
     {
         return $this->metadata;
     }
 
+    /** @param array<string, mixed>|null $metadata */
     public function setMetadata(?array $metadata): static
     {
         $this->metadata = $metadata;

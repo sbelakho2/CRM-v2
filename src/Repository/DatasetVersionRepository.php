@@ -21,7 +21,8 @@ class DatasetVersionRepository extends ServiceEntityRepository
      */
     public function findActiveVersion(string $datasetType): ?DatasetVersion
     {
-        return $this->createQueryBuilder('d')
+        /** @var DatasetVersion|null $version */
+        $version = $this->createQueryBuilder('d')
             ->andWhere('d.datasetType = :type')
             ->andWhere('d.isActive = :active')
             ->setParameter('type', $datasetType)
@@ -30,22 +31,27 @@ class DatasetVersionRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $version;
     }
 
     /**
      * Find all versions for a dataset type
      *
-     * @return DatasetVersion[]
+     * @return list<DatasetVersion>
      */
     public function findByDatasetType(string $datasetType): array
     {
-        return $this->createQueryBuilder('d')
+        /** @var list<DatasetVersion> $versions */
+        $versions = $this->createQueryBuilder('d')
             ->andWhere('d.datasetType = :type')
             ->setParameter('type', $datasetType)
             ->orderBy('d.importedAt', 'DESC')
 
             ->getQuery()
             ->getResult();
+
+        return $versions;
     }
 
     /**
@@ -53,27 +59,33 @@ class DatasetVersionRepository extends ServiceEntityRepository
      */
     public function findByVersionUuid(string $versionUuid): ?DatasetVersion
     {
-        return $this->createQueryBuilder('d')
+        /** @var DatasetVersion|null $version */
+        $version = $this->createQueryBuilder('d')
             ->andWhere('d.versionUuid = :uuid')
             ->setParameter('uuid', $versionUuid)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $version;
     }
 
     /**
      * Get version history for a dataset type
      *
-     * @return DatasetVersion[]
+     * @return list<DatasetVersion>
      */
     public function getVersionHistory(string $datasetType, int $limit = 10): array
     {
-        return $this->createQueryBuilder('d')
+        /** @var list<DatasetVersion> $versions */
+        $versions = $this->createQueryBuilder('d')
             ->andWhere('d.datasetType = :type')
             ->setParameter('type', $datasetType)
             ->orderBy('d.importedAt', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+
+        return $versions;
     }
 
     /**
@@ -81,7 +93,8 @@ class DatasetVersionRepository extends ServiceEntityRepository
      */
     public function deactivateAllForType(string $datasetType): int
     {
-        return $this->createQueryBuilder('d')
+        /** @var int $affected */
+        $affected = $this->createQueryBuilder('d')
             ->update()
             ->set('d.isActive', ':inactive')
             ->andWhere('d.datasetType = :type')
@@ -89,5 +102,7 @@ class DatasetVersionRepository extends ServiceEntityRepository
             ->setParameter('type', $datasetType)
             ->getQuery()
             ->execute();
+
+        return $affected;
     }
 }

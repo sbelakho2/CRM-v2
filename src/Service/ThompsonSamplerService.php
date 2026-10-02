@@ -158,13 +158,14 @@ class ThompsonSamplerService
      * @param string $armType Type of arm ('subject_line', 'value_prop_*', 'cta')
      * @param string $icpCluster ICP cluster for pool isolation (default 'global')
      * @param bool $applyDecay Whether to apply decay-toward-prior for stale arms
-     * @return array|null ['arm' => BanditArm, 'sampledScore' => float, 'isControl' => bool, 'trace' => array]
+     * @return array{arm: BanditArm, sampledScore: float, isControl: bool, trace: array{armType: string, icpCluster: string, phase: string, underTestedCount?: int}, allSamples?: array<int, float>}|null
      */
     public function sampleAndSelect(string $armType, string $icpCluster = 'global', bool $applyDecay = true): ?array
     {
         $trace = ['armType' => $armType, 'icpCluster' => $icpCluster, 'phase' => ''];
 
         // Fetch arms for this type; prefer ICP-specific, fall back to global
+        /** @var list<BanditArm> $arms */
         $arms = $this->armRepository->findActiveByType($armType);
         if (empty($arms)) {
             $this->logger->warning('No active arms found for type', ['armType' => $armType]);
@@ -209,7 +210,8 @@ class ThompsonSamplerService
         }
 
         // ==================== EXPLORATION: UNDER-TESTED ARMS (Thompson within set) ====================
-        $minTrials = (int)($_ENV['THOMPSON_MIN_TRIALS'] ?? 5);
+        $minTrialsRaw = $_ENV['THOMPSON_MIN_TRIALS'] ?? 5;
+        $minTrials = is_numeric($minTrialsRaw) ? (int) $minTrialsRaw : 0;
         if ($minTrials > 0) {
             $underTested = array_filter($eligible, fn(BanditArm $a) => $a->getTotalTrials() < $minTrials);
             if (!empty($underTested)) {
@@ -245,8 +247,8 @@ class ThompsonSamplerService
     /**
      * Thompson-sample within a set of arms, optionally applying decay-toward-prior.
      *
-     * @return array|null ['arm' => BanditArm, 'sampledScore' => float, 'allSamples' => array]
-      * @param array<string|int, mixed> $arms
+     * @param list<BanditArm> $arms
+     * @return array{arm: BanditArm, sampledScore: float, allSamples: array<int, float>}|null
      */
     private function thompsonSelectFrom(array $arms, bool $applyDecay): ?array
     {
@@ -285,7 +287,7 @@ class ThompsonSamplerService
             }
 
             $sampledScore = $this->sampleBeta($alpha, $beta);
-            $allSamples[$arm->getId()] = $sampledScore;
+            $allSamples[$arm->getId() ?? 0] = $sampledScore;
 
             if ($sampledScore > $bestScore) {
                 $bestScore = $sampledScore;
@@ -304,7 +306,8 @@ class ThompsonSamplerService
 
     /**
      * Find the control-group arm for a type, or promote first arm if none marked.
-      * @param array<string|int, mixed> $arms
+     *
+     * @param list<BanditArm> $arms
      */
     private function findControlArm(array $arms, string $armType): ?BanditArm
     {
@@ -369,7 +372,6 @@ class ThompsonSamplerService
                 'negative' => self::WEIGHT_NEGATIVE_REPLY,
                 default    => 0.0,
             },
-            default => 0.0,
         };
 
         if ($weight === 0.0) {
@@ -443,6 +445,7 @@ class ThompsonSamplerService
         float $inheritFraction = 0.15,
     ): BanditArm {
         // Compute hierarchical prior from existing arms of same type
+        /** @var list<BanditArm> $existingArms */
         $existingArms = $this->armRepository->findActiveByType($armType);
         $priorAlpha = self::DEFAULT_PRIOR_ALPHA;
         $priorBeta  = self::DEFAULT_PRIOR_BETA;
@@ -509,6 +512,8 @@ class ThompsonSamplerService
      *
      * α' = α₀ + (α − α₀) / d  where d = 1 + daysSinceUpdate/100
      * β' = β₀ + (β − β₀) / d
+     *
+     * @return list<array{id: int|null, name: string|null, days: int, 'alphaΔ': float, 'betaΔ': float}>
      */
     public function runDailyDecay(): array
     {
@@ -552,6 +557,8 @@ class ThompsonSamplerService
     /**
      * Run rollback check across all arm types. Returns arms that should be
      * rolled back (negative rate above control for N consecutive checks).
+     *
+     * @return list<array{armId: int|null, armName: string|null, armRate: float, controlRate: float, deficit: float}>
      */
     public function checkRollbackTriggers(): array
     {
@@ -561,12 +568,14 @@ class ThompsonSamplerService
         // Also check value_prop_* types
         $allArms = $this->armRepository->findAll();
         foreach ($allArms as $a) {
-            if (str_starts_with($a->getArmType(), 'value_prop_') && !in_array($a->getArmType(), $armTypes, true)) {
-                $armTypes[] = $a->getArmType();
+            $armType = $a->getArmType();
+            if ($armType !== null && str_starts_with($armType, 'value_prop_') && !in_array($armType, $armTypes, true)) {
+                $armTypes[] = $armType;
             }
         }
 
         foreach ($armTypes as $type) {
+            /** @var list<BanditArm> $arms */
             $arms = $this->armRepository->findActiveByType($type);
             $controlArm = null;
             foreach ($arms as $a) {
@@ -602,17 +611,25 @@ class ThompsonSamplerService
 
     /**
      * Get bandit statistics for a type
+     *
+     * @return array{arm_count: int, total_trials: int, total_successes: int, overall_rate: float|int, convergence: float|int}
      */
     public function getBanditStats(string $armType): array
     {
-        return $this->armRepository->getStatsByType($armType);
+        /** @var array{arm_count: int, total_trials: int, total_successes: int, overall_rate: float|int, convergence: float|int} $stats */
+        $stats = $this->armRepository->getStatsByType($armType);
+
+        return $stats;
     }
 
     /**
      * Get all arms for a type with their statistics
+     *
+     * @return list<array{id: int|null, name: string|null, value: string|null, alpha: float, beta: float, totalTrials: int, totalSuccesses: int, empiricalRate: float, expectedRate: float, icpCluster: string, quarantined: bool, isControl: bool, recentNegRate: float}>
      */
     public function getArmsWithStats(string $armType): array
     {
+        /** @var list<BanditArm> $arms */
         $arms = $this->armRepository->findActiveByType($armType);
         
         return array_map(function (BanditArm $arm) {
@@ -636,9 +653,12 @@ class ThompsonSamplerService
 
     /**
      * Seed default subject line arms if none exist
+     *
+     * @return list<BanditArm>
      */
     public function seedDefaultSubjectLineArms(): array
     {
+        /** @var list<BanditArm> $existing */
         $existing = $this->armRepository->findActiveByType('subject_line');
         
         if (!empty($existing)) {
@@ -671,7 +691,7 @@ class ThompsonSamplerService
         $created = [];
         foreach ($defaultArms as $armData) {
             $arm = $this->createArm('subject_line', $armData['name'], $armData['value']);
-            if ($armData['control'] ?? false) {
+            if ($armData['control']) {
                 $arm->setIsControl(true);
                 $this->entityManager->persist($arm);
             }

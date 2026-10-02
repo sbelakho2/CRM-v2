@@ -598,7 +598,7 @@ final class QueryTemplateBuilder
         }
 
         // Also add general directories (always included)
-        $generalDirectories = self::REGION_DIRECTORIES['EU'] ?? [];
+        $generalDirectories = self::REGION_DIRECTORIES['EU'];
 
         $allDirectories = array_unique(array_merge($directories, $generalDirectories));
 

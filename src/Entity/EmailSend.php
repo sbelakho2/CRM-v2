@@ -33,7 +33,7 @@ class EmailSend
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: EmailCampaign::class, inversedBy: 'emailSends')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
@@ -68,7 +68,7 @@ class EmailSend
     private ?string $emailAddress = null;
 
     #[ORM\Column(length: 20, options: ['default' => 'queued'])]
-    private ?string $status = self::STATUS_QUEUED;
+    private string $status = self::STATUS_QUEUED;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $scheduledAt = null;

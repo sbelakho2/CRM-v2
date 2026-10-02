@@ -48,9 +48,12 @@ class DatasetImportService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private DatasetVersionRepository $datasetVersionRepository,
-        private TariffRateRepository $tariffRateRepository,
-        private FreightTableRepository $freightTableRepository,
-        private FxRateRepository $fxRateRepository,
+        /** Injected for admin tooling/future use; not read directly today. */
+        protected TariffRateRepository $tariffRateRepository,
+        /** Injected for admin tooling/future use; not read directly today. */
+        protected FreightTableRepository $freightTableRepository,
+        /** Injected for admin tooling/future use; not read directly today. */
+        protected FxRateRepository $fxRateRepository,
         private ?\Symfony\Bundle\SecurityBundle\Security $security = null
     ) {}
 
@@ -65,11 +68,14 @@ class DatasetImportService
      * @param string $csvPath - Path to CSV file
      * @param string $signaturePath - Path to signature file (.sha256)
      * @param string $description - Import description (e.g., "Q1 2025 Tariff Update")
-     * 
+     *
      * @return array{
-     *   versionId: string,
+     *   version_uuid: string,
      *   recordsImported: int,
-     *   asof: \DateTime,
+     *   errors: list<string>,
+     *   errorCount: int,
+     *   activated: bool,
+     *   effectiveDate: \DateTimeInterface|null,
      *   datasetType: string
      * }
      */
@@ -77,10 +83,13 @@ class DatasetImportService
     {
         // Step 1: Verify signature
         $this->verifySignature($csvPath, $signaturePath);
-        
+
         // Step 2: Generate UUID for this version
         $versionUuid = Uuid::v4()->toRfc4122();
         $sha256Hash = hash_file('sha256', $csvPath);
+        if ($sha256Hash === false) {
+            throw new \RuntimeException("Cannot hash CSV file: $csvPath");
+        }
         
         // Step 3: Create DatasetVersion entity
         $version = new DatasetVersion();
@@ -115,15 +124,21 @@ class DatasetImportService
             fclose($handle);
             throw new \RuntimeException("CSV file has no header row: $csvPath");
         }
+        // Normalize null header cells to empty strings (array keys must be strings).
+        $headers = array_map(static fn ($h) => (string) $h, $headers);
         $recordsImported = 0;
         $errors = [];
         $effectiveDate = null;
+        /** @var list<\App\Entity\TariffRate> $batch */
+        $batch = [];
         
         // Step 5: Import each row
         while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
             if (empty(array_filter($row))) {
                 continue; // Skip empty rows
             }
+            // Normalize null cells (blank lines) to empty strings.
+            $row = array_map(static fn ($v) => (string) $v, $row);
             $rowNumber = $recordsImported + count($errors) + 1;
             
             try {
@@ -161,15 +176,21 @@ class DatasetImportService
                 
                 $this->entityManager->persist($tariffRate);
                 $recordsImported++;
-                
+                $batch[] = $tariffRate;
+
                 if (!$effectiveDate) {
                     $effectiveDate = $tariffRate->getEffectiveDate();
                 }
-                
+
                 // Batch flush every 100 rows for performance
                 if ($recordsImported % 100 === 0) {
                     $this->entityManager->flush();
-                    $this->entityManager->clear(\App\Entity\TariffRate::class); // Clear memory
+                    // Detach only the imported rows (persistence 3 removed the
+                    // per-class clear() argument); the DatasetVersion stays managed.
+                    foreach ($batch as $entity) {
+                        $this->entityManager->detach($entity);
+                    }
+                    $batch = [];
                 }
                 
             } catch (\Throwable $e) {
@@ -219,17 +240,27 @@ class DatasetImportService
      * @param string $csvPath - Path to CSV file
      * @param string $signaturePath - Path to signature file
      * @param string $description - Import description
-     * 
-     * @return array - Import summary
+     *
+     * @return array{
+     *   version_uuid: string,
+     *   recordsImported: int,
+     *   errors: list<string>,
+     *   errorCount: int,
+     *   activated: bool,
+     *   datasetType: string
+     * }
      */
     public function importFreightData(string $csvPath, string $signaturePath, string $description): array
     {
         // Step 1: Verify signature
         $this->verifySignature($csvPath, $signaturePath);
-        
+
         // Step 2: Generate UUID for this version
         $versionUuid = Uuid::v4()->toRfc4122();
         $sha256Hash = hash_file('sha256', $csvPath);
+        if ($sha256Hash === false) {
+            throw new \RuntimeException("Cannot hash CSV file: $csvPath");
+        }
         
         // Step 3: Create DatasetVersion entity
         $version = new DatasetVersion();
@@ -257,13 +288,19 @@ class DatasetImportService
             fclose($handle);
             throw new \RuntimeException("CSV file has no header row: $csvPath");
         }
+        // Normalize null header cells to empty strings (array keys must be strings).
+        $headers = array_map(static fn ($h) => (string) $h, $headers);
         $recordsImported = 0;
         $errors = [];
+        /** @var list<\App\Entity\FreightTable> $batch */
+        $batch = [];
         
         while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
             if (empty(array_filter($row))) {
                 continue;
             }
+            // Normalize null cells (blank lines) to empty strings.
+            $row = array_map(static fn ($v) => (string) $v, $row);
             $rowNumber = $recordsImported + count($errors) + 1;
             
             try {
@@ -307,10 +344,16 @@ class DatasetImportService
                 
                 $this->entityManager->persist($freight);
                 $recordsImported++;
-                
+                $batch[] = $freight;
+
                 if ($recordsImported % 100 === 0) {
                     $this->entityManager->flush();
-                    $this->entityManager->clear(\App\Entity\FreightTable::class);
+                    // Detach only the imported rows (persistence 3 removed the
+                    // per-class clear() argument); the DatasetVersion stays managed.
+                    foreach ($batch as $entity) {
+                        $this->entityManager->detach($entity);
+                    }
+                    $batch = [];
                 }
                 
             } catch (\Throwable $e) {
@@ -354,8 +397,17 @@ class DatasetImportService
      * @param string $csvPath - Path to CSV file
      * @param string $signaturePath - Path to signature file
      * @param string $description - Import description
-     * 
-     * @return array - Import summary
+     *
+     * @return array{
+     *   success: bool,
+     *   version_uuid: string,
+     *   dataset_type: string,
+     *   imported_count: int,
+     *   errors: list<string>,
+     *   errorCount: int,
+     *   activated: bool,
+     *   description: string
+     * }
      */
     public function importFxRates(string $csvPath, string $signaturePath, string $description = ''): array
     {
@@ -386,25 +438,31 @@ class DatasetImportService
         $version->setMetadata(['description' => $description]);
         $version->setImportedAt(new \DateTime());
         $version->setImportedBy($user ? $user->getUserIdentifier() : 'system');
-        $version->setSha256Hash(hash_file('sha256', $csvPath));
+        $sha256Hash = hash_file('sha256', $csvPath);
+        if ($sha256Hash === false) {
+            throw new \RuntimeException("Cannot hash CSV file: $csvPath");
+        }
+        $version->setSha256Hash($sha256Hash);
         $version->setIsActive(false);
-        
+
         $this->entityManager->persist($version);
-        
+
         // 4. Parse CSV and create FxRate entities
         $handle = fopen($csvPath, 'r');
         if (!$handle) {
             throw new \RuntimeException("Cannot open CSV file: $csvPath");
         }
-        
+
         // Skip header
         fgetcsv($handle, 0, ',', '"', '\\');
-        
+
         $imported = 0;
         $errors = [];
         $rowNumber = 0;
-        
+
         while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
+            // Normalize null cells (blank lines/fields) to empty strings.
+            $row = array_map(static fn ($v) => (string) $v, $row);
             $rowNumber++;
             try {
                 if (count($row) < 4) {
@@ -497,11 +555,15 @@ class DatasetImportService
      */
     private function assertSnapshotColumns(string $table, array $columns): void
     {
-        $present = $this->entityManager->getConnection()->fetchFirstColumn(
+        $presentMap = [];
+        foreach ($this->entityManager->getConnection()->fetchFirstColumn(
             'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
             [$table]
-        );
-        $presentMap = array_flip(array_map('strtolower', $present));
+        ) as $column) {
+            if (is_string($column) && $column !== '') {
+                $presentMap[strtolower($column)] = true;
+            }
+        }
         foreach ($columns as $column) {
             if (!isset($presentMap[strtolower($column)])) {
                 throw new \RuntimeException(sprintf(
@@ -537,6 +599,9 @@ class DatasetImportService
         }
 
         $actualHash = hash_file('sha256', $csvPath);
+        if ($actualHash === false) {
+            throw new \RuntimeException("Cannot hash dataset file: {$csvPath}");
+        }
         if (!hash_equals($expectedHash, $actualHash)) {
             throw new \RuntimeException(sprintf(
                 'Dataset signature mismatch: expected %s, file hashes to %s.',
@@ -599,7 +664,11 @@ class DatasetImportService
         $version->setMetadata(['description' => $description]);
         $version->setImportedAt(new \DateTime());
         $version->setImportedBy($user ? $user->getUserIdentifier() : 'system');
-        $version->setSha256Hash(hash_file('sha256', $csvPath));
+        $sha256Hash = hash_file('sha256', $csvPath);
+        if ($sha256Hash === false) {
+            throw new \RuntimeException("Cannot hash CSV file: $csvPath");
+        }
+        $version->setSha256Hash($sha256Hash);
         $version->setIsActive(false);
 
         $this->entityManager->persist($version);
@@ -650,12 +719,24 @@ class DatasetImportService
      *   hs_code, origin_country, destination_country, duty_rate, mfn_rate,
      *   fta_rate, duty_type (ad_valorem|specific|compound), specific_rate,
      *   effective_date, expiry_date, fta_agreement, notes
+     *
+     * @return array{
+     *   success: bool,
+     *   version_uuid: string,
+     *   dataset_type: string,
+     *   imported_count: int,
+     *   errors: list<string>,
+     *   errorCount: int,
+     *   activated: bool,
+     *   description: string
+     * }
      */
     public function importTariffRates(string $csvPath, ?string $signaturePath, ?string $signatureHash, string $description = ''): array
     {
         $this->verifyImportedFile($csvPath, $signaturePath, $signatureHash);
 
         $version = $this->beginDatasetVersion('TARIFF_RATES', $csvPath, $description);
+        /** @var string $versionId - non-null: beginDatasetVersion() just set it from a fresh UUID. */
         $versionId = $version->getVersionUuid();
 
         $rows = $this->readCsvAssoc($csvPath);
@@ -686,14 +767,22 @@ class DatasetImportService
                 $tariff->setHsCode($hsCode);
                 $tariff->setOriginCountry($origin);
                 $tariff->setDestinationCountry($destination);
-                $tariff->setDutyRate(($row['duty_rate'] ?? '') !== '' ? $row['duty_rate'] : null);
+                $dutyRate = $row['duty_rate'] ?? '';
+                if ($dutyRate === '') {
+                    throw new \RuntimeException('duty_rate is required.');
+                }
+                $tariff->setDutyRate($dutyRate);
                 $tariff->setMfnRate(($row['mfn_rate'] ?? '') !== '' ? $row['mfn_rate'] : null);
                 $tariff->setFtaRate(($row['fta_rate'] ?? '') !== '' ? $row['fta_rate'] : null);
                 $tariff->setDutyType($dutyType);
                 $tariff->setSpecificRate(($row['specific_rate'] ?? '') !== '' ? $row['specific_rate'] : null);
                 $tariff->setFtaAgreement(($row['fta_agreement'] ?? '') !== '' ? $row['fta_agreement'] : null);
                 $tariff->setNotes(($row['notes'] ?? '') !== '' ? $row['notes'] : null);
-                $tariff->setEffectiveDate($this->parseOptionalDate($row['effective_date'] ?? null));
+                $effectiveDate = $this->parseOptionalDate($row['effective_date'] ?? null);
+                if ($effectiveDate === null) {
+                    throw new \RuntimeException('effective_date is required.');
+                }
+                $tariff->setEffectiveDate($effectiveDate);
                 $tariff->setExpiryDate($this->parseOptionalDate($row['expiry_date'] ?? null));
                 $tariff->setVersionId($versionId);
                 $tariff->setIsActive(false);
@@ -735,12 +824,24 @@ class DatasetImportService
      *   origin_port, destination_port, transport_mode, container_type,
      *   cost_per_unit, currency, transit_days, effective_date, expiry_date,
      *   carrier, notes
+     *
+     * @return array{
+     *   success: bool,
+     *   version_uuid: string,
+     *   dataset_type: string,
+     *   imported_count: int,
+     *   errors: list<string>,
+     *   errorCount: int,
+     *   activated: bool,
+     *   description: string
+     * }
      */
     public function importFreightTables(string $csvPath, ?string $signaturePath, ?string $signatureHash, string $description = ''): array
     {
         $this->verifyImportedFile($csvPath, $signaturePath, $signatureHash);
 
         $version = $this->beginDatasetVersion('FREIGHT_TABLES', $csvPath, $description);
+        /** @var string $versionId - non-null: beginDatasetVersion() just set it from a fresh UUID. */
         $versionId = $version->getVersionUuid();
 
         $rows = $this->readCsvAssoc($csvPath);
@@ -769,14 +870,26 @@ class DatasetImportService
                 $freight = new \App\Entity\FreightTable();
                 $freight->setOriginPort($originPort);
                 $freight->setDestinationPort($destinationPort);
-                $freight->setTransportMode(($row['transport_mode'] ?? '') !== '' ? ucfirst(strtolower($row['transport_mode'])) : null);
-                $freight->setContainerType(($row['container_type'] ?? '') !== '' ? $row['container_type'] : null);
+                $transportMode = $row['transport_mode'] ?? '';
+                if ($transportMode === '') {
+                    throw new \RuntimeException('transport_mode is required.');
+                }
+                $freight->setTransportMode(ucfirst(strtolower($transportMode)));
+                $containerType = $row['container_type'] ?? '';
+                if ($containerType === '') {
+                    throw new \RuntimeException('container_type is required.');
+                }
+                $freight->setContainerType($containerType);
                 $freight->setCostPerUnit($costPerUnit);
                 $freight->setCurrency($currency);
                 $freight->setTransitDays(($row['transit_days'] ?? '') !== '' ? (int) $row['transit_days'] : null);
                 $freight->setCarrier(($row['carrier'] ?? '') !== '' ? $row['carrier'] : null);
                 $freight->setNotes(($row['notes'] ?? '') !== '' ? $row['notes'] : null);
-                $freight->setEffectiveDate($this->parseOptionalDate($row['effective_date'] ?? null));
+                $effectiveDate = $this->parseOptionalDate($row['effective_date'] ?? null);
+                if ($effectiveDate === null) {
+                    throw new \RuntimeException('effective_date is required.');
+                }
+                $freight->setEffectiveDate($effectiveDate);
                 $freight->setExpiryDate($this->parseOptionalDate($row['expiry_date'] ?? null));
                 $freight->setVersionId($versionId);
                 $freight->setIsActive(false);
@@ -940,7 +1053,7 @@ class DatasetImportService
         // hash of the cloned row count + timestamp (provenance marker).
         $newVersion->setSha256Hash(hash('sha256', $datasetType . '|' . $oldVersionId . '|' . $newVersionId . '|' . $recordCount));
         $newVersion->setIsActive(false);
-        $newVersion->setRecordCount($recordCount);
+        $newVersion->setRecordCount((int) $recordCount);
         
         $this->entityManager->persist($newVersion);
         
@@ -952,14 +1065,14 @@ class DatasetImportService
 
     /**
      * Rollback to a previous dataset version
-     * 
+     *
      * @param string $versionId - Version ID to rollback to
-     * 
+     *
      * @return array{
-     *   oldVersionId: string,
-     *   newVersionId: string,
-     *   datasetType: string,
-     *   recordCount: int
+     *   oldVersionId: string|null,
+     *   newVersionId: string|null,
+     *   datasetType: string|null,
+     *   recordCount: int|null
      * }
      */
     public function rollbackDataset(string $versionId, ?string $expectedDatasetType = null): array
@@ -997,7 +1110,8 @@ class DatasetImportService
         
         $datasetType = $targetVersion->getDatasetType();
 
-        return $this->entityManager->wrapInTransaction(function () use ($targetVersion, $versionId, $datasetType): array {
+        /** @var array{oldVersionId: string|null, newVersionId: string|null, datasetType: string|null, recordCount: int|null} $result */
+        $result = $this->entityManager->wrapInTransaction(function () use ($targetVersion, $versionId, $datasetType, $currentVersion): array {
         // 3. Deactivate all versions and data for this dataset type — inside
         // ONE transaction (the same atomic activation contract as imports).
         $this->entityManager->getConnection()->executeStatement(
@@ -1072,6 +1186,7 @@ class DatasetImportService
             'recordCount' => $targetVersion->getRecordCount()
         ];
         });
+        return $result;
     }
 
     /**
@@ -1110,7 +1225,11 @@ class DatasetImportService
         }
         
         // Read expected hash from signature file
-        $expectedHash = trim(file_get_contents($signaturePath));
+        $signatureContent = file_get_contents($signaturePath);
+        if ($signatureContent === false) {
+            throw new \RuntimeException("Cannot read signature file: $signaturePath");
+        }
+        $expectedHash = trim($signatureContent);
         if (empty($expectedHash)) {
             throw new \RuntimeException("Signature file is empty: $signaturePath");
         }
@@ -1141,6 +1260,9 @@ class DatasetImportService
     {
         $fileMtime = filemtime($filePath);
         $fileSize = filesize($filePath);
+        if ($fileMtime === false || $fileSize === false) {
+            throw new \RuntimeException("Cannot stat file for hashing: $filePath");
+        }
         
         // Check cache: if file metadata matches, return cached hash
         if (isset($this->signatureCache[$filePath])) {
@@ -1222,10 +1344,10 @@ class DatasetImportService
 
     /**
      * Get all dataset versions for a dataset type
-     * 
+     *
      * @param string $datasetType - TARIFF_RATES, FREIGHT_TABLES, or FX_RATES
-     * 
-     * @return array - Array of DatasetVersion entities
+     *
+     * @return list<DatasetVersion> - Array of DatasetVersion entities
      */
     public function getVersionHistory(string $datasetType): array
     {

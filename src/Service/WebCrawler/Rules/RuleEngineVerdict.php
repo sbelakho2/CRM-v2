@@ -26,13 +26,19 @@ final class RuleEngineVerdict
         return $this->verdict === 'REJECT';
     }
 
+    /**
+     * @return array{verdict: string, reason: string, total_score: int, rules_fired: list<array<array-key, mixed>>, evaluated_at: string}
+     */
     public function toArray(): array
     {
+        /** @var list<array<array-key, mixed>> $rulesFired */
+        $rulesFired = array_map(fn(RuleResult $r) => $r->toArray(), $this->firedRules);
+
         return [
             'verdict'     => $this->verdict,
             'reason'      => $this->reason,
             'total_score' => $this->totalScore,
-            'rules_fired' => array_map(fn(RuleResult $r) => $r->toArray(), $this->firedRules),
+            'rules_fired' => $rulesFired,
             'evaluated_at' => (new \DateTimeImmutable())->format('c'),
         ];
     }

@@ -19,15 +19,18 @@ class QuotePartBreakdownRepository extends ServiceEntityRepository
     /**
      * Find all part breakdown lines for a quote, ordered by id.
      *
-     * @return array<int, QuotePartBreakdown>
+     * @return list<QuotePartBreakdown>
      */
     public function findByQuote(int $quoteId): array
     {
-        return $this->createQueryBuilder('qpb')
+        /** @var list<QuotePartBreakdown> $result */
+        $result = $this->createQueryBuilder('qpb')
             ->where('qpb.quote = :quoteId')
             ->setParameter('quoteId', $quoteId)
             ->orderBy('qpb.id', 'ASC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 }

@@ -41,7 +41,12 @@ class UserLocaleTimezoneSubscriber implements EventSubscriberInterface
 
             if ($locale) {
                 $request->setLocale($locale);
-                $this->translator->setLocale($locale);
+                // The contracts interface has no setLocale; the framework's
+                // concrete translator does. Guard so custom decorators without
+                // the method can't fatal.
+                if ($this->translator instanceof \Symfony\Component\Translation\Translator) {
+                    $this->translator->setLocale($locale);
+                }
                 if ($request->hasSession()) {
                     $request->getSession()->set('_locale', $locale);
                 }
@@ -52,7 +57,9 @@ class UserLocaleTimezoneSubscriber implements EventSubscriberInterface
             }
         } else {
             $request->setLocale($this->defaultLocale);
-            $this->translator->setLocale($this->defaultLocale);
+            if ($this->translator instanceof \Symfony\Component\Translation\Translator) {
+                $this->translator->setLocale($this->defaultLocale);
+            }
             if ($request->hasSession()) {
                 $request->getSession()->set('_locale', $this->defaultLocale);
             }

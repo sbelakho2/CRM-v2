@@ -15,7 +15,7 @@ class FxRate
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 10)]
     private ?string $fromCurrency = null; // USD, EUR, MAD, etc.

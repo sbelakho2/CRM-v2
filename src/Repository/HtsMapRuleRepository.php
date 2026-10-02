@@ -21,7 +21,8 @@ class HtsMapRuleRepository extends ServiceEntityRepository
      */
     public function findByCategory(string $category): ?HtsMapRule
     {
-        return $this->createQueryBuilder('hmr')
+        /** @var HtsMapRule|null $rule */
+        $rule = $this->createQueryBuilder('hmr')
             ->andWhere('hmr.category = :category')
             ->andWhere('hmr.isActive = :active')
             ->setParameter('category', $category)
@@ -31,21 +32,26 @@ class HtsMapRuleRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $rule;
     }
 
     /**
      * Find all active mapping rules ordered by priority
-     * 
-     * @return HtsMapRule[]
+     *
+     * @return list<HtsMapRule>
      */
     public function findAllActive(): array
     {
-        return $this->createQueryBuilder('hmr')
+        /** @var list<HtsMapRule> $rules */
+        $rules = $this->createQueryBuilder('hmr')
             ->andWhere('hmr.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('hmr.priority', 'ASC')
 
             ->getQuery()
             ->getResult();
+
+        return $rules;
     }
 }

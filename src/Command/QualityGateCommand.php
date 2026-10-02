@@ -54,15 +54,13 @@ class QualityGateCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $threshold = (int) $input->getOption('threshold');
-        /** @var mixed $datasetPath */
-        $datasetPath = $input->getOption('dataset');
-        /** @var mixed $skipTests */
-        $skipTests = $input->getOption('skip-tests');
-        /** @var mixed $skipLint */
-        $skipLint = $input->getOption('skip-lint');
-        /** @var mixed $jsonOutput */
-        $jsonOutput = $input->getOption('json');
+        $thresholdOption = $input->getOption('threshold');
+        $threshold = \is_numeric($thresholdOption) ? (int) $thresholdOption : 0;
+        $datasetOption = $input->getOption('dataset');
+        $datasetPath = \is_string($datasetOption) ? $datasetOption : '';
+        $skipTests = (bool) $input->getOption('skip-tests');
+        $skipLint = (bool) $input->getOption('skip-lint');
+        $jsonOutput = (bool) $input->getOption('json');
 
         $checks = [];
         $allPassed = true;
@@ -103,6 +101,10 @@ class QualityGateCommand extends Command
                 $report = $this->goldenDatasetRunner->run();
 
                 $passed = $report->meetsThreshold($threshold / 100);
+
+                /** @var list<array{name: string, expected: string, actual: string, correct: bool, category: string, reject_gate: ?string}> $failures */
+                $failures = $report->getFailures();
+
                 $checks['golden_dataset'] = [
                     'passed'    => $passed,
                     'accuracy'  => $report->getAccuracyPercent(),
@@ -112,12 +114,12 @@ class QualityGateCommand extends Command
                     'precision' => round($report->getPrecision() * 100, 1),
                     'recall'    => round($report->getRecall() * 100, 1),
                     'f1'        => round($report->getF1() * 100, 1),
-                    'failures'  => array_map(fn($f) => [
+                    'failures'  => array_map(static fn (array $f): array => [
                         'name'     => $f['name'],
                         'expected' => $f['expected'],
                         'actual'   => $f['actual'],
                         'gate'     => $f['reject_gate'] ?? 'none',
-                    ], $report->getFailures()),
+                    ], $failures),
                 ];
 
                 if (!$passed) {
@@ -132,9 +134,9 @@ class QualityGateCommand extends Command
                         $passed ? '✅ PASS' : '❌ FAIL',
                     ));
 
-                    if (!$passed && !empty($report->getFailures())) {
+                    if (!$passed && $failures !== []) {
                         $io->text('Failures:');
-                        foreach ($report->getFailures() as $f) {
+                        foreach ($failures as $f) {
                             $io->text(sprintf(
                                 '  • %s — expected %s, got %s (gate: %s)',
                                 $f['name'], $f['expected'], $f['actual'],
@@ -218,10 +220,11 @@ class QualityGateCommand extends Command
         // Summary
         // ─────────────────────────────────────────────
         if ($jsonOutput) {
-            $output->writeln(json_encode([
+            $json = json_encode([
                 'passed' => $allPassed,
                 'checks' => $checks,
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            $output->writeln($json !== false ? $json : '{}');
         } else {
             $io->newLine();
             if ($allPassed) {
@@ -240,6 +243,9 @@ class QualityGateCommand extends Command
     // Subprocess runners
     // ──────────────────────────────────────────────────
 
+    /**
+     * @return array{passed: bool, detail?: string, tests?: int, assertions?: int, files?: int, output?: string}
+     */
     private function runPhpUnit(): array
     {
         $phpunit = $this->projectDir . '/vendor/bin/phpunit';
@@ -287,6 +293,9 @@ class QualityGateCommand extends Command
         ];
     }
 
+    /**
+     * @return array{passed: bool, output: string}
+     */
     private function runContainerLint(): array
     {
         $console = $this->projectDir . '/bin/console';

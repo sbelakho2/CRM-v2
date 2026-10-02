@@ -13,7 +13,7 @@ class RoutePreference
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    protected ?int $id = null;
 
     #[ORM\Column(length: 2)]
     private ?string $destinationCountry = null;

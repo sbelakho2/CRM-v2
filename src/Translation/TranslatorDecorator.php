@@ -14,6 +14,9 @@ class TranslatorDecorator implements TranslatorInterface, LocaleAwareInterface, 
     {
     }
 
+    /**
+     * @param array<string, mixed> $parameters
+     */
     public function trans(string $id, array $parameters = [], ?string $domain = null, ?string $locale = null): string
     {
         $translated = $this->inner->trans($id, $parameters, $domain, $locale);
