@@ -441,15 +441,15 @@
         </div>
     </div>
 
-    {# 📈 Analytics Section #}
+    {# Analytics Section #}
     <div class="rams-module">
         <div class="rams-module__header">
-            <h2 class="rams-module__title">📈 {{ 'discovery_pipeline.analytics_title'|trans }}</h2>
+            <h2 class="rams-module__title">{{ 'discovery_pipeline.analytics_title'|trans }}</h2>
         </div>
         <div class="rams-module__content">
             {# Pipeline Funnel Analytics #}
             <div class="rams-mb-6">
-                <h3 class="rams-text--sm rams-text--strong rams-mb-3">📊 {{ 'discovery_pipeline.analytics_funnel'|trans }}</h3>
+                <h3 class="rams-text--sm rams-text--strong rams-mb-3">{{ 'discovery_pipeline.analytics_funnel'|trans }}</h3>
                 {% if funnel_analytics is defined and funnel_analytics is not empty %}
                 {% set funnel_max = funnel_analytics|reduce((carry, s) => carry > s.count ? carry : s.count, 0) %}
                 <div class="rams-stack rams-gap-3">
@@ -476,7 +476,7 @@
 
             {# Quality Trend #}
             <div class="rams-mb-6">
-                <h3 class="rams-text--sm rams-text--strong rams-mb-3">📈 {{ 'discovery_pipeline.analytics_quality_trend'|trans }}</h3>
+                <h3 class="rams-text--sm rams-text--strong rams-mb-3">{{ 'discovery_pipeline.analytics_quality_trend'|trans }}</h3>
                 {% if quality_trend is defined and quality_trend is not empty %}
                 {% set trend_max = quality_trend|reduce((carry, t) => carry > t.count ? carry : t.count, 0) %}
                 <div class="rams-grid rams-grid--6 rams-gap-3">
@@ -505,7 +505,7 @@
 
             {# Actionable Insights #}
             <div>
-                <h3 class="rams-text--sm rams-text--strong rams-mb-3">💡 {{ 'discovery_pipeline.analytics_insights'|trans }}</h3>
+                <h3 class="rams-text--sm rams-text--strong rams-mb-3">{{ 'discovery_pipeline.analytics_insights'|trans }}</h3>
                 {% if actionable_insights is defined and actionable_insights is not empty %}
                 <div class="rams-stack rams-gap-2">
                     {% for insight in actionable_insights %}
@@ -548,8 +548,8 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: var(--rams-bg-muted, #e5e7eb);
-    color: var(--rams-text-muted, #9ca3af);
+    background: var(--rams-panel);
+    color: var(--rams-muted);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -558,17 +558,17 @@
     transition: all 0.3s ease;
 }
 .rams-step--active .rams-step__indicator {
-    background: var(--rams-primary, #3b82f6);
+    background: var(--rams-steel);
     color: #fff;
 }
 .rams-step--completed .rams-step__indicator {
-    background: var(--rams-success, #10b981);
+    background: var(--rams-green);
     color: #fff;
 }
 .rams-step__connector {
     flex: 1;
     height: 2px;
-    background: var(--rams-bg-muted, #e5e7eb);
+    background: var(--rams-panel);
     margin-top: 13px;
     min-width: 20px;
 }
@@ -582,10 +582,10 @@
     height: 6px;
     border-radius: 3px;
     overflow: hidden;
-    background: var(--rams-bg-muted, #e5e7eb);
+    background: var(--rams-panel);
 }
 .rams-module--highlight {
-    border-color: var(--rams-primary, #3b82f6);
+    border-color: var(--rams-steel);
     border-width: 2px;
 }
 </style>
@@ -767,7 +767,7 @@ document.getElementById('pipeline-form').addEventListener('submit', async (e) =>
         
         if (result.success) {
             contentDiv.innerHTML = `
-                <div class="rams-text--success rams-mb-2 rams-text-body">✓ ${escapeHtml(result.message)}</div>
+                <div class="rams-text--success rams-mb-2 rams-text-body">${escapeHtml(result.message)}</div>
                 <div class="rams-grid rams-grid--2 rams-gap-2 rams-text--muted">
                     <div>${i18n.searched}: ${result.stats.searched}</div>
                     <div>${i18n.imported}: ${result.stats.imported}</div>
@@ -890,7 +890,7 @@ document.getElementById('enrich-form').addEventListener('submit', async (e) => {
         const resultsDiv = document.getElementById('enrich-results');
         resultsDiv.classList.remove('rams-hidden');
         resultsDiv.querySelector('div').textContent = result.success 
-            ? `✓ ${result.message}` 
+            ? result.message
             : `${i18n.errorLabel}: ${result.error}`;
         
         if (result.success) {

@@ -119,14 +119,14 @@
                         <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase rams-tracked">{{     'task.priority'|trans }}</th>
                         <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase rams-tracked">{{     'task.due_date'|trans }}</th>
                         <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase rams-tracked">{{     'task.assigned_to'|trans }}</th>
-                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase rams-tracked">{{     'common.actions'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase rams-tracked rams-table__cell--actions">{{     'common.actions'|trans }}</th>
                     </tr>
                 </thead>
                 <tbody>
                 {% for task in tasks %}
                     <tr>
                         <td>
-                            <span class="rams-badge rams-badge--{{ task.status == 'done' ? 'success' : (task.status == 'in_progress' ? 'warning' : 'neutral') }} rams-badge--small">
+                            <span class="rams-badge{% if task.status == 'done' %} rams-badge--success{% elseif task.status == 'in_progress' %} rams-badge--warning{% endif %} rams-badge--small">
                                 {{ task.status|replace({'_': ' '})|title }}
                             </span>
                         </td>
@@ -137,7 +137,7 @@
                             {% endif %}
                         </td>
                         <td>
-                             <span class="rams-badge rams-badge--{{ task.priority == 'high' ? 'danger' : (task.priority == 'medium' ? 'warning' : 'neutral') }} rams-badge--small">
+                             <span class="rams-badge{% if task.priority == 'high' %} rams-badge--danger{% elseif task.priority == 'medium' %} rams-badge--warning{% endif %} rams-badge--small">
                                 {{ task.priority|title }}
                             </span>
                         </td>

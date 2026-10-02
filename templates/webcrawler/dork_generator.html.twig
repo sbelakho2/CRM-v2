@@ -166,7 +166,7 @@
 function copyDork(template) {
     navigator.clipboard.writeText(template).then(() => {
         // Show temporary feedback
-        event.target.textContent = '✓ {{ 'common.copied'|trans }}';
+        event.target.textContent = '{{ 'common.copied'|trans }}';
         setTimeout(() => event.target.textContent = '{{ 'common.copy'|trans }}', 2000);
     });
 }

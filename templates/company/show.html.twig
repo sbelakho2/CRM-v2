@@ -32,11 +32,18 @@
                     <span class="rams-badge rams-badge--success">{{ 'company.status.active_compliance_eligible'|trans }}</span>
                 {% endif %}
                 {% if company.accountTier %}
-                    <span class="rams-badge rams-badge--primary">{{ 'company.account_tier'|trans }} {{ ('company.tiers.' ~ company.accountTier|lower)|trans }}</span>
+                    <span class="rams-badge">{{ 'company.account_tier'|trans }} {{ ('company.tiers.' ~ company.accountTier|lower)|trans }}</span>
                 {% endif %}
                 {% if company.pipelineStage %}
-                    <span class="rams-badge {% if company.pipelineStage == 'Award' or company.pipelineStage == 'Closed Won' %}rams-badge--success{% elseif company.pipelineStage == 'Proposal' or company.pipelineStage == 'Negotiation' %}rams-badge--warning{% elseif company.pipelineStage == 'SQO' %}rams-badge--info{% endif %}">
-                        {{ ('company.stages.' ~ company.pipelineStage|lower|replace({' ': '_'}))|trans }}
+                    <span class="rams-andon">
+                        {% if company.pipelineStage == 'Award' or company.pipelineStage == 'Closed Won' %}
+                            <span class="rams-andon__light rams-andon__light--green"></span>
+                        {% elseif company.pipelineStage == 'Proposal' or company.pipelineStage == 'Negotiation' %}
+                            <span class="rams-andon__light rams-andon__light--yellow"></span>
+                        {% else %}
+                            <span class="rams-andon__light rams-andon__light--off"></span>
+                        {% endif %}
+                        <span class="rams-andon__text">{{ ('company.stages.' ~ company.pipelineStage|lower|replace({' ': '_'}))|trans }}</span>
                     </span>
                 {% endif %}
             </div>
@@ -192,7 +199,7 @@
             {% if company.sourceNotes %}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h2 class="rams-module__title">📡 {{ 'company.discovery_source'|trans }}</h2>
+                    <h2 class="rams-module__title">{{ 'company.discovery_source'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
                     <p class="rams-text--sm rams-text--muted rams-whitespace-pre-line">{{ company.sourceNotes }}</p>
@@ -228,7 +235,7 @@
                                             <h3 class="rams-text--sm rams-text--bold">
                                                 {{ contact.firstName }} {{ contact.lastName }}
                                                 {% if contact.primaryContact %}
-                                                    <span class="rams-badge rams-badge--success rams-badge-code rams-inline-icon">★ {{ 'contact.decision_maker.short'|trans }}</span>
+                                                    <span class="rams-badge rams-badge--success rams-badge-code rams-inline-icon"><svg class="rams-inline-icon" width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.958a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.367 2.446a1 1 0 00-.364 1.118l1.287 3.957c.3.922-.755 1.688-1.539 1.118l-3.367-2.446a1 1 0 00-1.176 0l-3.367 2.446c-.783.57-1.838-.196-1.538-1.118l1.286-3.957a1 1 0 00-.363-1.118L2.981 9.385c-.783-.57-.38-1.81.588-1.81h4.163a1 1 0 00.95-.69l1.286-3.958z"/></svg> {{'contact.decision_maker.short'|trans }}</span>
                                                 {% endif %}
                                             </h3>
                                             <p class="rams-text--muted rams-text--xs">{{ contact.jobTitle }}</p>
@@ -281,7 +288,7 @@
                                         {% elseif activity.type == 'Meeting' %}
                                             <span class="rams-andon__light rams-andon__light--green"></span>
                                         {% else %}
-                                            <span class="rams-andon__light"></span>
+                                            <span class="rams-andon__light rams-andon__light--off"></span>
                                         {% endif %}
                                     </div>
                                     <div class="rams-flex-1">
@@ -312,7 +319,7 @@
                     <div class="rams-stack rams-gap-2">
                         {% if company.website %}
                             <a href="{{ company.website }}" target="_blank" class="rams-module rams-module--inset rams-module--hoverable rams-p-3 rams-flex rams-items-center rams-gap-3 rams-no-underline">
-                                <span class="rams-text--xl">🌐</span>
+                                <svg class="rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
                                 <div class="rams-flex-1 rams-overflow-hidden">
                                     <p class="rams-text--sm rams-text--bold rams-mb-0">{{ 'company.website'|trans }}</p>
                                     <p class="rams-text--muted rams-text--xs rams-truncate rams-mb-0">{{ company.website|replace({'https://': '', 'http://': ''}) }}</p>
@@ -322,7 +329,7 @@
 
                         {% if company.linkedinCompanyUrl %}
                             <a href="{{ company.linkedinCompanyUrl }}" target="_blank" class="rams-module rams-module--inset rams-module--hoverable rams-p-3 rams-flex rams-items-center rams-gap-3 rams-no-underline">
-                                <span class="rams-text--xl">💼</span>
+                                <svg class="rams-icon--sm" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
                                 <div class="rams-flex-1 rams-overflow-hidden">
                                     <p class="rams-text--sm rams-text--bold rams-mb-0">{{ 'contact.linkedin.label'|trans }}</p>
                                     <p class="rams-text--muted rams-text--xs rams-truncate rams-mb-0">{{ company.linkedinCompanyUrl|replace({'https://www.linkedin.com/': '', 'https://linkedin.com/': ''}) }}</p>
@@ -332,7 +339,7 @@
 
                         {% if company.googleDriveLink %}
                             <a href="{{ company.googleDriveLink }}" target="_blank" class="rams-module rams-module--inset rams-module--hoverable rams-p-3 rams-flex rams-items-center rams-gap-3 rams-no-underline">
-                                <span class="rams-text--xl">📁</span>
+                                <svg class="rams-icon--sm" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.71 3.5L1.15 15l3.18 5.5L11.88 9zm4.58 0l-6.56 11.5 3.18 5.5 6.56-11.5zM8.3 20.5l-3.18-5.5H21l-3.18 5.5z"/></svg>
                                 <div class="rams-flex-1">
                                     <p class="rams-text--sm rams-text--bold rams-mb-0">{{ 'company.google_drive_link'|trans }}</p>
                                     <p class="rams-text--muted rams-text--xs rams-mb-0">{{ 'common.view'|trans }} {{ 'compliance.documents'|trans|lower }}</p>

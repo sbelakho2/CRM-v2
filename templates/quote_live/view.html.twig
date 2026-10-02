@@ -128,10 +128,10 @@
                 {# Action Buttons #}
                 <div class="rams-form__actions rams-form__actions">
                     <button class="rams-btn rams-btn--lg" onclick="requestCustomQuote()">
-                        💬 {{ 'quote.live.request_changes'|trans }}
+                        {{ 'quote.live.request_changes'|trans }}
                     </button>
                     <button class="rams-btn rams-btn--primary rams-btn--lg" onclick="acceptQuote()">
-                        ✓ {{ 'quote.live.accept'|trans }}
+                        {{ 'quote.live.accept'|trans }}
                     </button>
                 </div>
 
@@ -178,7 +178,7 @@
         <div class="rams-modal__backdrop" onclick="closeModal('acceptModal')"></div>
         <div class="rams-modal__content">
             <div class="rams-modal__header rams-modal__header">
-                <h5 class="rams-heading rams-heading--3 rams-text--white" id="acceptModalTitle">✓  {{ 'quote.live.accept'|trans }}</h5>
+                <h5 class="rams-heading rams-heading--3 rams-text--white" id="acceptModalTitle">{{ 'quote.live.accept'|trans }}</h5>
             </div>
             <div class="rams-modal__body">
                 <p class=" rams-mb-md">
@@ -206,7 +206,7 @@
             <div class="rams-modal__footer">
                 <button type="button" class="rams-btn" onclick="closeModal('acceptModal')">{{ 'common.cancel'|trans }}</button>
                 <button type="button" class="rams-btn rams-btn--primary" onclick="submitAcceptance()">
-                    ✓ {{ 'quote.live.confirm_acceptance'|trans }}
+                    {{ 'quote.live.confirm_acceptance'|trans }}
                 </button>
             </div>
         </div>
@@ -374,7 +374,7 @@
                 
                 const check = document.createElement('div');
                 check.className = 'rams-text--success rams-text-6xl';
-                check.textContent = '✓';
+                check.textContent = 'OK';
                 div.appendChild(check);
                 
                 const title = document.createElement('h2');
@@ -394,7 +394,7 @@
                     result.next_steps.forEach(s => {
                         const li = document.createElement('li');
                         li.className = 'rams-list__item';
-                        li.textContent = '✓ ' + s;
+                        li.textContent = s;
                         ul.appendChild(li);
                     });
                 }

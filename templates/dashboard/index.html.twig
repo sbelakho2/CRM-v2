@@ -113,7 +113,7 @@
                 <div class="rams-stack rams-gap-4">
                     <div class="rams-flex rams-justify-between rams-items-center">
                         <div class="rams-flex rams-items-center rams-gap-3">
-                            <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
+                            <div class="rams-andon"><span class="rams-andon__light rams-andon__light--off"></span></div>
                             <span class="rams-text--sm">{{ 'activity.types.call'|trans }}</span>
                         </div>
                         <span class="rams-badge rams-font-mono">{{ weekly_metrics.calls_made }}</span>
@@ -121,7 +121,7 @@
                     
                     <div class="rams-flex rams-justify-between rams-items-center">
                         <div class="rams-flex rams-items-center rams-gap-3">
-                            <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
+                            <div class="rams-andon"><span class="rams-andon__light rams-andon__light--off"></span></div>
                             <span class="rams-text--sm">{{ 'activity.types.email'|trans }}</span>
                         </div>
                         <span class="rams-badge rams-font-mono">{{ weekly_metrics.emails_sent }}</span>
@@ -129,7 +129,7 @@
                     
                     <div class="rams-flex rams-justify-between rams-items-center">
                         <div class="rams-flex rams-items-center rams-gap-3">
-                            <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
+                            <div class="rams-andon"><span class="rams-andon__light rams-andon__light--off"></span></div>
                             <span class="rams-text--sm">{{ 'activity.types.meeting'|trans }}</span>
                         </div>
                         <span class="rams-badge rams-font-mono">{{ weekly_metrics.meetings_held }}</span>
@@ -164,7 +164,7 @@
                             {% elseif activity.type == 'Meeting' %}
                                 <span class="rams-andon__light rams-andon__light--yellow"></span>
                             {% else %}
-                                <span class="rams-andon__light"></span>
+                                <span class="rams-andon__light rams-andon__light--off"></span>
                             {% endif %}
                         </div>
                         <div class="rams-flex-1 rams-overflow-hidden">
@@ -203,7 +203,7 @@
                 {% endif %}
                 {% if compliance_alert_counts.snoozed > 0 %}
                     <span class="rams-badge rams-badge--gray rams-badge--small"   title="{{ 'compliance.snoozed_tooltip'|trans }}">
-                        😴 {{ compliance_alert_counts.snoozed }} {{ 'compliance.snoozed'|trans }}
+                        {{ compliance_alert_counts.snoozed }} {{ 'compliance.snoozed'|trans }}
                     </span>
                 {% endif %}
                 <a href="{{ path('app_compliance_overview') }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
@@ -245,7 +245,7 @@
                             <input type="hidden" name="_token" value="{{ csrf_token('snooze' ~ doc.id) }}">
                             <input type="hidden" name="days" value="7">
                             <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm"  title="{{ 'compliance.snooze_7_days'|trans }}" aria-label="{{ 'compliance.snooze_7_days'|trans }}">
-                                😴
+                                <span class="rams-andon__light rams-andon__light--off"></span>
                             </button>
                         </form>
                     </div>

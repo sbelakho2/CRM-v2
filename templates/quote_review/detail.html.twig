@@ -197,7 +197,7 @@
                         <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase rams-text--right">{{ 'quote.review.extended'|trans }}</th>
                         <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase rams-text--center">{{ 'quote.review.confidence'|trans }}</th>
                         <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase rams-text--center">{{ 'common.status'|trans }}</th>
-                        <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase ">{{     'common.actions'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase rams-table__cell--actions">{{     'common.actions'|trans }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -218,7 +218,7 @@
                                     {% endif %}
                                     <div class="rams-flex rams-gap-1">
                                         {% if line.lifecycleWarning == 'critical' %}
-                                            <span class="rams-lifecycle-badge--critical" title="{{ 'quote.review.part_obsolete'|trans }}">⚠ {{ 'quote.review.obsolete'|trans }}</span>
+                                            <span class="rams-lifecycle-badge--critical" title="{{ 'quote.review.part_obsolete'|trans }}"><svg class="rams-inline-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> {{ 'quote.review.obsolete'|trans }}</span>
                                         {% elseif line.lifecycleWarning == 'warning' %}
                                             <span class="rams-lifecycle-badge--warning" title="{{ 'quote.review.nrnd'|trans }}">{{ 'quote.review.nrnd_short'|trans }}</span>
                                         {% endif %}
@@ -263,7 +263,7 @@
                                                         </div>
                                                         {% if alt.lifecycle_warning %}
                                                             <span class="rams-text--3xs rams-mt-1 rams-block {% if alt.lifecycle_warning == 'critical' %}rams-text--red{% else %}rams-text--warning{% endif %} rams-uppercase rams-font-mono">  
-                                                                ⚠ {{ alt.lifecycle_status|default(alt.lifecycle_warning) }}
+                                                                {{ alt.lifecycle_status|default(alt.lifecycle_warning) }}
                                                             </span>
                                                         {% endif %}
                                                     </div>

@@ -225,7 +225,7 @@
                                 {% for step in setup.steps %}
                                     <div class="rams-flex rams-gap-2 rams-items-center rams-text--sm">
                                         {% if step.done %}
-                                            <span class="rams-badge rams-badge--success rams-badge--small rams-cell--metric">✓</span>
+                                            <span class="rams-andon rams-andon--success rams-cell--metric"><span class="rams-andon__light"></span></span>
                                             <span class="rams-text--muted rams-strike">{{ step.label }}</span>
                                         {% else %}
                                             <span class="rams-badge rams-badge--small rams-cell--metric">{{ loop.index }}</span>
@@ -474,7 +474,7 @@
             <div class="rams-module rams-mt-6">
                 <div class="rams-module__content">
                     <div class="rams-flex rams-gap-3 rams-items-center">
-                        <span class="rams-text--bold">🛡️ {{ 'autonomous_sales.shield_summary'|trans({'%count%': safety_count}) }}</span>
+                        <span class="rams-text--bold">{{ 'autonomous_sales.shield_summary'|trans({'%count%': safety_count}) }}</span>
                         <a href="{{ path('autonomous_sales_index', {tab: 'settings'}) }}" class="rams-text--sm" style="color: var(--rams-orange)">{{ 'autonomous_sales.shield_view_details'|trans }} →</a>
                     </div>
                 </div>
@@ -551,7 +551,7 @@
                                                 <span class="rams-text--xs rams-px-1">{{ item.successPct }}%</span>
                                             </div>
                                         </div>
-                                        <span class="rams-badge rams-badge--small rams-badge--{{ item.badge == 'winning' ? 'success' : (item.badge == 'losing' ? 'danger' : (item.badge == 'baseline' ? 'info' : 'neutral')) }}">
+                                        <span class="rams-badge rams-badge--small{% if item.badge == 'winning' %} rams-badge--success{% elseif item.badge == 'losing' %} rams-badge--danger{% elseif item.badge == 'baseline' %} rams-badge--info{% endif %}">
                                             {{ item.badgeLabel }}
                                         </span>
                                     </div>
@@ -772,7 +772,7 @@
             {# ── Safety Status Indicator ── #}
             <div class="rams-module rams-mb-6">
                 <div class="rams-module__header">
-                    <h3>🛡️ {{ 'autonomous_sales.safety_status'|trans }}</h3>
+                    <h3>{{ 'autonomous_sales.safety_status'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-grid rams-grid--3 rams-gap-4">
@@ -838,7 +838,7 @@
             {# ── Safety features — full detail ── #}
             <div class="rams-module rams-mb-6">
                 <div class="rams-module__header">
-                    <h3>🛡️ {{ 'autonomous_sales.safety_full_title'|trans }}</h3>
+                    <h3>{{ 'autonomous_sales.safety_full_title'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <p class="rams-text--sm rams-text--muted rams-mb-4">{{ 'autonomous_sales.safety_full_desc'|trans }}</p>

@@ -108,7 +108,7 @@
                                             </div>
                                         </div>
                                         <div class="rams-flex rams-items-center rams-gap-2">
-                                            <span class="rams-badge rams-badge--{{ lead.score >= 80 ? 'success' : (lead.score >= 60 ? 'warning' : 'neutral') }} tabular-nums">
+                                            <span class="rams-status-chip{% if lead.score >= 80 %} rams-status-chip--ok{% elseif lead.score >= 60 %} rams-status-chip--caution{% endif %} tabular-nums">
                                                 {{ lead.score }}
                                             </span>
                                         </div>
@@ -142,7 +142,7 @@
         <div class="rams-module">
             <div class="rams-module__header">
                 <h2 class="rams-font-mono rams-text-2xs rams-uppercase rams-text--muted">{{      'command_center.quote_status'|trans }}</h2>
-                <span class="rams-badge rams-badge--success rams-uppercase">{{  (data.quotes_status.summary.pipeline_value / 1000)|format_currency(data.quotes_status.summary.pipeline_currency|default(display_currency())) }}k</span>
+                <span class="rams-font-mono rams-text-2xs">{{ (data.quotes_status.summary.pipeline_value / 1000)|format_currency(data.quotes_status.summary.pipeline_currency|default(display_currency())) }}k</span>
             </div>
             <div class="rams-module__content">
                 {# Quote Stats #}
@@ -200,7 +200,7 @@
                                 </div>
                                 <div class="rams-flex rams-flex-col rams-items-end">
                                     <span class="rams-font-mono rams-text-xs rams-font-bold tabular-nums">{{ (quote.total_cost / 1000)|format_currency(quote.currency|default(display_currency()), null, 1) }}k</span>
-                                    <span class="rams-badge rams-badge--{{ quote.status == 'approved' ? 'success' : 'neutral' }} rams-text-3xs rams-uppercase">  
+                                    <span class="rams-badge{% if quote.status == 'approved' %} rams-badge--success{% endif %} rams-text-3xs rams-uppercase">
                                         {{ quote.status }}
                                     </span>
                                 </div>

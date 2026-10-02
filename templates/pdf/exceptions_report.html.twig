@@ -161,7 +161,7 @@
 
     {% if exceptionData.actionRequired is defined and exceptionData.actionRequired %}
     <div class="action-required">
-        <strong>⚠ {{ 'pdf.exceptions.action_required'|trans }}:</strong>
+        <strong>{{ 'pdf.exceptions.action_required'|trans }}:</strong>
         {{ exceptionData.actionSummary|default('pdf.exceptions.action_summary_default'|trans) }}
     </div>
     {% endif %}

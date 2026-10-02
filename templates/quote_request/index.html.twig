@@ -74,7 +74,7 @@
                                     {{ statuses[req.status] ?? req.status }}
                                 </span>
                             </td>
-                            <td class="rams-truncate rams-w-280" title="{{ req.customerNotes }}">{{ req.customerNotes ?? '—' }}</td>
+                            <td class="rams-table__cell--truncate rams-w-280" title="{{ req.customerNotes }}">{{ req.customerNotes ?? '—' }}</td>
                             <td>
                                 {% if req.status != 'handled' %}
                                     <form method="post" class="rams-flex rams-gap-2"

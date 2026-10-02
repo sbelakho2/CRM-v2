@@ -39,6 +39,7 @@
     --rams-green: #2D8C3C;     /* Success, operational, healthy, complete */
     --rams-red: #D62D2D;       /* Error, critical, stop, danger */
     --rams-steel: #4A90E2;     /* Information, links */
+    --rams-success: var(--rams-green); /* Alias: success semantic (see green) */
     
     /* User-customizable accent (defaults to orange) */
     --rams-accent: var(--rams-orange);
@@ -175,6 +176,7 @@
     --rams-line: #4D4D4D;
     --rams-muted: #B3B3B3;
     --rams-foreground: #F5F5F5;
+    --rams-success: var(--rams-green);
 
     /* Dark-mode supportive greys and semantic backgrounds */
     --rams-grey-100: #1A1A1A;
@@ -597,6 +599,16 @@ body {
     justify-content: center;
 }
 
+/* Labels truncate instead of wrapping or overspilling the sidebar column;
+   the badge never shrinks, the label absorbs the constraint. Full text
+   stays available via the title attribute on the span. */
+.rams-sidebar__nav-link > span:not(.rams-sidebar__nav-badge) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .rams-sidebar__footer {
     padding: var(--space-4);
     border-top: 1px solid var(--rams-line);
@@ -808,6 +820,7 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--rams-muted);
+    overflow-wrap: anywhere;
 }
 
 .rams-module__content {
@@ -842,6 +855,9 @@ body {
     font-family: var(--font-sans);
     font-size: var(--text-sm);
     font-weight: 600;
+    /* Fixed height + overflow:hidden must never clip a second line:
+       labels stay on one line and the button grows horizontally. */
+    white-space: nowrap;
     /* Normal case for action labels (round-8 UI-18): "Save report", not
        "SAVE REPORT" — uppercase stays reserved for status/metadata. Opt
        back in per-element with .rams-uppercase where genuinely wanted. */
@@ -879,6 +895,34 @@ body {
     cursor: not-allowed;
     box-shadow: none;
     transform: none;
+}
+
+/* Action clusters (desktop). Previously these classes were only defined
+   inside the ≤768px media query, so on desktop they rendered as plain
+   blocks with no flex row alignment. The mobile MQ stacks them. */
+.rams-actions,
+.rams-actions--sm,
+.rams-form__actions,
+.rams-page-header__actions,
+.rams-page__actions,
+.rams-page-actions,
+.rams-module__header-actions,
+.rams-module__header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+/* Inside table cells the cluster stays on one row; buttons keep their
+   natural width so labels never fold per character. */
+.rams-table .rams-actions {
+    display: inline-flex;
+    flex-wrap: nowrap;
+}
+
+.rams-table .rams-actions .rams-btn {
+    width: auto;
 }
 
 .rams-btn--primary {
@@ -1440,6 +1484,7 @@ body {
     font-weight: 700;
     letter-spacing: -0.02em;
     color: var(--rams-foreground);
+    overflow-wrap: anywhere;
 }
 
 .rams-metric__unit {
@@ -1534,6 +1579,7 @@ body {
     flex: 1;
     font-family: var(--font-sans);
     line-height: 1.5;
+    overflow-wrap: anywhere;
 }
 
 .rams-alert__text {
@@ -1747,7 +1793,7 @@ body {
 
 /* Badge Variants */
 .rams-badge--blue { background: rgba(74, 144, 226, 0.1); color: var(--rams-steel); border-color: var(--rams-steel); }
-.rams-badge--gray { background: var(--rams-bg-soft); color: var(--rams-muted); border-color: var(--rams-line); }
+.rams-badge--gray { background: var(--rams-panel); color: var(--rams-muted); border-color: var(--rams-line); }
 
 /* Definition Lists */
 .rams-definition-list {
@@ -1774,6 +1820,7 @@ body {
     font-size: var(--text-sm);
     color: var(--rams-foreground);
     margin: 0;
+    overflow-wrap: anywhere;
 }
 
 /* Empty State */
@@ -1897,6 +1944,26 @@ body {
     flex: 1;
 }
 
+/* Header overspill guardrails: the title block may shrink below its
+   content so long titles wrap instead of pushing the actions out of
+   the viewport; long single words (IDs, quote numbers) break anywhere;
+   the actions cluster wraps instead of being crushed. */
+.rams-page__header-content,
+.rams-page-header > div:first-child {
+    min-width: 0;
+}
+
+.rams-page-title,
+.rams-page__title {
+    overflow-wrap: anywhere;
+}
+
+.rams-page-actions,
+.rams-page__actions {
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
 .rams-page__title-row {
     display: flex;
     align-items: center;
@@ -1933,6 +2000,9 @@ body {
     .rams-grid--5 { grid-template-columns: repeat(3, 1fr); }
     .rams-grid--4 { grid-template-columns: repeat(2, 1fr); }
     .rams-grid--3 { grid-template-columns: repeat(2, 1fr); }
+    /* Metric grids collapse with the same cadence as .rams-grid */
+    .rams-metrics-grid--4col,
+    .rams-metrics-grid--3col { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
@@ -1941,6 +2011,9 @@ body {
     .rams-grid--4,
     .rams-grid--3,
     .rams-grid--2 { grid-template-columns: 1fr; }
+    .rams-metrics-grid--4col,
+    .rams-metrics-grid--3col,
+    .rams-metrics-grid--2col { grid-template-columns: 1fr; }
 }
 
 /* ============================================
@@ -2114,7 +2187,7 @@ body {
 .rams-flex { display: flex; }
 .rams-flex-col { flex-direction: column; }
 .rams-flex-1 { flex: 1; min-width: 0; }
-.rams-flex-auto { flex: auto; }
+.rams-flex-auto { flex: auto; min-width: 0; }
 .rams-flex-none { flex: none; }
 .rams-flex-wrap { flex-wrap: wrap; }
 .rams-flex-shrink-0 { flex-shrink: 0; }
@@ -3847,6 +3920,8 @@ body {
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    flex-wrap: wrap;
+    min-width: 0;
 }
 
 .rams-meeting-booker {
@@ -3855,6 +3930,8 @@ body {
     gap: var(--space-2);
     margin-top: var(--space-2);
     font-size: var(--text-xs);
+    flex-wrap: wrap;
+    min-width: 0;
 }
 
 .rams-meeting-booker__avatar {
@@ -3962,6 +4039,8 @@ a.rams-module:hover {
     color: inherit;
     transition: all var(--duration-fast);
     display: block;
+    /* Unbreakable content (URLs, MPNs) must never bleed past the border */
+    overflow: hidden;
 }
 
 .rams-kanban__card:hover {
@@ -3982,6 +4061,7 @@ a.rams-module:hover {
     font-weight: 600;
     margin: 0;
     line-height: 1.2;
+    overflow-wrap: anywhere;
 }
 
 .rams-kanban__card-meta {
@@ -4194,7 +4274,7 @@ a.rams-module:hover {
     border: 1px solid var(--rams-line);
 }
 
-.rams-badge--purple { background: rgba(139, 92, 246, 0.15); border-color: #8B5CF6; color: #7C3AED; }
+.rams-badge--purple { background: rgba(139, 92, 246, 0.15); border-color: var(--rams-chart-purple); color: var(--rams-chart-purple); }
 .rams-badge--npi { background: rgba(255, 190, 0, 0.1); border-color: var(--rams-orange); color: var(--rams-warning-text, #8A5A00); }
 .rams-badge--framework { background: rgba(74, 144, 226, 0.1); border-color: var(--rams-steel); color: var(--rams-steel); }
 .rams-badge--small { font-size: 8px; padding: 1px 4px; }
@@ -4567,6 +4647,18 @@ a.rams-module:hover {
     z-index: 60;
 }
 
+/* Fixed panels must never exceed the phone viewport */
+@media (max-width: 480px) {
+    .rams-guidance-stack {
+        width: calc(100vw - 32px);
+        right: 16px;
+    }
+
+    .rams-alert--toast {
+        max-width: calc(100vw - 32px);
+    }
+}
+
 @keyframes rams-toastSlideIn {
     from {
         opacity: 0;
@@ -4790,22 +4882,32 @@ a.rams-module:hover {
         row-gap: var(--space-2);
     }
 
-    input[type="text"],
-    input[type="email"],
-    input[type="password"],
-    input[type="search"],
+    /* Full-width stacking for free-text controls. Intentionally narrow
+       controls are excluded: date/number pickers (native width) and
+       anything carrying a .rams-w-* width utility (filter selects,
+       quantity inputs), so their fixed widths survive. */
+    input:not([type="date"]):not([type="number"]):not([class*="rams-w-"]),
+    select:not([class*="rams-w-"]),
+    textarea,
+    .rams-form-control:not([class*="rams-w-"]),
+    .rams-form__select:not([class*="rams-w-"]),
+    .rams-select:not([class*="rams-w-"]) {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* iOS zoom prevention stays universal, regardless of width scoping */
+    input,
     select,
     textarea,
     .rams-form-control,
     .rams-form__select,
     .rams-select {
-        width: 100% !important;
-        max-width: 100%;
-        font-size: 16px; /* Prevents iOS zoom on focus */
+        font-size: 16px;
     }
 
     /* 5. Metric Cards & Stats */
-    .rams-metric-grid,
+    .rams-metrics-grid,
     [class*="grid-cols-4"] .rams-metric {
         grid-template-columns: 1fr;
     }
@@ -4839,6 +4941,38 @@ a.rams-module:hover {
         width: 100%;
         max-width: 100%;
         table-layout: fixed;
+    }
+
+    /* Root fix for vertical text: multi-column tables cannot fit a phone
+       width, so keep usable column widths (content-sized, table-layout:
+       auto) and let the scroll container pan horizontally. Containers
+       already have overflow:auto + touch scrolling. */
+    .rams-table-container .rams-table,
+    .rams-table-wrapper .rams-table {
+        table-layout: auto;
+        min-width: 640px;
+    }
+
+    /* Small (≤3 column) tables fit a phone fine: stretching them to
+       640px would force pointless scrolling. :has() detects the 4th cell
+       of any row, so dynamically-built tables (report grids) classify
+       themselves at render time. Browsers without :has() keep the
+       blanket scroll rule above. */
+    .rams-table-container .rams-table:not(:has(tr > :nth-child(4))),
+    .rams-table-wrapper .rams-table:not(:has(tr > :nth-child(4))) {
+        table-layout: fixed;
+        min-width: 0;
+    }
+
+    /* Scrolled tables size columns to content, so unbreakable strings
+       (MPNs, emails) keep their natural width; break-word is only a
+       safety net, not the per-character crusher `anywhere` was. */
+    .rams-table-container .rams-table:has(tr > :nth-child(4)) td,
+    .rams-table-wrapper .rams-table:has(tr > :nth-child(4)) td,
+    .rams-table-container .rams-table:has(tr > :nth-child(4)) td a,
+    .rams-table-wrapper .rams-table:has(tr > :nth-child(4)) td a {
+        overflow-wrap: break-word;
+        word-break: normal;
     }
     
     .rams-table th {
@@ -5432,6 +5566,10 @@ a.rams-module:hover {
     color: var(--rams-green);
 }
 
+.rams-andon__light--yellow {
+    color: var(--rams-orange);
+}
+
 .rams-andon__light--red {
     color: var(--rams-red);
 }
@@ -5855,6 +5993,16 @@ svg.rams-icon--xs, svg.rams-icon--sm, svg.rams-icon--lg { display: inline-block;
     min-height: 600px;
 }
 
+/* A 7-column week cannot fit a phone: give each day a floor width and
+   let the grid pan horizontally instead of crushing day cells. */
+@media (max-width: 768px) {
+    .rams-week-grid {
+        grid-template-columns: repeat(7, minmax(110px, 1fr));
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
 a[data-dashed="true"] {
     border-style: dashed;
 }
@@ -5867,3 +6015,14 @@ summary[data-clickable="true"] {
     cursor: pointer;
     user-select: none;
 }
+
+/* ============================================
+   XX. CANONICAL STATUS CHIPS (bordered; fill only for unrecoverable fault)
+   ============================================ */
+
+.rams-status-chip { display:inline-flex; align-items:center; gap:4px; font-family:var(--font-mono); font-size:10px; letter-spacing:0.05em; text-transform:uppercase; padding:2px 8px; border:1px solid var(--rams-line); border-radius:var(--radius-sm); color:var(--rams-muted); background:transparent; }
+.rams-status-chip--ok { border-color:var(--rams-green); color:var(--rams-green); }
+.rams-status-chip--caution { border-color:var(--rams-orange); color:var(--rams-orange); }
+.rams-status-chip--fault { border-color:var(--rams-red); color:var(--rams-red); }
+.rams-status-chip--info { border-color:var(--rams-steel); color:var(--rams-steel); }
+.rams-status-chip--solid { background:var(--rams-red); border-color:var(--rams-red); color:#fff; }

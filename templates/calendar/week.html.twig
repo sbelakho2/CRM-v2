@@ -44,7 +44,7 @@
                         {% set dayKey = day|date('Y-m-d') %}
                         {% set dayEvents = eventsByDay[dayKey]|default([]) %}
                     <div style="border-right: 1px solid var(--rams-border); display: flex; flex-direction: column;">        
-                        <div style="padding: 1rem; text-align: center; border-bottom: 1px solid var(--rams-border); background-color: {{ dayKey == 'now'|date('Y-m-d') ? 'var(--rams-primary-bg)' : 'var(--rams-surface)' }};">
+                        <div class="rams-p-4" style="text-align: center; border-bottom: 1px solid var(--rams-border); background-color: {{ dayKey == 'now'|date('Y-m-d') ? 'var(--rams-primary-bg)' : 'var(--rams-surface)' }};">
                              <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--rams-text--muted);">{{ day|date('D') }}</div>
                              <div class="rams-value-lg">{{ day|date('j') }}</div>
                         </div>

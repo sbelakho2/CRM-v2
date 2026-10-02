@@ -21,7 +21,7 @@
                         </svg>
                         {{ webinar.scheduledDate|date('F d, Y - H:i') }}
                     </span>
-                    <span class="rams-badge rams-badge--{{ webinar.language|lower }}">
+                    <span class="rams-badge">
                         {{ webinar.language }}
                     </span>
                 </div>
@@ -105,7 +105,7 @@
                 <h2 class="rams-module__title">{{ 'webinar.registration.attendees'|trans }}</h2>
                 <div class="rams-module__header-actions mobile-stack">
                     <button type="button" 
-                            class="rams-btn"
+                            class="rams-btn rams-btn--ghost"
                             onclick="copyRegistrationLink(this)"
                             data-url="{{ absolute_url(path('app_webinar_register', {id: webinar.id})) }}">
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -155,7 +155,7 @@
                                                 {{ 'webinar.attended'|trans }}
                                             </span>
                                         {% else %}
-                                            <span class="rams-andon rams-andon">
+                                            <span class="rams-andon">
                                                 {{ 'webinar.registration.registered'|trans }}
                                             </span>
                                         {% endif %}
@@ -192,10 +192,8 @@ function copyRegistrationLink(button) {
             </svg>
             {{ 'common.copied'|trans }}
         `;
-        button.classList.add('rams-btn--success');
         setTimeout(() => {
             button.innerHTML = originalText;
-            button.classList.remove('rams-btn--success');
         }, 2000);
     }).catch(err => {
         console.error('Failed to copy text: ', err);

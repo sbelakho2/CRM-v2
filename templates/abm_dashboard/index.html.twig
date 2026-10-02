@@ -49,7 +49,7 @@
     <div class="rams-grid rams-metrics-grid--3col rams-mb-6">
         <a href="{{ path('abm_dashboard_accounts') }}" class="rams-module rams-module--hoverable rams-no-underline">
             <div class="rams-module__content">
-                <h2 class="rams-module__title">👥 {{ 'abm_dashboard.accounts'|trans }}</h2>
+                <h2 class="rams-module__title">{{ 'abm_dashboard.accounts'|trans }}</h2>
                 <p class="rams-text--muted rams-text--xs">{{ 'abm_dashboard.accounts_subtitle'|trans }}</p>
                 <div class="rams-flex rams-justify-between rams-items-center rams-mt-4">
                     <span class="rams-metric__value rams-text--lg">{{ active_accounts | default(0) }}</span>
@@ -60,7 +60,7 @@
 
         <a href="{{ path('abm_dashboard_playbooks') }}" class="rams-module rams-module--hoverable rams-no-underline">
             <div class="rams-module__content">
-                <h2 class="rams-module__title">📋 {{ 'abm_dashboard.playbooks'|trans }}</h2>
+                <h2 class="rams-module__title">{{ 'abm_dashboard.playbooks'|trans }}</h2>
                 <p class="rams-text--muted rams-text--xs">{{ 'abm_dashboard.playbooks_subtitle'|trans }}</p>
                 <div class="rams-flex rams-justify-between rams-items-center rams-mt-4">
                     <span class="rams-metric__value rams-text--lg">{{ active_playbooks | default(0) }}</span>
@@ -71,10 +71,10 @@
 
         <a href="{{ path('abm_dashboard_accounts') }}" class="rams-module rams-module--hoverable rams-no-underline">
             <div class="rams-module__content">
-                <h2 class="rams-module__title">📊 {{ 'abm_dashboard.analytics'|trans }}</h2>
+                <h2 class="rams-module__title">{{ 'abm_dashboard.analytics'|trans }}</h2>
                 <p class="rams-text--muted rams-text--xs">{{ 'abm_dashboard.analytics_subtitle'|trans }}</p>
                 <div class="rams-flex rams-justify-between rams-items-center rams-mt-4">
-                    <span class="rams-text--sm rams-uppercase rams-font-mono">{{ 'abm_dashboard.view_reports'|trans }}</span>
+                    <span class="rams-text--sm">{{ 'abm_dashboard.view_reports'|trans }}</span>
                     <span class="rams-text--muted">→</span>
                 </div>
             </div>
@@ -132,7 +132,7 @@
     <!-- Quick Start -->
     <div class="rams-module rams-module--inset">
         <div class="rams-module__content">
-            <h2 class="rams-module__title">🚀 {{ 'abm_dashboard.quick_start'|trans }}</h2>
+            <h2 class="rams-module__title">{{ 'abm_dashboard.quick_start'|trans }}</h2>
             <ol class="rams-list rams-list">
                 <li><a href="{{ path('abm_dashboard_accounts') }}">{{ 'abm_dashboard.accounts'|trans }}</a> {{ 'abm_dashboard.quick_start_step1'|trans|lower }}</li>
                 <li><a href="{{ path('abm_dashboard_playbooks') }}">{{ 'abm_dashboard.playbooks'|trans }}</a> {{ 'abm_dashboard.quick_start_step2'|trans|lower }}</li>

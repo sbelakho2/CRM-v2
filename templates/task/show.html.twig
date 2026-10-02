@@ -27,7 +27,7 @@
             {% if task.status != 'done' %}
             <form method="post" action="{{ path('app_task_complete', {id: task.id}) }}" class="rams-inline">
                 <input type="hidden" name="_token" value="{{ csrf_token('complete' ~ task.id) }}">
-                <button class="rams-btn rams-btn--success"> 
+                <button class="rams-btn rams-btn--primary">
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <path d="M3 8L6 11L13 4"/>
                     </svg>

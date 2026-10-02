@@ -20,7 +20,7 @@
         <div class="rams-flex rams-gap-2 rams-items-center rams-flex-wrap mobile-stack">
             <form method="GET" class="rams-flex rams-gap-2 rams-items-center rams-flex-wrap mobile-stack" id="analytics-filter-form">
                 {# Preset Period Select #}
-                <label for="period-select" class="rams-sr-only">{{ 'filters.date_range'|trans }}</label> <select name="period" class="rams-form__select"   id="period-select">
+                <label for="period-select" class="rams-sr-only">{{ 'filters.date_range'|trans }}</label> <select name="period" class="rams-form__select rams-w-lg"   id="period-select">
                     <option value="30" {{ period == '30' and not custom_range ? 'selected' : '' }}>{{ 'filters.last_30_days'|trans    }}</option>
                     <option value="90" {{ period == '90' and not custom_range ? 'selected' : '' }}>{{ 'filters.last_90_days'|trans    }}</option>
                     <option value="180" {{ period == '180' and not custom_range ? 'selected' : '' }}>{{ 'filters.last_180_days'|trans    }}</option>
@@ -49,12 +49,12 @@
                 {% if not compare_mode %}
                 <a href="{{ path('app_rfq_win_loss_analytics', {period: period, compare: 'previous'}) }}" 
                    class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'filters.compare_previous'|trans }}">
-                    📊 {{ 'filters.compare'|trans  }}
+                    {{ 'filters.compare'|trans }}
                 </a>
                 {% else %}
                 <a href="{{ path('app_rfq_win_loss_analytics', {period: period}) }}" 
                    class="rams-btn rams-btn--ghost rams-btn--sm">   
-                    ✕ {{ 'filters.hide_comparison'|trans   }}
+                    {{ 'filters.hide_comparison'|trans }}
                 </a>
                 {% endif %}
             </form>

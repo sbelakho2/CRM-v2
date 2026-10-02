@@ -92,15 +92,15 @@
             </div>
         </div>
 
-        {# 📊 Analytics Section #}
+        {# Analytics Section #}
         <div class="rams-module rams-mb-4">
             <div class="rams-module__header">
-                <h2 class="rams-module__title">📊 {{ 'lead.analytics_title'|trans }}</h2>  
+                <h2 class="rams-module__title">{{ 'lead.analytics_title'|trans }}</h2>
             </div>
             <div class="rams-module__content">
                 {# Lead Quality Overview #}
                 <div class="rams-mb-6">
-                    <h3 class="rams-text--sm rams-font-medium rams-mb-3">🎯 {{ 'lead.quality_overview'|trans }}</h3>   
+                    <h3 class="rams-text--sm rams-font-medium rams-mb-3">{{ 'lead.quality_overview'|trans }}</h3>
                     {% if quality_distribution is defined and quality_distribution is not empty %}
                     {% set quality_max = quality_distribution|reduce((carry, item) => carry > item.count ? carry : item.count, 0) %}
                     <div class="rams-grid rams-grid--4">
@@ -108,9 +108,7 @@
                         <div class="rams-module rams-module--compact">
                             <div class="rams-module__content">
                                 <div class="rams-flex rams-items-center rams-gap-2 rams-mb-1">
-                                    <span class="rams-text--lg">
-                                        {% if range == '0-25' %}🔴{% elseif range == '26-50' %}🟠{% elseif range == '51-75' %}🟡{% else %}🟢{% endif %}
-                                    </span>
+                                    <span class="rams-andon__light {% if range == '0-25' %}rams-andon__light--red{% elseif range == '26-50' or range == '51-75' %}rams-andon__light--yellow{% else %}rams-andon__light--green{% endif %}"></span>
                                     <span class="rams-font-medium">{{  range }} <span class="rams-text--muted rams-text--xs">{% if range == '0-25' %}{{ 'lead.quality_low'|trans }}{%  elseif range == '26-50' %}{{ 'lead.quality_fair'|trans }}{%  elseif range == '51-75' %}{{ 'lead.quality_good'|trans }}{%  else %}{{ 'lead.quality_excellent'|trans }}{%  endif %}</span></span>
                                 </div>
                                 <div class="rams-metric rams-mb-1">{{ data.count }}</div>
@@ -134,7 +132,7 @@
                 <div class="rams-grid rams-grid--2 rams-gap-4 rams-mb-6">
                     {# Source Effectiveness #}
                     <div>
-                        <h4 class="rams-text--sm rams-font-medium rams-mb-2">📡 {{ 'lead.source_performance'|trans }}</h4>  
+                        <h4 class="rams-text--sm rams-font-medium rams-mb-2">{{ 'lead.source_performance'|trans }}</h4>
                         {% if source_effectiveness is defined and source_effectiveness is not empty %}
                         {% set src_max = source_effectiveness|reduce((carry, item) => carry > item.count ? carry : item.count, 0) %}
                         <div class="rams-stack rams-gap-2">
@@ -161,7 +159,7 @@
 
                     {# Funnel Analytics #}
                     <div>
-                        <h4 class="rams-text--sm rams-font-medium rams-mb-2">📊 {{ 'lead.funnel_analytics'|trans }}</h4>  
+                        <h4 class="rams-text--sm rams-font-medium rams-mb-2">{{ 'lead.funnel_analytics'|trans }}</h4>
                         {% if funnel_analytics is defined and funnel_analytics is not empty %}
                         {% set funnel_max = funnel_analytics|reduce((carry, s) => carry > s.count ? carry : s.count, 0) %}
                         <div class="rams-stack rams-gap-2">
@@ -188,7 +186,7 @@
 
                 {# Geographic Distribution #}
                 <div class="rams-mb-6">
-                    <h3 class="rams-text--sm rams-font-medium rams-mb-3">🌍 {{ 'lead.geographic_distribution'|trans }}</h3>  
+                    <h3 class="rams-text--sm rams-font-medium rams-mb-3">{{ 'lead.geographic_distribution'|trans }}</h3>
                     {% if geographic_distribution is defined and geographic_distribution is not empty %}
                     <div class="rams-overflow-x-auto">
                         <table class="rams-table rams-w-full" aria-label="{{ 'lead.geographic_distribution'|trans }}">
@@ -205,7 +203,7 @@
                                     <td class="rams-table__cell"><span class="rams-badge rams-badge--info">{{ item.region }}</span></td>
                                     <td class="rams-table__cell">{{ item.count }}</td>
                                     <td class="rams-table__cell">
-                                        <span class="rams-badge {% if item.avg_score >= 70 %}rams-badge--success{% elseif item.avg_score >= 50 %}rams-badge--warning{% endif %}">{{ item.avg_score|number_format(1) }}</span>
+                                        <span class="rams-font-mono{% if item.avg_score < 50 %} rams-text--danger{% elseif item.avg_score < 70 %} rams-text--warning{% endif %}">{{ item.avg_score|number_format(1) }}</span>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -213,13 +211,13 @@
                         </table>
                     </div>
                     {% else %}
-                    <div class="rams-text--muted rams-text--sm rams-py-sm">{{ 'lead.no_geographic_data'|trans }}</div>    
+                    <div class="rams-text--muted rams-text--sm rams-py-sm">{{ 'lead.no_geographic_data'|trans }}</div>
                     {% endif %}
                 </div>
 
                 {# Actionable Insights #}
                 <div>
-                    <h3 class="rams-text--sm rams-font-medium rams-mb-3">💡 {{ 'lead.actionable_insights'|trans }}</h3>  
+                    <h3 class="rams-text--sm rams-font-medium rams-mb-3">{{ 'lead.actionable_insights'|trans }}</h3>
                     {% if actionable_insights is defined and actionable_insights is not empty %}
                     <div class="rams-stack rams-gap-2">
                         {% for insight in actionable_insights %}
@@ -233,7 +231,7 @@
                                     <p class="rams-text--sm rams-text--muted">{{ insight.message }}</p>
                                 </div>
                                 <div class="rams-flex rams-items-center rams-gap-1">
-                                    <span class="rams-badge {% if insight.score >= 70 %}rams-badge--success{% elseif insight.score >= 50 %}rams-badge--warning{% endif %}">{{ insight.score }}</span>
+                                    <span class="rams-font-mono{% if insight.score < 50 %} rams-text--danger{% elseif insight.score < 70 %} rams-text--warning{% endif %}">{{ insight.score }}</span>
                                 </div>
                             </div>
                         </div>
@@ -270,7 +268,7 @@
                                 </td>
                                 <td class="rams-table__cell">{{ stat.total }}</td>
                                 <td class="rams-table__cell">
-                                    <span class="rams-badge {% if stat.avg_score >= 70 %}rams-badge--success{% elseif stat.avg_score >= 55 %}rams-badge--warning{% endif %}">
+                                    <span class="rams-font-mono{% if stat.avg_score < 55 %} rams-text--danger{% elseif stat.avg_score < 70 %} rams-text--warning{% endif %}">
                                         {{ stat.avg_score|number_format(1) }}
                                     </span>
                                 </td>
@@ -296,10 +294,10 @@
             </div>
         </div>
 
-        {# 🌍 Geographic Distribution Detail #}
+        {# Geographic Distribution Detail #}
         <div class="rams-module rams-mb-4">
             <div class="rams-module__header">
-                <h3 class="rams-module__title">🌍 {{ 'lead.geographic_detail'|trans }}</h3>   
+                <h3 class="rams-module__title">{{ 'lead.geographic_detail'|trans }}</h3>
             </div>
             <div class="rams-module__content rams-module__content--flush">
                 <div class="rams-table-container">
@@ -320,7 +318,7 @@
                                 </td>
                                 <td class="rams-table__cell">{{ item.count }}</td>
                                 <td class="rams-table__cell">
-                                    <span class="rams-badge {% if item.avg_score >= 70 %}rams-badge--success{% elseif item.avg_score >= 50 %}rams-badge--warning{% endif %}">
+                                    <span class="rams-font-mono{% if item.avg_score < 50 %} rams-text--danger{% elseif item.avg_score < 70 %} rams-text--warning{% endif %}">
                                         {{ item.avg_score|number_format(1) }}
                                     </span>
                                 </td>
@@ -360,7 +358,7 @@
                             {% for lead in top_leads %}
                             <tr class="rams-table__row">
                                 <td class="rams-table__cell">
-                                    <span class="rams-badge {% if lead.leadScore >= 70 %}rams-badge--success{% elseif lead.leadScore >= 55 %}rams-badge--warning{% endif %}">
+                                    <span class="rams-font-mono{% if lead.leadScore < 55 %} rams-text--danger{% elseif lead.leadScore < 70 %} rams-text--warning{% endif %}">
                                         {{ lead.leadScore }}
                                     </span>
                                 </td>
@@ -375,11 +373,11 @@
                                 </td>
                                 <td class="rams-table__cell">
                                     {% if lead.reviewStatus == 'approved' %}
-                                        <span class="rams-andon rams-andon--success">{{   'lead.approved_leads'|trans }}</span>
+                                        <span class="rams-andon rams-andon--success"><span class="rams-andon__light"></span><span class="rams-andon__text rams-andon__text--green">{{ 'lead.approved_leads'|trans }}</span></span>
                                     {% elseif lead.reviewStatus == 'denied' %}
-                                        <span class="rams-andon rams-andon--error">{{   'lead.denied_leads'|trans }}</span>
+                                        <span class="rams-andon rams-andon--error"><span class="rams-andon__light"></span><span class="rams-andon__text rams-andon__text--red">{{ 'lead.denied_leads'|trans }}</span></span>
                                     {% else %}
-                                        <span class="rams-andon rams-andon--warning">{{   'common.pending'|trans }}</span>
+                                        <span class="rams-andon rams-andon--warning"><span class="rams-andon__light"></span><span class="rams-andon__text rams-andon__text--yellow">{{ 'common.pending'|trans }}</span></span>
                                     {% endif %}
                                 </td>
                                 <td class="rams-table__cell">
@@ -401,10 +399,10 @@
             </div>
         </div>
 
-        {# 💡 Actionable Insights #}
+        {# Actionable Insights #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <h3 class="rams-module__title">💡 {{ 'lead.actionable_insights'|trans }}</h3>  
+                <h3 class="rams-module__title">{{ 'lead.actionable_insights'|trans }}</h3>
             </div>
             <div class="rams-module__content">
                 {% if actionable_insights is defined and actionable_insights is not empty %}

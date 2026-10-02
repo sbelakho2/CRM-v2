@@ -120,7 +120,9 @@
             margin: 15pt 0;
         }
         .verification-icon {
-            font-size: 16pt;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 12pt;
+            font-weight: bold;
             color: #2D8C3C;
         }
         .hash-display {
@@ -275,7 +277,7 @@
     
     <div class="verification-card">
         <div style="display: flex; gap: 10pt; align-items: flex-start;">
-            <div class="verification-icon">✓</div>
+            <div class="verification-icon">OK</div>
             <div style="flex: 1;">
                 <strong>{{ 'pdf.audit_trail.verified'|trans|default('Document Integrity Verified') }}</strong>
                 <p style="margin: 5pt 0 0 0; font-size: 9pt; color: var(--rams-muted);">

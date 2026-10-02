@@ -91,7 +91,7 @@
                         <div class="rams-dymo">{{ 'lead.emails'|trans }}</div>
                         <div>
                             {% for email in lead.contactEmailsPublic %}
-                                <div><a href="mailto:{{ email }}" class="rams-link">{{ email }}</a></div>
+                                <div><a href="mailto:{{ email }}" class="rams-link rams-url-break">{{ email }}</a></div>
                             {% endfor %}
                         </div>
                     </div>

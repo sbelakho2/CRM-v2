@@ -101,7 +101,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <span class="rams-badge rams-badge--{{ q.status == 'approved' ? 'success' : (q.status == 'pending_review' ? 'neutral' : 'neutral') }} rams-uppercase"> 
+                                    <span class="rams-badge{% if q.status == 'approved' %} rams-badge--success{% endif %} rams-uppercase">
                                         {{ q.status|replace({'_': ' '}) }}
                                     </span>
                                 </td>

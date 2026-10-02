@@ -32,12 +32,12 @@
                         <div class="rams-heat-map__tooltip-name">{{ company.name }}</div>
                         <div class="rams-heat-map__tooltip-score">{{ 'dashboard.score'|trans }}: {{ company.score }}/100</div>
                         <div class="rams-heat-map__tooltip-details">
-                            <div>🎯 {{ company.activities_count }} {{ 'activity.title'|trans }}</div>
-                            <div>📧 {{ company.email_opens }} {{ 'email.opens'|trans }}</div>
+                            <div>{{ company.activities_count }} {{ 'activity.title'|trans }}</div>
+                            <div>{{ company.email_opens }} {{ 'email.opens'|trans }}</div>
                             {% if company.recent_activity_days is not null %}
-                                <div>⏱️ {{ 'dashboard.last_activity'|trans }}: {{ company.recent_activity_days }}{{ 'common.days_ago'|trans }}</div>
+                                <div>{{ 'dashboard.last_activity'|trans }}: {{ company.recent_activity_days }}{{ 'common.days_ago'|trans }}</div>
                             {% else %}
-                                <div>⏱️ {{ 'dashboard.no_recent_activity'|trans }}</div>
+                                <div>{{ 'dashboard.no_recent_activity'|trans }}</div>
                             {% endif %}
                         </div>
                     </div>

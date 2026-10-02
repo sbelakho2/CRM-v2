@@ -82,7 +82,8 @@
             display: inline-block;
             text-align: center;
             line-height: 14pt;
-            font-size: 10pt;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 8pt;
             font-weight: bold;
         }
         .check-icon.pass { background: #2D8C3C; color: white; }
@@ -236,7 +237,7 @@
             <div class="check-item">
                 <div class="check-status">
                     <span class="check-icon {{ check.status }}">
-                        {% if check.status == 'pass' %}✓{% elseif check.status == 'fail' %}✗{% elseif check.status == 'warn' %}!{% else %}i{% endif %}
+                        {% if check.status == 'pass' %}OK{% elseif check.status == 'fail' %}X{% elseif check.status == 'warn' %}!{% else %}i{% endif %}
                     </span>
                 </div>
                 <div class="check-details">
@@ -265,7 +266,7 @@
                 <div class="check-item">
                     <div class="check-status">
                         <span class="check-icon {{ check.status }}">
-                            {% if check.status == 'pass' %}✓{% elseif check.status == 'fail' %}✗{% elseif check.status == 'warn' %}!{% else %}i{% endif %}
+                            {% if check.status == 'pass' %}OK{% elseif check.status == 'fail' %}X{% elseif check.status == 'warn' %}!{% else %}i{% endif %}
                         </span>
                     </div>
                     <div class="check-details">
@@ -299,7 +300,7 @@
         </div>
         <div class="dfm-card-body">
             {% if dfmData.bomChecks|length > 0 %} {% for check in dfmData.bomChecks %} <div class="check-item">
-                <div class="check-status"> <span  class="check-icon {{ check.status }}"> {% if check.status == 'pass' %}✓{% elseif check.status == 'fail' %}✗{% elseif check.status ==       'warn' %}!{% else %}i{% endif %} </span> </div>             
+                <div class="check-status"> <span  class="check-icon {{ check.status }}"> {% if check.status == 'pass' %}OK{% elseif check.status == 'fail' %}X{% elseif check.status ==       'warn' %}!{% else %}i{% endif %} </span> </div>             
                 <div class="check-details">
                     <div class="check-name">{{ check.name   }}</div>
                     <div class="check-desc">{{ check.description }}</div> </div> </div> 

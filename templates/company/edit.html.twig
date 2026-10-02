@@ -75,7 +75,7 @@
                 <div class="rams-form__group">
                     {{ form_label(form.website, 'company.website'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                     <div class="rams-flex rams-items-center rams-gap-2">
-                        <span class="rams-text--xl">🌐</span>
+                        <span class="rams-text--xl"><svg class="rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg></span>
                         {{ form_widget(form.website, {'attr': {'class': 'rams-form__input', 'placeholder': 'company.form.website_placeholder'|trans}})  }}
                     </div>
                     {{ form_errors(form.website) }}
@@ -85,7 +85,7 @@
                 <div class="rams-form__group">
                     {{ form_label(form.googleDriveLink, 'company.google_drive_link'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                     <div class="rams-flex rams-items-center rams-gap-2">
-                        <span class="rams-text--xl">📁</span>
+                        <span class="rams-text--xl"><svg class="rams-icon--sm" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.71 3.5L1.15 15l3.18 5.5L11.88 9zm4.58 0l-6.56 11.5 3.18 5.5 6.56-11.5zM8.3 20.5l-3.18-5.5H21l-3.18 5.5z"/></svg></span>
                         {{ form_widget(form.googleDriveLink, {'attr': {'class': 'rams-form__input', 'placeholder': 'company.form.google_drive_placeholder'|trans}})  }}
                     </div>
                     {{ form_errors(form.googleDriveLink) }}

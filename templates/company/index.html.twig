@@ -163,7 +163,7 @@
                             </span>
                         {% endif %}
                         {% if company.accountTier %}
-                            <span class="rams-badge rams-badge--primary">{{ company.accountTier }}</span>
+                            <span class="rams-badge">{{ company.accountTier }}</span>
                         {% endif %}
                     </div>
                 </div>
@@ -203,7 +203,7 @@
                     {# Quick Links Icons #}
                     <div class="rams-flex rams-gap-2 rams-mt-3 rams-items-center">
                         {% if company.contacts|length > 0 %}
-                            <span class="rams-badge rams-badge--success" title="{{ company.contacts|length }} {{ 'contact.title'|trans|lower }}">
+                            <span class="rams-badge" title="{{ company.contacts|length }} {{ 'contact.title'|trans|lower }}">
                                 <svg class="rams-icon--3xs" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
                                     <circle cx="8" cy="5" r="3"/><path d="M2 13C2 10 5 9 8 9C11 9 14 10 14 13"/>
                                 </svg>
@@ -225,7 +225,7 @@
                             </span>
                         {% endif %}
                         {% if company.googleDriveLink %}
-                            <span class="rams-badge rams-badge--warning" title="{{ 'company.google_drive_link'|trans }}">
+                            <span class="rams-badge" title="{{ 'company.google_drive_link'|trans }}">
                                 <svg class="rams-icon--3xs" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path d="M7.71 3.5L1.15 15l3.18 5.5L11.88 9zm4.58 0l-6.56 11.5 3.18 5.5 6.56-11.5zM8.3 20.5l-3.18-5.5H21l-3.18 5.5z"/>
                                 </svg>

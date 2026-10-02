@@ -130,7 +130,7 @@ document.getElementById('copy-keywords').addEventListener('click', function() {
     if (window.expandedKeywords) {
         const text = window.expandedKeywords.join(', ');
         navigator.clipboard.writeText(text).then(() => {
-            this.textContent = '✓ {{ 'common.copied'|trans }}';
+            this.textContent = '{{ 'common.copied'|trans }}';
             setTimeout(() => this.textContent = '{{ 'webcrawler.copy_all_keywords'|trans }}', 2000);
         });
     }

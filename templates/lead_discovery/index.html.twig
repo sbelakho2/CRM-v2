@@ -64,15 +64,15 @@
         </div>
     </div>
 
-    {# 📊 Analytics Section #}
+    {# Analytics Section #}
     <div class="rams-module">
         <div class="rams-module__header">
-            <h2 class="rams-module__title">📊 {{ 'lead_discovery.analytics'|trans }}</h2> 
+            <h2 class="rams-module__title">{{ 'lead_discovery.analytics'|trans }}</h2>
         </div>
         <div class="rams-module__content">
             {# Lead Quality Distribution #}
             <div class="rams-mb-6">
-                <h3 class="rams-text--sm rams-font-medium rams-mb-3">🎯 {{ 'lead_discovery.quality_distribution'|trans }}</h3>   
+                <h3 class="rams-text--sm rams-font-medium rams-mb-3">{{ 'lead_discovery.quality_distribution'|trans }}</h3>
                 {% if quality_distribution is defined and quality_distribution is not empty %}
                 {% set quality_max = quality_distribution|reduce((carry, item) => carry > item.count ? carry : item.count, 0) %}
                 <div class="rams-grid rams-grid--4">
@@ -80,9 +80,7 @@
                     <div class="rams-module rams-module--compact">
                         <div class="rams-module__content">
                             <div class="rams-flex rams-items-center rams-gap-2 rams-mb-1">
-                                <span class="rams-text--lg">
-                                    {% if range == '0-25' %}🔴{% elseif range == '26-50' %}🟠{% elseif range == '51-75' %}🟡{% else %}🟢{% endif %}
-                                </span>
+                                <span class="rams-andon__light {% if range == '0-25' %}rams-andon__light--red{% elseif range == '26-50' or range == '51-75' %}rams-andon__light--yellow{% else %}rams-andon__light--green{% endif %}"></span>
                                 <span class="rams-font-medium">{{  range }} <span class="rams-text--muted rams-text--xs">{% if range == '0-25' %}{{ 'lead.quality_low'|trans }}{%  elseif range == '26-50' %}{{ 'lead.quality_fair'|trans }}{%  elseif range == '51-75' %}{{ 'lead.quality_good'|trans }}{%  else %}{{ 'lead.quality_excellent'|trans }}{%  endif %}</span></span>
                             </div>
                             <div class="rams-metric rams-mb-1">{{ data.count }}</div>
@@ -104,7 +102,7 @@
 
             {# Source Effectiveness #}
             <div class="rams-mb-6">
-                <h3 class="rams-text--sm rams-font-medium rams-mb-3">📡 {{ 'lead_discovery.source_effectiveness'|trans }}</h3>  
+                <h3 class="rams-text--sm rams-font-medium rams-mb-3">{{ 'lead_discovery.source_effectiveness'|trans }}</h3>
                 {% if source_effectiveness is defined and source_effectiveness is not empty %}
                 <div class="rams-overflow-x-auto">
                     <table class="rams-table rams-w-full data-table" aria-label="{{ 'lead_discovery.source_effectiveness'|trans }}">
@@ -146,7 +144,7 @@
             <div class="rams-grid rams-grid--2 rams-gap-4 rams-mb-6">
                 {# Geographic Distribution #}
                 <div>
-                    <h4 class="rams-text--sm rams-font-medium rams-mb-2">🌍 {{ 'lead_discovery.geographic_distribution'|trans }}</h4>  
+                    <h4 class="rams-text--sm rams-font-medium rams-mb-2">{{ 'lead_discovery.geographic_distribution'|trans }}</h4>
                     {% if geographic_distribution is defined and geographic_distribution is not empty %}
                     {% set geo_max = geographic_distribution|reduce((carry, item) => carry > item.count ? carry : item.count, 0) %}
                     <div class="rams-stack rams-gap-2">
@@ -172,7 +170,7 @@
 
                 {# Sector Breakdown #}
                 <div>
-                    <h4 class="rams-text--sm rams-font-medium rams-mb-2">🏭 {{ 'lead_discovery.sector_breakdown'|trans }}</h4>  
+                    <h4 class="rams-text--sm rams-font-medium rams-mb-2">{{ 'lead_discovery.sector_breakdown'|trans }}</h4>
                     {% if sector_breakdown is defined and sector_breakdown is not empty %}
                     {% set sec_max = sector_breakdown|reduce((carry, item) => carry > item.count ? carry : item.count, 0) %}
                     <div class="rams-stack rams-gap-2">
@@ -199,7 +197,7 @@
 
             {# Actionable Insights #}
             <div>
-                <h3 class="rams-text--sm rams-font-medium rams-mb-3">💡 {{ 'lead_discovery.actionable_insights'|trans }}</h3>  
+                <h3 class="rams-text--sm rams-font-medium rams-mb-3">{{ 'lead_discovery.actionable_insights'|trans }}</h3>
                 {% if actionable_insights is defined and actionable_insights is not empty %}
                 <div class="rams-stack rams-gap-2">
                     {% for insight in actionable_insights %}
