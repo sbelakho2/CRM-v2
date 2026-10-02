@@ -93,3 +93,42 @@
     applyDensity(density);
     applyReducedMotion(reducedMotion);
 })();
+
+// Theme-aware brand assets: elements with data-theme-src swap their source
+// when the theme flips ("light:path|dark:path"). Keeps the STARZ mark black
+// on light surfaces and white on dark ones — never blending into either.
+(function () {
+    function applyThemeSrc(root) {
+        var theme = root.getAttribute('data-theme')
+            || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        root.querySelectorAll('[data-theme-src]').forEach(function (el) {
+            var spec = el.getAttribute('data-theme-src') || '';
+            var chosen = '';
+            spec.split('|').some(function (part) {
+                var kv = part.split(':');
+                if (kv[0].trim() === theme && kv[1]) { chosen = kv[1].trim(); return true; }
+                return false;
+            });
+            if (chosen && el.getAttribute('src') !== chosen) {
+                el.setAttribute('src', chosen);
+            }
+        });
+    }
+    function init() {
+        var root = document.documentElement;
+        applyThemeSrc(root);
+        if (window.matchMedia) {
+            var mq = window.matchMedia('(prefers-color-scheme: dark)');
+            var onChange = function () { applyThemeSrc(root); };
+            if (mq.addEventListener) { mq.addEventListener('change', onChange); }
+            else if (mq.addListener) { mq.addListener(onChange); }
+        }
+        new MutationObserver(function () { applyThemeSrc(root); })
+            .observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
