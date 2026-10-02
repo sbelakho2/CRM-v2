@@ -396,9 +396,6 @@ class LeadAnalysisService
             $tags = $tl->getSectorTags();
             if (is_array($tags)) {
                 foreach ($tags as $tag) {
-                    if (!is_string($tag)) {
-                        continue;
-                    }
                     $icpSectors[$tag] = ($icpSectors[$tag] ?? 0) + 1;
                 }
             }
@@ -415,7 +412,7 @@ class LeadAnalysisService
         if ($totalSectors > 0) {
             $matches = 0;
             foreach ($leadSectors as $s) {
-                if (is_string($s) && isset($icpSectors[$s])) {
+                if (isset($icpSectors[$s])) {
                     $matches++;
                 }
             }

@@ -36,9 +36,9 @@ class EmailUnsubscribeController extends AbstractController
         $result = $consentService->processUnsubscribeToken($token);
 
         return $this->render('email_unsubscribe/result.html.twig', [
-            'success' => $result['success'] ?? false,
+            'success' => $result['success'],
             'message' => $result['error'] ?? 'email_unsubscribe.success',
             'email' => $result['email'] ?? null,
-        ], new Response('', ($result['success'] ?? false) ? 200 : 422));
+        ], new Response('', $result['success'] ? 200 : 422));
     }
 }

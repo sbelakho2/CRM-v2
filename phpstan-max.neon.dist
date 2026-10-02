@@ -1,11 +1,8 @@
 includes:
 	- phpstan.neon.dist
-	- phpstan-max-baseline.neon
 parameters:
 	# THE MAXIMUM strictness tier (PHPStan level 10 — explicit types and
-	# nullability proven everywhere) over a FROZEN baseline of legacy
-	# findings. reportUnmatchedIgnoredErrors=false: fixing code shrinks the
-	# baseline silently; any NEW level-10 finding fails CI. Shrink
-	# phpstan-max-baseline.neon opportunistically — never grow it.
+	# nullability proven everywhere). Round-9: the baseline is EMPTY —
+	# every finding was fixed in source. Any new level-10 finding fails CI.
 	level: 10
 	reportUnmatchedIgnoredErrors: false

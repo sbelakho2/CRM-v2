@@ -1005,6 +1005,9 @@ class InteractiveLiveQuoteService
      * only carry archivedBy — so the admin group IS the follow-up queue.)
       * @param array<string|int, mixed> $data
      */
+    /**
+     * @param array<string, mixed> $data
+     */
     private function notifyOperations(string $type, string $message, int $entityId, array $data = []): void
     {
         try {

@@ -34,11 +34,11 @@ class ReportAudit
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $versionId = null; // Dataset/API version identifier
 
-    /** @var array<string, string>|null JSON: {tariff_v: "2025.1", freight_v: "2025.2", etc.} */
+    /** @var array<string, mixed>|null JSON: {tariff_v: "2025.1", freight_v: "2025.2", etc.} */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $datasetVersions = null;
 
-    /** @var array<string, string>|null JSON: {mouser: "v1.2", digikey: "v3.0", etc.} */
+    /** @var array<string, mixed>|null JSON: {mouser: "v1.2", digikey: "v3.0", etc.} */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $apiVersions = null;
 
@@ -134,7 +134,7 @@ class ReportAudit
     }
 
     /**
-     * @return array<string, string>|null
+     * @return array<string, mixed>|null
      */
     public function getDatasetVersions(): ?array
     {
@@ -142,7 +142,7 @@ class ReportAudit
     }
 
     /**
-     * @param array<string, string>|null $datasetVersions
+     * @param array<string, mixed>|null $datasetVersions
      */
     public function setDatasetVersions(?array $datasetVersions): self
     {
@@ -151,7 +151,7 @@ class ReportAudit
     }
 
     /**
-     * @return array<string, string>|null
+     * @return array<string, mixed>|null
      */
     public function getApiVersions(): ?array
     {
@@ -159,7 +159,7 @@ class ReportAudit
     }
 
     /**
-     * @param array<string, string>|null $apiVersions
+     * @param array<string, mixed>|null $apiVersions
      */
     public function setApiVersions(?array $apiVersions): self
     {

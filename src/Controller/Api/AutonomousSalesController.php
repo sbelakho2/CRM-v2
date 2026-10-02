@@ -142,6 +142,27 @@ class AutonomousSalesController extends AbstractController
     }
 
     /**
+     * String-keyed array (personalization metadata contract).
+     *
+     * @return array<string, mixed>
+     */
+    private static function stringKeyedArray(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($value as $k => $v) {
+            if (is_string($k)) {
+                $out[$k] = is_scalar($v) || $v === null ? $v : (is_array($v) ? $v : '');
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * Authenticate inbound provider webhook callbacks (Mailgun/SendGrid).
      *
      * Providers cannot carry a browser CSRF token, so the webhook routes are
@@ -993,7 +1014,7 @@ class AutonomousSalesController extends AbstractController
             $contactId = $data['contact_id'] ?? null;
             $eventType = $data['event_type'] ?? null;
             $messageId = $data['message_id'] ?? null;
-            $metadata = self::arrayValue($data['metadata'] ?? null);
+            $metadata = self::stringKeyedArray($data['metadata'] ?? null);
 
             if (!$contactId || !$eventType) {
                 return $this->json(['success' => false, 'error' => 'contact_id and event_type are required'], 400);

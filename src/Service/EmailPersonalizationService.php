@@ -1323,7 +1323,7 @@ class EmailPersonalizationService
     /**
      * Record email interaction for learning
      *
-     * @param array<string|int, mixed> $metadata
+     * @param array<string, mixed> $metadata
      */
     public function recordInteraction(
         Contact $contact,
@@ -1918,7 +1918,7 @@ class EmailPersonalizationService
             // Check if we have arms for this value prop
             $armResult = $this->thompsonSampler->sampleAndSelect($armName);
 
-            if ($armResult !== null && isset($armResult['arm'])) {
+            if ($armResult !== null) {
                 /** @var array{arm: \App\Entity\BanditArm, sampledScore: float, isControl: bool, trace: array<string, mixed>} $armResult */
                 $arm = $armResult['arm'];
                 return [

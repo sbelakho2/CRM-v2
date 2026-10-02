@@ -195,15 +195,9 @@ class ContactEnrichmentService
 
             try {
                 $searchResult = $this->googleSearchService->searchCompanies($query, 10);
-                $items = $searchResult['results'] ?? [];
-                if (!is_array($items)) {
-                    $items = [];
-                }
+                $items = $searchResult['results'];
 
                 foreach ($items as $item) {
-                    if (!is_array($item)) {
-                        continue;
-                    }
                     $parsed = $this->parseLinkedInSearchResult($item, $companyName);
                     if ($parsed) {
                         $parsed['_source'] = 'linkedin_' . $groupKey;
@@ -226,8 +220,8 @@ class ContactEnrichmentService
             try {
                 $teamQuery = sprintf('site:%s ("our team" OR "leadership" OR "management team" OR "about us")', $domain);
                 $teamResult = $this->googleSearchService->searchCompanies($teamQuery, 5);
-                $teamItems = $teamResult['results'] ?? [];
-                $teamPages = is_array($teamItems) ? count($teamItems) : 0;
+                $teamItems = $teamResult['results'];
+                $teamPages = count($teamItems);
                 if ($teamPages > 0) {
                     $this->logger->info('[ContactEnrichment] Found {n} team/leadership pages on {domain}', [
                         'n'      => $teamPages,
@@ -364,17 +358,10 @@ class ContactEnrichmentService
 
         try {
             $searchResult = $this->googleSearchService->searchCompanies($query, 10);
-            $items = $searchResult['results'] ?? [];
-            if (!is_array($items)) {
-                $items = [];
-            }
+            $items = $searchResult['results'];
 
             foreach ($items as $item) {
-                if (!is_array($item)) {
-                    continue;
-                }
-                $text = ($this->asStringOrNull($item['title'] ?? null) ?? '')
-                    . ' ' . ($this->asStringOrNull($item['snippet'] ?? null) ?? '');
+                $text = $item['title'] . ' ' . $item['snippet'];
                 $emails = $this->extractEmailsFromText($text, $domain);
 
                 foreach ($emails as $email) {
