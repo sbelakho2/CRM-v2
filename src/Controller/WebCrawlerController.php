@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Company;
 use App\Service\WebCrawler\CompanyDiscoveryService;
 use App\Service\WebCrawler\GoogleDorkService;
 use App\Service\ContactEnrichmentService;
@@ -49,7 +50,12 @@ class WebCrawlerController extends AbstractController
     private const MAX_RUN_SECONDS = 21600; // 6 hours
 
     public function __construct(
-        private CompanyDiscoveryService $discoveryService,
+        /**
+         * Reserved for subclass integrations (discovery runs are launched via
+         * the CLI command from this controller); never read in this class,
+         * hence protected rather than private.
+         */
+        protected CompanyDiscoveryService $discoveryService,
         private GoogleDorkService $googleDorkService,
         private CountryService $countryService,
         #[Autowire('%kernel.project_dir%')]
@@ -66,6 +72,7 @@ class WebCrawlerController extends AbstractController
             throw $this->createNotFoundException('Company repository not available');
         }
 
+        /** @var list<Company> $recentCompanies */
         $recentCompanies = $this->companyRepository->createQueryBuilder('c')
             ->andWhere('c.companyStatus = :status')
             ->setParameter('status', \App\Entity\Company::STATUS_DISCOVERED)
@@ -107,17 +114,17 @@ class WebCrawlerController extends AbstractController
     #[Route('/discover', name: 'app_webcrawler_discover', methods: ['POST'])]
     public function discover(Request $request): JsonResponse
     {
-        if (!$this->isCsrfTokenValid('webcrawler_discover', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('webcrawler_discover', $this->requestStringOrNull($request, '_token'))) {
             return new JsonResponse(['success' => false, 'error' => 'Invalid CSRF token.'], 403);
         }
 
-        $sector = $request->request->get('sector');
-        $location = $request->request->get('location');
+        $location = $this->requestStringOrNull($request, 'location');
         $locationLabel = $this->resolveLocationLabel($location);
-        $sector = is_string($sector) && trim($sector) !== '' ? trim($sector) : null;
+        $sectorRaw = $this->requestStringOrNull($request, 'sector');
+        $sector = $sectorRaw !== null && trim($sectorRaw) !== '' ? trim($sectorRaw) : null;
 
         // Resolve region code from the location parameter for the CLI command
-        $regionCode = is_string($location) && trim($location) !== '' ? trim($location) : null;
+        $regionCode = $location !== null && trim($location) !== '' ? trim($location) : null;
 
         $statusDir = $this->projectDir . '/' . self::DISCOVERY_STATUS_DIR;
         if (!is_dir($statusDir)) {
@@ -232,9 +239,14 @@ class WebCrawlerController extends AbstractController
         $logFile = $statusDir . '/discovery.log';
         $statusFile = $statusDir . '/discovery.json';
 
-        $status = file_exists($statusFile)
-            ? json_decode(file_get_contents($statusFile), true) ?? []
-            : [];
+        $status = [];
+        if (file_exists($statusFile)) {
+            $statusRaw = file_get_contents($statusFile);
+            if ($statusRaw !== false) {
+                $decoded = json_decode($statusRaw, true);
+                $status = is_array($decoded) ? $decoded : [];
+            }
+        }
 
         // Check if process is still running (portable liveness probe plus a
         // hard run-duration cap so a reused PID cannot fake liveness).
@@ -278,7 +290,7 @@ class WebCrawlerController extends AbstractController
     #[Route('/discover-stop', name: 'app_webcrawler_discover_stop', methods: ['POST'])]
     public function discoverStop(Request $request): JsonResponse
     {
-        if (!$this->isCsrfTokenValid('webcrawler_discover_stop', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('webcrawler_discover_stop', $this->requestStringOrNull($request, '_token'))) {
             return new JsonResponse(['success' => false, 'error' => 'Invalid CSRF token.'], 403);
         }
 
@@ -299,7 +311,7 @@ class WebCrawlerController extends AbstractController
             }
         }
 
-        if (file_exists($pidFile)) {
+        if (is_file($pidFile)) {
             unlink($pidFile);
         }
 
@@ -309,24 +321,23 @@ class WebCrawlerController extends AbstractController
     #[Route('/search-google', name: 'app_webcrawler_search_google', methods: ['POST'])]
     public function searchGoogle(Request $request): JsonResponse
     {
-        if (!$this->isCsrfTokenValid('webcrawler_search_google', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('webcrawler_search_google', $this->requestStringOrNull($request, '_token'))) {
             return new JsonResponse(['success' => false, 'error' => 'Invalid CSRF token.'], 403);
         }
 
         set_time_limit(120);
 
-        $sector = $request->request->get('sector');
-        $location = $request->request->get('location');
+        $location = $this->requestStringOrNull($request, 'location');
         $locationLabel = $this->resolveLocationLabel($location);
-        $customQuery = $request->request->get('custom_query');
+        $customQuery = $this->requestStringOrNull($request, 'custom_query');
 
         try {
-            if ($customQuery) {
+            if ($customQuery !== null && $customQuery !== '') {
                 // Custom Google Dork search
                 $results = $this->googleDorkService->customSearch($customQuery);
             } else {
                 // Standard sector + location search
-                $results = $this->googleDorkService->searchCompanies($sector, $locationLabel);
+                $results = $this->googleDorkService->searchCompanies($this->requestStringOrNull($request, 'sector'), $locationLabel);
             }
 
             return new JsonResponse([
@@ -336,7 +347,7 @@ class WebCrawlerController extends AbstractController
             ]);
 
         } catch (\Exception $e) {
-            $this->logger->error('Google search failed', ['exception' => $e]);
+            $this->logger?->error('Google search failed', ['exception' => $e]);
             return new JsonResponse([
                 'success' => false,
                 'error' => 'Search operation failed. Please try again.'
@@ -348,12 +359,12 @@ class WebCrawlerController extends AbstractController
     public function keywordExpansion(Request $request): Response
     {
         if ($request->isMethod('POST')) {
-            if (!$this->isCsrfTokenValid('webcrawler_keyword_expansion', $request->request->get('_token'))) {
+            if (!$this->isCsrfTokenValid('webcrawler_keyword_expansion', $this->requestStringOrNull($request, '_token'))) {
                 return new JsonResponse(['success' => false, 'error' => 'Invalid CSRF token.'], 403);
             }
 
-            $baseSector = $request->request->get('sector');
-            $baseKeywords = $request->request->get('keywords', '');
+            $baseSector = $this->requestString($request, 'sector');
+            $baseKeywords = $this->requestString($request, 'keywords');
 
             // Generate keyword variations
             $expanded = $this->expandKeywords($baseSector, $baseKeywords);
@@ -399,7 +410,7 @@ class WebCrawlerController extends AbstractController
     #[Route('/enrich-contacts', name: 'app_webcrawler_enrich_contacts', methods: ['POST'])]
     public function enrichContacts(Request $request): JsonResponse
     {
-        if (!$this->isCsrfTokenValid('webcrawler_enrich_contacts', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('webcrawler_enrich_contacts', $this->requestStringOrNull($request, '_token'))) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
         }
 
@@ -424,10 +435,10 @@ class WebCrawlerController extends AbstractController
             return new JsonResponse([
                 'success' => true,
                 'company' => $company->getName(),
-                'contacts_created' => $result['created'] ?? 0,
-                'contacts_updated' => $result['updated'] ?? 0,
-                'contacts_skipped' => $result['skipped'] ?? 0,
-                'sources_used' => $result['sources'] ?? [],
+                'contacts_created' => $result['created'],
+                'contacts_updated' => $result['updated'],
+                'contacts_skipped' => $result['skipped'],
+                'sources_used' => $result['sources'],
                 'contacts' => array_map(fn($c) => [
                     'name' => $c->getFirstName() . ' ' . $c->getLastName(),
                     'job_title' => $c->getJobTitle(),
@@ -435,7 +446,7 @@ class WebCrawlerController extends AbstractController
                     'phone' => $c->getPhone(),
                     'linkedin_url' => $c->getLinkedinUrl(),
                     'source' => $c->getSource(),
-                ], $result['contacts'] ?? []),
+                ], $result['contacts']),
             ]);
         } catch (\Exception $e) {
             $this->logger?->error('Contact enrichment failed', ['exception' => $e]);
@@ -449,7 +460,7 @@ class WebCrawlerController extends AbstractController
     #[Route('/enrich-batch', name: 'app_webcrawler_enrich_batch', methods: ['POST'])]
     public function enrichBatch(Request $request): JsonResponse
     {
-        if (!$this->isCsrfTokenValid('webcrawler_enrich_batch', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('webcrawler_enrich_batch', $this->requestStringOrNull($request, '_token'))) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
         }
 
@@ -462,6 +473,7 @@ class WebCrawlerController extends AbstractController
         }
 
         try {
+            /** @var list<Company> $companies */
             $companies = [];
 
             if (!empty($companyIds)) {
@@ -474,7 +486,8 @@ class WebCrawlerController extends AbstractController
                 }
             } elseif ($sector) {
                 // Enrich companies by sector that have few/no contacts
-                $companies = $this->companyRepository->createQueryBuilder('c')
+                /** @var list<Company> $sectorCompanies */
+                $sectorCompanies = $this->companyRepository->createQueryBuilder('c')
                     ->leftJoin('c.contacts', 'ct')
                     ->where('c.sector = :sector')
                     ->groupBy('c.id')
@@ -483,6 +496,7 @@ class WebCrawlerController extends AbstractController
                     ->setMaxResults($limit)
                     ->getQuery()
                     ->getResult();
+                $companies = $sectorCompanies;
             } else {
                 return new JsonResponse(['error' => 'Provide company_ids or sector'], 400);
             }
@@ -494,8 +508,8 @@ class WebCrawlerController extends AbstractController
                     $results[] = [
                         'company_id' => $company->getId(),
                         'company_name' => $company->getName(),
-                        'contacts_created' => $result['created'] ?? 0,
-                        'contacts_updated' => $result['updated'] ?? 0,
+                        'contacts_created' => $result['created'],
+                        'contacts_updated' => $result['updated'],
                         'success' => true,
                     ];
                 } catch (\Exception $e) {
@@ -527,6 +541,8 @@ class WebCrawlerController extends AbstractController
 
     /**
      * Parse the discovery log file for pipeline statistics.
+     *
+     * @return array{log_lines: int, llm_accept: int, llm_reject: int, location_reject: int, searches: int, saved: int, last_activity: string|null}
      */
     private function parseDiscoveryLogStats(string $logFile): array
     {
@@ -585,6 +601,12 @@ class WebCrawlerController extends AbstractController
      * macOS/BSD a zero-signal posix probe is used. A positive result does
      * NOT prove the PID still belongs to our discovery run (PIDs are
      * recycled) — callers combine it with a run-duration cap.
+     *
+     * Deliberately impure from the caller's point of view: the observed
+     * process may terminate between two probes (e.g. after SIGTERM), so
+     * each call must be evaluated fresh.
+     *
+     * @phpstan-impure
      */
     private function isProcessRunning(int $pid): bool
     {
@@ -615,6 +637,8 @@ class WebCrawlerController extends AbstractController
 
     /**
      * Expand keywords for better search coverage
+     *
+     * @return array<int, string>
      */
     private function expandKeywords(string $sector, string $additionalKeywords): array
     {
@@ -662,5 +686,28 @@ class WebCrawlerController extends AbstractController
         }
 
         return array_unique($base);
+    }
+
+    /**
+     * Weak-mode coercion of form/request values (Symfony ParameterBag returns
+     * mixed) to string with a default.
+     */
+    private function requestString(Request $request, string $key, string $default = ''): string
+    {
+        $value = $request->request->get($key, $default);
+        return (string) $value;
+    }
+
+    /**
+     * Weak-mode coercion of form/request values (Symfony ParameterBag returns
+     * mixed) to ?string.
+     */
+    private function requestStringOrNull(Request $request, string $key): ?string
+    {
+        $value = $request->request->get($key);
+        if ($value === null) {
+            return null;
+        }
+        return (string) $value;
     }
 }

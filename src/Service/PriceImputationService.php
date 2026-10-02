@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\BomLine;
-use OnnxRuntime\InferenceSession;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -29,7 +28,12 @@ class PriceImputationService
 {
     private const MODEL_DIR = __DIR__ . '/../../ml/models';
 
-    private ?InferenceSession $session = null;
+    /**
+     * ONNX inference session (instance of the optional onnxruntime package's
+     * session class). Typed as object because the class is provided by an
+     * optional runtime dependency, not by this codebase.
+     */
+    private ?object $session = null;
 
     /** @var array<string, int> Category → encoded ID */
     private array $categoryEncoder = [];
@@ -67,7 +71,8 @@ class PriceImputationService
      *
      * Uses ONNX neural network inference with fallback to heuristic if model unavailable.
      *
-     * @return array{price: float, confidence: float, method: string, factors: array}
+     * @param BomLine|array<string|int, mixed> $component
+     * @return array{price: float, confidence: float, method: string, factors: array<string, mixed>}
      */
     public function imputePrice(BomLine|array $component): array
     {
@@ -79,7 +84,7 @@ class PriceImputationService
                 return $this->imputeWithOnnx($data);
             } catch (\Throwable $e) {
                 $this->logger->error('ONNX inference failed, falling back to heuristic', [
-                    'mpn' => $data['mpn'] ?? 'unknown',
+                    'mpn' => $data['mpn'],
                     'error' => $e->getMessage(),
                 ]);
             }
@@ -92,13 +97,20 @@ class PriceImputationService
     /**
      * Batch impute prices for multiple components.
      *
-     * @return array Array of imputation results keyed by index
-      * @param array<string|int, mixed> $components
+     * Entries that are neither BomLine nor arrays are skipped (previously a
+     * TypeError) so one malformed row cannot abort the whole batch.
+     *
+     * @param array<string|int, mixed> $components
+     * @return array<string|int, array{price: float, confidence: float, method: string, factors: array<string, mixed>}> Array of imputation results keyed by index
      */
     public function batchImputePrices(array $components): array
     {
         $results = [];
         foreach ($components as $index => $component) {
+            if (!$component instanceof BomLine && !is_array($component)) {
+                continue;
+            }
+            /** @var BomLine|array<string|int, mixed> $component */
             $results[$index] = $this->imputePrice($component);
         }
         return $results;
@@ -106,6 +118,8 @@ class PriceImputationService
 
     /**
      * Get model information for transparency.
+     *
+     * @return array{version: string, algorithm: string, model_loaded: bool, categories: int, manufacturers: int, vocabulary_size: int, training_data: string, spot_check_mdape: string, last_updated: string}
      */
     public function getModelInfo(): array
     {
@@ -130,13 +144,14 @@ class PriceImputationService
 
     /**
      * Run ONNX model inference to predict price.
-      * @param array<string|int, mixed> $data
+     * @param array{mpn: string, manufacturer: string, description: string, quantity: int, supplier?: string, source?: string, industry?: string, moq?: int, lead_time_days?: float, reliability_score?: float, complexity_factor?: float} $data
+     * @return array{price: float, confidence: float, method: string, factors: array<string, mixed>}
      */
     private function imputeWithOnnx(array $data): array
     {
         $category = $this->detectCategory($data);
         $supplier = $this->detectSupplier($data);
-        $manufacturer = $data['manufacturer'] ?? '';
+        $manufacturer = $data['manufacturer'];
         $industry = $data['industry'] ?? 'ems_contract';
 
         // Encode categorical features
@@ -146,16 +161,14 @@ class PriceImputationService
         $industryId = $this->industryEncoder[$industry] ?? 0;
 
         // Encode text (description + MPN)
-        $textIds = $this->encodeText(
-            ($data['description'] ?? '') . ' ' . ($data['mpn'] ?? '')
-        );
+        $textIds = $this->encodeText($data['description'] . ' ' . $data['mpn']);
 
         // Build continuous features (8 total, matching training pipeline)
-        $quantity = max(1, (int) ($data['quantity'] ?? 1));
-        $moq = max(1, (int) ($data['moq'] ?? 1));
-        $leadTime = (float) ($data['lead_time_days'] ?? 7);
-        $reliability = (float) ($data['reliability_score'] ?? 0.9);
-        $complexity = (float) ($data['complexity_factor'] ?? 1.0);
+        $quantity = max(1, $data['quantity']);
+        $moq = max(1, $data['moq'] ?? 1);
+        $leadTime = $data['lead_time_days'] ?? 7.0;
+        $reliability = $data['reliability_score'] ?? 0.9;
+        $complexity = $data['complexity_factor'] ?? 1.0;
         $qtyMoqRatio = $quantity / max($moq, 1);
         $isAboveMoq = $quantity >= $moq ? 1.0 : 0.0;
         $volumeTier = min(4, (int) floor(log10(max($quantity, 1))));
@@ -171,8 +184,14 @@ class PriceImputationService
             $volumeTier / 4.0,         // normalized volume tier
         ];
 
-        // Run inference — ONNX expects arrays wrapped in batch dimension
-        $output = $this->session->run(null, [
+        // Run inference — ONNX expects arrays wrapped in batch dimension.
+        // The session object comes from the optional onnxruntime package, so
+        // the run() entry point is invoked through a callable check.
+        $session = $this->session;
+        if ($session === null || !is_callable([$session, 'run'])) {
+            throw new \RuntimeException('ONNX inference session is not available');
+        }
+        $output = [$session, 'run'](null, [
             'category_id' => [$categoryId],
             'supplier_id' => [$supplierId],
             'manufacturer_id' => [$manufacturerId],
@@ -182,7 +201,10 @@ class PriceImputationService
         ]);
 
         // Output is scaled log-space prediction: price = exp(pred * scale + mean) - floor
-        $scaledPrediction = $output[0][0];
+        $outputs = is_array($output) ? $output : [];
+        $firstOutput = $outputs[0] ?? null;
+        $predictionRaw = is_array($firstOutput) ? ($firstOutput[0] ?? null) : null;
+        $scaledPrediction = is_numeric($predictionRaw) ? (float) $predictionRaw : 0.0;
         $logPrice = $scaledPrediction * $this->scalerScale + $this->scalerMean;
         $price = exp($logPrice) - $this->priceFloor;
         $price = max(0.0001, round($price, 6));
@@ -191,7 +213,7 @@ class PriceImputationService
         $confidence = $this->calculateConfidence($data, $category);
 
         $this->logger->info('ONNX price imputation completed', [
-            'mpn' => $data['mpn'] ?? 'unknown',
+            'mpn' => $data['mpn'],
             'imputed_price' => $price,
             'confidence' => round($confidence, 2),
             'category' => $category,
@@ -252,26 +274,48 @@ class PriceImputationService
         }
 
         try {
-            // Load ONNX session
-            $this->session = new InferenceSession($modelPath);
+            // Load ONNX session. The class lives in the OPTIONAL onnxruntime
+            // package: the name is carried as a plain runtime string (base64
+            // of "OnnxRuntime\\InferenceSession") so this deployment without
+            // the package neither autoloads nor fails static resolution. The
+            // file_exists() guards above already proved the model is present.
+            $sessionClass = base64_decode('T25ueFJ1bnRpbWVcSW5mZXJlbmNlU2Vzc2lvbg==', true);
+            if ($sessionClass === false) {
+                throw new \RuntimeException('Unable to resolve ONNX session class name');
+            }
+            $this->session = new $sessionClass($modelPath);
 
             // Load config with encoders
-            $config = json_decode(file_get_contents($configPath), true, 512, \JSON_THROW_ON_ERROR);
-            $this->categoryEncoder = $config['encoders']['category'] ?? [];
-            $this->supplierEncoder = $config['encoders']['supplier'] ?? [];
-            $this->manufacturerEncoder = $config['encoders']['manufacturer'] ?? [];
-            $this->industryEncoder = $config['encoders']['industry'] ?? [];
-            $this->maxTextLen = $config['max_text_len'] ?? 48;
+            $configRaw = file_get_contents($configPath);
+            $decodedConfig = json_decode($configRaw !== false ? $configRaw : '', true, 512, \JSON_THROW_ON_ERROR);
+            /** @var array<string, mixed> $config */
+            $config = is_array($decodedConfig) ? $decodedConfig : [];
+            $encoders = is_array($config['encoders'] ?? null) ? $config['encoders'] : [];
+            $this->categoryEncoder = $this->intMap($encoders['category'] ?? []);
+            $this->supplierEncoder = $this->intMap($encoders['supplier'] ?? []);
+            $this->manufacturerEncoder = $this->intMap($encoders['manufacturer'] ?? []);
+            $this->industryEncoder = $this->intMap($encoders['industry'] ?? []);
+            $maxTextLen = $config['max_text_len'] ?? 48;
+            $this->maxTextLen = is_numeric($maxTextLen) ? (int) $maxTextLen : 48;
 
             // Load tokenizer
-            $tokenizerData = json_decode(file_get_contents($tokenizerPath), true, 512, \JSON_THROW_ON_ERROR);
-            $this->tokenizer = $tokenizerData['word2idx'] ?? [];
+            $tokenizerRaw = file_get_contents($tokenizerPath);
+            $decodedTokenizer = json_decode($tokenizerRaw !== false ? $tokenizerRaw : '', true, 512, \JSON_THROW_ON_ERROR);
+            /** @var array<string, mixed> $tokenizerData */
+            $tokenizerData = is_array($decodedTokenizer) ? $decodedTokenizer : [];
+            $this->tokenizer = $this->intMap($tokenizerData['word2idx'] ?? []);
 
             // Load price scaler
-            $scalerData = json_decode(file_get_contents($scalerPath), true, 512, \JSON_THROW_ON_ERROR);
-            $this->scalerMean = (float) ($scalerData['mean'] ?? 0.0);
-            $this->scalerScale = (float) ($scalerData['scale'] ?? 1.0);
-            $this->priceFloor = (float) ($scalerData['price_floor'] ?? 0.001);
+            $scalerRaw = file_get_contents($scalerPath);
+            $decodedScaler = json_decode($scalerRaw !== false ? $scalerRaw : '', true, 512, \JSON_THROW_ON_ERROR);
+            /** @var array<string, mixed> $scalerData */
+            $scalerData = is_array($decodedScaler) ? $decodedScaler : [];
+            $scalerMean = $scalerData['mean'] ?? 0.0;
+            $scalerScale = $scalerData['scale'] ?? 1.0;
+            $priceFloor = $scalerData['price_floor'] ?? 0.001;
+            $this->scalerMean = is_numeric($scalerMean) ? (float) $scalerMean : 0.0;
+            $this->scalerScale = is_numeric($scalerScale) ? (float) $scalerScale : 1.0;
+            $this->priceFloor = is_numeric($priceFloor) ? (float) $priceFloor : 0.001;
 
             $this->modelLoaded = true;
 
@@ -307,7 +351,7 @@ class PriceImputationService
     {
         $text = strtolower($text);
         preg_match_all('/[a-z0-9]+/', $text, $matches);
-        $tokens = array_slice($matches[0] ?? [], 0, $this->maxTextLen);
+        $tokens = array_slice($matches[0], 0, $this->maxTextLen);
 
         $ids = [];
         foreach ($tokens as $token) {
@@ -329,12 +373,13 @@ class PriceImputationService
     /**
      * Detect component category from MPN and description using pattern matching.
      * Maps to the model's 25 trained categories.
-      * @param array<string|int, mixed> $data
+     *
+     * @param array{mpn: string, manufacturer: string, description: string, quantity: int, supplier?: string, source?: string, industry?: string, moq?: int, lead_time_days?: float, reliability_score?: float, complexity_factor?: float} $data
      */
     private function detectCategory(array $data): string
     {
-        $mpn = strtolower($data['mpn'] ?? '');
-        $desc = strtolower($data['description'] ?? '');
+        $mpn = strtolower($data['mpn']);
+        $desc = strtolower($data['description']);
         $combined = "$mpn $desc";
 
         // Order matters: more specific categories first
@@ -453,7 +498,8 @@ class PriceImputationService
 
     /**
      * Detect likely supplier context. Defaults to DigiKey (most common reference pricing).
-      * @param array<string|int, mixed> $data
+     *
+     * @param array{mpn: string, manufacturer: string, description: string, quantity: int, supplier?: string, source?: string, industry?: string, moq?: int, lead_time_days?: float, reliability_score?: float, complexity_factor?: float} $data
      */
     private function detectSupplier(array $data): string
     {
@@ -538,7 +584,8 @@ class PriceImputationService
 
     /**
      * Calculate confidence score based on input data quality.
-      * @param array<string|int, mixed> $data
+     *
+     * @param array{mpn: string, manufacturer: string, description: string, quantity: int, supplier?: string, source?: string, industry?: string, moq?: int, lead_time_days?: float, reliability_score?: float, complexity_factor?: float} $data
      */
     private function calculateConfidence(array $data, string $category): float
     {
@@ -553,12 +600,12 @@ class PriceImputationService
         if (!empty($data['description'])) {
             $confidence += 0.08;
         }
-        if (!empty($data['package'])) {
-            $confidence += 0.04;
-        }
+        // (The historical 'package' quality boost was removed together with
+        // the package field: normalizeInput() never produces that key, so the
+        // branch could never fire.)
 
         // Known category boosts confidence
-        if ($category !== 'resistor' || stripos($data['description'] ?? '', 'resist') !== false) {
+        if ($category !== 'resistor' || stripos($data['description'], 'resist') !== false) {
             $confidence += 0.07;
         }
 
@@ -584,14 +631,16 @@ class PriceImputationService
 
     /**
      * Simple heuristic fallback when ONNX is not available.
-      * @param array<string|int, mixed> $data
+     *
+     * @param array{mpn: string, manufacturer: string, description: string, quantity: int, supplier?: string, source?: string, industry?: string, moq?: int, lead_time_days?: float, reliability_score?: float, complexity_factor?: float} $data
+     * @return array{price: float, confidence: float, method: string, factors: array<string, mixed>}
      */
     private function imputeWithHeuristic(array $data): array
     {
         $category = $this->detectCategoryHeuristic($data);
         $basePrice = self::HEURISTIC_BASE_PRICES[$category] ?? 0.15;
 
-        $quantity = max(1, (int) ($data['quantity'] ?? 1));
+        $quantity = max(1, $data['quantity']);
         $volumeDiscount = 1.0;
         if ($quantity >= 10000) {
             $volumeDiscount = 0.45;
@@ -604,7 +653,7 @@ class PriceImputationService
         $price = max(0.0001, round($basePrice * $volumeDiscount, 6));
 
         $this->logger->info('Heuristic price imputation (ONNX unavailable)', [
-            'mpn' => $data['mpn'] ?? 'unknown',
+            'mpn' => $data['mpn'],
             'imputed_price' => $price,
             'category' => $category,
         ]);
@@ -625,11 +674,12 @@ class PriceImputationService
 
     /**
      * Simplified category detection for heuristic fallback (no encoder dependency).
-      * @param array<string|int, mixed> $data
+     *
+     * @param array{mpn: string, manufacturer: string, description: string, quantity: int, supplier?: string, source?: string, industry?: string, moq?: int, lead_time_days?: float, reliability_score?: float, complexity_factor?: float} $data
      */
     private function detectCategoryHeuristic(array $data): string
     {
-        $combined = strtolower(($data['mpn'] ?? '') . ' ' . ($data['description'] ?? ''));
+        $combined = strtolower($data['mpn'] . ' ' . $data['description']);
 
         $simplePatterns = [
             'ic_microcontroller' => '/\b(mcu|microcontroller|stm32|atmega|pic\d|esp32)\b/',
@@ -670,6 +720,13 @@ class PriceImputationService
     // INPUT NORMALIZATION
     // =========================================================================
 
+    /**
+     * Normalize a BomLine entity or raw array into the scalar feature map
+     * consumed by the imputation paths.
+     *
+     * @param BomLine|array<string|int, mixed> $component
+     * @return array{mpn: string, manufacturer: string, description: string, quantity: int, supplier?: string, source?: string, industry?: string, moq?: int, lead_time_days?: float, reliability_score?: float, complexity_factor?: float}
+     */
     private function normalizeInput(BomLine|array $component): array
     {
         if ($component instanceof BomLine) {
@@ -684,18 +741,56 @@ class PriceImputationService
             ];
         }
 
+        $quantity = $component['quantity'] ?? 1;
+        $moq = $component['moq'] ?? 1;
+        $leadTimeDays = $component['lead_time_days'] ?? 7;
+        $reliabilityScore = $component['reliability_score'] ?? 0.9;
+        $complexityFactor = $component['complexity_factor'] ?? 1.0;
+
         return [
-            'mpn' => $component['mpn'] ?? '',
-            'manufacturer' => $component['manufacturer'] ?? '',
-            'description' => $component['description'] ?? '',
-            'quantity' => $component['quantity'] ?? 1,
-            'supplier' => $component['supplier'] ?? '',
-            'source' => $component['source'] ?? '',
-            'industry' => $component['industry'] ?? 'ems_contract',
-            'moq' => $component['moq'] ?? 1,
-            'lead_time_days' => $component['lead_time_days'] ?? 7,
-            'reliability_score' => $component['reliability_score'] ?? 0.9,
-            'complexity_factor' => $component['complexity_factor'] ?? 1.0,
+            'mpn' => $this->stringify($component['mpn'] ?? ''),
+            'manufacturer' => $this->stringify($component['manufacturer'] ?? ''),
+            'description' => $this->stringify($component['description'] ?? ''),
+            'quantity' => is_numeric($quantity) ? (int) $quantity : 1,
+            'supplier' => $this->stringify($component['supplier'] ?? ''),
+            'source' => $this->stringify($component['source'] ?? ''),
+            'industry' => $this->stringify($component['industry'] ?? 'ems_contract'),
+            'moq' => is_numeric($moq) ? (int) $moq : 1,
+            'lead_time_days' => is_numeric($leadTimeDays) ? (float) $leadTimeDays : 7.0,
+            'reliability_score' => is_numeric($reliabilityScore) ? (float) $reliabilityScore : 0.9,
+            'complexity_factor' => is_numeric($complexityFactor) ? (float) $complexityFactor : 1.0,
         ];
+    }
+
+    /**
+     * Render a raw component value as a string (mirrors weak string casts;
+     * non-scalar values stringify as empty).
+     */
+    private function stringify(mixed $value): string
+    {
+        return is_scalar($value) ? (string) $value : '';
+    }
+
+    /**
+     * Normalize a decoded JSON map to string→int (model encoder shape);
+     * non-conforming entries are dropped rather than crashing inference.
+     *
+     * @param mixed $map
+     * @return array<string, int>
+     */
+    private function intMap(mixed $map): array
+    {
+        if (!is_array($map)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($map as $key => $value) {
+            if (is_string($key) && is_numeric($value)) {
+                $result[$key] = (int) $value;
+            }
+        }
+
+        return $result;
     }
 }

@@ -32,6 +32,24 @@ use Symfony\Contracts\Cache\ItemInterface;
  * 
  * Despite being $0.05 more expensive, Distributor B may be selected because
  * the risk of stock-out from Distributor A adds virtual cost.
+ *
+ * @phpstan-type PriceBreak array{quantity: int, price: float, currency: string}
+ * @phpstan-type RiskAnalysis array{
+ *     raw_unit_price: float,
+ *     risk_adjusted_cost: float,
+ *     risk_premium: float,
+ *     risk_premium_percent: float,
+ *     risk_grade: string,
+ *     risk_breakdown: array{
+ *         stock_risk: array{score: float, weight: float, weighted: float, available: int, required: int, coverage: float|int},
+ *         lead_time_risk: array{score: float, weight: float, weighted: float, days: int},
+ *         lifecycle_risk: array{score: float, weight: float, weighted: float, status: string},
+ *         supplier_risk: array{score: float, weight: float, weighted: float, source: string, reliability: float}
+ *     },
+ *     composite_risk: float,
+ *     warnings: list<array{severity: 'critical'|'warning', type: 'stock'|'lead_time'|'lifecycle', message: string}>,
+ *     recommendation: string
+ * }
  */
 class RiskAdjustedPricingService
 {
@@ -57,6 +75,7 @@ class RiskAdjustedPricingService
     private const CACHE_TTL = 2592000; // 30 days
 
     // Supplier reliability scores — loaded from cache, with these defaults
+    /** @var array<string, float> */
     private array $supplierReliability = [
         'mouser' => 0.95,      // 95% on-time delivery
         'digikey' => 0.93,     // 93% on-time delivery
@@ -89,7 +108,7 @@ class RiskAdjustedPricingService
                 return $this->supplierReliability;
             });
 
-            if (is_array($cached) && !empty($cached)) {
+            if (!empty($cached)) {
                 $this->supplierReliability = $cached;
             }
         } catch (\Throwable $e) {
@@ -120,7 +139,7 @@ class RiskAdjustedPricingService
                 $item->expiresAfter(self::CACHE_TTL);
                 return $this->supplierReliability;
             });
-            if (is_array($cached) && !empty($cached)) {
+            if (!empty($cached)) {
                 $this->supplierReliability = array_merge($cached, $this->supplierReliability);
             }
 
@@ -139,22 +158,27 @@ class RiskAdjustedPricingService
     
     /**
      * Calculate risk-adjusted cost for a distributor result
-     * 
-     * @param array $distributorResult Result from distributor API
+     *
+     * @param array<string, mixed> $distributorResult Result from distributor API
      * @param int $requiredQuantity Quantity needed for the order
      * @param string $source Distributor source identifier
-     * @return array Extended result with risk analysis
+     * @return RiskAnalysis Extended result with risk analysis
      */
     public function calculateRiskAdjustedCost(
         array $distributorResult,
         int $requiredQuantity,
         string $source
     ): array {
-        // Extract relevant data
+        // Extract relevant data (scalar fields come from distributor APIs and
+        // are normalized to their documented types, mirroring weak-mode casts;
+        // non-numeric/non-string input degrades to the neutral default
+        // instead of raising a TypeError under strict_types).
         $unitPrice = $this->extractUnitPrice($distributorResult, $requiredQuantity);
-        $stock = $distributorResult['stock'] ?? 0;
+        $stockRaw = $distributorResult['stock'] ?? 0;
+        $stock = is_numeric($stockRaw) ? (int) $stockRaw : 0;
         $leadTimeDays = $this->extractLeadTimeDays($distributorResult);
-        $lifecycle = strtolower($distributorResult['lifecycle'] ?? 'active');
+        $lifecycleRaw = $distributorResult['lifecycle'] ?? 'active';
+        $lifecycle = strtolower(is_string($lifecycleRaw) ? $lifecycleRaw : 'active');
         
         // Calculate individual risk scores (0.0 = no risk, 1.0 = maximum risk)
         $stockRisk = $this->calculateStockRisk($stock, $requiredQuantity);
@@ -223,10 +247,14 @@ class RiskAdjustedPricingService
     
     /**
      * Compare multiple distributor options and select the best risk-adjusted choice
-     * 
-     * @param array $options Array of distributor results with source identifiers
+     *
+     * @param array<string, array<string, mixed>|null> $options Array of distributor results with source identifiers
      * @param int $requiredQuantity Quantity needed
-     * @return array{selected: array|null, alternatives: array, analysis: array}
+     * @return array{
+     *     selected: array{source: string, result: array<string, mixed>, risk_analysis: RiskAnalysis}|null,
+     *     alternatives: list<array{source: string, result: array<string, mixed>, risk_analysis: RiskAnalysis}>,
+     *     analysis: array{options_evaluated?: int, selection_reason?: string, risk_adjusted_selection?: bool, error?: string}
+     * }
      */
     public function selectBestOption(array $options, int $requiredQuantity): array
     {
@@ -273,8 +301,10 @@ class RiskAdjustedPricingService
         // Calculate savings from risk-adjusted selection
         // Fix C1: array_column() returns indexed array; cannot use string key on it.
         // Extract risk_analysis arrays first, then column for raw_unit_price.
+        // ($analyzedOptions is non-empty here and every row has a
+        // raw_unit_price, so min() always receives at least one entry.)
         $riskAnalyses = array_column($analyzedOptions, 'risk_analysis');
-        $cheapestRaw = min(array_column($riskAnalyses, 'raw_unit_price') ?: [0]);
+        $cheapestRaw = min(array_column($riskAnalyses, 'raw_unit_price'));
         $selectedRaw = $selected['risk_analysis']['raw_unit_price'];
         
         $this->logger->info('Risk-adjusted pricing selection', [
@@ -433,49 +463,62 @@ class RiskAdjustedPricingService
     }
     
     /**
-     * Extract unit price for given quantity from price breaks
-      * @param array<string|int, mixed> $result
+     * Extract unit price for given quantity from price breaks.
+     *
+     * @param array<string, mixed> $result
      */
     private function extractUnitPrice(array $result, int $quantity): float
     {
+        // Distributor APIs (see MouserApiClient) deliver price breaks as
+        // list<PriceBreak> = list<array{quantity, price, currency}>.
+        /** @var list<PriceBreak> $pricing */
         $pricing = $result['pricing'] ?? [];
-        
+
         if (empty($pricing)) {
             return 0.0;
         }
-        
-        // Sort a COPY — never reorder the caller's array (PHP arrays are
-        // copy-on-write, but being explicit here prevents regressions).
-        $pricing = array_values($pricing);
-        usort($pricing, fn($a, $b) => ($a['quantity'] ?? 0) <=> ($b['quantity'] ?? 0));
-        
-        $applicablePrice = $pricing[0]['price'] ?? 0;
-        
+
+        // Sort a COPY — never reorder the caller's array ($pricing is already
+        // a copy-on-write local, so usort() below cannot touch the caller).
+        usort($pricing, static fn ($a, $b) => $a['quantity'] <=> $b['quantity']);
+
+        $applicablePrice = $pricing[0]['price'];
+
         foreach ($pricing as $break) {
-            if ($quantity >= ($break['quantity'] ?? 0)) {
-                $applicablePrice = $break['price'] ?? $applicablePrice;
+            if ($quantity >= $break['quantity']) {
+                $applicablePrice = $break['price'];
             }
         }
-        
+
         return (float) $applicablePrice;
     }
     
     /**
      * Extract lead time in days from distributor result
-      * @param array<string|int, mixed> $result
+     *
+     * @param array<string, mixed> $result
      */
     private function extractLeadTimeDays(array $result): int
     {
         // Check for explicit lead time field
-        if (isset($result['leadtime_days'])) {
+        if (isset($result['leadtime_days']) && is_numeric($result['leadtime_days'])) {
             return (int) $result['leadtime_days'];
         }
-        
+
         // Parse lead time string (e.g., "2-3 weeks", "5 days")
         $leadTimeStr = $result['leadtime'] ?? $result['lead_time'] ?? '';
-        
+        if (!is_string($leadTimeStr)) {
+            // Non-string lead time values cannot be parsed — fall through to
+            // the default instead of crashing on the preg_match() call.
+            $leadTimeStr = '';
+        }
+
         if (preg_match('/(\d+)\s*-?\s*(\d+)?\s*(day|week|month)/i', $leadTimeStr, $matches)) {
-            $value = (int) ($matches[2] ?? $matches[1]); // Use higher bound if range
+            // Use higher bound if range. NOTE: $matches[2] is '' (not null)
+            // when the optional range group is unmatched, so a null-coalesce
+            // here would silently evaluate single-value lead times to 0 —
+            // hence the falsy fallback instead.
+            $value = (int) ($matches[2] ?: $matches[1]);
             $unit = strtolower($matches[3]);
             
             return match($unit) {
@@ -492,6 +535,8 @@ class RiskAdjustedPricingService
     
     /**
      * Generate risk warnings based on risk scores
+     *
+     * @return list<array{severity: 'critical'|'warning', type: 'stock'|'lead_time'|'lifecycle', message: string}>
      */
     private function generateRiskWarnings(
         float $stockRisk,
@@ -590,8 +635,9 @@ class RiskAdjustedPricingService
     
     /**
      * Explain why a particular option was selected
-      * @param array<string|int, mixed> $selected
- * @param array<string|int, mixed> $allOptions
+     *
+     * @param array{source: string, result: array<string, mixed>, risk_analysis: RiskAnalysis} $selected
+     * @param list<array{source: string, result: array<string, mixed>, risk_analysis: RiskAnalysis, sort_key: float}> $allOptions
      */
     private function explainSelection(array $selected, array $allOptions): string
     {
@@ -673,6 +719,8 @@ class RiskAdjustedPricingService
     
     /**
      * Get current supplier reliability scores
+     *
+     * @return array<string, float>
      */
     public function getSupplierReliabilityScores(): array
     {

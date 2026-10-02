@@ -22,6 +22,35 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * - Best-match selection from multiple results
  * - Alternative candidates storage (top 3)
  * - Lifecycle status indicators
+ *
+ * @phpstan-type PriceBreak array{quantity: int, price: float, currency: string|null}
+ * @phpstan-type MouserApiError array{PropertyName?: string, Message?: string}
+ * @phpstan-type MouserSearchResponse array{
+ *     SearchResults?: array{Parts?: list<array<string, mixed>>, NumberOfResult?: int},
+ *     Errors?: list<MouserApiError>
+ * }
+ * @phpstan-type MouserPart array{
+ *     mpn: string,
+ *     manufacturer: string|null,
+ *     description: string|null,
+ *     datasheet: string|null,
+ *     pricing: list<PriceBreak>,
+ *     stock: int,
+ *     leadtime_days: int,
+ *     mouser_part_number: string|null,
+ *     lifecycle: string|null,
+ *     rohs: string|null,
+ *     category: string|null,
+ *     image_url: string|null,
+ *     product_url: string|null,
+ *     _all_matches_count: int,
+ *     moq: int,
+ *     pack_quantity: int|null,
+ *     multiple_quantity: int|null,
+ *     confidence?: array{score: int, level: string, reasons: list<string>, warnings: list<string>, requiresReview: bool},
+ *     alternatives?: list<array<string, mixed>>,
+ *     lifecycle_warning?: string|null
+ * }
  */
 class MouserApiClient
 {
@@ -40,34 +69,46 @@ class MouserApiClient
     private float $rateLimitedUntil = 0; // Timestamp: pause all requests until this time
     private int $consecutiveRateLimits = 0; // Escalating backoff counter
 
+    // Not promoted so the property can be non-nullable: the constructor
+    // always falls back to a local calculator when none is injected.
+    private PartMatchConfidenceCalculator $confidenceCalculator;
+
     public function __construct(
         private HttpClientInterface $httpClient,
         private CacheInterface $cache,
         private LoggerInterface $logger,
         private string $apiKey,
-        private ?PartMatchConfidenceCalculator $confidenceCalculator = null
+        ?PartMatchConfidenceCalculator $confidenceCalculator = null
     ) {
-        $this->confidenceCalculator ??= new PartMatchConfidenceCalculator();
+        $this->confidenceCalculator = $confidenceCalculator ?? new PartMatchConfidenceCalculator();
     }
 
-    /**
-     * Search for a part by manufacturer part number with confidence scoring
-     * 
-     * @param string $partNumber The MPN to search for
-     * @param string|null $manufacturer Optional manufacturer name for better matching
-     * @param string|null $description Optional description for confidence calculation
-     * @param bool $tryVariants Whether to try MPN variants if exact match fails
-     * 
-     * @return array|null Returns part data with 'confidence' array and 'alternatives' included
-     */
     /**
      * Check whether the API is currently rate-limited (after a 403).
      */
     public function isRateLimited(): bool
     {
-        return microtime(true) < $this->rateLimitedUntil;
+        return $this->rateLimitedUntil > microtime(true);
     }
 
+    /**
+     * Check whether the API was rate-limited at the given timestamp snapshot.
+     */
+    private function isRateLimitedAt(float $rateLimitedUntil): bool
+    {
+        return $rateLimitedUntil > microtime(true);
+    }
+
+    /**
+     * Search for a part by manufacturer part number with confidence scoring
+     *
+     * @param string $partNumber The MPN to search for
+     * @param string|null $manufacturer Optional manufacturer name for better matching
+     * @param string|null $description Optional description for confidence calculation
+     * @param bool $tryVariants Whether to try MPN variants if exact match fails
+     *
+     * @return MouserPart|null Returns part data with 'confidence' array and 'alternatives' included
+     */
     public function searchByPartNumber(
         string $partNumber,
         ?string $manufacturer = null,
@@ -78,21 +119,28 @@ class MouserApiClient
         if ($this->apiKeyInvalid) {
             return null;
         }
-        
+
         $cacheKey = 'mouser_part_v3_' . md5($partNumber . ($manufacturer ?? '') . ($description ?? ''));
-        
-        return $this->cache->get($cacheKey, function (ItemInterface $item) use ($partNumber, $manufacturer, $description, $tryVariants) {
+
+        /** @var MouserPart|null */
+        return $this->cache->get($cacheKey, function (ItemInterface $item) use ($partNumber, $manufacturer, $description, $tryVariants): ?array {
             $item->expiresAfter(86400); // Cache for 24 hours
             
             // Try exact search first
             $searchResult = $this->executePartSearchWithAlternatives($partNumber);
-            
+
+            // Rate-limit snapshot taken before the loop: reading the property
+            // directly (instead of calling isRateLimited()) keeps the property
+            // state un-narrowed for the in-loop checks below. The in-loop
+            // isRateLimited() checks still guard every actual API attempt.
+            $rateLimitSnapshot = $this->rateLimitedUntil;
+
             // If no results, rate-limit check, and variants enabled, try variants
-            if ($searchResult === null && $tryVariants && !$this->isRateLimited()) {
+            if ($searchResult === null && $tryVariants && !$this->isRateLimitedAt($rateLimitSnapshot)) {
                 $variants = $this->confidenceCalculator->generateMpnVariants($partNumber);
                 $attemptCount = 0;
                 foreach ($variants as $variant) {
-                    if ($variant === $partNumber) continue;
+                    if (!is_string($variant) || $variant === $partNumber) continue;
                     if ($attemptCount >= self::MAX_VARIANT_ATTEMPTS) break;
                     if ($this->isRateLimited()) break; // Stop if we hit rate limit
                     
@@ -176,17 +224,21 @@ class MouserApiClient
     
     /**
      * Keyword fallback search — used when Part Number Search returns nothing.
-     * 
+     *
      * Strategy:
      * 1. Search the MPN as a keyword (broader match)
-     * 2. If manufacturer known, search "manufacturer MPN" 
+     * 2. If manufacturer known, search "manufacturer MPN"
      * 3. Score all results and pick the best match
-     * 
-     * @return array|null ['selected' => array, 'alternatives' => array[]]
+     *
+     * @return array{selected: MouserPart, alternatives: list<MouserPart>}|null
      */
     private function keywordFallbackSearch(string $partNumber, ?string $manufacturer, ?string $description): ?array
     {
-        if ($this->apiKeyInvalid || $this->isRateLimited()) {
+        // Property read into a local (instead of isRateLimited()) so the
+        // property state stays un-narrowed for the rate-limit check inside
+        // the candidate loop below; both checks are evaluated identically.
+        $rateLimitSnapshot = $this->rateLimitedUntil;
+        if ($this->apiKeyInvalid || $this->isRateLimitedAt($rateLimitSnapshot)) {
             return null;
         }
         
@@ -273,8 +325,8 @@ class MouserApiClient
     
     /**
      * Execute the actual API search and return selected + alternatives
-     * 
-     * @return array|null ['selected' => array, 'alternatives' => array[]]
+     *
+     * @return array{selected: MouserPart, alternatives: list<MouserPart>}|null
      */
     private function executePartSearchWithAlternatives(string $partNumber): ?array
     {
@@ -302,11 +354,12 @@ class MouserApiClient
                 ]
             ]);
 
+            /** @var MouserSearchResponse $data */
             $data = $response->toArray();
-            
+
             // Successful response — reset rate-limit counter
             $this->consecutiveRateLimits = 0;
-            
+
             if (isset($data['Errors']) && !empty($data['Errors'])) {
                 // Detect invalid API key — fail-fast for all subsequent calls
                 foreach ($data['Errors'] as $err) {
@@ -388,32 +441,59 @@ class MouserApiClient
     
     /**
      * Format a part result into standard structure
-      * @param array<string|int, mixed> $part
+     *
+     * @param array<string, mixed> $part
+     * @return MouserPart
      */
     private function formatPartResult(array $part, string $requestedMpn, int $totalCount): array
     {
-        $pricingData = $this->parsePricing($part['PriceBreaks'] ?? []);
-        
+        /** @var list<array<string, mixed>> $priceBreaks */
+        $priceBreaks = $part['PriceBreaks'] ?? [];
+        $pricingData = $this->parsePricing($priceBreaks);
+        $leadTimeRaw = $part['LeadTime'] ?? '';
+
         return [
-            'mpn' => $part['ManufacturerPartNumber'] ?? $requestedMpn,
-            'manufacturer' => $part['Manufacturer'] ?? null,
-            'description' => $part['Description'] ?? null,
-            'datasheet' => $part['DataSheetUrl'] ?? null,
+            'mpn' => $this->toNullableString($part['ManufacturerPartNumber'] ?? null) ?? $requestedMpn,
+            'manufacturer' => $this->toNullableString($part['Manufacturer'] ?? null),
+            'description' => $this->toNullableString($part['Description'] ?? null),
+            'datasheet' => $this->toNullableString($part['DataSheetUrl'] ?? null),
             'pricing' => $pricingData['breaks'],
-            'stock' => (int) ($part['AvailabilityInStock'] ?? 0),
-            'leadtime_days' => $this->parseLeadTime($part['LeadTime'] ?? ''),
-            'mouser_part_number' => $part['MouserPartNumber'] ?? null,
-            'lifecycle' => $part['LifecycleStatus'] ?? null,
-            'rohs' => $part['RohsStatus'] ?? null,
-            'category' => $part['Category'] ?? null,
-            'image_url' => $part['ImagePath'] ?? null,
-            'product_url' => $this->buildProductUrl($part['MouserPartNumber'] ?? null),
+            'stock' => $this->toInt($part['AvailabilityInStock'] ?? 0),
+            'leadtime_days' => $this->parseLeadTime(is_string($leadTimeRaw) ? $leadTimeRaw : ''),
+            'mouser_part_number' => $this->toNullableString($part['MouserPartNumber'] ?? null),
+            'lifecycle' => $this->toNullableString($part['LifecycleStatus'] ?? null),
+            'rohs' => $this->toNullableString($part['RohsStatus'] ?? null),
+            'category' => $this->toNullableString($part['Category'] ?? null),
+            'image_url' => $this->toNullableString($part['ImagePath'] ?? null),
+            'product_url' => $this->buildProductUrl($this->toNullableString($part['MouserPartNumber'] ?? null)),
             '_all_matches_count' => $totalCount,
             // MOQ and packaging info for quantity handling
             'moq' => $pricingData['moq'],
             'pack_quantity' => $pricingData['pack_quantity'],
             'multiple_quantity' => $pricingData['multiple_quantity'],
         ];
+    }
+
+    /**
+     * Normalize a raw API/JSON value to ?string: null passes through, scalars
+     * are stringified (mirrors weak-mode coercion), non-scalars degrade to null.
+     */
+    private function toNullableString(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return is_scalar($value) ? (string) $value : null;
+    }
+
+    /**
+     * Normalize a raw API/JSON value to int: numeric values are cast
+     * (mirrors weak-mode coercion), everything else degrades to 0.
+     */
+    private function toInt(mixed $value): int
+    {
+        return is_numeric($value) ? (int) $value : 0;
     }
     
     /**
@@ -437,9 +517,9 @@ class MouserApiClient
     
     /**
      * Score and sort all parts by quality criteria
-     * 
-     * @return array<int, array{score: int, part: array}>
-      * @param array<string|int, mixed> $parts
+     *
+     * @param list<array<string, mixed>> $parts
+     * @return list<array{score: int, part: array<string, mixed>}>
      */
     private function scoreAndSortParts(array $parts, string $requestedMpn): array
     {
@@ -459,20 +539,23 @@ class MouserApiClient
     
     /**
      * Calculate score for a single part
-      * @param array<string|int, mixed> $part
+     *
+     * @param array<string, mixed> $part
      */
     private function calculatePartScore(array $part, string $normalizedRequested): int
     {
         $score = 0;
-        $normalizedMpn = $this->confidenceCalculator->normalizeMpn($part['ManufacturerPartNumber'] ?? '');
-        
+        $normalizedMpn = $this->confidenceCalculator->normalizeMpn(
+            $this->toNullableString($part['ManufacturerPartNumber'] ?? null) ?? ''
+        );
+
         // Exact MPN match: +100 points
         if ($normalizedMpn === $normalizedRequested) {
             $score += 100;
         }
-        
+
         // Active lifecycle: +30 points (penalize obsolete/NRND)
-        $lifecycle = strtolower($part['LifecycleStatus'] ?? '');
+        $lifecycle = strtolower($this->toNullableString($part['LifecycleStatus'] ?? null) ?? '');
         $isCritical = false;
         $isWarning = false;
         
@@ -501,7 +584,7 @@ class MouserApiClient
         }
         
         // In stock: +25 points
-        $stock = (int) ($part['AvailabilityInStock'] ?? 0);
+        $stock = $this->toInt($part['AvailabilityInStock'] ?? 0);
         if ($stock > 0) {
             $score += 25;
             // Bonus for high stock
@@ -524,6 +607,8 @@ class MouserApiClient
 
     /**
      * Search for keyword (manufacturer name, category, etc.)
+     *
+     * @return list<array{mpn: string|null, manufacturer: string|null, description: string|null, mouser_part_number: string|null}>
      */
     public function searchByKeyword(string $keyword, int $records = 10): array
     {
@@ -551,19 +636,20 @@ class MouserApiClient
                 ]
             ]);
 
+            /** @var MouserSearchResponse $data */
             $data = $response->toArray();
-            
+
             // Successful response — reset rate-limit counter
             $this->consecutiveRateLimits = 0;
-            
+
             $parts = $data['SearchResults']['Parts'] ?? [];
-            
-            return array_map(function($part) {
+
+            return array_map(function (array $part): array {
                 return [
-                    'mpn' => $part['ManufacturerPartNumber'] ?? null,
-                    'manufacturer' => $part['Manufacturer'] ?? null,
-                    'description' => $part['Description'] ?? null,
-                    'mouser_part_number' => $part['MouserPartNumber'] ?? null,
+                    'mpn' => $this->toNullableString($part['ManufacturerPartNumber'] ?? null),
+                    'manufacturer' => $this->toNullableString($part['Manufacturer'] ?? null),
+                    'description' => $this->toNullableString($part['Description'] ?? null),
+                    'mouser_part_number' => $this->toNullableString($part['MouserPartNumber'] ?? null),
                 ];
             }, $parts);
             
@@ -612,22 +698,26 @@ class MouserApiClient
      * MOQ is derived from the first price break quantity.
      * Pack/Multiple quantity is inferred from the quantity increments.
      * 
-     * @return array{breaks: array, moq: int, pack_quantity: int|null, multiple_quantity: int|null}
-      * @param array<string|int, mixed> $priceBreaks
+     * @return array{breaks: list<PriceBreak>, moq: int, pack_quantity: int|null, multiple_quantity: int|null}
+     * @param list<array<string, mixed>> $priceBreaks
      */
     private function parsePricing(array $priceBreaks): array
     {
+        /** @var list<PriceBreak> $pricing */
         $pricing = [];
         $quantities = [];
-        
+
         foreach ($priceBreaks as $break) {
-            $qty = (int) ($break['Quantity'] ?? 0);
+            $qtyRaw = $break['Quantity'] ?? 0;
+            $qty = is_numeric($qtyRaw) ? (int) $qtyRaw : 0;
             $quantities[] = $qty;
-            
+
+            $priceRaw = $break['Price'] ?? '0';
+
             $pricing[] = [
                 'quantity' => $qty,
-                'price' => (float) str_replace(['$', ','], '', $break['Price'] ?? '0'),
-                'currency' => $break['Currency'] ?? null
+                'price' => (float) str_replace(['$', ','], '', is_scalar($priceRaw) ? (string) $priceRaw : '0'),
+                'currency' => $this->toNullableString($break['Currency'] ?? null)
             ];
         }
         

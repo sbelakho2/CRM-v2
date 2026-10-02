@@ -28,11 +28,42 @@ use Psr\Log\LoggerInterface;
  * - Future: Agadir Agreement, African Continental FTA, etc.
  * 
  * Used by: Quote Co-Pilot
+ *
+ * @phpstan-type BomItem array{hts_code?: string|null, mpn?: string|null, country_of_origin?: string|null, unit_price?: float|int|null, quantity?: int|null}
+ * @phpstan-type BomData list<BomItem>
+ * @phpstan-type RooEvaluation array{
+ *     passes: bool,
+ *     conditional?: bool,
+ *     method: string,
+ *     details: string,
+ *     roo_text: string|null,
+ *     product_heading?: string,
+ *     component_headings?: list<string>,
+ *     product_chapter?: string,
+ *     component_chapters?: list<string>,
+ *     non_originating?: list<string>,
+ *     error?: string
+ * }
+ * @phpstan-type EligibilityResult array{
+ *     eligible: string,
+ *     status: string,
+ *     fta_agreement: string|null,
+ *     basis: string,
+ *     confidence: int,
+ *     missing_evidence: list<string>,
+ *     declaration_template: string|null,
+ *     roo_evaluation?: RooEvaluation,
+ *     coo_verification?: array{verified_mpns: list<string|null>, missing_mpns: list<string|null>, verified_percent: int|float},
+ *     rvc_calculation?: array{rvc_percent: int|float, originating_value: int|float, non_originating_value: int|float, meets_threshold: bool, required_percent: float}
+ * }
  */
 class FtaEligibilityService
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        // Kept protected rather than removed: injected so persistence-capable
+        // helpers can be added here; this class currently works purely on the
+        // injected repositories.
+        protected EntityManagerInterface $entityManager,
         private FtaRuleRepository $ftaRuleRepository,
         private CooSupplierDeclRepository $cooSupplierDeclRepository,
         private ?LoggerInterface $logger = null
@@ -53,16 +84,19 @@ class FtaEligibilityService
      * 
      * @param string $originCountry Origin country code (e.g., 'MA')
      * @param string $destinationCountry Destination country code (e.g., 'US', 'FR')
-     * @param array $bomData BOM data with HTS codes and COO info
+     * @param BomData $bomData BOM data with HTS codes and COO info
      * @param float $totalValue Total shipment value
      * @return array{
      *   eligible: string,
      *   status: string,
-     *   fta_agreement: ?string,
+     *   fta_agreement: string|null,
      *   basis: string,
      *   confidence: int,
-     *   missing_evidence: array,
-     *   declaration_template: ?string
+     *   missing_evidence: list<string>,
+     *   declaration_template: string|null,
+     *   roo_evaluation?: RooEvaluation,
+     *   coo_verification?: array{verified_mpns: list<string|null>, missing_mpns: list<string|null>, verified_percent: int|float},
+     *   rvc_calculation?: array{rvc_percent: int|float, originating_value: int|float, non_originating_value: int|float, meets_threshold: bool, required_percent: float}|null
      * }
      */
     public function checkEligibility(
@@ -104,7 +138,7 @@ class FtaEligibilityService
             $rvcCalculation = $this->calculateRegionalValueContent(
                 $totalValue,
                 $bomData,
-                $ftaRule->getFtaAgreement()
+                $ftaRule->getFtaAgreement() ?? ''
             );
         } elseif ($minimumRvc > 0 && $totalValue <= 0) {
             // RVC is REQUIRED but the value needed to prove it is missing:
@@ -118,11 +152,12 @@ class FtaEligibilityService
                 'confidence' => 30,
                 'missing_evidence' => ['Total BOM value required to calculate regional value content'],
                 'declaration_template' => null,
-                'roo_evaluation' => $rooEvaluation ?? [],
+                'roo_evaluation' => $rooEvaluation,
             ];
         }
         
         // 5. Determine eligibility status
+        /** @var list<string> $missingEvidence */
         $missingEvidence = [];
         $confidence = 95;
         
@@ -216,8 +251,8 @@ class FtaEligibilityService
      *       Product must undergo specific manufacturing process in FTA region
      *
      * @param FtaRule $ftaRule FTA rule entity
-     * @param array $bomData BOM with hts_code per line item
-     * @return array ROO evaluation: ['passes' => bool, 'method' => string, 'details' => string]
+     * @param BomData $bomData BOM with hts_code per line item
+     * @return RooEvaluation ROO evaluation: ['passes' => bool, 'method' => string, 'details' => string]
      */
     public function evaluateRoo(FtaRule $ftaRule, array $bomData): array
     {
@@ -295,7 +330,7 @@ class FtaEligibilityService
                             ? sprintf('Tariff heading change: product %s differs from component headings [%s]', $productHeading, implode(', ', array_unique($componentHeadings)))
                             : sprintf('No tariff heading change: product %s shares heading with components', $productHeading),
                         'product_heading' => $productHeading,
-                        'component_headings' => array_unique($componentHeadings),
+                        'component_headings' => array_values(array_unique($componentHeadings)),
                         'roo_text' => $rooText,
                     ];
                     
@@ -338,7 +373,7 @@ class FtaEligibilityService
                             ? sprintf('Tariff chapter change: product %s differs from component chapters [%s]', $productChapter, implode(', ', array_unique($componentChapters)))
                             : sprintf('No tariff chapter change: product %s shares chapter with components', $productChapter),
                         'product_chapter' => $productChapter,
-                        'component_chapters' => array_unique($componentChapters),
+                        'component_chapters' => array_values(array_unique($componentChapters)),
                         'roo_text' => $rooText,
                     ];
                     
@@ -437,7 +472,7 @@ class FtaEligibilityService
      * @param string $htsCode The classified HTS code
      * @param string $originCountry Origin country code
      * @param string $destinationCountry Destination country code
-     * @param array $eligibilityResult Result from checkEligibility()
+     * @param EligibilityResult $eligibilityResult Result from checkEligibility()
      * @return string Pre-filled declaration text
      */
     public function generateDeclarationTemplate(
@@ -448,7 +483,7 @@ class FtaEligibilityService
     ): string {
         // Build a standard FTA declaration template
         $ftaAgreement = $eligibilityResult['fta_agreement'] ?? 'Unknown FTA';
-        $rooBasis = $eligibilityResult['basis'] ?? 'Not specified';
+        $rooBasis = $eligibilityResult['basis'];
         
         $template = "FREE TRADE AGREEMENT DECLARATION\n\n";
         $template .= "FTA Agreement: {$ftaAgreement}\n";
@@ -467,8 +502,8 @@ class FtaEligibilityService
             $rvc = $eligibilityResult['rvc_calculation'];
             $template .= sprintf(
                 "- Regional Value Content: %.1f%% (Minimum required: %.1f%%)\n\n",
-                $rvc['rvc_percent'] ?? 0,
-                $rvc['required_percent'] ?? 0
+                $rvc['rvc_percent'],
+                $rvc['required_percent']
             );
         }
         
@@ -485,9 +520,10 @@ class FtaEligibilityService
      * Calculate regional value content (RVC)
      * 
      * @param float $totalValue Total shipment value
-     * @param array $bomData BOM with COO and values
+     * @param BomData $bomData BOM with COO and values
      * @param string $ftaRegion FTA region (e.g., 'NAFTA', 'EU', 'MA-US')
-     * @return array RVC calculation: ['rvc_percent' => 65.5, 'originating_value' => 6550.00, 'non_originating_value' => 3450.00, 'meets_threshold' => true, 'required_percent' => 60]
+     * @param float $requiredPercent Required regional value content percentage
+     * @return array{rvc_percent: int|float, originating_value: int|float, non_originating_value: int|float, meets_threshold: bool, required_percent: float} RVC calculation
      * 
      * Implementation:
      * 1. Sum originating material values:
@@ -547,6 +583,8 @@ class FtaEligibilityService
     
     /**
      * Get list of countries in FTA region
+     *
+     * @return list<string>
      */
     private function getFtaRegionCountries(string $ftaRegion): array
     {
@@ -573,8 +611,8 @@ class FtaEligibilityService
     /**
      * Verify COO supplier declarations
      * 
-     * @param array $bomData BOM with MPNs and manufacturers
-     * @return array Verification result: ['verified_mpns' => ['STM32F407VGT6'], 'missing_mpns' => ['TPS62140'], 'verified_percent' => 75.5]
+     * @param BomData $bomData BOM with MPNs and manufacturers
+     * @return array{verified_mpns: list<string|null>, missing_mpns: list<string|null>, verified_percent: int|float} Verification result
      * 
      * Implementation:
      * 1. Extract MPNs from BOM
@@ -596,6 +634,7 @@ class FtaEligibilityService
         }
         
         // Extract MPNs from BOM
+        /** @var list<string> $mpns */
         $mpns = array_filter(array_column($bomData, 'mpn'));
         
         if (empty($mpns)) {
@@ -614,22 +653,30 @@ class FtaEligibilityService
             ->getQuery()
             ->getResult();
         
+        /** @var list<\App\Entity\CooSupplierDecl> $declarations */
+        $declarations = $this->cooSupplierDeclRepository->createQueryBuilder('c')
+            ->where('c.mpn IN (:mpns)')
+            ->andWhere('c.isVerified = true')
+            ->setParameter('mpns', $mpns)
+            ->getQuery()
+            ->getResult();
+
         // Build verified MPN list
+        /** @var list<string|null> $verifiedMpns */
         $verifiedMpns = [];
         foreach ($declarations as $decl) {
             $verifiedMpns[] = $decl->getMpn();
         }
-        
-        // Determine missing MPNs
-        $missingMpns = array_diff($mpns, $verifiedMpns);
-        
-        // Calculate verification percentage
-        $verifiedPercent = count($mpns) > 0 
-            ? round((count($verifiedMpns) / count($mpns)) * 100, 1)
-            : 100;
-        
+
+        // Determine missing MPNs (null entries can never match a BOM MPN, so
+        // filtering them out before the diff does not change the result)
+        $missingMpns = array_diff($mpns, array_filter($verifiedMpns, 'is_string'));
+
+        // Calculate verification percentage ($mpns is non-empty here)
+        $verifiedPercent = round((count($verifiedMpns) / count($mpns)) * 100, 1);
+
         return [
-            'verified_mpns' => array_values($verifiedMpns),
+            'verified_mpns' => $verifiedMpns,
             'missing_mpns' => array_values($missingMpns),
             'verified_percent' => $verifiedPercent
         ];
@@ -646,7 +693,7 @@ class FtaEligibilityService
      *
      * @param string $originCountry Origin country code (e.g., 'MA')
      * @param string $destinationCountry Destination country code (e.g., 'US')
-     * @return array Array of FtaRule entities
+     * @return list<FtaRule> Array of FtaRule entities
      */
     public function getApplicableFtas(string $originCountry, string $destinationCountry): array
     {
@@ -657,7 +704,8 @@ class FtaEligibilityService
         }
         
         $today = new \DateTime('now', new \DateTimeZone('UTC'));
-        
+
+        /** @var list<FtaRule> */
         return $this->ftaRuleRepository->createQueryBuilder('f')
             ->where('f.ftaAgreement = :agreement')
             ->andWhere('f.effectiveDate <= :today')
@@ -746,8 +794,8 @@ class FtaEligibilityService
     /**
      * Determine if watermark needed on FTA pack PDF
      * 
-     * @param array $eligibilityResult Result from checkEligibility()
-     * @return array Watermark decision: ['watermark' => true, 'text' => 'CONDITIONAL - VERIFY BEFORE SUBMISSION', 'reason' => 'Missing COO declarations for 3 MPNs']
+     * @param EligibilityResult $eligibilityResult Result from checkEligibility()
+     * @return array{watermark: bool, text: string|null, reason: string|null} Watermark decision
      * 
      * Implementation:
      * - If status = 'CONDITIONAL': watermark = true, text = 'CONDITIONAL - VERIFY BEFORE SUBMISSION'
@@ -761,7 +809,7 @@ class FtaEligibilityService
             return [
                 'watermark' => true,
                 'text' => 'CONDITIONAL - VERIFY BEFORE SUBMISSION',
-                'reason' => implode(', ', $eligibilityResult['missing_evidence'] ?? []),
+                'reason' => implode(', ', $eligibilityResult['missing_evidence']),
             ];
         }
 
@@ -769,7 +817,7 @@ class FtaEligibilityService
             return [
                 'watermark' => true,
                 'text' => 'NOT FTA ELIGIBLE - USE MFN RATE',
-                'reason' => $eligibilityResult['basis'] ?? 'Does not meet ROO requirements',
+                'reason' => $eligibilityResult['basis'],
             ];
         }
 

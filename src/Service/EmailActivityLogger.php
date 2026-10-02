@@ -59,7 +59,7 @@ class EmailActivityLogger
 
         // Get current user or default to first user
         $user = $this->security->getUser();
-        if (!$user) {
+        if (!$user instanceof User) {
             $user = $this->em->getRepository(User::class)->findOneBy([], ['id' => 'ASC']);
         }
 
@@ -137,6 +137,7 @@ class EmailActivityLogger
         // back to the legacy LIKE pattern for activities created before the
         // tag was introduced.
         $exactTag = sprintf('[campaign:%s contact:%s]', $campaign->getId(), $contact->getId());
+        /** @var list<Activity> $activities */
         $activities = $this->em->getRepository(Activity::class)
             ->createQueryBuilder('a')
             ->where('a.company = :company')
@@ -153,6 +154,7 @@ class EmailActivityLogger
             ->getResult();
 
         if (empty($activities)) {
+            /** @var list<Activity> $activities */
             $activities = $this->em->getRepository(Activity::class)
                 ->createQueryBuilder('a')
                 ->where('a.company = :company')
@@ -176,7 +178,7 @@ class EmailActivityLogger
         }
 
         $activity = $activities[0];
-        $description = $activity->getDescription();
+        $description = $activity->getDescription() ?? '';
 
         // Add engagement marker if not already present
         $engagementMarkers = [
@@ -217,7 +219,7 @@ class EmailActivityLogger
      * 
      * @param EmailCampaign $campaign The campaign
      * @param string $eventType Event type (created, sent, completed)
-     * @param array $stats Optional stats to include
+     * @param array<string, int|float> $stats Optional stats to include
      */
     public function logCampaignEvent(EmailCampaign $campaign, string $eventType, array $stats = []): void
     {
@@ -227,6 +229,7 @@ class EmailActivityLogger
         
         if ($segment) {
             // Try to find a company through the campaign's first send
+            /** @var EmailSend|null $firstSend */
             $firstSend = $this->em->getRepository(EmailSend::class)
                 ->createQueryBuilder('s')
                 ->where('s.campaign = :campaign')
@@ -242,6 +245,7 @@ class EmailActivityLogger
 
         if (!$company) {
             // Get first send's company
+            /** @var EmailSend|null $send */
             $send = $this->em->getRepository(EmailSend::class)
                 ->createQueryBuilder('s')
                 ->where('s.campaign = :campaign')
@@ -260,7 +264,7 @@ class EmailActivityLogger
         }
 
         $user = $this->security->getUser();
-        if (!$user) {
+        if (!$user instanceof User) {
             $user = $this->em->getRepository(User::class)->findOneBy([], ['id' => 'ASC']);
         }
 
@@ -323,10 +327,11 @@ class EmailActivityLogger
      * 
      * @param Company $company
      * @param int $limit Maximum number of activities to retrieve
-     * @return array
+     * @return list<Activity>
      */
     public function getEmailActivities(Company $company, int $limit = 50): array
     {
+        /** @var list<Activity> */
         return $this->em->getRepository(Activity::class)
             ->createQueryBuilder('a')
             ->where('a.company = :company')
@@ -344,10 +349,11 @@ class EmailActivityLogger
      * 
      * @param Contact $contact
      * @param int $limit Maximum number of activities to retrieve
-     * @return array
+     * @return list<Activity>
      */
     public function getContactEmailActivities(Contact $contact, int $limit = 50): array
     {
+        /** @var list<Activity> */
         return $this->em->getRepository(Activity::class)
             ->createQueryBuilder('a')
             ->where('a.contact = :contact')
@@ -362,12 +368,13 @@ class EmailActivityLogger
 
     /**
      * Get aggregated email activity stats for a company
-     * 
+     *
      * @param Company $company
-     * @return array
+     * @return array{total_emails_sent: int, outbound_sent: int, emails_opened: int, emails_clicked: int, emails_replied: int, last_email_date: \DateTimeInterface|null, campaigns_received: int, engagement_rate: float|int}
      */
     public function getCompanyEmailStats(Company $company): array
     {
+        /** @var array{total_emails_sent: string|int|null, outbound_sent: string|int|null, emails_opened: string|int|null, emails_clicked: string|int|null, emails_replied: string|int|null, last_email_date: \DateTimeInterface|null} $stats */
         $stats = $this->em->getRepository(Activity::class)
             ->createQueryBuilder('a')
             ->select([
@@ -429,7 +436,7 @@ class EmailActivityLogger
         }
 
         $user = $this->security->getUser();
-        if (!$user) {
+        if (!$user instanceof User) {
             $user = $this->em->getRepository(User::class)->findOneBy([], ['id' => 'ASC']);
         }
 
@@ -491,6 +498,7 @@ class EmailActivityLogger
         // Find existing activity for this outbound message — exact message tag
         // first, legacy subject-prefix pattern as fallback for old activities.
         $exactTag = $message->getId() ? sprintf('[message:%s]', $message->getId()) : null;
+        /** @var list<Activity> $activities */
         $activities = $exactTag !== null
             ? $this->em->getRepository(Activity::class)
                 ->createQueryBuilder('a')
@@ -509,6 +517,7 @@ class EmailActivityLogger
             : [];
 
         if (empty($activities)) {
+            /** @var list<Activity> $activities */
             $activities = $this->em->getRepository(Activity::class)
                 ->createQueryBuilder('a')
                 ->where('a.company = :company')
@@ -535,7 +544,7 @@ class EmailActivityLogger
         }
 
         $activity = $activities[0];
-        $description = $activity->getDescription();
+        $description = $activity->getDescription() ?? '';
 
         // Engagement markers
         $markers = [

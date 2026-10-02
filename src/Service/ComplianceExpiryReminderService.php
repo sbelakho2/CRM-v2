@@ -23,6 +23,21 @@ use Symfony\Component\Mime\Email;
  * - 14 days before expiry: Critical reminder
  * - Day of expiry: Final warning
  * - After expiry: Expired notification
+ *
+ * @phpstan-type DocInfo array{
+ *   id: int|null,
+ *   document_name: string,
+ *   document_type: string,
+ *   company_id: int|null,
+ *   company_name: string,
+ *   expiry_date: \DateTimeInterface,
+ *   days_until_expiry: int,
+ *   is_expired: bool,
+ *   is_critical: bool,
+ *   status: string|null,
+ *   snoozed_until: \DateTimeInterface|null,
+ *   snooze_reason: string|null
+ * }
  */
 class ComplianceExpiryReminderService
 {
@@ -48,7 +63,10 @@ class ComplianceExpiryReminderService
     ];
     
     private ComplianceDocumentRepository $documentRepository;
-    private CompanyRepository $companyRepository;
+    // Injected for feature parity with the rest of the compliance stack; not
+    // consumed in this class yet. Kept as protected so container wiring stays
+    // stable and subclasses may use it.
+    protected CompanyRepository $companyRepository;
     private EntityManagerInterface $entityManager;
     private LoggerInterface $logger;
     private ?MailerInterface $mailer;
@@ -78,15 +96,15 @@ class ComplianceExpiryReminderService
     
     /**
      * Get all documents expiring within a given number of days
-     * 
+     *
      * @param int $days Number of days to look ahead
-     * @return array Documents grouped by urgency level
+     * @return array{info: list<DocInfo>, notice: list<DocInfo>, warning: list<DocInfo>, critical: list<DocInfo>, urgent: list<DocInfo>, expired: list<DocInfo>} Documents grouped by urgency level
      */
     public function getExpiringDocuments(int $days = 90): array
     {
         $now = new \DateTime();
         $endDate = (new \DateTime())->modify("+{$days} days");
-        
+
         $qb = $this->documentRepository->createQueryBuilder('d')
             ->where('d.expiryDate IS NOT NULL')
             ->andWhere('d.expiryDate <= :endDate')
@@ -94,9 +112,10 @@ class ComplianceExpiryReminderService
             ->setParameter('endDate', $endDate)
             ->setParameter('now', $now)
             ->orderBy('d.expiryDate', 'ASC');
-        
+
+        /** @var list<ComplianceDocument> $documents */
         $documents = $qb->getQuery()->getResult();
-        
+
         // Buckets are derived from REMINDER_THRESHOLDS (90/60/30/14/7/0) so the
         // grouping can never drift out of sync with the reminder table.
         $grouped = [];
@@ -106,17 +125,21 @@ class ComplianceExpiryReminderService
             $thresholdLevels[$thresholdDays] = $cfg['level'];
         }
         krsort($thresholdLevels);
-        
+
         foreach ($documents as $doc) {
             $expiryDate = $doc->getExpiryDate();
+            if ($expiryDate === null) {
+                // The DQL above filters NULL expiryDate; skip defensively.
+                continue;
+            }
             $daysUntilExpiry = $now->diff($expiryDate)->days;
             $isPast = $expiryDate < $now;
-            
+
             if ($isPast) {
                 $grouped['expired'][] = $this->formatDocumentInfo($doc, $daysUntilExpiry, true);
                 continue;
             }
-            
+
             // Find the strictest threshold the document still fits within
             // (iterating descending means the LAST match is the tightest).
             $level = 'info';
@@ -127,18 +150,21 @@ class ComplianceExpiryReminderService
             }
             $grouped[$level][] = $this->formatDocumentInfo($doc, $daysUntilExpiry);
         }
-        
+
         return $grouped;
     }
-    
+
     /**
      * Get expiring documents for a specific company
+     *
+     * @return list<DocInfo>
      */
     public function getExpiringDocumentsForCompany(Company $company, int $days = 90): array
     {
         $now = new \DateTime();
         $endDate = (new \DateTime())->modify("+{$days} days");
-        
+
+        /** @var list<ComplianceDocument> $documents */
         $documents = $this->documentRepository->createQueryBuilder('d')
             ->where('d.company = :company')
             ->andWhere('d.expiryDate IS NOT NULL')
@@ -150,16 +176,21 @@ class ComplianceExpiryReminderService
             ->orderBy('d.expiryDate', 'ASC')
             ->getQuery()
             ->getResult();
-        
-        return array_map(function ($doc) use ($now) {
-            $daysUntil = $now->diff($doc->getExpiryDate())->days;
-            $isPast = $doc->getExpiryDate() < $now;
+
+        return array_map(function (ComplianceDocument $doc) use ($now): array {
+            $expiryDate = $doc->getExpiryDate();
+            // DQL above filters NULL expiryDate; the null branch is defensive.
+            $isPast = $expiryDate !== null && $expiryDate < $now;
+            $daysUntil = $expiryDate !== null ? $now->diff($expiryDate)->days : 0;
+
             return $this->formatDocumentInfo($doc, $daysUntil, $isPast);
         }, $documents);
     }
-    
+
     /**
      * Get summary of expiring documents for dashboard
+     *
+     * @return array{total_expiring: int, expired: int, urgent: int, critical: int, warning: int, notice: int, info: int, critical_documents_expiring: int}
      */
     public function getExpirySummary(): array
     {
@@ -179,8 +210,8 @@ class ComplianceExpiryReminderService
     
     /**
      * Process reminders for all expiring documents
-     * 
-     * @return array Summary of reminders processed
+     *
+     * @return array{processed: int, emails_sent: int, emails_failed: int, by_level: array<string, int>} Summary of reminders processed
      */
     public function processReminders(): array
     {
@@ -254,37 +285,68 @@ class ComplianceExpiryReminderService
     
     /**
      * Get companies with the most expiring documents
+     *
+     * @return list<array{company_id: int, company_name: string, total: int, expired: int, urgent: int, critical: int}>
      */
     public function getCompaniesWithExpiringDocuments(int $limit = 10): array
     {
         $expiring = $this->getExpiringDocuments(90);
-        $byCompany = [];
-        
+
+        // Flat per-company counters: incrementing a nested
+        // array<int, array{...}> accumulator in-place makes PHPStan's
+        // inference degrade the accumulator to mixed mid-loop, so counters
+        // are kept flat and assembled into rows afterwards.
+        $companyNames = [];
+        $totals = [];
+        $expiredCounts = [];
+        $urgentCounts = [];
+        $criticalCounts = [];
+
         foreach ($expiring as $level => $docs) {
             foreach ($docs as $docInfo) {
                 $companyId = $docInfo['company_id'];
-                $companyName = $docInfo['company_name'];
-                
-                if (!isset($byCompany[$companyId])) {
-                    $byCompany[$companyId] = [
-                        'company_id' => $companyId,
-                        'company_name' => $companyName,
-                        'total' => 0,
-                        'expired' => 0,
-                        'urgent' => 0,
-                        'critical' => 0,
-                    ];
+
+                if ($companyId === null) {
+                    // Documents always belong to a company (DB NOT NULL);
+                    // skip defensively so ungroupable rows never crash us.
+                    continue;
                 }
-                
-                $byCompany[$companyId]['total']++;
+
+                if (!isset($totals[$companyId])) {
+                    $companyNames[$companyId] = $docInfo['company_name'];
+                    $totals[$companyId] = 0;
+                    $expiredCounts[$companyId] = 0;
+                    $urgentCounts[$companyId] = 0;
+                    $criticalCounts[$companyId] = 0;
+                }
+
+                $totals[$companyId]++;
                 if (in_array($level, ['expired', 'urgent', 'critical'])) {
-                    $byCompany[$companyId][$level]++;
+                    if ($level === 'expired') {
+                        $expiredCounts[$companyId]++;
+                    } elseif ($level === 'urgent') {
+                        $urgentCounts[$companyId]++;
+                    } else {
+                        $criticalCounts[$companyId]++;
+                    }
                 }
             }
         }
-        
+
+        $rows = [];
+        foreach ($totals as $companyId => $total) {
+            $rows[] = [
+                'company_id' => $companyId,
+                'company_name' => $companyNames[$companyId],
+                'total' => $total,
+                'expired' => $expiredCounts[$companyId],
+                'urgent' => $urgentCounts[$companyId],
+                'critical' => $criticalCounts[$companyId],
+            ];
+        }
+
         // Sort by urgency (expired + urgent + critical) then total
-        usort($byCompany, function ($a, $b) {
+        usort($rows, function (array $a, array $b): int {
             $urgentA = $a['expired'] + $a['urgent'] + $a['critical'];
             $urgentB = $b['expired'] + $b['urgent'] + $b['critical'];
             if ($urgentA !== $urgentB) {
@@ -292,12 +354,14 @@ class ComplianceExpiryReminderService
             }
             return $b['total'] <=> $a['total'];
         });
-        
-        return array_slice($byCompany, 0, $limit);
+
+        return array_slice($rows, 0, $limit);
     }
     
     /**
      * Get renewal calendar data
+     *
+     * @return array<string, array{month: string, documents: list<DocInfo>, count: int}>
      */
     public function getRenewalCalendar(int $months = 6): array
     {
@@ -332,17 +396,30 @@ class ComplianceExpiryReminderService
     
     // Private helpers
     
+    /**
+     * @return DocInfo
+     */
     private function formatDocumentInfo(ComplianceDocument $doc, int $daysUntilExpiry, bool $isExpired = false): array
     {
         $company = $doc->getCompany();
-        
+        $expiryDate = $doc->getExpiryDate();
+        if (!$expiryDate instanceof \DateTimeInterface) {
+            // Invariant: every caller runs a DQL query that filters
+            // expiryDate IS NOT NULL, so this is unreachable in practice.
+            throw new \LogicException(sprintf(
+                'Compliance document "%s" (id %s) has no expiry date',
+                (string) $doc->getName(),
+                (string) $doc->getId()
+            ));
+        }
+
         return [
             'id' => $doc->getId(),
-            'document_name' => $doc->getName(),
-            'document_type' => $doc->getDocumentType() ?? $doc->getName(),
+            'document_name' => $doc->getName() ?? '',
+            'document_type' => $doc->getDocumentType() ?? $doc->getName() ?? '',
             'company_id' => $company?->getId(),
             'company_name' => $company?->getName() ?? 'Unknown',
-            'expiry_date' => $doc->getExpiryDate(),
+            'expiry_date' => $expiryDate,
             'days_until_expiry' => $isExpired ? -$daysUntilExpiry : $daysUntilExpiry,
             'is_expired' => $isExpired,
             'is_critical' => in_array($doc->getName(), self::CRITICAL_DOCUMENTS),
@@ -351,7 +428,10 @@ class ComplianceExpiryReminderService
             'snooze_reason' => $doc->getSnoozeReason(),
         ];
     }
-    
+
+    /**
+     * @param array<string, list<DocInfo>> $expiring
+     */
     private function countCriticalExpiring(array $expiring): int
     {
         $count = 0;
@@ -364,7 +444,10 @@ class ComplianceExpiryReminderService
         }
         return $count;
     }
-    
+
+    /**
+     * @param DocInfo $docInfo
+     */
     private function sendReminderEmail(array $docInfo, string $level): bool
     {
         if (!$this->mailer) {
@@ -416,6 +499,9 @@ class ComplianceExpiryReminderService
         }
     }
     
+    /**
+     * @param DocInfo $docInfo
+     */
     private function buildEmailBody(array $docInfo, string $level): string
     {
         $urgencyColor = match ($level) {

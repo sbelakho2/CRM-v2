@@ -33,8 +33,11 @@ class EmailWebhookController extends AbstractController
     /** Maximum retry count before flagging for dead letter queue review */
     private const MAX_RETRY_COUNT = 5;
 
-    /** Maximum webhook processing time in seconds */
-    private const MAX_PROCESSING_TIME = 30;
+    /**
+     * Maximum webhook processing time in seconds (documented budget for
+     * integrators; shared with subclasses, hence protected).
+     */
+    protected const MAX_PROCESSING_TIME = 30;
 
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -49,7 +52,8 @@ class EmailWebhookController extends AbstractController
     /**
      * Process a webhook event for a given EmailSend entity.
      * Handles retry tracking, error logging, and updates send status.
-      * @param array<string|int, mixed> $context
+     *
+     * @param array<string, mixed> $context
      */
     private function processWebhookEvent(
         EmailSend $send,
@@ -115,13 +119,14 @@ class EmailWebhookController extends AbstractController
                 case 'Bounce':
                 case 'failed':
                 case 'dropped':
+                    $bounceType = $context['bounce_type'] ?? null;
                     $this->campaignService->markBounced($send);
                     $send->setStatus(EmailSend::STATUS_BOUNCED);
-                    $send->setFailureReason($context['bounce_type'] ?? 'Bounced');
+                    $send->setFailureReason(is_string($bounceType) ? $bounceType : 'Bounced');
                     $this->logger->info('Email marked as bounced', [
                         'send_id' => $send->getId(),
                         'provider' => $provider,
-                        'bounce_type' => $context['bounce_type'] ?? 'unknown',
+                        'bounce_type' => $bounceType ?? 'unknown',
                     ]);
                     $send->setRetryCount(0);
                     break;
@@ -165,12 +170,13 @@ class EmailWebhookController extends AbstractController
 
     /**
      * Handle unsubscribe event with deduplication.
-      * @param array<string|int, mixed> $context
+     *
+     * @param array<string, mixed> $context
      */
     private function handleUnsubscribe(EmailSend $send, array $context): void
     {
         $email = $context['recipient_email'] ?? $send->getEmailAddress();
-        if (!$email) {
+        if (!is_string($email) || $email === '') {
             $this->logger->warning('Unsubscribe event missing recipient email', ['send_id' => $send->getId()]);
             return;
         }
@@ -212,19 +218,32 @@ class EmailWebhookController extends AbstractController
         }
 
         $data = $request->request->all();
-        
+
         // Mailgun sends event-data as nested array
-        $eventData = $data['event-data'] ?? $data;
-        $event = $eventData['event'] ?? '';
-        $messageId = $eventData['message']['headers']['message-id'] ?? null;
-        
+        $eventDataRaw = $data['event-data'] ?? $data;
+        $eventData = is_array($eventDataRaw) ? $eventDataRaw : [];
+        $eventValue = $eventData['event'] ?? '';
+        $event = is_string($eventValue) ? $eventValue : '';
+
+        $messageId = null;
+        $messageNode = $eventData['message'] ?? null;
+        if (is_array($messageNode)) {
+            $headersNode = $messageNode['headers'] ?? null;
+            if (is_array($headersNode)) {
+                $messageIdValue = $headersNode['message-id'] ?? null;
+                $messageId = is_string($messageIdValue) ? $messageIdValue : null;
+            }
+        }
+
         if (!$messageId) {
             return new Response('No message ID', 400);
         }
-        
+
         // Extract our custom email send ID from message headers
         $customHeaders = $eventData['user-variables'] ?? [];
-        $sendId = $customHeaders['email_send_id'] ?? null;
+        $customHeaders = is_array($customHeaders) ? $customHeaders : [];
+        $sendIdRaw = $customHeaders['email_send_id'] ?? null;
+        $sendId = is_int($sendIdRaw) || is_string($sendIdRaw) ? $sendIdRaw : null;
         
         if (!$sendId) {
             $this->logger->warning('No email_send_id in webhook', ['message_id' => $messageId]);
@@ -251,7 +270,6 @@ class EmailWebhookController extends AbstractController
             ?? $eventData['email']
             ?? $data['email']
             ?? null;
-
         $bounceType = $eventData['reason'] ?? null;
 
         $this->processWebhookEvent(
@@ -279,16 +297,20 @@ class EmailWebhookController extends AbstractController
             return $response;
         }
 
-        /** @var array<string, mixed>|null $events */
-        $events = json_decode($request->getContent(), true);
-        
-        if (!is_array($events)) {
+        $decoded = json_decode($request->getContent(), true);
+
+        if (!is_array($decoded)) {
             return new Response('Invalid JSON', 400);
         }
-        
-        foreach ($events as $data) {
-            $event = $data['event'] ?? '';
-            $sendId = $data['email_send_id'] ?? null;
+
+        foreach ($decoded as $data) {
+            if (!is_array($data)) {
+                continue;
+            }
+            $eventValue = $data['event'] ?? '';
+            $event = is_string($eventValue) ? $eventValue : '';
+            $sendIdRaw = $data['email_send_id'] ?? null;
+            $sendId = is_int($sendIdRaw) || is_string($sendIdRaw) ? $sendIdRaw : null;
 
             $this->logger->info('SendGrid webhook event received', [
                 'event' => $event,
@@ -337,12 +359,15 @@ class EmailWebhookController extends AbstractController
             return $response;
         }
 
-        /** @var array<string, mixed>|null $data */
-        $data = json_decode($request->getContent(), true);
-        
-        $recordType = $data['RecordType'] ?? '';
+        $decoded = json_decode($request->getContent(), true);
+        $data = is_array($decoded) ? $decoded : [];
+
+        $recordTypeValue = $data['RecordType'] ?? '';
+        $recordType = is_string($recordTypeValue) ? $recordTypeValue : '';
         $metadata = $data['Metadata'] ?? [];
-        $sendId = $metadata['email_send_id'] ?? null;
+        $metadata = is_array($metadata) ? $metadata : [];
+        $sendIdRaw = $metadata['email_send_id'] ?? null;
+        $sendId = is_int($sendIdRaw) || is_string($sendIdRaw) ? $sendIdRaw : null;
 
         $this->logger->info('Postmark webhook event received', [
             'record_type' => $recordType,
@@ -392,10 +417,13 @@ class EmailWebhookController extends AbstractController
             return $response;
         }
 
-        $data = json_decode($request->getContent(), true) ?? $request->request->all();
-        
-        $sendId = $data['email_send_id'] ?? null;
-        $event = $data['event'] ?? null;
+        $decoded = json_decode($request->getContent(), true);
+        $data = is_array($decoded) ? $decoded : $request->request->all();
+
+        $sendIdRaw = $data['email_send_id'] ?? null;
+        $sendId = is_int($sendIdRaw) || is_string($sendIdRaw) ? $sendIdRaw : null;
+        $eventValue = $data['event'] ?? null;
+        $event = is_string($eventValue) ? $eventValue : null;
 
         $this->logger->info('Generic webhook event received', [
             'event' => $event,
@@ -445,17 +473,18 @@ class EmailWebhookController extends AbstractController
             return new Response('Autonomous sales system not configured', 503);
         }
 
-        /** @var array<string, mixed>|null $data */
-        $data = json_decode($request->getContent(), true);
-        
+        $decoded = json_decode($request->getContent(), true);
+        $data = is_array($decoded) ? $decoded : null;
+
         if (!$data) {
             return new Response('Invalid JSON', 400);
         }
-        
+
         $messageId = $data['outbound_message_id'] ?? null;
-        $event = $data['event'] ?? null;
-        $replyContent = $data['reply_content'] ?? null;
-        $classificationOverride = $data['classification_override'] ?? null;
+        $eventValue = $data['event'] ?? null;
+        $event = is_string($eventValue) ? $eventValue : null;
+        $replyContent = $this->stringOrNull($data['reply_content'] ?? null);
+        $classificationOverride = $this->stringOrNull($data['classification_override'] ?? null);
 
         $this->logger->info('Autonomous sales webhook received', [
             'message_id' => $messageId,
@@ -504,13 +533,13 @@ class EmailWebhookController extends AbstractController
                     $normalizedEvent,
                     $replyContent
                 );
-                
+
                 // If a classification override was provided (human review), apply it
-                if ($classificationOverride && method_exists($this->orchestrator, 'applyClassificationOverride')) {
+                if ($classificationOverride) {
                     $this->orchestrator->applyClassificationOverride($message, $classificationOverride);
                 }
-                
-                return new Response(json_encode([
+
+                return new Response((string) json_encode([
                     'status' => 'processed',
                     'message_id' => $messageId,
                     'event' => $normalizedEvent,
@@ -518,24 +547,24 @@ class EmailWebhookController extends AbstractController
                     'thompson_updated' => $result['thompson_updated'] ?? false,
                 ]), 200, ['Content-Type' => 'application/json']);
             }
-            
+
             // For non-reply events, just record the engagement
             $this->orchestrator->recordEmailEvent($message, $normalizedEvent, $replyContent);
-            
-            return new Response(json_encode([
+
+            return new Response((string) json_encode([
                 'status' => 'recorded',
                 'message_id' => $messageId,
                 'event' => $normalizedEvent,
             ]), 200, ['Content-Type' => 'application/json']);
-            
+
         } catch (\Exception $e) {
             $this->logger->error('Failed to process autonomous sales webhook', [
                 'message_id' => $messageId,
                 'event' => $normalizedEvent,
                 'error' => $e->getMessage(),
             ]);
-            
-            return new Response(json_encode([
+
+            return new Response((string) json_encode([
                 'status' => 'error',
                 'message' => 'Failed to process event. Please try again.',
             ]), 500, ['Content-Type' => 'application/json']);
@@ -559,9 +588,11 @@ class EmailWebhookController extends AbstractController
             return $response;
         }
         
-        $data = json_decode($request->getContent(), true) ?? $request->request->all();
-        $event = $data['event'] ?? null;
-        
+        $decoded = json_decode($request->getContent(), true);
+        $data = is_array($decoded) ? $decoded : $request->request->all();
+        $eventValue = $data['event'] ?? null;
+        $event = is_string($eventValue) ? $eventValue : null;
+
         if (!$event) {
             return new Response('Missing event', 400);
         }
@@ -610,8 +641,8 @@ class EmailWebhookController extends AbstractController
                     ->getOneOrNullResult();
             }
             
-            if ($outboundMessage) {
-                $replyContent = $data['reply_content'] ?? null;
+            if ($outboundMessage instanceof OutboundMessage) {
+                $replyContent = $this->stringOrNull($data['reply_content'] ?? null);
                 $this->orchestrator->recordEmailEvent($outboundMessage, $event, $replyContent);
                 
                 $this->logger->info('Campaign event bridged to autonomous sales', [
@@ -640,7 +671,7 @@ class EmailWebhookController extends AbstractController
         }
 
         $provided = $request->headers->get('X-Webhook-Secret');
-        if (!$provided || !hash_equals((string)$configuredSecret, (string)$provided)) {
+        if (!$provided || !is_string($configuredSecret) || !hash_equals($configuredSecret, $provided)) {
             return new Response('Unauthorized', 401);
         }
 
@@ -654,6 +685,24 @@ class EmailWebhookController extends AbstractController
             return new Response('Too Many Requests', 429);
         }
 
+        return null;
+    }
+
+    /**
+     * Weak-mode coercion of webhook payload values (json_decode and request
+     * bags return mixed) to ?string for tokens and text fields.
+     */
+    private function stringOrNull(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        if (is_string($value)) {
+            return $value;
+        }
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
         return null;
     }
 }

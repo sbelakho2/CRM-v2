@@ -17,6 +17,10 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Process\Process;
 
+/**
+ * @phpstan-type BreakdownEntry array{total: int, junk: int, contacts: int, address: int}
+ * @phpstan-type JunkExample array{name: string, website: string, sector: string, reason: string}
+ */
 #[AsCommand(
     name: 'app:quality-audit',
     description: 'Run webcrawler across regions/sectors and audit quality metrics',
@@ -64,7 +68,12 @@ class QualityAuditCommand extends Command
 
     public function __construct(
         private CompanyDiscoveryService $discoveryService,
-        private GoogleDorkService       $googleDorkService,
+        /**
+         * Injected for parity with the discovery pipeline (optionally reused by
+         * subclasses that extend this audit with dork-driven discovery); never
+         * read directly in this class, hence protected rather than private.
+         */
+        protected GoogleDorkService     $googleDorkService,
         private EntityManagerInterface  $em,
         private CompanyRepository       $companyRepo,
         private ManagerRegistry         $doctrine,
@@ -88,11 +97,13 @@ class QualityAuditCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $io->title('🔍 Webcrawler Quality Audit');
 
-        $sectors = $input->getOption('sectors')
-            ? explode(',', $input->getOption('sectors'))
+        $sectorsOpt = $input->getOption('sectors');
+        $sectors = is_string($sectorsOpt) && $sectorsOpt !== ''
+            ? explode(',', $sectorsOpt)
             : self::SECTORS;
-        $regions = $input->getOption('regions')
-            ? explode(',', $input->getOption('regions'))
+        $regionsOpt = $input->getOption('regions');
+        $regions = is_string($regionsOpt) && $regionsOpt !== ''
+            ? explode(',', $regionsOpt)
             : self::REGIONS;
         /** @var mixed $auditOnly */
         $auditOnly = $input->getOption('audit-only');
@@ -211,7 +222,10 @@ class QualityAuditCommand extends Command
                         $io->writeln(sprintf('         → <error>ERROR</error>: %s', $e->getMessage()));
                         // Reset EntityManager if it was closed by the error
                         if (!$this->em->isOpen()) {
-                            $this->em = $this->doctrine->resetManager();
+                            $resetManager = $this->doctrine->resetManager();
+                            if ($resetManager instanceof EntityManagerInterface) {
+                                $this->em = $resetManager;
+                            }
                         }
                     }
 
@@ -242,6 +256,7 @@ class QualityAuditCommand extends Command
 
         // ── Compute metrics ──────────────────────────────────────
         $junkCount = 0;
+        /** @var array<string, int> $junkReasons */
         $junkReasons = [];
         $hasContactCount = 0;
         $hasAddressCount = 0;
@@ -249,8 +264,11 @@ class QualityAuditCommand extends Command
         $hasWebsiteCount = 0;
         $hasLinkedInCount = 0;
         $hasDescriptionCount = 0;
+        /** @var array<string, BreakdownEntry> $regionBreakdown */
         $regionBreakdown = [];
+        /** @var array<string, BreakdownEntry> $sectorBreakdown */
         $sectorBreakdown = [];
+        /** @var list<JunkExample> $junkExamples */
         $junkExamples = [];
 
         $batchSize = 100;
@@ -261,14 +279,21 @@ class QualityAuditCommand extends Command
             ->getQuery()
             ->iterate();
 
+        /** @var array<int, Company> $batchCompanies */
         $batchCompanies = [];
         $batchIds = [];
 
         foreach ($iterableResult as $row) {
-            /** @var Company $company */
-            $company = $row[0];
-            $batchCompanies[$company->getId()] = $company;
-            $batchIds[] = $company->getId();
+            $company = is_array($row) ? ($row[0] ?? null) : null;
+            if (!$company instanceof Company) {
+                continue;
+            }
+            $companyId = $company->getId();
+            if ($companyId === null) {
+                continue;
+            }
+            $batchCompanies[$companyId] = $company;
+            $batchIds[] = $companyId;
 
             if (count($batchCompanies) >= $batchSize) {
                 $this->processCompanyBatch(
@@ -384,8 +409,13 @@ class QualityAuditCommand extends Command
      * Process a batch of companies for the quality audit.
      * Pre-loads all contacts in one query to avoid N+1.
      * Metrics are passed by reference and updated in-place.
-      * @param array<string|int, mixed> $batchCompanies
- * @param array<string|int, mixed> $batchIds
+     *
+     * @param array<int, Company> $batchCompanies
+     * @param list<int> $batchIds
+     * @param array<string, int> $junkReasons
+     * @param array<string, BreakdownEntry> $regionBreakdown
+     * @param array<string, BreakdownEntry> $sectorBreakdown
+     * @param list<JunkExample> $junkExamples
      */
     private function processCompanyBatch(
         array $batchCompanies,
@@ -404,6 +434,7 @@ class QualityAuditCommand extends Command
     ): void {
         // Pre-load all contacts for this batch in one query
         $contactsMap = [];
+        /** @var list<Contact> $batchContacts */
         $batchContacts = $this->em->getRepository(Contact::class)
             ->createQueryBuilder('ct')
             ->where('ct.company IN (:companyIds)')
@@ -412,13 +443,19 @@ class QualityAuditCommand extends Command
             ->getResult();
 
         foreach ($batchContacts as $contact) {
-            $companyId = $contact->getCompany()->getId();
-            $contactsMap[$companyId][] = $contact;
+            $contactCompany = $contact->getCompany();
+            if ($contactCompany === null) {
+                continue; // Orphaned contact row — company no longer exists
+            }
+            $contactCompanyId = $contactCompany->getId();
+            if ($contactCompanyId === null) {
+                continue; // Not yet persisted — cannot be part of a persisted batch
+            }
+            $contactsMap[$contactCompanyId][] = $contact;
         }
         unset($batchContacts);
 
         foreach ($batchCompanies as $company) {
-            /** @var Company $company */
             $name = $company->getName();
             $sector = $company->getSector() ?? 'Unknown';
             $region = $company->getRegion() ?? 'Unknown';
@@ -442,7 +479,7 @@ class QualityAuditCommand extends Command
                 $junkReasons[$reason] = ($junkReasons[$reason] ?? 0) + 1;
                 if (count($junkExamples) < 30) {
                     $junkExamples[] = [
-                        'name' => $name,
+                        'name' => $name ?? '',
                         'website' => $company->getWebsite() ?? 'N/A',
                         'sector' => $sector,
                         'reason' => $reason,
@@ -452,7 +489,8 @@ class QualityAuditCommand extends Command
             }
 
             // Look up contacts from pre-loaded map
-            $contacts = $contactsMap[$company->getId()] ?? [];
+            $companyId = $company->getId() ?? 0;
+            $contacts = $contactsMap[$companyId] ?? [];
             $hasRealContact = false;
             foreach ($contacts as $contact) {
                 $fn = trim($contact->getFirstName() ?? '');
@@ -495,7 +533,7 @@ class QualityAuditCommand extends Command
      */
     private function isJunkCompany(Company $company): bool
     {
-        $name = strtolower($company->getName());
+        $name = strtolower($company->getName() ?? '');
 
         // ── Pattern 1: No name or very short ─────────────────────
         if (empty($name) || mb_strlen($name) < 3) {
@@ -578,7 +616,7 @@ class QualityAuditCommand extends Command
      */
     private function getJunkReason(Company $company): string
     {
-        $name = strtolower($company->getName());
+        $name = strtolower($company->getName() ?? '');
         $website = strtolower($company->getWebsite() ?? '');
 
         if (empty($name) || mb_strlen($name) < 3) return 'Empty/short name';

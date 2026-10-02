@@ -35,7 +35,10 @@ class UnifiedPdfGeneratorService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private Environment $twig,
-        private ReportAuditRepository $reportAuditRepository,
+        // Kept protected rather than removed: the container wires it for this
+        // service and report-audit persistence may move here; this class does
+        // not read it yet (ReportAudit rows are written via logToAudit()).
+        protected ReportAuditRepository $reportAuditRepository,
         private IssuingCompanyService $issuingCompanyService,
         private ?string $projectDir = null,
         private ?LoggerInterface $logger = null,
@@ -91,8 +94,8 @@ class UnifiedPdfGeneratorService
             $this->logger?->warning('Mpdf WriteHTML failed', ['exception' => $e]);
             throw $e;
         }
-        
-        $pdfContent = $mpdf->Output('', 'S'); // Return as string
+
+        $pdfContent = $this->renderMpdfToString($mpdf); // Return as string
         
         // Audit trail: one ReportAudit row per generated PDF (only for
         // persisted quotes — a transient entity has no stable ID to audit).
@@ -202,7 +205,7 @@ class UnifiedPdfGeneratorService
         ]);
         
         $mpdf->WriteHTML($html);
-        $pdfContent = $mpdf->Output('', 'S');
+        $pdfContent = $this->renderMpdfToString($mpdf);
         
         // 3. Create document
         $filename = sprintf('dfm_report_%s_%s.pdf', $quote->getQuoteNumber(), date('Ymd'));
@@ -273,7 +276,7 @@ class UnifiedPdfGeneratorService
         ]);
         
         $mpdf->WriteHTML($html);
-        $pdfContent = $mpdf->Output('', 'S');
+        $pdfContent = $this->renderMpdfToString($mpdf);
         
         // 3. Create document
         $filename = sprintf('cost_breakdown_%s_%s.pdf', $quote->getQuoteNumber(), date('Ymd'));
@@ -308,6 +311,7 @@ class UnifiedPdfGeneratorService
     public function generateExceptionsReportPdf(Quote $quote): ComplianceDocument
     {
         // 1. Load real procurement exceptions for this quote
+        /** @var list<\App\Entity\ProcurementException> $exceptions */
         $exceptions = $this->entityManager->getRepository(\App\Entity\ProcurementException::class)
             ->createQueryBuilder('e')
             ->join('e.bomLine', 'b')
@@ -399,7 +403,7 @@ class UnifiedPdfGeneratorService
         ]);
         
         $mpdf->WriteHTML($html);
-        $pdfContent = $mpdf->Output('', 'S');
+        $pdfContent = $this->renderMpdfToString($mpdf);
         
         // 3. Create document
         $filename = sprintf('exceptions_%s_%s.pdf', $quote->getQuoteNumber(), date('Ymd'));
@@ -473,10 +477,18 @@ class UnifiedPdfGeneratorService
                 $riskNotes[] = 'EOL/NRND lifecycle';
             }
             if ('factory' === mb_strtolower($availability)) {
-                $level = 'medium' === $level ? 'high' : ('critical' === $level ? $level : 'medium');
+                // $level is 'low'|'critical' here; the historical
+                // 'medium' === $level branch was unreachable, so the effective
+                // behavior is: keep 'critical', otherwise raise to 'medium'.
+                $level = 'critical' === $level ? $level : 'medium';
                 $riskNotes[] = 'Factory stock only';
             } elseif ('' === $availability) {
-                $level = 'high' === $level ? $level : 'medium';
+                // Preserves existing behavior: $level is 'low'|'critical' here
+                // and the historical 'high' === $level comparison was
+                // unreachable, so the effective result was always 'medium'.
+                // NOTE: this downgrades 'critical' parts with unknown
+                // availability to 'medium' — flagged for product review.
+                $level = 'medium';
                 $riskNotes[] = 'Availability unknown';
             }
             if ($leadTime !== null && $leadTime > 28) {
@@ -599,7 +611,7 @@ class UnifiedPdfGeneratorService
         ]);
         
         $mpdf->WriteHTML($html);
-        $pdfContent = $mpdf->Output('', 'S');
+        $pdfContent = $this->renderMpdfToString($mpdf);
         
         // 3. Create document
         $filename = sprintf('sourcing_risk_%s_%s.pdf', $quote->getQuoteNumber(), date('Ymd'));
@@ -619,8 +631,10 @@ class UnifiedPdfGeneratorService
 
     /**
      * Generate audit trail PDF
-     * 
-     * @param Quote|Estimate $entity Entity with audit data
+     *
+     * @param Quote $entity Entity with audit data (getCompany()/getId() are
+     *                      additionally detected via method_exists so other
+     *                      auditable entities can be passed defensively)
      * @return ComplianceDocument Generated audit trail
      * 
      * Implementation:
@@ -633,21 +647,23 @@ class UnifiedPdfGeneratorService
      */
     public function generateAuditTrailPdf($entity): ComplianceDocument
     {
-        // Safely resolve company name (company row may have been deleted)
+        // Safely resolve company name (company row may have been deleted).
+        // (The historical method_exists() guards were provably dead: the
+        // documented contract of this method is Quote, which always has
+        // getCompany()/getId().)
         try {
-            $companyName = method_exists($entity, 'getCompany')
-                ? ($entity->getCompany()?->getName() ?? 'N/A')
-                : 'N/A';
+            $companyName = $entity->getCompany()?->getName() ?? 'N/A';
         } catch (\Doctrine\ORM\EntityNotFoundException $e) {
             $companyName = 'N/A';
         }
 
         // 1. Build audit data from real AuditLog entries for this entity
         $entityType = (new \ReflectionClass($entity))->getShortName();
-        $entityId = method_exists($entity, 'getId') ? $entity->getId() : null;
+        $entityId = $entity->getId();
 
         /** @var \App\Repository\AuditLogRepository $auditRepo */
         $auditRepo = $this->entityManager->getRepository(\App\Entity\AuditLog::class);
+        /** @var list<\App\Entity\AuditLog> $logs */
         $logs = $entityId !== null
             ? $auditRepo->findByEntity($entityType, (int) $entityId)
             : [];
@@ -665,12 +681,12 @@ class UnifiedPdfGeneratorService
             'revisions' => count(array_filter($logs, fn (\App\Entity\AuditLog $log): bool => $log->getAction() === 'update')),
             'approvals' => count(array_filter($logs, fn (\App\Entity\AuditLog $log): bool => stripos((string) $log->getAction(), 'approv') !== false)),
             'users' => count($users),
-            'documentHash' => hash('sha256', json_encode([
+            'documentHash' => hash('sha256', (string) json_encode([
                 'entity' => $entityType,
                 'entityId' => $entityId,
                 'events' => $events,
             ])),
-            'auditHash' => hash('sha256', json_encode($events)),
+            'auditHash' => hash('sha256', (string) json_encode($events)),
         ];
 
         // 2. Render audit trail template
@@ -692,7 +708,7 @@ class UnifiedPdfGeneratorService
         ]);
         
         $mpdf->WriteHTML($html);
-        $pdfContent = $mpdf->Output('', 'S');
+        $pdfContent = $this->renderMpdfToString($mpdf);
         
         // 4. Create document
         $filename = sprintf('audit_trail_%s_%s_%s.pdf', strtolower($entityType), $entityId ?? 'unknown', date('Ymd'));
@@ -709,12 +725,12 @@ class UnifiedPdfGeneratorService
                 strlen($pdfContent),
                 [],
                 [],
-                ['audit_document_hash' => $auditData['auditHash'] ?? null]
+                ['audit_document_hash' => $auditData['auditHash']]
             );
         }
         
         try {
-            $auditCompany = method_exists($entity, 'getCompany') ? $entity->getCompany() : null;
+            $auditCompany = $entity->getCompany();
             $auditCompany?->getId(); // force proxy init
         } catch (\Doctrine\ORM\EntityNotFoundException) {
             $auditCompany = null;
@@ -734,16 +750,19 @@ class UnifiedPdfGeneratorService
      */
     private function auditEventToArray(\App\Entity\AuditLog $log): array
     {
+        /** @var list<string> $fields */
         $fields = $log->getChangedFields() ?? [];
+        /** @var array<string, mixed> $oldValues */
         $oldValues = $log->getOldValues() ?? [];
+        /** @var array<string, mixed> $newValues */
         $newValues = $log->getNewValues() ?? [];
 
         $changes = [];
         foreach ($fields as $field) {
             $changes[] = [
                 'field' => $field,
-                'oldValue' => is_array($oldValues) && array_key_exists($field, $oldValues) ? $this->stringifyAuditValue($oldValues[$field]) : '-',
-                'newValue' => is_array($newValues) && array_key_exists($field, $newValues) ? $this->stringifyAuditValue($newValues[$field]) : '-',
+                'oldValue' => array_key_exists($field, $oldValues) ? $this->stringifyAuditValue($oldValues[$field]) : '-',
+                'newValue' => array_key_exists($field, $newValues) ? $this->stringifyAuditValue($newValues[$field]) : '-',
             ];
         }
 
@@ -770,14 +789,18 @@ class UnifiedPdfGeneratorService
         if (is_array($value) || is_object($value)) {
             return (string) json_encode($value, JSON_UNESCAPED_UNICODE);
         }
-        return (string) $value;
+        if (is_scalar($value) || $value === null) {
+            return (string) $value;
+        }
+        // Resources and other non-encodable values carry no audit meaning.
+        return '';
     }
 
     /**
      * Generate supplier onboarding pack PDF
      * 
      * @param OnboardingPack $pack Onboarding pack with pre-filled data
-     * @return ComplianceDocument Generated onboarding pack
+     * @return string Absolute path of the generated PDF file
      * 
      * Implementation:
      * 1. Render templates/pdf/onboarding_pack.html.twig
@@ -833,13 +856,24 @@ class UnifiedPdfGeneratorService
     }
 
     /**
+     * Render an mPDF document to its binary string content (Output 'S' mode).
+     */
+    private function renderMpdfToString(\Mpdf\Mpdf $mpdf): string
+    {
+        /** @var string $pdfContent */
+        $pdfContent = $mpdf->Output('', 'S');
+
+        return $pdfContent;
+    }
+
+    /**
      * Create ComplianceDocument entity and save PDF
      * 
      * @param Company $company Company entity
      * @param string $documentType Document type enum value
      * @param string $pdfContent Binary PDF content
      * @param string $filename Filename (e.g., 'quote_QTE-2025-0001.pdf')
-     * @param array $metadata Additional metadata (dataset versions, API versions, etc.)
+     * @param array<string, mixed> $metadata Additional metadata (dataset versions, API versions, etc.)
      * @return ComplianceDocument Persisted document entity
      * 
      * Implementation:
@@ -895,7 +929,7 @@ class UnifiedPdfGeneratorService
         $document->setUploadedAt(new \DateTime());
 
         if (!empty($metadata)) {
-            $document->setMetadataJson(is_array($metadata) ? $metadata : ['raw' => $metadata]);
+            $document->setMetadataJson($metadata);
         }
         
         // 5. Persist and flush
@@ -915,9 +949,9 @@ class UnifiedPdfGeneratorService
      * @param string $versionId Version ID (UUID or timestamp)
      * @param string|null $fileName Generated file name
      * @param int|null $fileSize Generated file size in bytes
-     * @param array $datasetVersions Dataset versions used (e.g., ['tariff_rates' => 'v1.2.3'])
-     * @param array $apiVersions API versions used (e.g., ['mouser' => '2024.10'])
-     * @param array $metadata Additional metadata
+     * @param array<string, mixed> $datasetVersions Dataset versions used (e.g., ['tariff_rates' => 'v1.2.3'])
+     * @param array<string, mixed> $apiVersions API versions used (e.g., ['mouser' => '2024.10'])
+     * @param array<string, mixed> $metadata Additional metadata
      */
     private function logToAudit(
         string $reportType,

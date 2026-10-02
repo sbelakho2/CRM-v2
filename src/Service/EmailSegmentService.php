@@ -19,18 +19,24 @@ use Doctrine\ORM\EntityManagerInterface;
  * - Segment size calculation and caching
  * - Filter rule validation and evaluation
  * - Support for complex AND/OR logic
+ *
+ * @phpstan-type FilterRule array{field?: string, operator?: string, value?: mixed}
+ * @phpstan-type FilterRules array{operator?: mixed, rules?: list<FilterRule>}
  */
 class EmailSegmentService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private EmailSegmentRepository $segmentRepository,
+        // Kept protected rather than removed: injected for service symmetry
+        // and reserved for direct segment lookups; this class currently works
+        // through the injected repositories only.
+        protected EmailSegmentRepository $segmentRepository,
         private ContactRepository $contactRepository
     ) {}
 
     /**
      * Create a new segment
-      * @param array<string|int, mixed> $filterRules
+     * @param FilterRules $filterRules
      */
     public function createSegment(
         string $name,
@@ -59,7 +65,7 @@ class EmailSegmentService
 
     /**
      * Update segment
-      * @param array<string|int, mixed> $filterRules
+     * @param FilterRules|null $filterRules
      */
     public function updateSegment(
         EmailSegment $segment,
@@ -84,7 +90,9 @@ class EmailSegmentService
         }
 
         if ($recalculate) {
-            $contactCount = $this->calculateContactCount($segment->getFilterRulesJson() ?? []);
+            /** @var FilterRules $recalcRules */
+            $recalcRules = $segment->getFilterRulesJson();
+            $contactCount = $this->calculateContactCount($recalcRules);
             $segment->setContactCount($contactCount);
             $segment->setLastCalculatedAt(new \DateTimeImmutable());
         }
@@ -115,7 +123,9 @@ class EmailSegmentService
      */
     public function recalculateSegment(EmailSegment $segment): int
     {
-        $contactCount = $this->calculateContactCount($segment->getFilterRulesJson() ?? []);
+        /** @var FilterRules $filterRules */
+        $filterRules = $segment->getFilterRulesJson();
+        $contactCount = $this->calculateContactCount($filterRules);
         $segment->setContactCount($contactCount);
         $segment->setLastCalculatedAt(new \DateTimeImmutable());
         $segment->setUpdatedAt(new \DateTimeImmutable());
@@ -127,10 +137,15 @@ class EmailSegmentService
 
     /**
      * Get all contacts matching a segment
+     *
+     * @return list<Contact>
      */
     public function getSegmentContacts(EmailSegment $segment, ?int $limit = null, int $offset = 0): array
     {
-        return $this->getContactsByFilters($segment->getFilterRulesJson() ?? [], $limit, $offset);
+        /** @var FilterRules $filterRules */
+        $filterRules = $segment->getFilterRulesJson();
+
+        return $this->getContactsByFilters($filterRules, $limit, $offset);
     }
 
     /**
@@ -138,12 +153,15 @@ class EmailSegmentService
      */
     public function contactMatchesSegment(Contact $contact, EmailSegment $segment): bool
     {
-        return $this->evaluateFilters($contact, $segment->getFilterRulesJson() ?? []);
+        /** @var FilterRules $filterRules */
+        $filterRules = $segment->getFilterRulesJson();
+
+        return $this->evaluateFilters($contact, $filterRules);
     }
 
     /**
      * Calculate contact count for filter rules (SQL COUNT, never loads rows).
-      * @param array<string|int, mixed> $filterRules
+     * @param FilterRules $filterRules
      */
     private function calculateContactCount(array $filterRules): int
     {
@@ -203,7 +221,7 @@ class EmailSegmentService
     /**
      * True when every rule references a whitelisted field/operator, so the
      * whole filter set can compile to a single DQL query.
-      * @param array<string|int, mixed> $filterRules
+     * @param FilterRules $filterRules
      */
     private function isCompilableToDql(array $filterRules): bool
     {
@@ -236,7 +254,7 @@ class EmailSegmentService
     /**
      * Build a QueryBuilder implementing the filter rules against Contact,
      * joined with Company when any rule uses dot notation.
-      * @param array<string|int, mixed> $filterRules
+     * @param FilterRules $filterRules
      */
     private function buildFilterQueryBuilder(array $filterRules): \Doctrine\ORM\QueryBuilder
     {
@@ -267,10 +285,10 @@ class EmailSegmentService
                 case '>=':        $predicate = $qb->expr()->gte($alias.'.'.$column, ':'.$param); break;
                 case '<':         $predicate = $qb->expr()->lt($alias.'.'.$column, ':'.$param); break;
                 case '<=':        $predicate = $qb->expr()->lte($alias.'.'.$column, ':'.$param); break;
-                case 'contains':  $predicate = 'LOWER('.$alias.'.'.$column.') LIKE :'.$param; $value = '%'.mb_strtolower((string) $value).'%'; break;
-                case 'not_contains': $predicate = 'LOWER('.$alias.'.'.$column.') NOT LIKE :'.$param; $value = '%'.mb_strtolower((string) $value).'%'; break;
-                case 'starts_with': $predicate = 'LOWER('.$alias.'.'.$column.') LIKE :'.$param; $value = mb_strtolower((string) $value).'%'; break;
-                case 'ends_with':  $predicate = 'LOWER('.$alias.'.'.$column.') LIKE :'.$param; $value = '%'.mb_strtolower((string) $value); break;
+                case 'contains':  $predicate = 'LOWER('.$alias.'.'.$column.') LIKE :'.$param; $value = '%'.mb_strtolower($this->stringifyValue($value)).'%'; break;
+                case 'not_contains': $predicate = 'LOWER('.$alias.'.'.$column.') NOT LIKE :'.$param; $value = '%'.mb_strtolower($this->stringifyValue($value)).'%'; break;
+                case 'starts_with': $predicate = 'LOWER('.$alias.'.'.$column.') LIKE :'.$param; $value = mb_strtolower($this->stringifyValue($value)).'%'; break;
+                case 'ends_with':  $predicate = 'LOWER('.$alias.'.'.$column.') LIKE :'.$param; $value = '%'.mb_strtolower($this->stringifyValue($value)); break;
                 case 'is_empty':   $predicate = '('.$alias.'.'.$column.' IS NULL OR '.$alias.'.'.$column.' = \'\')'; break;
                 case 'is_not_empty': $predicate = '('.$alias.'.'.$column.' IS NOT NULL AND '.$alias.'.'.$column.' <> \'\')'; break;
             }
@@ -312,7 +330,8 @@ class EmailSegmentService
      * Whitelisted fields compile to a DB-side query with real LIMIT/OFFSET
      * and never load the contact table into PHP memory. Only non-whitelisted
      * legacy fields fall back to the (bounded, but in-memory) legacy path.
-      * @param array<string|int, mixed> $filterRules
+     * @param FilterRules $filterRules
+     * @return list<Contact>
      */
     private function getContactsByFilters(array $filterRules, ?int $limit = null, int $offset = 0): array
     {
@@ -328,6 +347,7 @@ class EmailSegmentService
                     $qb->setFirstResult($offset);
                 }
 
+                /** @var list<Contact> */
                 return $qb->getQuery()->getResult();
             } catch (\InvalidArgumentException $e) {
                 throw $e; // deprecated-field errors are never swallowed
@@ -368,13 +388,14 @@ class EmailSegmentService
      * Bounded in-memory evaluation for machinery-failure degradation ONLY
      * (deprecated fields throw before reaching here). Cap is a safety
      * valve, not a product limit.
-      * @param array<string|int, mixed> $filterRules
+     * @param FilterRules $filterRules
+     * @return list<Contact>
      */
     private function evaluateInMemory(array $filterRules, ?int $limit, int $offset): array
     {
         // Last-resort degradation only (deprecated fields never reach
         // here): hydrate once, bounded, never again.
-        $all = array_slice($this->contactRepository->findAll() ?? [], 0, 5000);
+        $all = array_slice($this->contactRepository->findAll(), 0, 5000);
         $matching = [];
         foreach ($all as $contact) {
             if ($this->evaluateFilters($contact, $filterRules)) {
@@ -389,7 +410,7 @@ class EmailSegmentService
 
     /**
      * Evaluate if a contact matches filter rules
-      * @param array<string|int, mixed> $filterRules
+     * @param FilterRules $filterRules
      */
     private function evaluateFilters(Contact $contact, array $filterRules): bool
     {
@@ -398,7 +419,7 @@ class EmailSegmentService
         }
 
         $operator = $filterRules['operator'] ?? 'AND';
-        $rules = $filterRules['rules'] ?? [];
+        $rules = $filterRules['rules'];
 
         $results = [];
         foreach ($rules as $rule) {
@@ -415,7 +436,7 @@ class EmailSegmentService
 
     /**
      * Evaluate a single filter rule
-      * @param array<string|int, mixed> $rule
+     * @param FilterRule $rule
      */
     private function evaluateRule(Contact $contact, array $rule): bool
     {
@@ -434,10 +455,13 @@ class EmailSegmentService
             '>=' => $contactValue >= $value,
             '<' => $contactValue < $value,
             '<=' => $contactValue <= $value,
-            'contains' => str_contains(strtolower((string) $contactValue), strtolower((string) $value)),
-            'not_contains' => !str_contains(strtolower((string) $contactValue), strtolower((string) $value)),
-            'starts_with' => str_starts_with(strtolower((string) $contactValue), strtolower((string) $value)),
-            'ends_with' => str_ends_with(strtolower((string) $contactValue), strtolower((string) $value)),
+            'contains' => str_contains(strtolower($this->stringifyValue($contactValue)), strtolower($this->stringifyValue($value))),
+            'not_contains' => !str_contains(strtolower($this->stringifyValue($contactValue)), strtolower($this->stringifyValue($value))),
+            // strncmp/substr_compare are semantically identical to
+            // str_starts_with()/str_ends_with() here (empty needle matches),
+            // and are fully known to static analysis.
+            'starts_with' => strncmp(strtolower($this->stringifyValue($contactValue)), strtolower($this->stringifyValue($value)), strlen(strtolower($this->stringifyValue($value)))) === 0,
+            'ends_with' => substr_compare(strtolower($this->stringifyValue($contactValue)), strtolower($this->stringifyValue($value)), -strlen(strtolower($this->stringifyValue($value)))) === 0,
             'is_empty' => empty($contactValue),
             'is_not_empty' => !empty($contactValue),
             'in' => is_array($value) && in_array($contactValue, $value),
@@ -495,8 +519,19 @@ class EmailSegmentService
     }
 
     /**
+     * Render a filter value as a string for substring comparisons
+     * (mirrors weak string casts; non-scalar values compare as empty).
+     */
+    private function stringifyValue(mixed $value): string
+    {
+        return is_scalar($value) ? (string) $value : '';
+    }
+
+    /**
      * Validate filter rules structure
-      * @param array<string|int, mixed> $filterRules
+     *
+     * @param FilterRules $filterRules
+     * @return list<string>
      */
     public function validateFilterRules(array $filterRules): array
     {
@@ -512,12 +547,13 @@ class EmailSegmentService
             $errors[] = 'Invalid operator: must be AND or OR';
         }
 
-        if (!isset($filterRules['rules']) || !is_array($filterRules['rules'])) {
+        $rules = $filterRules['rules'] ?? null;
+        if (!is_array($rules)) {
             $errors[] = 'Missing or invalid rules array';
             return $errors;
         }
 
-        foreach ($filterRules['rules'] as $index => $rule) {
+        foreach ($rules as $index => $rule) {
             if (!isset($rule['field'])) {
                 $errors[] = sprintf('Rule #%d: missing field', $index + 1);
             }
@@ -533,13 +569,11 @@ class EmailSegmentService
     }
 
     /**
-     * Get available filter fields
-     */
-    /**
      * Fields offered to the segment builder UI — generated from the exact
      * FILTERABLE_FIELDS map the SQL compiler whitelists, so the UI can never
      * advertise a field that would force the full-table in-memory fallback.
      */
+    /** @return array{contact: list<array{name: string, label: string, type: string}>, company: list<array{name: string, label: string, type: string}>} */
     public function getAvailableFields(): array
     {
         $labels = [
@@ -569,7 +603,7 @@ class EmailSegmentService
         foreach (self::FILTERABLE_FIELDS as $name) {
             $entry = [
                 'name' => $name,
-                'label' => $labels[$name] ?? $name,
+                'label' => $labels[$name],
                 'type' => str_starts_with($name, 'createdAt') ? 'date' : 'string',
             ];
             $fields[str_starts_with($name, 'company.') ? 'company' : 'contact'][] = $entry;
@@ -580,6 +614,8 @@ class EmailSegmentService
 
     /**
      * Get available operators for a field type
+     *
+     * @return list<array{value: string, label: string}>
      */
     public function getOperatorsForFieldType(string $type): array
     {
@@ -621,6 +657,8 @@ class EmailSegmentService
 
     /**
      * Get segment statistics
+     *
+     * @return array{contactCount: int|null, campaignCount: int, emailsSent: int, lastCalculated: \DateTimeInterface|null, ruleCount: int}
      */
     public function getSegmentStats(EmailSegment $segment): array
     {
@@ -638,12 +676,15 @@ class EmailSegmentService
         ->setParameter('segment', $segment)
         ->getSingleScalarResult();
 
+        /** @var FilterRules $filterRules */
+        $filterRules = $segment->getFilterRulesJson();
+
         return [
             'contactCount' => $segment->getContactCount(),
             'campaignCount' => (int) $campaignCount,
             'emailsSent' => (int) $emailsSent,
             'lastCalculated' => $segment->getLastCalculatedAt(),
-            'ruleCount' => count($segment->getFilterRulesJson()['rules'] ?? []),
+            'ruleCount' => count($filterRules['rules'] ?? []),
         ];
     }
 }

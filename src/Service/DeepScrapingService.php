@@ -27,6 +27,11 @@ use App\Security\SafeOutboundUrlGuard;
  * - Smart contact form detection
  * - Improved menu navigation for Contact Us pages
  * - Anti-bot evasion with randomized delays
+ *
+ * @phpstan-type ContactRecord array{first_name: string, last_name: string, email: string|null, phone: string|null, job_title: string|null, linkedin_url: string|null}
+ * @phpstan-type SocialLink array{platform: string, url: string, handle: string|null}
+ * @phpstan-type PageScrapeResult array{emails: list<string>, phones: list<string>, contact_names: list<string>, structured_contacts: list<ContactRecord>, social_links: list<SocialLink>, about_text: string|null, has_contact_form: bool, scraping_method: string}
+ * @phpstan-type ScrapeResult array{emails: list<string>, phones: list<string>, contact_names: list<string>, structured_contacts: list<ContactRecord>, social_links: list<SocialLink>, about_text: string|null, contact_form_url: string|null, has_contact_form: bool, pages_scraped: int, scraping_method: string, errors: list<string>}
  */
 class DeepScrapingService
 {
@@ -101,34 +106,29 @@ class DeepScrapingService
         $this->userAgent ??= 'Mozilla/5.0 (compatible; CRMBot/1.0; +https://example.com/bot)';
     }
 
-    private readonly HttpClientInterface $httpClient;
+    /**
+     * Wrapped client kept for subclasses/tests that need the (SSRF-guarded)
+     * client this service was built with. Never read directly here, hence
+     * protected rather than private.
+     */
+    protected readonly HttpClientInterface $httpClient;
 
     /**
      * Scrape a website for contact information
-     * 
+     *
      * Enhanced with:
      * - Automatic headless browser fallback for JS-rendered sites
      * - Contact form detection
      * - Smart menu navigation
-     * 
+     *
      * @param string $url The base URL to scrape
      * @param int $maxPages Maximum pages to crawl (default: 5)
      * @param bool $useHeadless Force headless browser
-     * @return array{
-     *   emails: string[],
-     *   phones: string[],
-     *   contact_names: string[],
-     *   social_links: array,
-     *   about_text: string|null,
-     *   contact_form_url: string|null,
-     *   has_contact_form: bool,
-     *   pages_scraped: int,
-     *   scraping_method: string,
-     *   errors: string[]
-     * }
+     * @return ScrapeResult
      */
     public function scrapeWebsite(string $url, int $maxPages = 5, bool $useHeadless = false): array
     {
+        /** @var ScrapeResult $result */
         $result = [
             'emails' => [],
             'phones' => [],
@@ -142,23 +142,23 @@ class DeepScrapingService
             'scraping_method' => 'static',
             'errors' => [],
         ];
-        
+
         $baseUrl = $this->normalizeBaseUrl($url);
         if (!$baseUrl) {
             $result['errors'][] = 'Invalid URL: ' . $url;
             return $result;
         }
-        
+
         $pagesToVisit = [$baseUrl];
         $visitedPages = [];
-        
+
         // First, try to find contact and about pages using smart navigation
         $contactPages = $this->findContactPagesSmartly($baseUrl, $useHeadless);
         $pagesToVisit = array_merge($pagesToVisit, $contactPages);
-        
+
         while (!empty($pagesToVisit) && count($visitedPages) < $maxPages) {
             $currentUrl = array_shift($pagesToVisit);
-            
+
             // Skip if already visited
             $normalizedUrl = $this->normalizeUrl($currentUrl);
             if (in_array($normalizedUrl, $visitedPages)) {
@@ -184,7 +184,7 @@ class DeepScrapingService
                 $result['emails'] = array_unique(array_merge($result['emails'], $pageData['emails']));
                 $result['phones'] = array_unique(array_merge($result['phones'], $pageData['phones']));
                 $result['contact_names'] = array_unique(array_merge($result['contact_names'], $pageData['contact_names']));
-                $result['structured_contacts'] = array_merge($result['structured_contacts'], $pageData['structured_contacts'] ?? []);
+                $result['structured_contacts'] = array_merge($result['structured_contacts'], $pageData['structured_contacts']);
                 $result['social_links'] = array_merge($result['social_links'], $pageData['social_links']);
                 
                 // Track contact form detection
@@ -223,8 +223,8 @@ class DeepScrapingService
         }
 
         // Clean and deduplicate results
-        $result['emails'] = $this->cleanEmails(array_unique($result['emails']));
-        $result['phones'] = $this->cleanPhones(array_unique($result['phones']));
+        $result['emails'] = $this->cleanEmails(array_values(array_unique($result['emails'])));
+        $result['phones'] = $this->cleanPhones(array_values(array_unique($result['phones'])));
         $result['contact_names'] = array_slice(array_unique($result['contact_names']), 0, 10);
         $result['social_links'] = $this->deduplicateSocialLinks($result['social_links']);
 
@@ -249,12 +249,14 @@ class DeepScrapingService
 
     /**
      * Scrape a single page for contact information
-     * 
+     *
      * @param string $url The URL to scrape
      * @param bool $useHeadless Force headless browser
+     * @return PageScrapeResult
      */
     private function scrapePage(string $url, bool $useHeadless = false): array
     {
+        /** @var PageScrapeResult $result */
         $result = [
             'emails' => [],
             'phones' => [],
@@ -283,7 +285,7 @@ class DeepScrapingService
         
         // Extract emails from mailto links
         $crawler->filter('a[href^="mailto:"]')->each(function (Crawler $node) use (&$result) {
-            $href = $node->attr('href');
+            $href = $node->attr('href') ?? '';
             $email = str_replace('mailto:', '', $href);
             $email = explode('?', $email)[0]; // Remove query params
             if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -312,16 +314,16 @@ class DeepScrapingService
         foreach (self::PHONE_PATTERNS as $pattern) {
             preg_match_all($pattern, $textContent, $phoneMatches);
             foreach ($phoneMatches[0] as $phone) {
-                $cleaned = preg_replace('/[^0-9+]/', '', $phone);
+                $cleaned = preg_replace('/[^0-9+]/', '', $phone) ?? '';
                 if (strlen($cleaned) >= 7 && strlen($cleaned) <= 15) {
                     $result['phones'][] = $phone;
                 }
             }
         }
-        
+
         // Extract tel: links
         $crawler->filter('a[href^="tel:"]')->each(function (Crawler $node) use (&$result) {
-            $href = $node->attr('href');
+            $href = $node->attr('href') ?? '';
             $phone = str_replace('tel:', '', $href);
             $result['phones'][] = $phone;
         });
@@ -340,7 +342,7 @@ class DeepScrapingService
                     $result['social_links'][] = [
                         'platform' => $platform,
                         'url' => $href,
-                        'handle' => $matches[1] ?? null,
+                        'handle' => $matches[1],
                     ];
                 }
             }
@@ -406,6 +408,8 @@ class DeepScrapingService
     
     /**
      * Smart contact page discovery using fuzzy matching on menu links
+     *
+     * @return list<string>
      */
     private function findContactPagesSmartly(string $baseUrl, bool $useHeadless = false): array
     {
@@ -416,14 +420,14 @@ class DeepScrapingService
             $pages[] = rtrim($baseUrl, '/') . '/' . $pattern;
             $pages[] = rtrim($baseUrl, '/') . '/' . $pattern . '/';
         }
-        
+
         // Try to get links from homepage using headless browser
         try {
             $this->urlGuard->assertAllowed($baseUrl);
             $pageResult = $this->headlessBrowser->fetchPage($baseUrl, $useHeadless);
-            
+
             if (!$pageResult['success']) {
-                return array_unique($pages);
+                return array_values(array_unique($pages));
             }
             
             $crawler = new Crawler($pageResult['html']);
@@ -475,8 +479,8 @@ class DeepScrapingService
                 'error' => $e->getMessage()
             ]);
         }
-        
-        return array_unique($pages);
+
+        return array_values(array_unique($pages));
     }
     
     /**
@@ -538,13 +542,11 @@ class DeepScrapingService
      * by correlating names with nearby emails, phones, titles and LinkedIn URLs.
      *
      * Each contact: ['first_name', 'last_name', 'email', 'phone', 'job_title', 'linkedin_url']
+     *
+     * @param PageScrapeResult $result
      */
     private function extractContactNames(Crawler $crawler, array &$result): void
     {
-        if (!isset($result['structured_contacts'])) {
-            $result['structured_contacts'] = [];
-        }
-
         // ── 1) JSON-LD Schema.org (highest quality) ──
         $this->extractContactsFromJsonLd($crawler, $result);
 
@@ -564,7 +566,7 @@ class DeepScrapingService
         $seen = [];
         $unique = [];
         foreach ($result['structured_contacts'] as $c) {
-            $key = strtolower(trim(($c['first_name'] ?? '') . ' ' . ($c['last_name'] ?? '')));
+            $key = strtolower(trim($c['first_name'] . ' ' . $c['last_name']));
             if ($key && !isset($seen[$key]) && strlen($key) > 2) {
                 $seen[$key] = true;
                 $unique[] = $c;
@@ -574,7 +576,7 @@ class DeepScrapingService
 
         // Also keep flat names for backward compatibility
         foreach ($unique as $c) {
-            $fullName = trim(($c['first_name'] ?? '') . ' ' . ($c['last_name'] ?? ''));
+            $fullName = trim($c['first_name'] . ' ' . $c['last_name']);
             if ($fullName) {
                 $result['contact_names'][] = $fullName;
             }
@@ -583,26 +585,28 @@ class DeepScrapingService
 
     /**
      * Extract contacts from JSON-LD structured data (Schema.org)
+     *
+     * @param PageScrapeResult $result
      */
     private function extractContactsFromJsonLd(Crawler $crawler, array &$result): void
     {
         try {
             $crawler->filter('script[type="application/ld+json"]')->each(function (Crawler $node) use (&$result) {
-                /** @var array<string, mixed>|null $json */
                 $json = json_decode($node->text(), true);
                 if (!is_array($json)) {
                     return;
                 }
 
                 // Handle @graph arrays
-                $entities = [];
+                $entities = [$json];
                 if (isset($json['@graph']) && is_array($json['@graph'])) {
-                    $entities = $json['@graph'];
-                } else {
-                    $entities = [$json];
+                    $entities = array_values($json['@graph']);
                 }
 
                 foreach ($entities as $entity) {
+                    if (!is_array($entity)) {
+                        continue;
+                    }
                     $type = $entity['@type'] ?? '';
 
                     // Direct Person entities
@@ -636,12 +640,17 @@ class DeepScrapingService
                                 ? $entity['contactPoint']
                                 : [$entity['contactPoint']];
                             foreach ($points as $cp) {
-                                if (!empty($cp['email'])) {
-                                    // Store as generic email contact
-                                    $result['emails'][] = strtolower($cp['email']);
+                                if (!is_array($cp)) {
+                                    continue;
                                 }
-                                if (!empty($cp['telephone'])) {
-                                    $result['phones'][] = $cp['telephone'];
+                                $cpEmail = $cp['email'] ?? null;
+                                if (is_string($cpEmail) && $cpEmail !== '') {
+                                    // Store as generic email contact
+                                    $result['emails'][] = strtolower($cpEmail);
+                                }
+                                $cpPhone = $cp['telephone'] ?? null;
+                                if (is_string($cpPhone) && $cpPhone !== '') {
+                                    $result['phones'][] = $cpPhone;
                                 }
                             }
                         }
@@ -655,15 +664,23 @@ class DeepScrapingService
 
     /**
      * Parse a Schema.org Person entity into a structured contact
-      * @param array<string|int, mixed> $entity
+     *
+     * @param array<int|string, mixed> $entity
+     * @return ContactRecord|null
      */
     private function parseSchemaOrgPerson(array $entity): ?array
     {
         $name = $entity['name'] ?? null;
         $firstName = $entity['givenName'] ?? null;
         $lastName = $entity['familyName'] ?? null;
+        if (!is_string($firstName)) {
+            $firstName = null;
+        }
+        if (!is_string($lastName)) {
+            $lastName = null;
+        }
 
-        if (!$firstName && !$lastName && $name) {
+        if (!$firstName && !$lastName && is_string($name) && $name !== '') {
             [$firstName, $lastName] = $this->splitPersonName($name);
         }
 
@@ -671,40 +688,50 @@ class DeepScrapingService
             return null;
         }
 
+        $jobTitle = $entity['jobTitle'] ?? null;
+        if (!is_string($jobTitle)) {
+            $jobTitle = null;
+        }
+
+        /** @var ContactRecord $contact */
         $contact = [
-            'first_name' => trim($firstName ?? ''),
+            'first_name' => trim($firstName),
             'last_name' => trim($lastName ?? ''),
             'email' => null,
             'phone' => null,
-            'job_title' => $entity['jobTitle'] ?? null,
+            'job_title' => $jobTitle,
             'linkedin_url' => null,
         ];
 
         // Email
-        if (!empty($entity['email'])) {
-            $email = str_replace('mailto:', '', $entity['email']);
+        $entityEmail = $entity['email'] ?? null;
+        if (is_string($entityEmail) && $entityEmail !== '') {
+            $email = str_replace('mailto:', '', $entityEmail);
             if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $contact['email'] = strtolower($email);
             }
         }
 
         // Phone
-        if (!empty($entity['telephone'])) {
-            $contact['phone'] = $entity['telephone'];
+        $entityPhone = $entity['telephone'] ?? null;
+        if (is_string($entityPhone) && $entityPhone !== '') {
+            $contact['phone'] = $entityPhone;
         }
 
         // LinkedIn from sameAs
-        if (!empty($entity['sameAs'])) {
-            $sameAs = is_array($entity['sameAs']) ? $entity['sameAs'] : [$entity['sameAs']];
-            foreach ($sameAs as $url) {
+        $sameAs = $entity['sameAs'] ?? null;
+        if (!empty($sameAs)) {
+            $urls = is_array($sameAs) ? $sameAs : [$sameAs];
+            foreach ($urls as $url) {
                 if (is_string($url) && str_contains($url, 'linkedin.com/in/')) {
                     $contact['linkedin_url'] = $url;
                     break;
                 }
             }
         }
-        if (!empty($entity['url']) && str_contains($entity['url'], 'linkedin.com/in/')) {
-            $contact['linkedin_url'] = $entity['url'];
+        $entityUrl = $entity['url'] ?? null;
+        if (is_string($entityUrl) && str_contains($entityUrl, 'linkedin.com/in/')) {
+            $contact['linkedin_url'] = $entityUrl;
         }
 
         return $contact;
@@ -712,6 +739,8 @@ class DeepScrapingService
 
     /**
      * Extract contacts from Schema.org Person microdata (itemprop)
+     *
+     * @param PageScrapeResult $result
      */
     private function extractContactsFromMicrodata(Crawler $crawler, array &$result): void
     {
@@ -756,7 +785,7 @@ class DeepScrapingService
                         $contact['email'] = strtolower($email);
                     }
                 } elseif ($node->filter('a[href^="mailto:"]')->count() > 0) {
-                    $email = str_replace('mailto:', '', explode('?', $node->filter('a[href^="mailto:"]')->attr('href'))[0]);
+                    $email = str_replace('mailto:', '', explode('?', $node->filter('a[href^="mailto:"]')->attr('href') ?? '')[0]);
                     if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
                         $contact['email'] = strtolower($email);
                     }
@@ -766,7 +795,7 @@ class DeepScrapingService
                 if ($node->filter('[itemprop="telephone"]')->count() > 0) {
                     $contact['phone'] = trim($node->filter('[itemprop="telephone"]')->text());
                 } elseif ($node->filter('a[href^="tel:"]')->count() > 0) {
-                    $contact['phone'] = str_replace('tel:', '', $node->filter('a[href^="tel:"]')->attr('href'));
+                    $contact['phone'] = str_replace('tel:', '', $node->filter('a[href^="tel:"]')->attr('href') ?? '');
                 }
 
                 // LinkedIn
@@ -790,6 +819,8 @@ class DeepScrapingService
      *     <p class="title">VP of Procurement</p>
      *     <a href="mailto:john@company.com">...</a>
      *   </div>
+     *
+     * @param PageScrapeResult $result
      */
     private function extractContactsFromTeamSections(Crawler $crawler, array &$result): void
     {
@@ -859,6 +890,8 @@ class DeepScrapingService
 
     /**
      * Extract a single contact from a card/bio HTML block
+     *
+     * @param PageScrapeResult $result
      */
     private function extractContactFromCard(Crawler $card, array &$result): void
     {
@@ -914,7 +947,7 @@ class DeepScrapingService
         // Email
         try {
             if ($card->filter('a[href^="mailto:"]')->count() > 0) {
-                $email = str_replace('mailto:', '', explode('?', $card->filter('a[href^="mailto:"]')->attr('href'))[0]);
+                $email = str_replace('mailto:', '', explode('?', $card->filter('a[href^="mailto:"]')->attr('href') ?? '')[0]);
                 if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     $contact['email'] = strtolower($email);
                 }
@@ -926,7 +959,7 @@ class DeepScrapingService
         // Phone
         try {
             if ($card->filter('a[href^="tel:"]')->count() > 0) {
-                $contact['phone'] = str_replace('tel:', '', $card->filter('a[href^="tel:"]')->attr('href'));
+                $contact['phone'] = str_replace('tel:', '', $card->filter('a[href^="tel:"]')->attr('href') ?? '');
             }
         } catch (\Exception $e) {
             $this->logger->warning('Phone extraction failed', ['exception' => $e]);
@@ -946,6 +979,8 @@ class DeepScrapingService
 
     /**
      * Extract contacts from LinkedIn profile links found on the page
+     *
+     * @param PageScrapeResult $result
      */
     private function extractContactsFromLinkedInLinks(Crawler $crawler, array &$result): void
     {
@@ -976,6 +1011,8 @@ class DeepScrapingService
 
     /**
      * Extract contacts from vCard / hCard microformat
+     *
+     * @param PageScrapeResult $result
      */
     private function extractContactsFromVCards(Crawler $crawler, array &$result): void
     {
@@ -1015,7 +1052,7 @@ class DeepScrapingService
                 }
                 // Email
                 if ($card->filter('a[href^="mailto:"]')->count() > 0) {
-                    $email = str_replace('mailto:', '', explode('?', $card->filter('a[href^="mailto:"]')->attr('href'))[0]);
+                    $email = str_replace('mailto:', '', explode('?', $card->filter('a[href^="mailto:"]')->attr('href') ?? '')[0]);
                     if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
                         $contact['email'] = strtolower($email);
                     }
@@ -1041,13 +1078,17 @@ class DeepScrapingService
 
     /**
      * Split "John Smith" into ['John', 'Smith']
+     *
+     * @return array{0: string|null, 1: string|null}
      */
     private function splitPersonName(string $name): array
     {
         $parts = preg_split('/\s+/', trim($name));
-        if (empty($parts)) { return [null, null]; }
+        if ($parts === false || $parts === []) {
+            return [null, null];
+        }
         if (count($parts) < 2) {
-            return [$parts[0] ?? null, null];
+            return [$parts[0], null];
         }
         $first = array_shift($parts);
         $last = implode(' ', $parts);
@@ -1063,6 +1104,9 @@ class DeepScrapingService
 
         // Must be 2-5 words, starting with uppercase
         $words = preg_split('/\s+/', $text);
+        if ($words === false) {
+            return false;
+        }
         if (count($words) < 2 || count($words) > 5) {
             return false;
         }
@@ -1129,7 +1173,8 @@ class DeepScrapingService
      */
     public function isDecisionMaker(array $contact): bool
     {
-        $title = strtolower($contact['job_title'] ?? '');
+        $jobTitle = $contact['job_title'] ?? '';
+        $title = is_string($jobTitle) ? strtolower($jobTitle) : '';
         if (!$title) {
             return false; // No title = unknown, not automatically a decision maker
         }
@@ -1164,8 +1209,9 @@ class DeepScrapingService
         if (!empty($contact['email'])) {
             $score += 20;
             // Bonus: email domain matches company domain
-            if ($companyDomain) {
-                $emailDomain = explode('@', $contact['email'])[1] ?? '';
+            $contactEmail = $contact['email'];
+            if ($companyDomain && is_string($contactEmail)) {
+                $emailDomain = explode('@', $contactEmail)[1] ?? '';
                 $emailDomain = preg_replace('/^www\./', '', strtolower($emailDomain));
                 $companyDomain = preg_replace('/^www\./', '', strtolower($companyDomain));
                 if ($emailDomain === $companyDomain) {
@@ -1257,9 +1303,9 @@ class DeepScrapingService
     {
         $url = strtolower($url);
         $url = rtrim($url, '/');
-        $url = preg_replace('/\?.*$/', '', $url); // Remove query string
-        $url = preg_replace('/#.*$/', '', $url); // Remove fragment
-        
+        $url = preg_replace('/\?.*$/', '', $url) ?? $url; // Remove query string
+        $url = preg_replace('/#.*$/', '', $url) ?? $url; // Remove fragment
+
         return $url;
     }
 
@@ -1311,7 +1357,9 @@ class DeepScrapingService
 
     /**
      * Clean and filter emails
-      * @param array<string|int, mixed> $emails
+     *
+     * @param list<string> $emails
+     * @return list<string>
      */
     private function cleanEmails(array $emails): array
     {
@@ -1359,15 +1407,17 @@ class DeepScrapingService
 
     /**
      * Clean and filter phones
-      * @param array<string|int, mixed> $phones
+     *
+     * @param list<string> $phones
+     * @return list<string>
      */
     private function cleanPhones(array $phones): array
     {
         $cleaned = [];
         $seen = [];
-        
+
         foreach ($phones as $phone) {
-            $normalized = preg_replace('/[^0-9+]/', '', $phone);
+            $normalized = preg_replace('/[^0-9+]/', '', $phone) ?? '';
             
             if (strlen($normalized) < 7 || strlen($normalized) > 15) {
                 continue;
@@ -1389,19 +1439,21 @@ class DeepScrapingService
      *
      * If a contact has no email but we found emails like firstname.lastname@domain
      * or firstinitiallastname@domain, we match them up.
-      * @param array<string|int, mixed> $contacts
- * @param array<string|int, mixed> $emails
+     *
+     * @param list<ContactRecord> $contacts
+     * @param list<string> $emails
+     * @return list<ContactRecord>
      */
     private function deduplicateAndEnrichContacts(array $contacts, array $emails, string $baseUrl): array
     {
-        $domain = parse_url($baseUrl, PHP_URL_HOST);
-        $domain = $domain ? preg_replace('/^www\./', '', strtolower($domain)) : null;
+        $host = parse_url($baseUrl, PHP_URL_HOST);
+        $domain = is_string($host) ? preg_replace('/^www\./', '', strtolower($host)) : null;
 
         // Deduplicate by name
         $seen = [];
         $unique = [];
         foreach ($contacts as $c) {
-            $key = strtolower(trim(($c['first_name'] ?? '') . '|' . ($c['last_name'] ?? '')));
+            $key = strtolower(trim($c['first_name'] . '|' . $c['last_name']));
             if (!$key || $key === '|' || isset($seen[$key])) {
                 continue;
             }
@@ -1429,8 +1481,8 @@ class DeepScrapingService
                 continue; // Already has email
             }
 
-            $first = strtolower(trim($contact['first_name'] ?? ''));
-            $last = strtolower(trim($contact['last_name'] ?? ''));
+            $first = strtolower(trim($contact['first_name']));
+            $last = strtolower(trim($contact['last_name']));
 
             if (!$first || !$last) {
                 continue;
@@ -1465,7 +1517,9 @@ class DeepScrapingService
 
     /**
      * Deduplicate social links
-      * @param array<string|int, mixed> $links
+     *
+     * @param list<SocialLink> $links
+     * @return list<SocialLink>
      */
     private function deduplicateSocialLinks(array $links): array
     {

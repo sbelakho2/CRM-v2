@@ -55,6 +55,9 @@ class ChunkReadFilter implements IReadFilter
  *   - UTF-8 BOM stripping
  *   - Memory-efficient chunked Excel reading
  *   - Infers MPN column from data patterns when headers are ambiguous
+ *
+ * @phpstan-type BomLine array{lineNumber: int, designator: string, mpn: string, manufacturer: string, quantity: int, stock_quantity: int|null, unit_price: float|null, total_price: float|null, description: string, value: string, package: string, supplier: string, supplier_pn: string, category: string, remark: string}
+ * @phpstan-type OrderBomLine BomLine&array{firm_quantity?: bool}
  */
 class BOMParser
 {
@@ -204,10 +207,7 @@ class BOMParser
      *
      * @param  string      $filePath  Absolute path to the BOM file
      * @param  string|null $extension Optional override (csv, xlsx, xls, tsv, ods, txt)
-     * @return array<int, array{lineNumber:int, designator:string, mpn:string,
-     *     manufacturer:string, quantity:int, description:string, value:string,
-     *     package:string, supplier:string, supplier_pn:string, category:string,
-     *     remark:string}>
+     * @return list<BomLine>
      */
     public function parse(string $filePath, ?string $extension = null): array
     {
@@ -229,7 +229,9 @@ class BOMParser
     /**
      * Consolidate duplicate lines (same MPN / description).
      * Merges designators and sums quantities.
-      * @param array<string|int, mixed> $lines
+     *
+     * @param list<BomLine> $lines
+     * @return list<BomLine>
      */
     public function consolidate(array $lines): array
     {
@@ -279,9 +281,9 @@ class BOMParser
      * For example, with $orderMultiple = 10:
      *   qty=1 → 10, qty=3 → 10, qty=12 → 20, qty=20 → 20
      *
-     * @param array $lines       Parsed/consolidated BOM lines
+     * @param list<OrderBomLine> $lines  Parsed/consolidated BOM lines
      * @param int   $orderMultiple  The quantity multiple (e.g. 10, 50, 100). Must be ≥ 1.
-     * @return array  Lines with quantities rounded up
+     * @return list<OrderBomLine>  Lines with quantities rounded up
      */
     public function applyOrderMultiple(array $lines, int $orderMultiple): array
     {
@@ -290,7 +292,7 @@ class BOMParser
         }
 
         foreach ($lines as &$line) {
-            $qty = $line['quantity'] ?? 1;
+            $qty = $line['quantity'];
             $line['quantity'] = (int) ceil($qty / $orderMultiple) * $orderMultiple;
             $line['firm_quantity'] = true; // Signal PricingEngine not to inflate with vendor MOQ
         }
@@ -310,9 +312,9 @@ class BOMParser
      * Used when the BOM lists per-board quantities and the user wants to order
      * multiple boards (e.g., BOM qty=2, board_count=10 → final qty=20).
      *
-     * @param array $lines       Parsed BOM lines
+     * @param list<BomLine> $lines       Parsed BOM lines
      * @param int   $boardCount  Number of boards/units to order
-     * @return array  Lines with quantities multiplied
+     * @return list<BomLine>  Lines with quantities multiplied
      */
     public function applyBoardCount(array $lines, int $boardCount): array
     {
@@ -321,7 +323,7 @@ class BOMParser
         }
 
         foreach ($lines as &$line) {
-            $qty = $line['quantity'] ?? 1;
+            $qty = $line['quantity'];
             $line['quantity'] = $qty * $boardCount;
         }
         unset($line);
@@ -336,7 +338,9 @@ class BOMParser
 
     /**
      * Validate BOM structure and return human-readable warnings.
-      * @param array<string|int, mixed> $lines
+     *
+     * @param list<BomLine> $lines
+     * @return list<string>
      */
     public function validate(array $lines): array
     {
@@ -364,6 +368,11 @@ class BOMParser
     //  CSV Parsing
     // ═══════════════════════════════════════════════════════════════
 
+    /**
+     * Parse a CSV/TSV file into standardized BOM lines.
+     *
+     * @return list<BomLine>
+     */
     private function parseCSV(string $filePath): array
     {
         $raw = file_get_contents($filePath);
@@ -386,6 +395,9 @@ class BOMParser
         // (escape arg omitted — PHP 8.5 deprecates it and the default matches)
         $rows = [];
         $handle = fopen('php://temp', 'r+');
+        if ($handle === false) {
+            throw new \RuntimeException('Cannot open temporary stream for CSV parsing');
+        }
         fwrite($handle, $raw);
         rewind($handle);
         while (($row = fgetcsv($handle, 0, $delimiter, '"', '\\')) !== false) {
@@ -465,6 +477,11 @@ class BOMParser
     //  Excel Parsing  (chunked, memory-efficient)
     // ═══════════════════════════════════════════════════════════════
 
+    /**
+     * Parse an Excel file into standardized BOM lines (chunked, memory-efficient).
+     *
+     * @return list<BomLine>
+     */
     private function parseExcel(string $filePath): array
     {
         try {
@@ -476,12 +493,17 @@ class BOMParser
             // does not declare listWorksheetInfo(), but every concrete
             // reader PhpSpreadsheet ships does — narrow via the documented
             // base class so the call is type-safe.
-            \assert($reader instanceof \PhpOffice\PhpSpreadsheet\Reader\BaseReader);
+            if (!$reader instanceof \PhpOffice\PhpSpreadsheet\Reader\BaseReader) {
+                throw new \RuntimeException('Unsupported BOM reader: ' . get_class($reader));
+            }
+            /** @var list<array<string, mixed>> $worksheetInfo */
             $worksheetInfo = $reader->listWorksheetInfo($filePath);
-            $totalRows     = $worksheetInfo[0]['totalRows'] ?? 0;
-            $highestColIdx = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString(
-                $worksheetInfo[0]['lastColumnLetter'] ?? 'A'
-            );
+            $firstSheet = $worksheetInfo[0] ?? [];
+            $sheetTotalRows = $firstSheet['totalRows'] ?? 0;
+            $totalRows = is_int($sheetTotalRows) ? $sheetTotalRows : (is_numeric($sheetTotalRows) ? (int) $sheetTotalRows : 0);
+            $sheetLastColumnLetter = $firstSheet['lastColumnLetter'] ?? 'A';
+            $lastColumnLetter = is_string($sheetLastColumnLetter) && $sheetLastColumnLetter !== '' ? $sheetLastColumnLetter : 'A';
+            $highestColIdx = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($lastColumnLetter);
 
             if ($totalRows < 2) {
                 throw new \RuntimeException("Empty BOM file — no data rows found");
@@ -585,12 +607,13 @@ class BOMParser
      * Row must have ≥ 2 matched fields and mostly non-numeric cells.
      *
      * @return array{0: int, 1: array<string, int>}  [rowIndex, headerMap]
-      * @param array<string|int, mixed> $rows
+     * @param array<int, list<mixed>> $rows
      */
     private function detectHeaderRow(array $rows): array
     {
         $bestScore = 0;
         $bestIndex = 0;
+        /** @var array<string, int> $bestMap */
         $bestMap   = [];
         $limit     = min(count($rows), self::HEADER_SCAN_DEPTH);
 
@@ -598,7 +621,7 @@ class BOMParser
             $row = $rows[$i];
 
             // Must have ≥ 2 non-empty cells
-            $nonEmpty = array_filter($row, fn($v) => $v !== null && trim((string)$v) !== '');
+            $nonEmpty = array_filter($row, fn($v) => $v !== null && $this->cellText($v) !== '');
             if (count($nonEmpty) < 2) continue;
 
             // A header row should have mostly non-numeric cells
@@ -635,7 +658,7 @@ class BOMParser
      * Score a single candidate header row.
      *
      * @return array{0: array<string, int>, 1: int}  [map, score]
-      * @param array<string|int, mixed> $row
+     * @param list<mixed> $row
      */
     private function scoreHeaderRow(array $row): array
     {
@@ -643,9 +666,9 @@ class BOMParser
         $score = 0;
 
         foreach ($row as $index => $cell) {
-            if ($cell === null || trim((string)$cell) === '') continue;
+            if ($cell === null || $this->cellText($cell) === '') continue;
 
-            $normalized = $this->normalizeHeader((string)$cell);
+            $normalized = $this->normalizeHeader($this->cellText($cell));
             if ($normalized === '') continue;
 
             $matched = false;
@@ -679,7 +702,7 @@ class BOMParser
 
         // Guard: reject MPN matches on line-number columns
         if (isset($map['mpn'])) {
-            $mpnHeader = $this->normalizeHeader((string)($row[$map['mpn']] ?? ''));
+            $mpnHeader = $this->normalizeHeader($this->cellText($row[$map['mpn']] ?? null));
             if (in_array($mpnHeader, self::MPN_BLACKLIST, true)) {
                 unset($map['mpn']);
                 $score -= 3;
@@ -689,7 +712,7 @@ class BOMParser
         // Promote remark → MPN when MPN is unmapped and the remark header
         // indicates alternative/substitute part numbers (common in sourcing BOMs)
         if (!isset($map['mpn']) && isset($map['remark'])) {
-            $remarkHeader = $this->normalizeHeader((string)($row[$map['remark']] ?? ''));
+            $remarkHeader = $this->normalizeHeader($this->cellText($row[$map['remark']] ?? null));
             if (str_contains($remarkHeader, 'alternative')
                 || str_contains($remarkHeader, 'alternate')
                 || str_contains($remarkHeader, 'substitute')
@@ -706,15 +729,17 @@ class BOMParser
     /**
      * Simple (legacy) header mapping — direct exact-match only, no scoring.
      * Used as fallback when auto-detection finds nothing.
-      * @param array<string|int, mixed> $headers
+     *
+     * @param list<mixed> $headers
+     * @return array<string, int>
      */
     private function mapHeadersSimple(array $headers): array
     {
         $map = [];
 
         foreach ($headers as $index => $header) {
-            if ($header === null || trim((string)$header) === '') continue;
-            $n = $this->normalizeHeader((string)$header);
+            if ($header === null || $this->cellText($header) === '') continue;
+            $n = $this->normalizeHeader($this->cellText($header));
             if ($n === '') continue;
 
             foreach (self::HEADER_EXACT as $field => $tokens) {
@@ -729,9 +754,9 @@ class BOMParser
         // Also try fuzzy if exact pass found < 2 fields
         if (count($map) < 2) {
             foreach ($headers as $index => $header) {
-                if ($header === null || trim((string)$header) === '') continue;
+                if ($header === null || $this->cellText($header) === '') continue;
                 if (in_array($index, array_values($map))) continue;
-                $n = $this->normalizeHeader((string)$header);
+                $n = $this->normalizeHeader($this->cellText($header));
 
                 foreach (self::HEADER_FUZZY as $field => $substrings) {
                     if (isset($map[$field])) continue;
@@ -747,7 +772,7 @@ class BOMParser
 
         // Reject blacklisted MPN columns
         if (isset($map['mpn'])) {
-            $h = $this->normalizeHeader((string)($headers[$map['mpn']] ?? ''));
+            $h = $this->normalizeHeader($this->cellText($headers[$map['mpn']] ?? null));
             if (in_array($h, self::MPN_BLACKLIST, true)) {
                 unset($map['mpn']);
             }
@@ -759,8 +784,10 @@ class BOMParser
     /**
      * Heuristically infer the MPN column by scanning data rows for
      * values that look like part numbers (mixed alphanumeric, ≥ 6 chars or has dash).
-      * @param array<string|int, mixed> $rows
- * @param array<string|int, mixed> $map
+     *
+     * @param array<int, list<mixed>> $rows
+     * @param array<string, int> $map
+     * @return array<string, int>
      */
     private function inferMPNFromData(array $rows, int $headerRowIndex, array $map): array
     {
@@ -785,7 +812,7 @@ class BOMParser
             $mpnScore = 0;
             $internalRefCount = 0;
             foreach ($sampleRows as $row) {
-                $val = trim((string)($row[$col] ?? ''));
+                $val = trim($this->cellText($row[$col] ?? null));
                 if ($val === '') continue;
 
                 // Check if value looks like an internal library reference
@@ -829,8 +856,10 @@ class BOMParser
 
     /**
      * Extract a standardized BOM line from a single data row.
-      * @param array<string|int, mixed> $row
- * @param array<string|int, mixed> $headerMap
+     *
+     * @param list<mixed> $row
+     * @param array<string, int> $headerMap
+     * @return BomLine|null
      */
     private function extractLine(array $row, array $headerMap, int $lineNumber): ?array
     {
@@ -887,8 +916,8 @@ class BOMParser
 
         // Skip DNP (Do Not Populate) / custom lines with no real MPN
         $dnpTokens = ['dnp', 'donotpopulate', 'donotplace', 'noload', 'custom'];
-        $mpnNorm = strtolower(preg_replace('/[\s\-_]/', '', $mpn));
-        $valNorm = strtolower(preg_replace('/[\s\-_]/', '', $value ?: $description));
+        $mpnNorm = strtolower(preg_replace('/[\s\-_]/', '', $mpn) ?? '');
+        $valNorm = strtolower(preg_replace('/[\s\-_]/', '', $value ?: $description) ?? '');
         if (in_array($mpnNorm, $dnpTokens, true)
             || ($mpn === '' && in_array($valNorm, $dnpTokens, true))
         ) {
@@ -956,13 +985,14 @@ class BOMParser
 
     /**
      * Get a trimmed string value from the row for a mapped field.
-      * @param array<string|int, mixed> $row
- * @param array<string|int, mixed> $headerMap
+     *
+     * @param list<mixed> $row
+     * @param array<string, int> $headerMap
      */
     private function getField(array $row, array $headerMap, string $field): string
     {
         if (!isset($headerMap[$field])) return '';
-        return trim((string)($row[$headerMap[$field]] ?? ''));
+        return trim($this->cellText($row[$headerMap[$field]] ?? null));
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -970,12 +1000,27 @@ class BOMParser
     // ═══════════════════════════════════════════════════════════════
 
     /**
+     * Convert a spreadsheet cell (string, number, null, or stringable object
+     * such as a RichText value) to its text representation.
+     */
+    private function cellText(mixed $cell): string
+    {
+        if ($cell === null) {
+            return '';
+        }
+        if (is_scalar($cell) || $cell instanceof \Stringable) {
+            return (string) $cell;
+        }
+        return '';
+    }
+
+    /**
      * Normalize a header cell for dictionary lookup.
      * Strips *, #, (), [], whitespace, punctuation → lowercase alphanumeric only.
      */
     private function normalizeHeader(string $header): string
     {
-        return preg_replace('/[^a-z0-9]/', '', strtolower(trim($header)));
+        return preg_replace('/[^a-z0-9]/', '', strtolower(trim($header))) ?? '';
     }
 
     /**
@@ -984,13 +1029,13 @@ class BOMParser
     private function cleanMPN(string $mpn): string
     {
         // Remove invisible / control characters
-        $mpn = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $mpn);
+        $mpn = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $mpn) ?? $mpn;
         // Remove non-breaking space (UTF-8: C2 A0)
         $mpn = str_replace("\xC2\xA0", ' ', $mpn);
         // Remove surrounding quotes
         $mpn = trim($mpn, " \t\n\r\0\x0B\"'`");
         // Collapse internal whitespace
-        $mpn = preg_replace('/\s+/', ' ', $mpn);
+        $mpn = preg_replace('/\s+/', ' ', $mpn) ?? $mpn;
         return $mpn;
     }
 
@@ -1000,7 +1045,7 @@ class BOMParser
     private function normalizeMPN(string $mpn): string
     {
         $clean = $this->cleanMPN($mpn);
-        return strtoupper(preg_replace('/[\s\-]/', '', $clean));
+        return strtoupper(preg_replace('/[\s\-]/', '', $clean) ?? '');
     }
 
     /**
@@ -1016,11 +1061,11 @@ class BOMParser
         if ($raw === '') return 1;
 
         // Remove suffixes: pcs, ea, each, pc, unit(s), piece(s)
-        $clean = preg_replace('/\s*(pcs|ea|each|pc|units?|pieces?)\s*$/i', '', $raw);
+        $clean = preg_replace('/\s*(pcs|ea|each|pc|units?|pieces?)\s*$/i', '', $raw) ?? $raw;
         // Remove leading x / X  (e.g. "x3")
-        $clean = preg_replace('/^[xX]\s*/', '', $clean);
+        $clean = preg_replace('/^[xX]\s*/', '', $clean) ?? $clean;
         // Remove thousand separators  (1,000 → 1000)
-        $clean = preg_replace('/(\d),(\d{3})/', '$1$2', $clean);
+        $clean = preg_replace('/(\d),(\d{3})/', '$1$2', $clean) ?? $clean;
         // Try to extract the first integer or decimal
         if (preg_match('/(\d+(?:\.\d+)?)/', $clean, $m)) {
             return max(1, (int)round((float)$m[1]));
@@ -1040,7 +1085,7 @@ class BOMParser
     private function countDesignators(string $designator): int
     {
         $count = 0;
-        $parts = preg_split('/[,;\s]+/', $designator, -1, PREG_SPLIT_NO_EMPTY);
+        $parts = preg_split('/[,;\s]+/', $designator, -1, PREG_SPLIT_NO_EMPTY) ?: [];
 
         foreach ($parts as $part) {
             $part = trim($part);
@@ -1070,7 +1115,7 @@ class BOMParser
         if ($b === '') return $a;
 
         $parts = array_unique(array_filter(
-            preg_split('/[,;\s]+/', "$a, $b"),
+            preg_split('/[,;\s]+/', "$a, $b") ?: [],
             fn($p) => trim($p) !== ''
         ));
 
@@ -1084,7 +1129,7 @@ class BOMParser
     private function isEmptyRow(array $row): bool
     {
         foreach ($row as $cell) {
-            if ($cell !== null && trim((string)$cell) !== '') {
+            if ($cell !== null && $this->cellText($cell) !== '') {
                 return false;
             }
         }
@@ -1108,7 +1153,7 @@ class BOMParser
         // Must also contain package size (0402/0603/0805/1206...) or tolerance (1%/5%)
         $hasPackageOrTol = (bool) preg_match('/\b(0402|0603|0805|1206|1210|2010|2512|SOT|SMA|SMD)\b|\b\d+\s*%/i', $v);
         // Should NOT look like a structured MPN (has alpha-digit patterns with dashes)
-        $looksLikeMPN = (bool) preg_match('/^[A-Z]{2,}\d{3,}[A-Z0-9\-]+$/i', preg_replace('/\s/', '', $v));
+        $looksLikeMPN = (bool) preg_match('/^[A-Z]{2,}\d{3,}[A-Z0-9\-]+$/i', preg_replace('/\s/', '', $v) ?? '');
 
         return $hasValue && $hasPackageOrTol && !$looksLikeMPN;
     }
@@ -1148,11 +1193,10 @@ class BOMParser
             } elseif ($multiplier === 'K') {
                 $kOhms = $decimal !== '' ? "{$whole}.{$decimal}" : $whole;
                 $displayValue = "{$kOhms}K";
-            } elseif ($multiplier === 'M') {
+            } else {
+                // $multiplier === 'M' (only remaining value matched by the [KkMmRr] pattern)
                 $mOhms = $decimal !== '' ? "{$whole}.{$decimal}" : $whole;
                 $displayValue = "{$mOhms}M";
-            } else {
-                return null;
             }
 
             // Build search: try common MPN formats first, fall back to parametric
@@ -1184,7 +1228,7 @@ class BOMParser
         // Extract capacitance: 100nF, 4.7uF, 22pF
         if (preg_match('/\b(\d+\.?\d*)\s*([nupμ]?)([Ff])\b/i', $value, $cm)) {
             $capValue = $cm[1];
-            $prefix = strtolower($cm[2] ?? '');
+            $prefix = strtolower($cm[2]);
             $displayValue = $capValue . ($prefix ?: '') . 'F';
 
             $parts = ['capacitor', $displayValue];

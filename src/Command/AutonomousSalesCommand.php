@@ -2,12 +2,14 @@
 
 namespace App\Command;
 
+use App\Entity\LearnedCompetitor;
 use App\Entity\OutboundMessage;
 use App\Service\AutonomousSalesOrchestratorService;
 use App\Service\AutonomousSalesSettingsService;
 use App\Service\CompetitorLearnerService;
 use App\Service\CompetitorDetectionService;
 use App\Service\EmailClassifierService;
+use App\Entity\BanditArm;
 use App\Repository\ContactRepository;
 use App\Repository\OutboundMessageRepository;
 use App\Repository\LeadRepository;
@@ -100,15 +102,14 @@ class AutonomousSalesCommand extends Command
             return Command::INVALID;
         }
         
-        /** @var mixed $dryRun */
-        $dryRun = $input->getOption('dry-run');
+        $dryRun = (bool) $input->getOption('dry-run');
         if ($dryRun) {
             $io->warning('Running in DRY RUN mode - no database changes will be made');
         }
 
         // Full batch operation (for cron scheduling)
         if ($input->getOption('batch')) {
-            $limit = (int) $input->getOption('limit');
+            $limit = $this->optionInt($input->getOption('limit'), 50);
             return $this->runFullBatch($io, $input, $dryRun, $limit);
         }
 
@@ -119,7 +120,7 @@ class AutonomousSalesCommand extends Command
 
         // Score leads
         if ($input->getOption('score')) {
-            $limit = (int) $input->getOption('limit');
+            $limit = $this->optionInt($input->getOption('limit'), 50);
             return $this->runScoreLeads($io, $limit);
         }
 
@@ -140,7 +141,7 @@ class AutonomousSalesCommand extends Command
 
         // Process inbox queue
         if ($input->getOption('process-inbox')) {
-            $limit = (int) $input->getOption('limit');
+            $limit = $this->optionInt($input->getOption('limit'), 50);
             return $this->runProcessInbox($io, $limit, $dryRun);
         }
         
@@ -160,12 +161,14 @@ class AutonomousSalesCommand extends Command
         }
 
         // Compose message
-        if ($contactId = $input->getOption('compose')) {
+        $contactId = $input->getOption('compose');
+        if (is_string($contactId) && $contactId !== '') {
             if (!filter_var($contactId, FILTER_VALIDATE_INT)) {
                 $io->error("Invalid contact ID: {$contactId}");
                 return Command::FAILURE;
             }
-            $serviceType = $input->getOption('service') ?? 'general';
+            $serviceTypeOpt = $input->getOption('service');
+            $serviceType = is_string($serviceTypeOpt) && $serviceTypeOpt !== '' ? $serviceTypeOpt : 'general';
             return $this->runCompose($io, (int) $contactId, $serviceType);
         }
 
@@ -227,8 +230,8 @@ class AutonomousSalesCommand extends Command
         }
 
         // Cooldown guard
-        $cooldownMinutes = (int) $this->settingsService->getSetting('auto_cooldown_minutes', 30);
-        $lastRun = (int) $this->settingsService->getSetting('auto_last_run', 0);
+        $cooldownMinutes = $this->settingInt($this->settingsService->getSetting('auto_cooldown_minutes', 30), 30);
+        $lastRun = $this->settingInt($this->settingsService->getSetting('auto_last_run', 0), 0);
         $now = time();
         if ($lastRun > 0 && ($now - $lastRun) < ($cooldownMinutes * 60)) {
             $io->text('Auto-run skipped due to cooldown window.');
@@ -238,8 +241,8 @@ class AutonomousSalesCommand extends Command
         // Data readiness guard
         $contactCount = $this->contactRepository->count([]);
         $leadCount = $this->leadRepository ? $this->leadRepository->count([]) : 0;
-        $minContacts = (int) $this->settingsService->getSetting('auto_min_contacts', 1);
-        $minLeads = (int) $this->settingsService->getSetting('auto_min_leads', 0);
+        $minContacts = $this->settingInt($this->settingsService->getSetting('auto_min_contacts', 1), 1);
+        $minLeads = $this->settingInt($this->settingsService->getSetting('auto_min_leads', 0), 0);
 
         if ($contactCount < $minContacts || $leadCount < $minLeads) {
             $io->warning(sprintf(
@@ -268,7 +271,9 @@ class AutonomousSalesCommand extends Command
                 $io->text('[OK] Initialization complete');
             }
 
-            $limit = (int) $this->settingsService->getSetting('auto_batch_limit', (int) $input->getOption('limit'));
+            $limitOpt = $input->getOption('limit');
+            $inputLimit = $this->optionInt($limitOpt, 50);
+            $limit = $this->settingInt($this->settingsService->getSetting('auto_batch_limit', $inputLimit), $inputLimit);
             $dryRun = (bool) $this->settingsService->getSetting('auto_dry_run', true);
 
             // Run batch with safety: dry-run default true unless explicitly disabled in settings
@@ -295,8 +300,8 @@ class AutonomousSalesCommand extends Command
             [
                 ['Templates', $result['templates']],
                 ['Subject Line Arms', $result['arms']],
-                ['Value Prop Arms', $result['valuePropArms'] ?? 0],
-                ['Competitors', $result['competitors'] ?? 0],
+                ['Value Prop Arms', $result['valuePropArms']],
+                ['Competitors', $result['competitors']],
             ]
         );
 
@@ -360,33 +365,33 @@ class AutonomousSalesCommand extends Command
         );
 
         // Optimizer stats (Thompson Sampling)
+        $successRate = $stats['optimizer']['successRate'];
         $io->section('Thompson Sampling (Subject Lines)');
         $io->table(
             ['Metric', 'Value'],
             [
                 ['Active Arms', $stats['optimizer']['arms']],
                 ['Total Trials', $stats['optimizer']['trials']],
-                ['Success Rate', ($stats['optimizer']['successRate'] * 100) . '%'],
+                ['Success Rate', (is_numeric($successRate) ? $successRate * 100 : 0) . '%'],
                 ['Convergence', $stats['optimizer']['convergence'] ? 'Yes' : 'No'],
             ]
         );
 
-        // Inbox stats
-        if (isset($stats['inbox'])) {
-            $io->section('Email Classification');
-            $io->definitionList(
-                ['Total Messages' => $stats['inbox']['total'] ?? 0],
-                ['Pending Review' => $stats['inbox']['pending_review'] ?? 0],
-            );
-            if (!empty($stats['inbox']['by_classification'])) {
-                $rows = [];
-                foreach ($stats['inbox']['by_classification'] as $classification => $data) {
-                    $count = is_array($data) ? ($data['count'] ?? 0) : $data;
-                    $confidence = is_array($data) ? ($data['avg_confidence'] ?? '-') : '-';
-                    $rows[] = [$classification, $count, $confidence];
-                }
-                $io->table(['Classification', 'Count', 'Avg Confidence'], $rows);
+        // Inbox stats (always part of getStats() output; may be empty)
+        $io->section('Email Classification');
+        $io->definitionList(
+            ['Total Messages' => $stats['inbox']['total'] ?? 0],
+            ['Pending Review' => $stats['inbox']['pending_review'] ?? 0],
+        );
+        $byClassification = $stats['inbox']['by_classification'] ?? null;
+        if (is_array($byClassification) && $byClassification !== []) {
+            $rows = [];
+            foreach ($byClassification as $classification => $data) {
+                $count = is_array($data) ? ($data['count'] ?? 0) : $data;
+                $confidence = is_array($data) ? ($data['avg_confidence'] ?? '-') : '-';
+                $rows[] = [$classification, $count, $confidence];
             }
+            $io->table(['Classification', 'Count', 'Avg Confidence'], $rows);
         }
 
         // Competitor stats
@@ -405,12 +410,13 @@ class AutonomousSalesCommand extends Command
 
         $io->section('Seeding Competitors');
 
+        // Group by tier
+        $byTier = [1 => [], 2 => [], 3 => []];
+        /** @var list<LearnedCompetitor> $competitors */
         $competitors = $this->competitorLearner->seedCompetitors();
 
         $io->success('Seeded ' . count($competitors) . ' competitors');
 
-        // Group by tier
-        $byTier = [1 => [], 2 => [], 3 => []];
         foreach ($competitors as $c) {
             $byTier[$c->getTier()][] = $c->getName();
         }
@@ -475,8 +481,9 @@ class AutonomousSalesCommand extends Command
      */
     private function runFullBatch(SymfonyStyle $io, InputInterface $input, bool $dryRun, ?int $limitOverride = null): int
     {
-        $limit = $limitOverride ?? (int) $input->getOption('limit');
+        $limit = $limitOverride ?? $this->optionInt($input->getOption('limit'), 50);
         $startTime = microtime(true);
+        /** @var array{scoring: array{scored: int, hot: int, warm: int}, inbox: array{processed: int}, cache: array{refreshed: bool, age_hours?: float}} $results */
         $results = [];
         
         $io->section('Running Full Batch');
@@ -487,8 +494,8 @@ class AutonomousSalesCommand extends Command
             $scoreResult = $this->orchestrator->scoreLeads($limit);
             $results['scoring'] = [
                 'scored' => $scoreResult['scored'],
-                'hot' => $scoreResult['byTier']['hot'] ?? 0,
-                'warm' => $scoreResult['byTier']['warm'] ?? 0,
+                'hot' => $scoreResult['byTier']['hot'],
+                'warm' => $scoreResult['byTier']['warm'],
             ];
             $io->text("  [OK] Scored {$scoreResult['scored']} leads");
         } else {
@@ -623,15 +630,10 @@ class AutonomousSalesCommand extends Command
             $io->error('EmailClassifierService not available');
             return Command::FAILURE;
         }
-        
-        // Check if the method exists (it should after our updates)
-        if (!method_exists($this->emailClassifier, 'getBayesStatistics')) {
-            $io->warning('getBayesStatistics() method not available. Model may use in-memory fallback only.');
-            return Command::SUCCESS;
-        }
-        
+
+        /** @var array{byClassification: array<string, array{words: int, frequency: int}>, totalWords: int, trainingExamples: int, status: string} $stats */
         $stats = $this->emailClassifier->getBayesStatistics();
-        
+
         $io->table(
             ['Classification', 'Word Count', 'Total Frequency'],
             array_map(
@@ -644,7 +646,7 @@ class AutonomousSalesCommand extends Command
         $io->definitionList(
             ['Total Unique Words' => $stats['totalWords']],
             ['Training Examples' => $stats['trainingExamples']],
-            ['Model Status' => $stats['status'] ?? 'Active'],
+            ['Model Status' => $stats['status']],
         );
 
         return Command::SUCCESS;
@@ -665,27 +667,28 @@ class AutonomousSalesCommand extends Command
             ->setParameter('cutoff', new \DateTime('-14 days'))
             ->setMaxResults(1000);
         
+        /** @var list<BanditArm> $staleArms */
         $staleArms = $qb->getQuery()->getResult();
-        
+
         if (empty($staleArms)) {
             $io->success('No arms require decay - all have been used recently');
             return Command::SUCCESS;
         }
-        
+
         $io->text(sprintf('Found %d arms unused for 14+ days', count($staleArms)));
-        
+
         $rows = [];
         foreach ($staleArms as $arm) {
-            $daysSince = $arm->getDaysSinceLastUsed();
+            $daysSince = $arm->getDaysSinceLastUse();
             $decayFactor = max(0.5, 1 - ($daysSince - 14) * 0.02);
-            
+
             $oldAlpha = $arm->getAlpha();
             $oldBeta = $arm->getBeta();
             $newAlpha = max(1.0, 1.0 + ($oldAlpha - 1.0) * $decayFactor);
             $newBeta = max(1.0, 1.0 + ($oldBeta - 1.0) * $decayFactor);
-            
+
             $rows[] = [
-                $arm->getName(),
+                $arm->getArmName(),
                 $daysSince,
                 sprintf('%.1f/%.1f', $oldAlpha, $oldBeta),
                 sprintf('%.1f/%.1f', $newAlpha, $newBeta),
@@ -712,39 +715,71 @@ class AutonomousSalesCommand extends Command
 
     // ============ Internal helper methods ============
 
+    /**
+     * Weak-mode coercion for loosely-typed console options and JSON settings
+     * (Symfony getOption() / settings storage return mixed): ints and numeric
+     * strings are converted, anything else falls back to the documented default.
+     */
+    private function optionInt(mixed $value, int $default): int
+    {
+        return is_numeric($value) ? (int) $value : $default;
+    }
+
+    /**
+     * @see optionInt()
+     */
+    private function settingInt(mixed $value, int $default): int
+    {
+        return is_numeric($value) ? (int) $value : $default;
+    }
+
+    /**
+     * Process pending reply classifications from the inbox queue.
+     *
+     * @return array{processed: int, byClassification: array<string, int>}
+     */
     private function processInboxQueueInternal(int $limit): array
     {
+        if (!$this->emailClassifier) {
+            return ['processed' => 0, 'byClassification' => []];
+        }
+
         $result = [
             'processed' => 0,
             'byClassification' => [],
         ];
-        
+
         // Find messages with replies but no recorded classification
+        // (the OutboundMessage field for the recorded reply classification is
+        // `replyClassification`; the previous DQL referenced a non-existent
+        // `recordedEventClassification` field and would fail at runtime)
         $qb = $this->entityManager->createQueryBuilder();
         $qb->select('m')
             ->from(OutboundMessage::class, 'm')
             ->where('m.replyContent IS NOT NULL')
-            ->andWhere('m.recordedEventClassification IS NULL')
+            ->andWhere('m.replyClassification IS NULL')
             ->setMaxResults($limit);
-        
+
+        /** @var list<OutboundMessage> $pendingMessages */
         $pendingMessages = $qb->getQuery()->getResult();
-        
+
         foreach ($pendingMessages as $message) {
             $replyContent = $message->getReplyContent();
             if (!$replyContent) {
                 continue;
             }
-            
+
             // Classify the reply
+            /** @var array{classification: string, confidence: float, method: string, requiresReview: bool} $classification */
             $classification = $this->emailClassifier->classifyEmail(
                 $message->getSubject() ?? '',
                 $replyContent,
                 $message->getContact()?->getEmail() ?? ''
             );
             $category = $classification['classification'];
-            
+
             // Record the classification
-            $message->setRecordedEventClassification($category);
+            $message->setReplyClassification($category);
             
             // Update Thompson Sampling based on classification
             $this->orchestrator->recordEmailEvent($message, 'reply', $replyContent);
@@ -753,9 +788,9 @@ class AutonomousSalesCommand extends Command
             $result['processed']++;
             $result['byClassification'][$category] = ($result['byClassification'][$category] ?? 0) + 1;
         }
-        
+
         $this->entityManager->flush();
-        
+
         return $result;
     }
 
@@ -765,8 +800,8 @@ class AutonomousSalesCommand extends Command
         $qb->select('COUNT(m.id)')
             ->from(OutboundMessage::class, 'm')
             ->where('m.replyContent IS NOT NULL')
-            ->andWhere('m.recordedEventClassification IS NULL');
-        
+            ->andWhere('m.replyClassification IS NULL');
+
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
@@ -778,7 +813,7 @@ class AutonomousSalesCommand extends Command
                 "SELECT MAX(updated_at) as last_update FROM known_competitor"
             )->fetchAssociative();
 
-            if ($result && $result['last_update']) {
+            if (is_array($result) && is_string($result['last_update'] ?? null) && $result['last_update'] !== '') {
                 $lastUpdate = new \DateTime($result['last_update']);
                 return time() - $lastUpdate->getTimestamp();
             }
@@ -793,7 +828,8 @@ class AutonomousSalesCommand extends Command
     {
         try {
             $conn = $this->entityManager->getConnection();
-            return (int) $conn->executeQuery("SELECT COUNT(*) FROM known_competitor")->fetchOne();
+            $count = $conn->executeQuery("SELECT COUNT(*) FROM known_competitor")->fetchOne();
+            return is_numeric($count) ? (int) $count : 0;
         } catch (\Exception $e) {
             $this->logger?->error('Failed to get competitor cache size', ['exception' => $e]);
             return 0;
@@ -806,10 +842,8 @@ class AutonomousSalesCommand extends Command
             // Re-seed competitors (this updates existing and adds new)
             $this->competitorLearner->seedCompetitors();
         }
-        
+
         // Clear any internal caches
-        if ($this->competitorDetection && method_exists($this->competitorDetection, 'clearCache')) {
-            $this->competitorDetection->clearCache();
-        }
+        $this->competitorDetection?->clearCache();
     }
 }

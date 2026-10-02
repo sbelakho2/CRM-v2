@@ -6,6 +6,7 @@ use App\Entity\AbmAccount;
 use App\Entity\AbmHit;
 use App\Entity\Playbook;
 use App\Entity\PlaybookRun;
+use App\Entity\User;
 use App\Service\AbmResolverService;
 use App\Service\PlaybookEngine;
 use App\Service\EngagementHeatMapService;
@@ -45,8 +46,18 @@ class AbmDashboardController extends AbstractController
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private AbmResolverService $abmResolver,
-        private PlaybookEngine $playbookEngine,
+        /**
+         * Reserved for subclass integrations (visitor→account resolution is
+         * currently invoked elsewhere); never read in this class, hence
+         * protected rather than private.
+         */
+        protected AbmResolverService $abmResolver,
+        /**
+         * Reserved for subclass integrations (playbook execution lives in
+         * PlaybookEngine consumers); never read in this class, hence
+         * protected rather than private.
+         */
+        protected PlaybookEngine $playbookEngine,
         private EngagementHeatMapService $heatMapService,
         private LoggerInterface $logger
     ) {}
@@ -58,6 +69,7 @@ class AbmDashboardController extends AbstractController
     public function index(): Response
     {
         // Get recent ABM hits (last 24 hours)
+        /** @var list<AbmHit> $recentHits */
         $recentHits = $this->entityManager->getRepository(AbmHit::class)
             ->createQueryBuilder('h')
             ->where('h.timestamp >= :since')
@@ -154,6 +166,7 @@ class AbmDashboardController extends AbstractController
     public function accounts(Request $request): Response
     {
         // Get ABM accounts from the database
+        /** @var list<AbmAccount> $accounts */
         $accounts = $this->entityManager->getRepository(AbmAccount::class)
             ->createQueryBuilder('a')
             ->andWhere('a.archivedAt IS NULL')
@@ -161,17 +174,22 @@ class AbmDashboardController extends AbstractController
             ->addOrderBy('a.engagementScore', 'DESC')
             ->getQuery()
             ->getResult();
-        
+
         // Transform ABM accounts for the template
         $accountData = [];
         foreach ($accounts as $account) {
+            $metadata = $account->getMetadata() ?? [];
+            $metadataString = static function (string $key) use ($metadata): string {
+                $value = $metadata[$key] ?? null;
+                return is_scalar($value) ? (string) $value : 'N/A';
+            };
             $accountData[] = [
                 'id' => $account->getId(),
                 'name' => $account->getAccountName(),
-                'industry' => $account->getMetadata()['industry'] ?? 'N/A',
-                'location' => $account->getMetadata()['country'] ?? 'N/A',
-                'company_size' => $account->getMetadata()['company_size'] ?? 'N/A',
-                'revenue' => $account->getMetadata()['revenue'] ?? 'N/A',
+                'industry' => $metadataString('industry'),
+                'location' => $metadataString('country'),
+                'company_size' => $metadataString('company_size'),
+                'revenue' => $metadataString('revenue'),
                 'status' => $account->getIcpTier() ? 'active' : 'prospect',
                 'engagement_score' => $account->getEngagementScore() ?? 0,
             ];
@@ -183,17 +201,17 @@ class AbmDashboardController extends AbstractController
 
         if ('' !== $q || '' !== $region || '' !== $status) {
             $accountData = array_values(array_filter($accountData, static function (array $account) use ($q, $region, $status): bool {
-                if ('' !== $region && ($account['location'] ?? '') !== $region) {
+                if ('' !== $region && $account['location'] !== $region) {
                     return false;
                 }
-                if ('' !== $status && ($account['status'] ?? '') !== $status) {
+                if ('' !== $status && $account['status'] !== $status) {
                     return false;
                 }
                 if ('' !== $q) {
                     $haystack = mb_strtolower(implode(' ', array_filter([
-                        (string) ($account['name'] ?? ''),
-                        (string) ($account['industry'] ?? ''),
-                        (string) ($account['location'] ?? ''),
+                        $account['name'] ?? '',
+                        $account['industry'],
+                        $account['location'],
                     ])));
                     if (!str_contains($haystack, mb_strtolower($q))) {
                         return false;
@@ -222,26 +240,26 @@ class AbmDashboardController extends AbstractController
         $account = new AbmAccount();
         
         if ($request->isMethod('POST')) {
-            if (!$this->isCsrfTokenValid('abm_account_new', $request->request->get('_token'))) {
+            if (!$this->isCsrfTokenValid('abm_account_new', $this->requestStringOrNull($request, '_token'))) {
                 throw $this->createAccessDeniedException('Invalid CSRF token');
             }
 
-            $account->setAccountName($request->request->get('account_name'));
-            $account->setDomain($request->request->get('domain'));
-            $account->setIcpTier($request->request->get('icp_tier'));
-            
+            $account->setAccountName($this->requestString($request, 'account_name'));
+            $account->setDomain($this->requestString($request, 'domain'));
+            $account->setIcpTier($this->requestStringOrNull($request, 'icp_tier'));
+
             // Store additional data in metadata
             $metadata = [
-                'industry' => $request->request->get('industry'),
-                'country' => $request->request->get('country'),
-                'company_size' => $request->request->get('company_size'),
-                'revenue' => $request->request->get('revenue'),
+                'industry' => $this->requestStringOrNull($request, 'industry'),
+                'country' => $this->requestStringOrNull($request, 'country'),
+                'company_size' => $this->requestStringOrNull($request, 'company_size'),
+                'revenue' => $this->requestStringOrNull($request, 'revenue'),
             ];
             $account->setMetadata($metadata);
-            
+
             $this->entityManager->persist($account);
             $this->entityManager->flush();
-            
+
             $this->addFlash('success', 'abm_dashboard.flash.account_created');
             return $this->redirectToRoute('abm_dashboard_accounts');
         }
@@ -265,24 +283,24 @@ class AbmDashboardController extends AbstractController
         }
         
         if ($request->isMethod('POST')) {
-            if (!$this->isCsrfTokenValid('abm_account_edit', $request->request->get('_token'))) {
+            if (!$this->isCsrfTokenValid('abm_account_edit', $this->requestStringOrNull($request, '_token'))) {
                 throw $this->createAccessDeniedException('Invalid CSRF token');
             }
 
-            $account->setAccountName($request->request->get('account_name'));
-            $account->setDomain($request->request->get('domain'));
-            $account->setIcpTier($request->request->get('icp_tier'));
-            
+            $account->setAccountName($this->requestString($request, 'account_name'));
+            $account->setDomain($this->requestString($request, 'domain'));
+            $account->setIcpTier($this->requestStringOrNull($request, 'icp_tier'));
+
             // Update metadata
             $metadata = [
-                'industry' => $request->request->get('industry'),
-                'country' => $request->request->get('country'),
-                'company_size' => $request->request->get('company_size'),
-                'revenue' => $request->request->get('revenue'),
+                'industry' => $this->requestStringOrNull($request, 'industry'),
+                'country' => $this->requestStringOrNull($request, 'country'),
+                'company_size' => $this->requestStringOrNull($request, 'company_size'),
+                'revenue' => $this->requestStringOrNull($request, 'revenue'),
             ];
             $account->setMetadata($metadata);
             $account->setUpdatedAt(new \DateTime());
-            
+
             $this->entityManager->flush();
             
             $this->addFlash('success', 'abm_dashboard.flash.account_updated');
@@ -322,9 +340,13 @@ class AbmDashboardController extends AbstractController
                     ->setParameter('companyId', $abmAccount->getCompany()->getId())
                     ->getQuery()
                     ->getOneOrNullResult();
-                    
-                $emailsSent = $emailStats['total_sent'] ?? 0;
-                $emailOpens = $emailStats['total_opens'] ?? 0;
+
+                if (is_array($emailStats)) {
+                    $sent = $emailStats['total_sent'] ?? 0;
+                    $opens = $emailStats['total_opens'] ?? 0;
+                    $emailsSent = is_numeric($sent) ? (int) $sent : 0;
+                    $emailOpens = is_numeric($opens) ? (int) $opens : 0;
+                }
             } catch (\Exception $e) {
                 // If query fails, just use zeros
                 $this->logger->error('ABM dashboard: failed to load email stats for account', [
@@ -363,7 +385,7 @@ class AbmDashboardController extends AbstractController
     #[Route('/account/{id}/delete', name: 'abm_dashboard_account_delete', methods: ['POST'])]
     public function deleteAccount(Request $request, int $id): Response
     {
-        if (!$this->isCsrfTokenValid('abm_account_delete', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('abm_account_delete', $this->requestStringOrNull($request, '_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token');
         }
 
@@ -373,9 +395,14 @@ class AbmDashboardController extends AbstractController
             throw $this->createNotFoundException('ABM account not found');
         }
 
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException('Archiving requires an authenticated CRM user');
+        }
+
         // ABM hit history is CRM history: archive the account instead of
         // cascading its hits away.
-        $account->archive($this->getUser(), 'Archived from ABM accounts');
+        $account->archive($user, 'Archived from ABM accounts');
         $this->entityManager->flush();
 
         $this->addFlash('success', 'abm_dashboard.flash.account_archived');
@@ -402,6 +429,10 @@ class AbmDashboardController extends AbstractController
         $successfulRuns = 0;
 
         foreach ($playbooks as $playbook) {
+            $playbookId = $playbook->getId();
+            if ($playbookId === null) {
+                continue; // Not yet persisted — cannot appear in run statistics
+            }
             $playbookRuns = $runRepository->count(['playbook' => $playbook]);
             $playbookSuccesses = $runRepository->count(['playbook' => $playbook, 'status' => PlaybookRun::STATUS_COMPLETED]);
 
@@ -412,7 +443,7 @@ class AbmDashboardController extends AbstractController
                 ++$activePlaybooks;
             }
 
-            $stats[$playbook->getId()] = [
+            $stats[$playbookId] = [
                 'totalRuns' => $playbookRuns,
                 'successfulRuns' => $playbookSuccesses,
                 'lastRun' => $runRepository->findOneBy(['playbook' => $playbook], ['triggeredAt' => 'DESC']),
@@ -440,28 +471,29 @@ class AbmDashboardController extends AbstractController
     #[Route('/playbook/create', name: 'abm_dashboard_playbook_create', methods: ['POST'])]
     public function createPlaybook(Request $request): Response
     {
-        if (!$this->isCsrfTokenValid('abm_playbook_create', $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('abm_playbook_create', $this->requestStringOrNull($request, '_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token');
         }
 
-        $name = $request->request->get('name');
-        $description = $request->request->get('description');
-        $triggerRulesJson = $request->request->get('trigger_rules');
-        $actionsJson = $request->request->get('actions');
-        $priority = (int) $request->request->get('priority', 100);
-        
+        $name = $this->requestStringOrNull($request, 'name');
+        $description = $this->requestStringOrNull($request, 'description');
+        $triggerRulesJson = $this->requestStringOrNull($request, 'trigger_rules');
+        $actionsJson = $this->requestStringOrNull($request, 'actions');
+        $priorityValue = $request->request->get('priority', 100);
+        $priority = is_numeric($priorityValue) ? (int) $priorityValue : 100;
+
         // Validate data
         if (!$name) {
             $this->addFlash('error', 'abm_dashboard.flash.error.playbook_name_required');
             return $this->redirectToRoute('abm_dashboard_playbooks');
         }
-        
+
         // Create playbook
         $playbook = new Playbook();
         $playbook->setName($name);
         $playbook->setDescription($description);
-        $playbook->setTriggerRules($triggerRulesJson);
-        $playbook->setActions($actionsJson);
+        $playbook->setTriggerRules($triggerRulesJson ?? '{}');
+        $playbook->setActions($actionsJson ?? '[]');
         $playbook->setPriority($priority);
         $playbook->setIsActive(true);
         $playbook->setCooldownHours(24);
@@ -480,7 +512,7 @@ class AbmDashboardController extends AbstractController
     #[Route('/playbook/{id}/toggle', name: 'abm_dashboard_playbook_toggle', methods: ['POST'])]
     public function togglePlaybook(Request $request, string $id): JsonResponse
     {
-        if (!$this->isCsrfTokenValid('abm_playbook_toggle_' . $id, $request->request->get('_csrf_token'))) {
+        if (!$this->isCsrfTokenValid('abm_playbook_toggle_' . $id, $this->requestStringOrNull($request, '_csrf_token'))) {
             return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
         }
 
@@ -498,5 +530,28 @@ class AbmDashboardController extends AbstractController
             'success' => true,
             'active' => $playbook->isActive()
         ]);
+    }
+
+    /**
+     * Weak-mode coercion of form/request values (Symfony ParameterBag returns
+     * mixed) to string with a default.
+     */
+    private function requestString(Request $request, string $key, string $default = ''): string
+    {
+        $value = $request->request->get($key, $default);
+        return (string) $value;
+    }
+
+    /**
+     * Weak-mode coercion of form/request values (Symfony ParameterBag returns
+     * mixed) to ?string.
+     */
+    private function requestStringOrNull(Request $request, string $key): ?string
+    {
+        $value = $request->request->get($key);
+        if ($value === null) {
+            return null;
+        }
+        return (string) $value;
     }
 }

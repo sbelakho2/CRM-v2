@@ -18,11 +18,25 @@ use Psr\Log\LoggerInterface;
  * The knowledge base makes this classifier MUCH smarter than hand-coded regexes
  * because Gemini's understanding of business types informed the patterns.
  * But Gemini is NOT called during discovery — it was only used to TRAIN the local model.
+ *
+ * @phpstan-type KnowledgeBaseArray array{
+ *     buyer_keywords?: list<string>,
+ *     reject_keywords?: list<string>,
+ *     giant_oem_names?: list<string>,
+ *     distributor_indicators?: list<string>,
+ *     name_patterns_reject?: list<string>,
+ *     name_patterns_buyer?: list<string>,
+ *     domain_reject_patterns?: list<string>,
+ *     buyer_business_types?: list<array{type?: string, weight?: int|string}>,
+ *     reject_business_types?: list<array{type?: string, weight?: int|string}>,
+ *     _meta?: array{generated_at?: string}
+ * }
  */
 class CompanyClassifierService
 {
     /**
-     * Knowledge base loaded from JSON.
+     * Knowledge base loaded from JSON. The four lowercase lookup lists are
+     * always present (they are pre-compiled at load time, or empty).
      *
      * @var array{
      *     buyer_keywords?: list<string>,
@@ -35,13 +49,18 @@ class CompanyClassifierService
      *     buyer_business_types?: list<array{type?: string, weight?: int|string}>,
      *     reject_business_types?: list<array{type?: string, weight?: int|string}>,
      *     _meta?: array{generated_at?: string},
-     *     _buyer_kw_lower?: list<string>,
-     *     _reject_kw_lower?: list<string>,
-     *     _giant_names_lower?: list<string>,
-     *     _distributor_lower?: list<string>
+     *     _buyer_kw_lower: list<string>,
+     *     _reject_kw_lower: list<string>,
+     *     _giant_names_lower: list<string>,
+     *     _distributor_lower: list<string>
      * }
      */
-    private array $kb = [];
+    private array $kb = [
+        '_buyer_kw_lower' => [],
+        '_reject_kw_lower' => [],
+        '_giant_names_lower' => [],
+        '_distributor_lower' => [],
+    ];
     private bool $loaded = false;
 
     public function __construct(
@@ -68,23 +87,23 @@ class CompanyClassifierService
             return;
         }
 
-        /** @var array{buyer_keywords?: list<string>, reject_keywords?: list<string>, giant_oem_names?: list<string>, distributor_indicators?: list<string>, name_patterns_reject?: list<string>, name_patterns_buyer?: list<string>, domain_reject_patterns?: list<string>, buyer_business_types?: list<array{type?: string, weight?: int|string}>, reject_business_types?: list<array{type?: string, weight?: int|string}>, _meta?: array{generated_at?: string}} $data */
-        /** @var array<string, mixed>|null $data */
-        /** @var array<string, mixed>|null $data */
+        /** @var KnowledgeBaseArray|null $data */
         $data = json_decode($json, true);
         if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
             $this->logger->error('CompanyClassifier: invalid JSON in knowledge base');
             return;
         }
 
-        $this->kb = $data;
+        // Pre-compile lowercase versions for fast matching; the union keeps
+        // every other knowledge-base key as-is (identical end state to
+        // assigning $data first and overwriting the four lookup lists).
+        $this->kb = [
+            '_buyer_kw_lower' => array_map('strtolower', $data['buyer_keywords'] ?? []),
+            '_reject_kw_lower' => array_map('strtolower', $data['reject_keywords'] ?? []),
+            '_giant_names_lower' => array_map('strtolower', $data['giant_oem_names'] ?? []),
+            '_distributor_lower' => array_map('strtolower', $data['distributor_indicators'] ?? []),
+        ] + $data;
         $this->loaded = true;
-
-        // Pre-compile lowercase versions for fast matching
-        $this->kb['_buyer_kw_lower'] = array_map('strtolower', $this->kb['buyer_keywords'] ?? []);
-        $this->kb['_reject_kw_lower'] = array_map('strtolower', $this->kb['reject_keywords'] ?? []);
-        $this->kb['_giant_names_lower'] = array_map('strtolower', $this->kb['giant_oem_names'] ?? []);
-        $this->kb['_distributor_lower'] = array_map('strtolower', $this->kb['distributor_indicators'] ?? []);
 
         $this->logger->debug('CompanyClassifier: knowledge base loaded', [
             'buyer_keywords' => count($this->kb['buyer_keywords'] ?? []),
@@ -101,6 +120,8 @@ class CompanyClassifierService
      *   'reasons'  => array of strings explaining the score
      *
      * This method makes ZERO network calls. All matching is local.
+     *
+     * @return array{verdict: 'BUYER'|'REJECT'|'UNCERTAIN', score: int, reasons: list<string>}
      */
     public function classifyCompany(string $name, string $snippet = '', string $title = '', string $domain = ''): array
     {
@@ -235,7 +256,7 @@ class CompanyClassifierService
                 $w = (int)($bt['weight'] ?? 5);
                 if ($w > $bestBuyerWeight) {
                     $bestBuyerWeight = $w;
-                    $bestBuyerType = $bt['type'];
+                    $bestBuyerType = $bt['type'] ?? '';
                 }
             }
         }
@@ -253,7 +274,7 @@ class CompanyClassifierService
                 $w = (int)($bt['weight'] ?? 5);
                 if ($w > $bestRejectWeight) {
                     $bestRejectWeight = $w;
-                    $bestRejectType = $bt['type'];
+                    $bestRejectType = $bt['type'] ?? '';
                 }
             }
         }
@@ -391,7 +412,7 @@ class CompanyClassifierService
             'foundation', 'institute', 'labs', 'laboratory', 'network',
         ];
         // Check each WORD in the full name (handles multi-word last names like "Computer Systems LLC")
-        $allWords = preg_split('/[\s,]+/', $fullLower);
+        $allWords = preg_split('/[\s,]+/', $fullLower) ?: [];
         foreach ($companySuffixes as $suffix) {
             foreach ($allWords as $word) {
                 if ($word === $suffix) {
@@ -751,7 +772,7 @@ class CompanyClassifierService
         }
         // Also check individual words within multi-word first/last names
         // e.g. first="Ingénieurs Peuvent" last="Être" → check each word
-        $allNameWords = preg_split('/\s+/', $fullLower);
+        $allNameWords = preg_split('/\s+/', $fullLower) ?: [];
         foreach ($allNameWords as $nw) {
             if (in_array($nw, $definitelyNotName, true)) {
                 return false;
@@ -793,7 +814,7 @@ class CompanyClassifierService
             $lastLower = strtolower($lastName);
         }
         // Re-check company suffixes after normalization
-        $allWords = preg_split('/[\s,]+/', strtolower(trim($firstName . ' ' . $lastName)));
+        $allWords = preg_split('/[\s,]+/', strtolower(trim($firstName . ' ' . $lastName))) ?: [];
         foreach ($companySuffixes as $suffix) {
             foreach ($allWords as $word) {
                 if ($word === $suffix) {
@@ -898,6 +919,20 @@ class CompanyClassifierService
 
     /**
      * Get knowledge base stats for diagnostics.
+     *
+     * @return array{
+     *     status: string,
+     *     buyer_keywords?: int,
+     *     reject_keywords?: int,
+     *     buyer_business_types?: int,
+     *     reject_business_types?: int,
+     *     name_patterns_reject?: int,
+     *     name_patterns_buyer?: int,
+     *     giant_oems?: int,
+     *     distributor_indicators?: int,
+     *     domain_reject_patterns?: int,
+     *     generated_at?: string
+     * }
      */
     public function getStats(): array
     {

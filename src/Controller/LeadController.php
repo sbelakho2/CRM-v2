@@ -155,12 +155,13 @@ class LeadController extends AbstractController
                     ->getResult();
 
         // Get regional statistics
+        /** @var list<array{regionTag: string|null, total: string|int, avg_score: string|float|null}> $regionStats */
         $regionStats = $leadRepo->getStatsByRegion();
         $regionOptions = $this->countryService->getRegionOptions();
         foreach ($regionStats as $stat) {
             $tag = $stat['regionTag'] ?? null;
             if ($tag && !isset($regionOptions[$tag])) {
-                $regionOptions[$tag] = strtoupper((string) $tag);
+                $regionOptions[$tag] = strtoupper($tag);
             }
         }
 
@@ -178,10 +179,10 @@ class LeadController extends AbstractController
     public function approve(Request $request, Lead $lead, EntityManagerInterface $em): JsonResponse
     {
         // Validate CSRF token from header or body for AJAX requests
-        $token = $request->headers->get('X-CSRF-TOKEN') 
-            ?? $request->request->get('_token')
-            ?? (json_decode($request->getContent(), true)['_token'] ?? null);
-        
+        $token = $request->headers->get('X-CSRF-TOKEN')
+            ?? $this->stringOrNull($request->request->get('_token'))
+            ?? $this->stringOrNull($this->decodedBody(json_decode($request->getContent(), true))['_token'] ?? null);
+
         if (!$this->isCsrfTokenValid('lead_action_' . $lead->getId(), $token)) {
             return $this->json([
                 'success' => false,
@@ -203,13 +204,13 @@ class LeadController extends AbstractController
     #[Route('/deny/{id}', name: 'app_lead_deny', methods: ['POST'])]
     public function deny(Request $request, Lead $lead, EntityManagerInterface $em): JsonResponse
     {
-        $data = json_decode($request->getContent(), true) ?? [];
-        
+        $data = $this->decodedBody(json_decode($request->getContent(), true));
+
         // Validate CSRF token from header or body for AJAX requests
-        $token = $request->headers->get('X-CSRF-TOKEN') 
-            ?? $request->request->get('_token')
-            ?? ($data['_token'] ?? null);
-        
+        $token = $request->headers->get('X-CSRF-TOKEN')
+            ?? $this->stringOrNull($request->request->get('_token'))
+            ?? $this->stringOrNull($data['_token'] ?? null);
+
         if (!$this->isCsrfTokenValid('lead_action_' . $lead->getId(), $token)) {
             return $this->json([
                 'success' => false,
@@ -217,7 +218,7 @@ class LeadController extends AbstractController
             ], 403);
         }
 
-        $reason = $data['reason'] ?? 'Not a good fit';
+        $reason = $this->stringOrNull($data['reason'] ?? null) ?? 'Not a good fit';
 
         $lead->setReviewStatus('denied');
         $lead->setDenyReason($reason);
@@ -235,9 +236,9 @@ class LeadController extends AbstractController
     public function convert(Request $request, Lead $lead, EntityManagerInterface $em): JsonResponse
     {
         // Validate CSRF token from header or body for AJAX requests
-        $token = $request->headers->get('X-CSRF-TOKEN') 
-            ?? $request->request->get('_token')
-            ?? (json_decode($request->getContent(), true)['_token'] ?? null);
+        $token = $request->headers->get('X-CSRF-TOKEN')
+            ?? $this->stringOrNull($request->request->get('_token'))
+            ?? $this->stringOrNull($this->decodedBody(json_decode($request->getContent(), true))['_token'] ?? null);
         
         if (!$this->isCsrfTokenValid('lead_action_' . $lead->getId(), $token)) {
             return $this->json([
@@ -268,7 +269,7 @@ class LeadController extends AbstractController
         try {
             // Create new company from lead with all available data
             $company = new Company();
-            $company->setName($lead->getCompanyName());
+            $company->setName($lead->getCompanyName() ?? '');
             
             // Set legal name if available
             if ($lead->getLegalName()) {
@@ -295,22 +296,24 @@ class LeadController extends AbstractController
             $notes .= "Lead Score: " . $lead->getLeadScore() . "/100\n";
             $notes .= "Region: " . strtoupper($lead->getRegionTag() ?? 'Unknown') . "\n";
             
-            if ($lead->getContactEmailsPublic()) {
-                $notes .= "Contact Emails: " . implode(', ', $lead->getContactEmailsPublic()) . "\n";
+            $contactEmails = $lead->getContactEmailsPublic();
+            if ($contactEmails !== null && $contactEmails !== []) {
+                $notes .= "Contact Emails: " . implode(', ', $this->stringList($contactEmails)) . "\n";
             }
-            
+
             if ($lead->getSupplierPortalUrl()) {
                 $notes .= "Supplier Portal: " . $lead->getSupplierPortalUrl() . "\n";
             }
-            
+
             if ($lead->getContactFormUrl()) {
                 $notes .= "Contact Form: " . $lead->getContactFormUrl() . "\n";
             }
-            
-            if ($lead->getQualityStack() && count($lead->getQualityStack()) > 0) {
-                $notes .= "Quality Certifications: " . implode(', ', $lead->getQualityStack()) . "\n";
+
+            $qualityStack = $lead->getQualityStack();
+            if ($qualityStack !== null && $qualityStack !== []) {
+                $notes .= "Quality Certifications: " . implode(', ', $this->stringList($qualityStack)) . "\n";
             }
-            
+
             if ($lead->getNotesAuto()) {
                 $notes .= "\nAuto-Generated Notes:\n" . $lead->getNotesAuto();
             }
@@ -330,8 +333,10 @@ class LeadController extends AbstractController
             $company->setPipelineStage('Prospect');
             
             // Set sector from tags
-            if ($lead->getSectorTags() && count($lead->getSectorTags()) > 0) {
-                $company->setSector(ucfirst($lead->getSectorTags()[0]));
+            $sectorTags = $lead->getSectorTags();
+            $firstTag = is_array($sectorTags) ? ($sectorTags[0] ?? null) : null;
+            if (is_string($firstTag) && $firstTag !== '') {
+                $company->setSector(ucfirst($firstTag));
             } else {
                 $company->setSector('General Manufacturing');
             }
@@ -374,13 +379,13 @@ class LeadController extends AbstractController
     #[Route('/assign/{id}', name: 'app_lead_assign', methods: ['POST'])]
     public function assign(Request $request, Lead $lead, EntityManagerInterface $em): JsonResponse
     {
-        $data = json_decode($request->getContent(), true) ?? [];
-        
+        $data = $this->decodedBody(json_decode($request->getContent(), true));
+
         // Validate CSRF token from header or body for AJAX requests
-        $token = $request->headers->get('X-CSRF-TOKEN') 
-            ?? $request->request->get('_token')
-            ?? ($data['_token'] ?? null);
-        
+        $token = $request->headers->get('X-CSRF-TOKEN')
+            ?? $this->stringOrNull($request->request->get('_token'))
+            ?? $this->stringOrNull($data['_token'] ?? null);
+
         if (!$this->isCsrfTokenValid('lead_action_' . $lead->getId(), $token)) {
             return $this->json([
                 'success' => false,
@@ -388,7 +393,7 @@ class LeadController extends AbstractController
             ], 403);
         }
 
-        $owner = $data['owner'] ?? null;
+        $owner = $this->stringOrNull($data['owner'] ?? null);
 
         if (!$owner) {
             return $this->json(['success' => false, 'message' => 'Owner required'], 400);
@@ -426,6 +431,7 @@ class LeadController extends AbstractController
         $weeklyStats = $leadRepo->getApprovalRate(null, $since);
 
         // Calculate precision @ top-50
+        /** @var list<Lead> $top50 */
         $top50 = $leadRepo->getTopLeads(50);
         $top50Approved = array_filter($top50, fn($l) => $l->getReviewStatus() === 'approved');
         $precisionTop50 = count($top50) > 0 ? (count($top50Approved) / count($top50)) * 100 : 0;
@@ -471,6 +477,7 @@ class LeadController extends AbstractController
                ->setParameter('status', $status);
         }
 
+        /** @var list<Lead> $leads */
         $leads = $qb->orderBy('l.leadScore', 'DESC')
                     ->getQuery()
                     ->getResult();
@@ -488,7 +495,7 @@ class LeadController extends AbstractController
                 $lead->getLeadScore() ?? 0,
                 $this->sanitizeCsvField($lead->getReviewStatus() ?? ''),
                 $this->sanitizeCsvField($lead->getSiteLocation() ?? ''),
-                $this->sanitizeCsvField(implode('; ', $lead->getContactEmailsPublic() ?? [])),
+                $this->sanitizeCsvField(implode('; ', $this->stringList($lead->getContactEmailsPublic() ?? []))),
                 $this->sanitizeCsvField($lead->getSupplierPortalUrl() ?? ''),
                 $this->sanitizeCsvField($lead->getLastSeen() ? $lead->getLastSeen()->format('Y-m-d') : '')
             );
@@ -499,6 +506,51 @@ class LeadController extends AbstractController
         $response->headers->set('Content-Disposition', 'attachment; filename="leads_export_' . date('Y-m-d') . '.csv"');
 
         return $response;
+    }
+
+    /**
+     * Coerce a loosely-typed list (JSON columns on Lead hold scalar values)
+     * to strings so it can be safely imploded.
+     *
+     * @param array<mixed> $values
+     * @return list<string>
+     */
+    private function stringList(array $values): array
+    {
+        $out = [];
+        foreach ($values as $value) {
+            $out[] = is_scalar($value) ? (string) $value : '';
+        }
+        return $out;
+    }
+
+    /**
+     * Normalize a decoded JSON request body to an array (weak-mode request
+     * input coercion): non-array bodies (scalar/invalid JSON) become empty.
+     *
+     * @return array<mixed>
+     */
+    private function decodedBody(mixed $data): array
+    {
+        return is_array($data) ? $data : [];
+    }
+
+    /**
+     * Weak-mode coercion of request/JSON-body values (Symfony ParameterBag and
+     * json_decode return mixed) to ?string for tokens and text fields.
+     */
+    private function stringOrNull(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        if (is_string($value)) {
+            return $value;
+        }
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+        return null;
     }
 
     private function sanitizeCsvField(string $value): string
