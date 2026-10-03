@@ -328,12 +328,37 @@ body {
 }
 
 .rams-sidebar__header {
-    height: 56px;
+    min-height: 72px;
     border-bottom: 1px solid var(--rams-line);
     display: flex;
     align-items: center;
-    padding: 0 var(--space-4);
+    padding: var(--space-3) var(--space-4);
     gap: var(--space-3);
+}
+
+/* Chosen wordmark lockup (design 04 — mono plate). Mark+wordmark live in
+   one asset; sized by height so the ratio is fixed by the artwork. */
+.rams-lockup {
+    display: block;
+    width: auto;
+    height: 44px;
+    object-fit: contain;
+}
+
+.rams-sidebar__brand {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+}
+
+.rams-sidebar__brand .rams-lockup {
+    height: 40px;
+}
+
+.rams-auth-logo__lockup {
+    height: 52px;
+    margin: 0 auto;
 }
 
 .rams-sidebar__logo {

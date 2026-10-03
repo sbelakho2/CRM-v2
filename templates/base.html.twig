@@ -51,13 +51,10 @@
         
         {# Rack Sidebar #}
         <aside class="rams-sidebar" id="rams-sidebar" role="navigation" aria-label="{{ 'accessibility.navigation'|trans }}">
-            {# Station Identifier #}
+            {# Station Identifier — chosen wordmark lockup (design 04, mono plate) #}
             <div class="rams-sidebar__header">
-                <div class="rams-sidebar__logo">
-                    <img src="{{ asset('images/starz-mark.svg') }}" data-theme-src="light:/images/starz-mark.svg|dark:/images/starz-mark-inverse.svg" alt="{{ 'app.name'|trans }} logo" class="rams-logo-image" width="272" height="220"> 
-                </div>
-                <div>
-                    <div class="rams-sidebar__title">{{ 'app.name'|trans }}</div>
+                <div class="rams-sidebar__brand">
+                    <img src="{{ asset('images/starz-lockup-light.svg') }}" data-theme-src="light:/images/starz-lockup-light.svg|dark:/images/starz-lockup-dark.svg" alt="{{ 'app.name'|trans }} logo" class="rams-lockup" width="440" height="120">
                     <div class="rams-sidebar__subtitle">{{ 'app.subtitle'|trans }}</div>
                 </div>
             </div>
