@@ -16,6 +16,9 @@ const fs = require('fs');
 const ROOT = path.resolve(__dirname, '../..');
 const OUT = process.argv[2] || path.join(ROOT, 'test-results/ui-sweep');
 const BASE = process.env.SWEEP_BASE || 'http://127.0.0.1:8080';
+// SWEEP_THEME=dark renders every page in dark mode (colorScheme forcing;
+// the app follows prefers-color-scheme for theme=system users).
+const SCHEME = process.env.SWEEP_THEME === 'dark' ? 'dark' : 'light';
 
 function loadRoutes() {
   const routes = JSON.parse(
@@ -55,7 +58,7 @@ function slug(p) {
     ['desktop', { width: 1440, height: 900 }],
   ]) {
     const browser = await chromium.launch();
-    const context = await browser.newContext({ viewport });
+    const context = await browser.newContext({ viewport, colorScheme: SCHEME });
     const page = await context.newPage();
     const errors = {};
 

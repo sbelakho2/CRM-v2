@@ -136,10 +136,14 @@
     --radius-md: 4px;
     --radius-lg: 8px;  /* Maximum allowed */
     
-    /* Shadows (Inset ONLY - no drop shadows) */
-    --shadow-inset: inset 1px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 0 rgba(0,0,0,0.05);
+    /* Shadows (Inset ONLY - no drop shadows).
+       --rams-bevel is the theme-aware top-edge highlight: pronounced in
+       light, a whisper in dark (a hardcoded white bevel glares on #1B1B1B). */
+    --rams-bevel: rgba(255,255,255,0.5);
+    --shadow-inset: inset 1px 1px 0 var(--rams-bevel), inset -1px -1px 0 rgba(0,0,0,0.05);
     --shadow-pressed: inset 0 2px 4px rgba(0,0,0,0.1);
     --shadow-focus: 0 0 0 2px rgba(255,190,0,0.3);
+    --shadow-card: 0 1px 2px rgba(26,26,26,0.06), 0 2px 8px rgba(26,26,26,0.04);
     
     /* Transition Durations */
     --duration-instant: 50ms;
@@ -177,6 +181,11 @@
     --rams-muted: #B3B3B3;
     --rams-foreground: #F5F5F5;
     --rams-success: var(--rams-green);
+
+    /* Dark bevel/shadows: elevation by deeper black, never white glare */
+    --rams-bevel: rgba(255,255,255,0.06);
+    --shadow-inset: inset 1px 1px 0 var(--rams-bevel), inset -1px -1px 0 rgba(0,0,0,0.4);
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.32);
 
     /* Dark-mode supportive greys and semantic backgrounds */
     --rams-grey-100: #1A1A1A;
@@ -513,6 +522,15 @@ body {
 .dark .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover,
 [data-theme="dark"] .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover { color: var(--rams-foreground); }
 
+/* Active station must be unmistakable on dark: lift the slab two steps
+ * above the module grey and pin the text to full foreground. */
+.dark .rams-sidebar__nav-link--active,
+[data-theme="dark"] .rams-sidebar__nav-link--active {
+    background: #2E2E2E;
+    color: var(--rams-foreground);
+    border-color: var(--rams-line);
+}
+
 /* Utility for Page Layout */
 .rams-page {
     width: 100%;
@@ -521,34 +539,63 @@ body {
     padding: var(--space-6, 24px);
 }
 
-/* System Status Bar */
+/* System Status Line — quiet machine metadata, not a panel. Healthy state
+ * whispers in muted mono; degraded earns the only warm accent in the row.
+ * No border, no fill: the page header below stays the visual owner. */
 .rams-status-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-    padding: 4px 16px;
-    margin-bottom: 16px;
-    border: 1px solid var(--rams-line, rgba(0, 0, 0, 0.12));
-    border-radius: 4px;
-    background: var(--rams-panel, #fff);
-    font-size: 0.72rem;
-    letter-spacing: 0.04em;
+    gap: var(--space-3);
+    padding: 0 var(--space-1);
+    margin-bottom: var(--space-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--rams-muted);
 }
-.rams-status-bar__item {
+
+.rams-status-bar__signal {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
+    color: var(--rams-muted);
 }
-.rams-status-bar__text {
+
+.rams-status-bar__signal--ok .rams-status-bar__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--rams-green);
+    opacity: 0.75;
+    box-shadow: none;
+}
+
+.rams-status-bar__signal--degraded {
+    color: var(--rams-warning-text, var(--rams-orange));
     font-weight: 600;
-    color: var(--rams-foreground);
 }
+
+.rams-status-bar__signal--degraded .rams-status-bar__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--rams-orange);
+    animation: rams-status-pulse 2s ease-in-out infinite;
+}
+
+@keyframes rams-status-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+
+.rams-status-bar__dot {
+    flex-shrink: 0;
+}
+
 .rams-status-bar__meta {
-    opacity: 0.8;
+    color: var(--rams-muted);
+    opacity: 0.65;
 }
 
 .rams-sidebar__nav-link {
@@ -898,7 +945,7 @@ body {
     cursor: pointer;
     transition: all var(--duration-instant);
     text-decoration: none;
-    box-shadow: inset 1px 1px 0 rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: inset 1px 1px 0 var(--rams-bevel), 0 1px 2px rgba(0,0,0,0.05);
     position: relative;
     overflow: hidden;
 }
@@ -906,7 +953,7 @@ body {
 .rams-btn:hover {
     background: var(--rams-panel);
     border-color: var(--rams-muted);
-    box-shadow: inset 1px 1px 0 rgba(255,255,255,0.6), 0 2px 4px rgba(0,0,0,0.08);
+    box-shadow: inset 1px 1px 0 var(--rams-bevel), 0 2px 4px rgba(0,0,0,0.08);
 }
 
 .rams-btn:active {
@@ -958,19 +1005,19 @@ body {
     background: var(--rams-orange);
     border-color: color-mix(in srgb, var(--rams-orange) 85%, #000);
     color: #000;
-    box-shadow: inset 1px 1px 0 rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.1);
+    box-shadow: inset 1px 1px 0 var(--rams-bevel), 0 1px 2px rgba(0,0,0,0.1);
 }
 
 .rams-btn--primary:hover {
     background: color-mix(in srgb, var(--rams-orange) 90%, white);
-    box-shadow: inset 1px 1px 0 rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.15);
+    box-shadow: inset 1px 1px 0 var(--rams-bevel), 0 2px 4px rgba(0,0,0,0.15);
 }
 
 .rams-btn--danger {
     background: var(--rams-red);
     border-color: #B02525;
     color: #fff;
-    box-shadow: inset 1px 1px 0 rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.1);
+    box-shadow: inset 1px 1px 0 var(--rams-bevel), 0 1px 2px rgba(0,0,0,0.1);
 }
 
 .rams-btn--danger:hover {
@@ -982,7 +1029,7 @@ body {
     background: var(--rams-green);
     border-color: #247332;
     color: #fff;
-    box-shadow: inset 1px 1px 0 rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.1);
+    box-shadow: inset 1px 1px 0 var(--rams-bevel), 0 1px 2px rgba(0,0,0,0.1);
 }
 
 .rams-btn--success:hover {
@@ -1035,7 +1082,7 @@ body {
 .rams-btn--ghost:hover {
     background: var(--rams-panel);
     border-color: var(--rams-line);
-    box-shadow: inset 1px 1px 0 rgba(255,255,255,0.5);
+    box-shadow: inset 1px 1px 0 var(--rams-bevel);
 }
 
 .rams-btn--ghost.rams-btn--danger:hover {
@@ -1655,7 +1702,7 @@ body {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    background: rgba(0,0,0,0.05);
+    background: var(--rams-panel);
     border-radius: 2px;
 }
 
@@ -3522,8 +3569,8 @@ body {
 .rams-tooltip {
     position: absolute;
     z-index: 1000;
-    background: var(--rams-grey-900);
-    color: var(--rams-grey-100);
+    background: var(--rams-foreground);
+    color: var(--rams-chassis);
     padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-md);
     font-size: var(--text-xs);
@@ -3938,7 +3985,8 @@ body {
 
 /* Badge opacity utility for count pills */
 .rams-badge--count {
-    background: rgba(255, 255, 255, 0.25);
+    background: var(--rams-panel);
+    border: 1px solid var(--rams-line);
     padding: 0 var(--space-1);
     border-radius: var(--radius-sm);
     font-size: var(--text-xs);
@@ -4919,14 +4967,10 @@ a.rams-module:hover {
    ============================================ */
 
 @media (max-width: 768px) {
-    /* 0. Status bar: keep only the live andon signal on phones;
-     * the SYSTEM STATUS · EN · OS meta wraps into noise at this width. */
-    .rams-status-bar__item--meta {
+    /* 0. Status line: phones keep only the health signal; the locale
+     * whisper adds nothing under a thumb. */
+    .rams-status-bar__meta {
         display: none;
-    }
-
-    .rams-status-bar {
-        justify-content: flex-start;
     }
 
     /* 0b. Page-header badges: long status labels may wrap, never overflow. */
@@ -5689,11 +5733,13 @@ a.rams-module:hover {
    ============================================ */
 
 /* Crisp optical elevation replaces flat grey-on-grey
- * (cards lift by contrast, not blur). */
+ * (cards lift by contrast, not blur). The card sits on the MODULE
+ * surface token - one step above the chassis page in BOTH themes
+ * (chassis here made cards dissolve into the page). */
 .rams-module {
-    background: var(--rams-chassis);
+    background: var(--rams-module);
     border: 1px solid var(--rams-line);
-    box-shadow: 0 1px 2px rgba(26, 26, 26, 0.06), 0 2px 8px rgba(26, 26, 26, 0.04);
+    box-shadow: var(--shadow-card);
 }
 
 .rams-module__header {
@@ -5783,14 +5829,14 @@ td .rams-text--bold {
     background: var(--rams-chassis);
 }
 
-/* Dark-mode parity (tokens already flip; the layer
- * only adjusts shadow opacities). */
+/* Dark-mode parity: tokens already flip the surfaces; this layer only
+ * deepens elevation shadows. NEVER repaint surfaces with the grey ramp
+ * here — the dark ramp is INVERTED (grey-800 = #E6E6E6), which once
+ * turned every dark-mode card into a near-white panel. */
 @media (prefers-color-scheme: dark) {
     :root[data-theme="dark"] .rams-module,
     [data-theme="dark"] .rams-module {
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.25);
-        background: var(--rams-grey-800);
-        border-color: var(--rams-grey-600);
+        box-shadow: var(--shadow-card);
     }
 }
 
