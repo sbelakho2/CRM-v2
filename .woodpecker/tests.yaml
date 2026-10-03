@@ -25,7 +25,12 @@ steps:
         set -eu
         git -C "$CI_WORKSPACE" init -q
         git -C "$CI_WORKSPACE" remote add origin "$CI_REPO_CLONE_URL" || git -C "$CI_WORKSPACE" remote set-url origin "$CI_REPO_CLONE_URL"
-        git -C "$CI_WORKSPACE" fetch -q --force origin "$CI_COMMIT_REF"
+        # GitHub fetch flakes (HTTP/2 stream cancel) killed pipelines 54/57 — retry.
+        for attempt in 1 2 3 4 5; do
+          git -C "$CI_WORKSPACE" fetch -q --force origin "$CI_COMMIT_REF" && break
+          echo "fetch attempt $attempt failed; retrying after backoff"
+          sleep $((attempt * 5))
+        done
         git -C "$CI_WORKSPACE" checkout -q --detach "$CI_COMMIT_SHA"
         test "$(git -C "$CI_WORKSPACE" rev-parse HEAD)" = "$CI_COMMIT_SHA"
         # .env is untracked by design; composer's post-install auto-scripts
