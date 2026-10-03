@@ -137,7 +137,9 @@ steps:
         # The CI agent supplies DOCKER_HOST — required, not defaulted.
         : "${DOCKER_HOST:?DOCKER_HOST must be configured on the CI agent environment}"
         # The MySQL container is still up (cleanup runs after this step).
-        docker exec crm-ci-mysql mysql -uroot -pci_root_pw -e "GRANT ALL ON \`crm_upgrade_test\`.* TO 'crm_test'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
+        # Grant over TCP: the agent's docker CLI context does not always
+        # match the context hosting the published 3309 container.
+        php -d memory_limit=-1 scripts/ci/mysql-tcp.php --root-grant crm_upgrade_test 2>/dev/null || true
         bash scripts/ci/populated-upgrade.sh
 
   ui-e2e:

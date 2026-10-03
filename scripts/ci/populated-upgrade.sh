@@ -34,7 +34,7 @@ step "migrate to pre-drop era (Version20260211133000)"
 APP_ENV=test php bin/console doctrine:migrations:migrate 'DoctrineMigrations\Version20260211133000' --no-interaction >/dev/null
 
 step "seed populated business data"
-docker exec -i crm-ci-mysql mysql -ucrm_test -pcrm_test_pw "$UPGRADE_DB" <<'SQL'
+php -d memory_limit=-1 scripts/ci/mysql-tcp.php "$UPGRADE_DB" <<'SQL'
 INSERT INTO companies (name, sector, account_tier, pipeline_stage, company_status, created_at)
 VALUES ('Legacy Manufacturing SARL', 'Automotive', 'B', 'Prospect', 'approved', NOW()),
        ('Old-World Electronics', 'Industrial', 'C', 'MQL', 'approved', NOW());
@@ -93,7 +93,7 @@ fi
 echo "✓ preflight correctly blocked the destructive upgrade"
 
 step "preserve legacy compliance values (the deterministic preservation path)"
-docker exec -i crm-ci-mysql mysql -ucrm_test -pcrm_test_pw "$UPGRADE_DB" 2>/dev/null <<'SQL'
+php -d memory_limit=-1 scripts/ci/mysql-tcp.php "$UPGRADE_DB" 2>/dev/null <<'SQL'
 -- A compliance document row carrying sentinel legacy values that MUST
 -- survive the drop+recreate cycle.
 -- The populated DB being simulated reached an era where compliance_documents
@@ -130,7 +130,7 @@ SQL
 # below must detect and preserve them itself (that is its contract).
 
 step "preserve estimates data (documented operator step)"
-docker exec -i crm-ci-mysql mysql -ucrm_test -pcrm_test_pw "$UPGRADE_DB" <<'SQL'
+php -d memory_limit=-1 scripts/ci/mysql-tcp.php "$UPGRADE_DB" <<'SQL'
 CREATE TABLE IF NOT EXISTS legacy_estimates_preserved AS SELECT * FROM estimates;
 DELETE FROM estimates;
 -- Preserve the legacy subscribed flag too (documented operator step): the
@@ -158,7 +158,7 @@ APP_ENV=test php bin/console app:migrations:safe-migrate || {
 }
 
 step "verify compliance legacy values restored byte-for-byte"
-RESTORED=$(docker exec crm-ci-mysql mysql -N -ucrm_test -pcrm_test_pw "$UPGRADE_DB" -e "SELECT CONCAT(IFNULL(sha256_hash,'-'), '|', IFNULL(JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.legacy_document_type')),'-'), '|', IFNULL(version_id,'-')) FROM compliance_documents WHERE name = 'Legacy ISO Certificate';" 2>/dev/null)
+RESTORED=$(php -d memory_limit=-1 scripts/ci/mysql-tcp.php "$UPGRADE_DB" -e "SELECT CONCAT(IFNULL(sha256_hash,'-'), '|', IFNULL(JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.legacy_document_type')),'-'), '|', IFNULL(version_id,'-')) FROM compliance_documents WHERE name = 'Legacy ISO Certificate';" 2>/dev/null)
 EXPECTED="aaa7f3a9c1d2e5b80917263544556677889900aabbccddeeff1122334455667|SENTINEL_DOCTYPE_7f3a|SENTINEL_VER_9b2c"
 if [ "$RESTORED" != "$EXPECTED" ]; then
   echo "✖ compliance legacy values NOT preserved: got [$RESTORED] expected [$EXPECTED]" >&2
@@ -167,12 +167,12 @@ fi
 echo "✓ compliance sha256/version/document_type preserved across drop+recreate"
 
 step "verify business-history invariants"
-read -r COMPANIES CONTACTS < <(docker exec crm-ci-mysql mysql -N -ucrm_test -pcrm_test_pw "$UPGRADE_DB" -e "SELECT (SELECT COUNT(*) FROM companies), (SELECT COUNT(*) FROM contacts);" | awk '{print $1, $2}')
+read -r COMPANIES CONTACTS < <(php -d memory_limit=-1 scripts/ci/mysql-tcp.php "$UPGRADE_DB" -e "SELECT (SELECT COUNT(*) FROM companies), (SELECT COUNT(*) FROM contacts);" | awk '{print $1, $2}')
 if [ "$COMPANIES" != "2" ] || [ "$CONTACTS" != "2" ]; then
   echo "✖ business history lost across upgrade: companies=$COMPANIES contacts=$CONTACTS (expected 2/2)" >&2
   exit 1
 fi
-PRESERVED=$(docker exec crm-ci-mysql mysql -N -ucrm_test -pcrm_test_pw "$UPGRADE_DB" -e "SELECT COUNT(*) FROM legacy_estimates_preserved;")
+PRESERVED=$(php -d memory_limit=-1 scripts/ci/mysql-tcp.php "$UPGRADE_DB" -e "SELECT COUNT(*) FROM legacy_estimates_preserved;")
 if [ "$PRESERVED" != "1" ]; then
   echo "✖ preserved estimates rows missing after upgrade ($PRESERVED)" >&2
   exit 1
