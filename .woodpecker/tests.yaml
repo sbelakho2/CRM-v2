@@ -160,7 +160,9 @@ steps:
         php -d memory_limit=-1 tests/e2e/seed.php
         php -S 127.0.0.1:8080 -t public >/tmp/php-server.log 2>&1 &
         SERVER_PID=$!
-        trap 'kill $SERVER_PID 2>/dev/null || true; lsof -ti :8080 | xargs kill -9 2>/dev/null || true' EXIT
+        # Preserve the script's real exit status: cleanup kill noise must
+        # never flip a green run to failure (pipeline 54 flake).
+        trap 'rc=$?; kill $SERVER_PID 2>/dev/null || true; lsof -ti :8080 | xargs kill -9 2>/dev/null || true; exit $rc' EXIT
         for i in $(seq 1 30); do
           curl -sf http://localhost:8080/login >/dev/null && break
           sleep 1
